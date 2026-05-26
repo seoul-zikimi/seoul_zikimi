@@ -3,10 +3,12 @@ using UnityEngine;
 namespace Player
 {
     [UnityEngine.RequireComponent(typeof(UnityEngine.Rigidbody), typeof(PlayerMovement), typeof(PlayerBounce))]
+    [UnityEngine.RequireComponent(typeof(PlayerDustTrail))]
     public class PlayerUnit : MonoBehaviour, IPlayerProduct
     {
         private PlayerMovement m_Movement;
-        private PlayerBounce m_Bounce;
+        private PlayerBounce   m_Bounce;
+        private PlayerDustTrail m_DustTrail;
 
         public string ProductName { get; set; }
 
@@ -22,11 +24,13 @@ namespace Player
             m_Bounce.Init(config);
 
             Rigidbody rb = GetComponent<Rigidbody>();
-            GetComponent<Rigidbody>();
             rb.constraints = RigidbodyConstraints.FreezePositionY
                              | RigidbodyConstraints.FreezeRotationX
                              | RigidbodyConstraints.FreezeRotationY
                              | RigidbodyConstraints.FreezeRotationZ;
+
+            m_DustTrail = GetComponent<PlayerDustTrail>();
+            m_DustTrail.Init(config, rb);
         }
     }
 }

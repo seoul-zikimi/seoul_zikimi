@@ -8,6 +8,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/ThirdParty/Feel/FeelDemos/Wheel/FeelWheel.unity
+    guid: 3348d597afee2d14cac482c32849c3a7
+  - enabled: 1
+    path: Assets/ThirdParty/Feel/FeelDemos/Bounce/FeelBounce.unity
+    guid: f95231205f5c99c479eb98d562d4108f
+  - enabled: 1
+    path: Assets/ThirdParty/Feel/MMTools/Core/MMSceneLoading/LoadingScreens/MMAdditiveLoadingScreenSimple.unity
+    guid: 945e5b97212e8e74ebcd35bddde3970c
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

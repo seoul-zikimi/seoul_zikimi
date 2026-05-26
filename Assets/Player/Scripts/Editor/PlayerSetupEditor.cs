@@ -31,13 +31,22 @@ public static class PlayerSetupEditor
         File.Copy(k_FontSrc, k_FontDest, overwrite: true);
         AssetDatabase.Refresh();
 
-        var srcFont = AssetDatabase.LoadAssetAtPath<Font>(k_FontDest);
+        var srcFont   = AssetDatabase.LoadAssetAtPath<Font>(k_FontDest);
         var fontAsset = TMP_FontAsset.CreateFontAsset(
             srcFont, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024,
             AtlasPopulationMode.Dynamic);
 
         AssetDatabase.CreateAsset(fontAsset, k_TmpFont);
+
+        // atlas 텍스처를 sub-asset으로 저장 (없으면 런타임 전까지 경고 발생)
+        foreach (var tex in fontAsset.atlasTextures)
+        {
+            if (tex != null && !AssetDatabase.IsSubAsset(tex))
+                AssetDatabase.AddObjectToAsset(tex, fontAsset);
+        }
+
         AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
         Debug.Log("[PlayerSetup] 한글폰트 완료: " + k_TmpFont);
     }
 
@@ -62,6 +71,10 @@ public static class PlayerSetupEditor
 
         root.AddComponent<PlayerMovement>();
         root.AddComponent<PlayerBounce>();
+        var dustTrail = root.AddComponent<PlayerDustTrail>();
+        var smokePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+            "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Misc/CFXR Smoke Source 3D.prefab");
+        if (smokePrefab != null) dustTrail.SmokePrefab = smokePrefab;
         root.AddComponent<PlayerUnit>();
 
         // 시각화용 Cylinder (Collider 제거)
@@ -145,11 +158,16 @@ public static class PlayerSetupEditor
         textRect.offsetMin = textRect.offsetMax = Vector2.zero;
 
         var tmp       = textGO.AddComponent<TextMeshProUGUI>();
-        tmp.text      = label;
         tmp.fontSize  = 20;
         tmp.color     = Color.white;
         tmp.alignment = TextAlignmentOptions.Center;
-        if (font != null) tmp.font = font;
+        if (font != null)
+        {
+            var so = new SerializedObject(tmp);
+            so.FindProperty("m_fontAsset").objectReferenceValue = font;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+        tmp.text = label; // font 주입 후 text 설정 — OnValidate 초기화 순서 보장
 
         return btn;
     }

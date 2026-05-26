@@ -103,6 +103,7 @@ GameObject:
   - component: {fileID: 7178979622744532338}
   - component: {fileID: 2194014629251321940}
   - component: {fileID: 805131596500067866}
+  - component: {fileID: 7856216561137686554}
   - component: {fileID: 6703730824583041007}
   m_Layer: 0
   m_Name: PlayerUnit
@@ -201,6 +202,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bde210ed2141ac4c96673a214364b2d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerBounce
+--- !u!114 &7856216561137686554
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7223451131215545806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34c35f4428d8d094691bb54854eb204d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerDustTrail
+  m_SmokePrefab: {fileID: 8656522925564163052, guid: e509867be4f82f246a95eca1ee5a2d61, type: 3}
 --- !u!114 &6703730824583041007
 MonoBehaviour:
   m_ObjectHideFlags: 0

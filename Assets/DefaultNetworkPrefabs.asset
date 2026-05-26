@@ -9,11 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 25418e55cd7a0ad4e89bb463969080b5, type: 3}
-  m_Name: PlayerConfig
-  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerConfigSO
-  MoveSpeed: 5
-  ReboundForce: 1
-  BounceHeight: 1.5
-  BounceDuration: 0.4
-  DustSize: 1.5
+  m_Script: {fileID: 11500000, guid: e651dbb3fbac04af2b8f5abf007ddc23, type: 3}
+  m_Name: DefaultNetworkPrefabs
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkPrefabsList
+  IsDefault: 1
+  List: []
