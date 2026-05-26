@@ -10,14 +10,16 @@ namespace Player
         private PlayerConfigSO m_Config;
         private Transform m_Body;
         private bool m_IsBouncing;
+        private DG.Tweening.TweenCallback m_OnBounceComplete; // 람다 캐싱 — bounce마다 alloc 방지
 
         public System.Action OnBounce;
 
         public void Init(PlayerConfigSO config)
         {
-            m_Rb     = GetComponent<Rigidbody>();
-            m_Config = config;
-            m_Body   = transform.Find("Body");
+            m_Rb               = GetComponent<Rigidbody>();
+            m_Config           = config;
+            m_Body             = transform.Find("Body");
+            m_OnBounceComplete = () => m_IsBouncing = false; // 1회만 할당
         }
 
         private void OnCollisionEnter(Collision collision)
@@ -25,7 +27,7 @@ namespace Player
             if (m_IsBouncing) return;
             if (!collision.gameObject.CompareTag("Player")) return;
 
-            Vector3 bounceDir = collision.contacts[0].normal;
+            Vector3 bounceDir = collision.GetContact(0).normal;
             bounceDir.y = 0;
             if (bounceDir == Vector3.zero) return;
 
@@ -42,7 +44,7 @@ namespace Player
                 m_Body.DOPunchPosition(
                     Vector3.up * m_Config.BounceHeight,
                     m_Config.BounceDuration, 1, 0.5f)
-                    .OnComplete(() => m_IsBouncing = false);
+                    .OnComplete(m_OnBounceComplete);
                 m_Body.DOPunchScale(
                     new Vector3(-0.15f, 0.35f, -0.15f),
                     m_Config.BounceDuration, 1, 0.5f);
