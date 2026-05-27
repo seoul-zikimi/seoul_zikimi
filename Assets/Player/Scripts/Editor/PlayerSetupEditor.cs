@@ -18,7 +18,13 @@ public static class PlayerSetupEditor
     const string k_TmpFont      = "Assets/Player/Fonts/MalgunGothic_TMP.asset";
     const string k_PlayerPrefab = "Assets/Player/Prefabs/PlayerUnit.prefab";
     const string k_TestUIPrefab = "Assets/Player/Prefabs/PlayerTestUI.prefab";
-    const string k_InputActions = "Assets/Player/Input/PlayerControls.inputactions";
+    const string k_InputActions  = "Assets/Player/Input/PlayerControls.inputactions";
+    const string k_PlayerConfig  = "Assets/Player/Data/PlayerConfig.asset";
+
+    const string k_FxHitDYellow  = "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Impacts/CFXR Hit D 3D (Yellow).prefab";
+    const string k_FxHitMiscA    = "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Misc/CFXR3 Hit Misc A.prefab";
+    const string k_FxHitMiscSmoke= "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Misc/CFXR3 Hit Misc F Smoke.prefab";
+    const string k_FxBoing       = "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Texts/CFXR _BOING_.prefab";
 
     // ─────────────────────────────────────────────
     [MenuItem("Player Setup/1. Import Korean Font")]
@@ -103,7 +109,14 @@ public static class PlayerSetupEditor
 
         var korFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(k_TmpFont);
         if (korFont == null)
-            Debug.LogWarning("[PlayerSetup] 한글폰트 없음 — Step 1 먼저 실행");
+        {
+            Debug.LogError("[PlayerSetup] 한글폰트 없음 — Step 1 먼저 실행");
+            return;
+        }
+
+        // Dynamic atlas는 editor에서 자동 populate 안 됨 → 버튼 글자 미리 주입
+        korFont.TryAddCharacters("생성모이기초화");
+        AssetDatabase.SaveAssets();
 
         // Canvas
         var canvasGO = new GameObject("PlayerTestUI");
@@ -144,6 +157,28 @@ public static class PlayerSetupEditor
         Object.DestroyImmediate(canvasGO);
         AssetDatabase.Refresh();
         Debug.Log("[PlayerSetup] TestUI 프리팹 완료: " + k_TestUIPrefab);
+    }
+
+    // ─────────────────────────────────────────────
+    [MenuItem("Player Setup/4. Wire Bounce Effects to PlayerConfig")]
+    static void WireBounceEffects()
+    {
+        var config = AssetDatabase.LoadAssetAtPath<PlayerConfigSO>(k_PlayerConfig);
+        if (config == null)
+        {
+            Debug.LogError("[PlayerSetup] PlayerConfig.asset 없음: " + k_PlayerConfig);
+            return;
+        }
+
+        var so = new SerializedObject(config);
+        so.FindProperty("BounceEffectHitDYellow") .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitDYellow);
+        so.FindProperty("BounceEffectHitMiscA")   .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitMiscA);
+        so.FindProperty("BounceEffectHitMiscFSmoke").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitMiscSmoke);
+        so.FindProperty("BounceEffectBoing")      .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxBoing);
+        so.ApplyModifiedProperties();
+
+        AssetDatabase.SaveAssets();
+        Debug.Log("[PlayerSetup] Bounce 이펙트 연결 완료: " + k_PlayerConfig);
     }
 
     // ─────────────────────────────────────────────
@@ -243,12 +278,8 @@ public static class PlayerSetupEditor
         tmp.color     = Color.white;
         tmp.alignment = TextAlignmentOptions.Center;
         if (font != null)
-        {
-            var so = new SerializedObject(tmp);
-            so.FindProperty("m_fontAsset").objectReferenceValue = font;
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
-        tmp.text = label; // font 주입 후 text 설정 — OnValidate 초기화 순서 보장
+            tmp.font = font;
+        tmp.text = label;
 
         return btn;
     }
