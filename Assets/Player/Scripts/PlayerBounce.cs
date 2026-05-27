@@ -27,6 +27,7 @@ namespace Player
         private bool m_IsBouncing;
         private DG.Tweening.TweenCallback m_OnBounceComplete; // 람다 캐싱 — bounce마다 alloc 방지
 
+        public bool IsBouncing => m_IsBouncing;
         public System.Action OnBounce;
 
         public void Init(PlayerConfigSO config)

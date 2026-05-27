@@ -4,6 +4,9 @@ using UnityEditor.Events;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Unity.Cinemachine;
+using Unity.Netcode;
+using Unity.Netcode.Components;
 using Player;
 using Player.Test;
 using UnityEngine.TextCore.LowLevel;
@@ -15,6 +18,7 @@ public static class PlayerSetupEditor
     const string k_TmpFont      = "Assets/Player/Fonts/MalgunGothic_TMP.asset";
     const string k_PlayerPrefab = "Assets/Player/Prefabs/PlayerUnit.prefab";
     const string k_TestUIPrefab = "Assets/Player/Prefabs/PlayerTestUI.prefab";
+    const string k_InputActions = "Assets/Player/Input/PlayerControls.inputactions";
 
     // ─────────────────────────────────────────────
     [MenuItem("Player Setup/1. Import Korean Font")]
@@ -140,6 +144,83 @@ public static class PlayerSetupEditor
         Object.DestroyImmediate(canvasGO);
         AssetDatabase.Refresh();
         Debug.Log("[PlayerSetup] TestUI 프리팹 완료: " + k_TestUIPrefab);
+    }
+
+    // ─────────────────────────────────────────────
+    [MenuItem("Player Setup/5. Setup Camera Arm + NGO on PlayerUnit")]
+    static void SetupCameraArm()
+    {
+        var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(k_PlayerPrefab);
+        if (prefabAsset == null)
+        {
+            Debug.LogError("[PlayerSetup] PlayerUnit.prefab 없음 — Step 2 먼저 실행");
+            return;
+        }
+
+        using (var scope = new PrefabUtility.EditPrefabContentsScope(k_PlayerPrefab))
+        {
+            var root = scope.prefabContentsRoot;
+
+            // ── NGO 컴포넌트 (없는 경우만 추가) ────────────────────
+            if (root.GetComponent<NetworkObject>() == null)
+                root.AddComponent<NetworkObject>();
+            if (root.GetComponent<ClientNetworkTransform>() == null)
+                root.AddComponent<ClientNetworkTransform>();
+            if (root.GetComponent<PlayerInputHandler>() == null)
+                root.AddComponent<PlayerInputHandler>();
+
+            // 기존 CameraArm 있으면 제거 후 재생성
+            var existing = root.transform.Find("CameraArm");
+            if (existing != null)
+                Object.DestroyImmediate(existing.gameObject);
+
+            // ── CameraArm (수평 회전 피벗) ──────────────────────
+            var armGO = new GameObject("CameraArm");
+            armGO.transform.SetParent(root.transform, false);
+            armGO.transform.localPosition = new Vector3(0f, 1f, 0f); // 플레이어 허리 높이
+
+            // ── CinemachineCamera ────────────────────────────────
+            var camGO = new GameObject("CinemachineCamera");
+            camGO.transform.SetParent(armGO.transform, false);
+
+            // 기본 쿼터뷰: 45도 앙각, distance=10
+            // y = distance * sin(45°) ≈ 7.07
+            // z = -distance * cos(45°) ≈ -7.07
+            camGO.transform.localPosition = new Vector3(0f, 7.07f, -7.07f);
+            camGO.transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+
+            var vcam = camGO.AddComponent<CinemachineCamera>();
+            vcam.Priority = 10;
+
+            camGO.AddComponent<PlayerCameraController>();
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("[PlayerSetup] CameraArm + NGO 구성 완료: " + k_PlayerPrefab);
+    }
+
+    // ─────────────────────────────────────────────
+    [MenuItem("Player Setup/6. Generate PlayerControls C# Class")]
+    static void GenerateInputActionsClass()
+    {
+        var importer = AssetImporter.GetAtPath(k_InputActions);
+        if (importer == null)
+        {
+            Debug.LogError("[PlayerSetup] PlayerControls.inputactions 없음: " + k_InputActions);
+            return;
+        }
+
+        var so = new SerializedObject(importer);
+        so.FindProperty("m_GenerateWrapperCode").boolValue    = true;
+        so.FindProperty("m_WrapperClassName").stringValue     = "PlayerControls";
+        so.FindProperty("m_WrapperCodePath").stringValue      = ""; // 같은 폴더에 생성
+        so.FindProperty("m_WrapperCodeNamespace").stringValue = "";
+        so.ApplyModifiedProperties();
+
+        AssetDatabase.ImportAsset(k_InputActions, ImportAssetOptions.ForceUpdate);
+        AssetDatabase.Refresh();
+        Debug.Log("[PlayerSetup] PlayerControls.cs 생성 완료 → Assets/Player/Input/");
     }
 
     // ─────────────────────────────────────────────
