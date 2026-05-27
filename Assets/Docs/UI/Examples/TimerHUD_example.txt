@@ -1,0 +1,22 @@
+// [TEMPLATE] HUD 예시 — Assets에 없음, 컴파일 안 함
+// 실제 구현 시 Scripts/UI/HUD/TimerHUD.cs 로 복사 후 수정
+// 프리팹 저장 경로: Assets/Resources/UI/HUD/TimerHUD
+
+using TMPro;
+using UnityEngine;
+
+public class TimerHUD : UIHUD
+{
+    enum Texts { Txt_Timer }
+
+    public override void Init()
+    {
+        Bind<TextMeshProUGUI>(typeof(Texts));
+    }
+
+    public void SetTimer(float seconds)
+    {
+        Get<TextMeshProUGUI>((int)Texts.Txt_Timer).text =
+            $"{(int)seconds / 60:00}:{(int)seconds % 60:00}";
+    }
+}
