@@ -37,6 +37,13 @@ namespace Player
                 return;
             }
             // owner: dynamic Rigidbody 유지 (InitComponents에서 constraints 설정됨)
+
+            // ── Smooth Follow: 카메라가 플레이어를 딜레이와 함께 부드럽게 추적 ──
+            if (m_CameraArm != null)
+            {
+                var follow = m_CameraArm.gameObject.AddComponent<PlayerCameraFollow>();
+                follow.Init(transform);
+            }
         }
 
         private void FixedUpdate()
@@ -66,6 +73,7 @@ namespace Player
                            | RigidbodyConstraints.FreezeRotationX
                            | RigidbodyConstraints.FreezeRotationY
                            | RigidbodyConstraints.FreezeRotationZ;
+            rb.interpolation = RigidbodyInterpolation.Interpolate; // 물리→렌더 프레임 보간
 
             m_Movement = GetComponent<PlayerMovement>();
             m_Movement.Init(config);
