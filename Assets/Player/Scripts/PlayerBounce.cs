@@ -84,6 +84,7 @@ namespace Player
                 m_IsBouncing = false;
             }
 
+            SoundManager.Instance.PlaySFX(SFXType.PlayerBounce);
             OnBounce?.Invoke();
         }
 
