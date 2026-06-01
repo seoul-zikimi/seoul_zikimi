@@ -17,7 +17,8 @@ public static class PlayerSetupEditor
     const string k_FontDest     = "Assets/Player/Fonts/malgun.ttf";
     const string k_TmpFont      = "Assets/Player/Fonts/MalgunGothic_TMP.asset";
     const string k_PlayerPrefab = "Assets/Player/Prefabs/PlayerUnit.prefab";
-    const string k_TestUIPrefab = "Assets/Player/Prefabs/PlayerTestUI.prefab";
+    const string k_TestUIPrefab     = "Assets/Player/Prefabs/PlayerTestUI.prefab";
+    const string k_TestUIPrefabDocs = "Assets/Docs/PlayerTest/PlayerTestUI.prefab";
     const string k_InputActions  = "Assets/Player/Input/PlayerControls.inputactions";
     const string k_PlayerConfig  = "Assets/Player/Data/PlayerConfig.asset";
 
@@ -25,6 +26,14 @@ public static class PlayerSetupEditor
     const string k_FxHitMiscA    = "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Misc/CFXR3 Hit Misc A.prefab";
     const string k_FxHitMiscSmoke= "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Misc/CFXR3 Hit Misc F Smoke.prefab";
     const string k_FxBoing       = "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Texts/CFXR _BOING_.prefab";
+
+    const string k_SprintFxBase     = "Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/";
+    const string k_SprintWindTrails = "Nature/CFXR4 Wind Trails.prefab";
+    const string k_SprintLightGlow  = "Light/CFXR3 LightGlow A (Loop).prefab";
+    const string k_SprintGlowHDR    = "Impacts/CFXR Impact Glowing HDR (Blue).prefab";
+    const string k_SprintAmbient    = "Misc/CFXR3 Ambient Glows.prefab";
+    const string k_SprintBouncing   = "Magic Misc/CFXR4 Bouncing Glows Bubble (Blue Purple).prefab";
+
 
     // ─────────────────────────────────────────────
     [MenuItem("Player Setup/1. Import Korean Font")]
@@ -43,18 +52,38 @@ public static class PlayerSetupEditor
 
         var srcFont   = AssetDatabase.LoadAssetAtPath<Font>(k_FontDest);
         var fontAsset = TMP_FontAsset.CreateFontAsset(
-            srcFont, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024,
+            srcFont, 90, 9, GlyphRenderMode.SDFAA, 2048, 2048,
             AtlasPopulationMode.Dynamic);
 
+        // 에셋 먼저 저장 (AddObjectToAsset 전 필수)
         AssetDatabase.CreateAsset(fontAsset, k_TmpFont);
 
-        // atlas 텍스처를 sub-asset으로 저장 (없으면 런타임 전까지 경고 발생)
+        // ASCII로 atlas 워밍업 → 첫 한글 호출 전 초기화 보장
+        fontAsset.TryAddCharacters("abcdefghijklmnopqrstuvwxyz ");
+        // UI 버튼에 쓸 문자 주입
+        fontAsset.TryAddCharacters("생성모이기초화대시달리기");
+
+        // atlas 텍스처를 sub-asset으로 저장
+        bool textureAdded = false;
         foreach (var tex in fontAsset.atlasTextures)
         {
             if (tex != null && !AssetDatabase.IsSubAsset(tex))
+            {
                 AssetDatabase.AddObjectToAsset(tex, fontAsset);
+                textureAdded = true;
+            }
         }
 
+        // TryAddCharacters 후에도 텍스처가 없으면 빈 텍스처 수동 생성
+        // (런타임에 Dynamic이 자동으로 채워줌)
+        if (!textureAdded)
+        {
+            var fallback = new Texture2D(2048, 2048, TextureFormat.Alpha8, false);
+            fallback.name = "Atlas";
+            AssetDatabase.AddObjectToAsset(fallback, fontAsset);
+        }
+
+        EditorUtility.SetDirty(fontAsset);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("[PlayerSetup] 한글폰트 완료: " + k_TmpFont);
@@ -115,7 +144,9 @@ public static class PlayerSetupEditor
         }
 
         // Dynamic atlas는 editor에서 자동 populate 안 됨 → 버튼 글자 미리 주입
-        korFont.TryAddCharacters("생성모이기초화");
+        korFont.TryAddCharacters("abcdefghijklmnopqrstuvwxyz ");  // 워밍업
+        korFont.TryAddCharacters("생성모이기초화대시달리기");
+        EditorUtility.SetDirty(korFont);
         AssetDatabase.SaveAssets();
 
         // Canvas
@@ -130,7 +161,7 @@ public static class PlayerSetupEditor
         panel.transform.SetParent(canvasGO.transform, false);
         panel.AddComponent<Image>().color = new Color(0, 0, 0, 0.5f);
         var panelRect        = panel.GetComponent<RectTransform>();
-        panelRect.anchorMin  = new Vector2(0f, 0.7f);
+        panelRect.anchorMin  = new Vector2(0f, 0.6f);
         panelRect.anchorMax  = new Vector2(0.25f, 1f);
         panelRect.offsetMin  = panelRect.offsetMax = Vector2.zero;
 
@@ -145,15 +176,19 @@ public static class PlayerSetupEditor
         var testUI = canvasGO.AddComponent<PlayerTestUI>();
 
         // 버튼 + OnClick 연결
-        var spawnBtn  = MakeButton(panel, "Button_Spawn",  "생성",   korFont);
-        var gatherBtn = MakeButton(panel, "Button_Gather", "모이기",  korFont);
-        var clearBtn  = MakeButton(panel, "Button_Clear",  "초기화",  korFont);
+        var spawnBtn        = MakeButton(panel, "Button_Spawn",        "생성",       korFont);
+        var gatherBtn       = MakeButton(panel, "Button_Gather",       "모이기",      korFont);
+        var sprintGatherBtn = MakeButton(panel, "Button_SprintGather", "대시 모이기", korFont);
+        var clearBtn        = MakeButton(panel, "Button_Clear",        "초기화",      korFont);
 
-        UnityEventTools.AddPersistentListener(spawnBtn.onClick,  testUI.OnSpawnClicked);
-        UnityEventTools.AddPersistentListener(gatherBtn.onClick, testUI.OnGatherClicked);
-        UnityEventTools.AddPersistentListener(clearBtn.onClick,  testUI.OnClearClicked);
+        UnityEventTools.AddPersistentListener(spawnBtn.onClick,        testUI.OnSpawnClicked);
+        UnityEventTools.AddPersistentListener(gatherBtn.onClick,       testUI.OnGatherClicked);
+        UnityEventTools.AddPersistentListener(sprintGatherBtn.onClick, testUI.OnSprintGatherClicked);
+        UnityEventTools.AddPersistentListener(clearBtn.onClick,        testUI.OnClearClicked);
 
+        // Player/Prefabs 와 Docs/PlayerTest 양쪽에 저장
         PrefabUtility.SaveAsPrefabAsset(canvasGO, k_TestUIPrefab);
+        PrefabUtility.SaveAsPrefabAsset(canvasGO, k_TestUIPrefabDocs);
         Object.DestroyImmediate(canvasGO);
         AssetDatabase.Refresh();
         Debug.Log("[PlayerSetup] TestUI 프리팹 완료: " + k_TestUIPrefab);
@@ -171,14 +206,20 @@ public static class PlayerSetupEditor
         }
 
         var so = new SerializedObject(config);
-        so.FindProperty("BounceEffectHitDYellow") .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitDYellow);
-        so.FindProperty("BounceEffectHitMiscA")   .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitMiscA);
+        so.FindProperty("BounceEffectHitDYellow")   .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitDYellow);
+        so.FindProperty("BounceEffectHitMiscA")     .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitMiscA);
         so.FindProperty("BounceEffectHitMiscFSmoke").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxHitMiscSmoke);
-        so.FindProperty("BounceEffectBoing")      .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxBoing);
+        so.FindProperty("BounceEffectBoing")        .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_FxBoing);
+
+        so.FindProperty("SprintFxWindTrails") .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_SprintFxBase + k_SprintWindTrails);
+        so.FindProperty("SprintFxLightGlow")  .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_SprintFxBase + k_SprintLightGlow);
+        so.FindProperty("SprintFxGlowingHDR") .objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_SprintFxBase + k_SprintGlowHDR);
+        so.FindProperty("SprintFxAmbientGlows").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_SprintFxBase + k_SprintAmbient);
+        so.FindProperty("SprintFxBouncingGlows").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(k_SprintFxBase + k_SprintBouncing);
         so.ApplyModifiedProperties();
 
         AssetDatabase.SaveAssets();
-        Debug.Log("[PlayerSetup] Bounce 이펙트 연결 완료: " + k_PlayerConfig);
+        Debug.Log("[PlayerSetup] Bounce + Sprint FX 연결 완료: " + k_PlayerConfig);
     }
 
     // ─────────────────────────────────────────────

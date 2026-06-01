@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: PlayerConfig
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerConfigSO
   MoveSpeed: 5
+  SprintSpeed: 9
   ReboundForce: 1
   BounceHeight: 1.5
   BounceDuration: 0.4
@@ -23,3 +24,6 @@ MonoBehaviour:
   BounceEffectHitMiscFSmoke: {fileID: 141433446842962269, guid: 9fe8f8b3288e45a44af36ff8aa04486e, type: 3}
   BounceEffectBoing: {fileID: 8547867254204328264, guid: cf378989e15716e40a61692dcd97e628, type: 3}
   DustSize: 1.5
+  SprintCoreWidth: 0.5
+  SprintGlowWidth: 1
+  SprintTrailTime: 0.3

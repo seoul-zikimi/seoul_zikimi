@@ -8,7 +8,8 @@ namespace Player.Test
         [SerializeField] private ConcretePlayerFactory m_Factory;
         [SerializeField] private float m_SpawnRadius = 5f;
         [SerializeField] private int m_SpawnCount = 4;
-        [SerializeField] private float m_GatherSpeed = 5f;
+        [SerializeField] private float m_GatherSpeed       = 5f;
+        [SerializeField] private float m_SprintGatherSpeed = 9f;  // SprintSpeed 기본값과 맞춤
 
         private List<PlayerUnit> m_SpawnedPlayers = new();
 
@@ -33,6 +34,16 @@ namespace Player.Test
             }
         }
         
+        public void OnSprintGatherClicked()
+        {
+            foreach (var u in m_SpawnedPlayers)
+            {
+                if (u == null) continue;
+                GatherDriver driver = u.gameObject.AddComponent<GatherDriver>();
+                driver.Begin(Vector3.zero, m_SprintGatherSpeed);
+            }
+        }
+
         public void OnClearClicked()
         {
             foreach (var u in m_SpawnedPlayers)

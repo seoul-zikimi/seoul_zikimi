@@ -14,13 +14,13 @@ namespace Player
         }
 
         // 카메라 forward 기준 이동 (FixedUpdate에서 호출)
-        public void Move(Vector2 input, Transform cameraArm)
+        public void Move(Vector2 input, Transform cameraArm, bool isSprinting = false)
         {
             Vector3 forward = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             Vector3 right   = Vector3.ProjectOnPlane(cameraArm.right,   Vector3.up).normalized;
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
-            m_Rb.linearVelocity = dir * m_Config.MoveSpeed;
+            m_Rb.linearVelocity = dir * (isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed);
         }
     }
 }

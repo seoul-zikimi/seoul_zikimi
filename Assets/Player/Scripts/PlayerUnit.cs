@@ -51,7 +51,7 @@ namespace Player
             if (!IsOwner) return;
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
-            m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm);
+            m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm, m_InputHandler.IsSprinting);
         }
 
         // ── Factory 테스트 경로 ───────────────────────────────────────────
