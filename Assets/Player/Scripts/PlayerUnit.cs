@@ -16,6 +16,13 @@ namespace Player
         private PlayerInputHandler m_InputHandler;
         private Transform          m_CameraArm;
         private CinemachineCamera  m_CinemachineCamera;
+        private Rigidbody          m_Rb;
+
+        // 원격 클라에 이동/스프린트 상태 복제 → 먼지·스프린트 트레일 동기화 (owner가 write)
+        private readonly NetworkVariable<bool> m_NetMoving = new(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<bool> m_NetSprinting = new(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
         public string ProductName { get; set; }
 
@@ -54,6 +61,50 @@ namespace Player
             m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm, m_InputHandler.IsSprinting);
         }
 
+        // ── 이동 FX 동기화 ────────────────────────────────────────────────
+        // owner: Rigidbody 속도로 상태 산출 → 로컬 적용 + NetworkVariable로 복제.
+        // 원격: 복제된 상태로 적용 (transform 추정은 네트워크 틱 단위라 스파이크/끊김 → 의도값 사용).
+        private void Update()
+        {
+            if (m_DustTrail == null || m_Config == null || m_Rb == null) return;
+
+            bool moving, sprinting;
+            if (IsSpawned && !IsOwner)
+            {
+                moving    = m_NetMoving.Value;
+                sprinting = m_NetSprinting.Value;
+            }
+            else
+            {
+                float speed = m_Rb.linearVelocity.magnitude;
+                moving    = speed > 0.2f;
+                sprinting = speed > m_Config.MoveSpeed + 0.5f;
+                if (IsSpawned) // owner → 원격에 복제
+                {
+                    m_NetMoving.Value    = moving;
+                    m_NetSprinting.Value = sprinting;
+                }
+            }
+            m_DustTrail.Apply(moving, sprinting);
+        }
+
+        // ── 충돌 FX 멀티캐스트 ─────────────────────────────────────────────
+        // owner가 충돌을 감지하면 서버 경유로 나머지 클라이언트에 동일한 피드백을 복제한다.
+        // (owner 자신은 로컬에서 이미 재생했으므로 SendTo.NotOwner로 제외)
+        private void ReplicateBounce(Vector3 point, bool spawnParticle)
+        {
+            if (!IsSpawned) return; // 테스트(비네트워크) 경로: 로컬 재생만
+            RequestBounceFXRpc(point, spawnParticle);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestBounceFXRpc(Vector3 point, bool spawnParticle)
+            => PlayBounceFXRpc(point, spawnParticle);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PlayBounceFXRpc(Vector3 point, bool spawnParticle)
+            => m_Bounce.PlayBounceFeedback(point, spawnParticle);
+
         // ── Factory 테스트 경로 ───────────────────────────────────────────
         public void Initialize(PlayerConfigSO config)
         {
@@ -67,22 +118,24 @@ namespace Player
         private void InitComponents(PlayerConfigSO config)
         {
             if (config == null) return;
+            m_Config = config; // 런타임 활성 config 통일 (NGO=serialized, 테스트=주입)
 
-            Rigidbody rb  = GetComponent<Rigidbody>();
-            rb.constraints = RigidbodyConstraints.FreezePositionY
-                           | RigidbodyConstraints.FreezeRotationX
-                           | RigidbodyConstraints.FreezeRotationY
-                           | RigidbodyConstraints.FreezeRotationZ;
-            rb.interpolation = RigidbodyInterpolation.Interpolate; // 물리→렌더 프레임 보간
+            m_Rb = GetComponent<Rigidbody>();
+            m_Rb.constraints = RigidbodyConstraints.FreezePositionY
+                             | RigidbodyConstraints.FreezeRotationX
+                             | RigidbodyConstraints.FreezeRotationY
+                             | RigidbodyConstraints.FreezeRotationZ;
+            m_Rb.interpolation = RigidbodyInterpolation.Interpolate; // 물리→렌더 프레임 보간
 
             m_Movement = GetComponent<PlayerMovement>();
             m_Movement.Init(config);
 
             m_Bounce = GetComponent<PlayerBounce>();
             m_Bounce.Init(config);
+            m_Bounce.OnBounceReplicate = ReplicateBounce; // 충돌 FX 멀티캐스트
 
             m_DustTrail = GetComponent<PlayerDustTrail>();
-            m_DustTrail.Init(config, rb);
+            m_DustTrail.Init(config);
 
             m_InputHandler      = GetComponent<PlayerInputHandler>();
             m_CameraArm         = transform.Find("CameraArm");

@@ -9,14 +9,12 @@ namespace Player
         private ParticleSystem  m_Ps;
         private TrailRenderer[] m_SprintTrails;
         private PlayerConfigSO  m_Config;
-        private Rigidbody       m_Rb;
 
         public GameObject SmokePrefab { get => m_SmokePrefab; set => m_SmokePrefab = value; }
 
-        public void Init(PlayerConfigSO config, Rigidbody rb)
+        public void Init(PlayerConfigSO config)
         {
             m_Config = config;
-            m_Rb     = rb;
 
             if (m_SmokePrefab != null)
             {
@@ -143,13 +141,10 @@ namespace Player
             return null;
         }
 
-        private void Update()
+        // 이동/스프린트 상태를 받아 먼지·트레일 emission 적용.
+        // owner는 Rigidbody 속도로, 원격은 NetworkVariable 복제값으로 PlayerUnit이 호출.
+        public void Apply(bool isMoving, bool isSprinting)
         {
-            if (m_Rb == null) return;
-
-            bool isMoving    = m_Rb.linearVelocity.magnitude > 0.2f;
-            bool isSprinting = m_Rb.linearVelocity.magnitude > m_Config.MoveSpeed + 0.5f;
-
             // 회색 먼지 — 스프린트 중 끔
             if (m_Ps != null)
             {

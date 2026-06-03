@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
+using Unity.Netcode;
 using DG.Tweening;
 
 namespace Player
@@ -30,6 +31,10 @@ namespace Player
         public bool IsBouncing => m_IsBouncing;
         public System.Action OnBounce;
 
+        // 권한 보유 측(owner)이 충돌을 감지하면 다른 클라이언트로 피드백을 복제하도록 PlayerUnit이 주입.
+        // (contactPoint, spawnSharedParticle)
+        public System.Action<Vector3, bool> OnBounceReplicate;
+
         public void Init(PlayerConfigSO config)
         {
             m_Rb               = GetComponent<Rigidbody>();
@@ -42,6 +47,9 @@ namespace Player
         {
             if (m_IsBouncing) return;
             if (!collision.gameObject.CompareTag("Player")) return;
+            // 네트워크 경로: 자신이 Owner인 머신에서만 자기 충돌을 처리한다.
+            // 비권한 측에서도 OnCollisionEnter가 발생하므로 여기서 걸러 중복/오작동을 막는다.
+            if (!HasBounceAuthority()) return;
 
             var contact = collision.GetContact(0); // ContactPoint[] alloc 없음
             Vector3 bounceDir = contact.normal;
@@ -50,24 +58,35 @@ namespace Player
 
             m_IsBouncing = true;
 
-            // 수평 반동 (물리)
+            // 수평 반동 (물리) — owner의 dynamic Rigidbody에만 적용
             m_Rb.linearVelocity = Vector3.zero;
             m_Rb.AddForce(bounceDir.normalized * m_Config.ReboundForce, ForceMode.Impulse);
 
-            // 충돌 이펙트 — instanceID 높은 쪽만 스폰 (양쪽 중복 방지)
-            if (gameObject.GetInstanceID() > collision.gameObject.GetInstanceID())
-            {
-                var prefab = m_Config.GetBounceEffectPrefab();
-                if (prefab != null)
-                {
-                    var pool = GetOrCreatePool(prefab);
-                    var fx   = pool.Get();
-                    fx.transform.position = contact.point;
-                    StartCoroutine(ReleaseAfter(fx, pool, m_Config.BounceEffectDuration));
-                }
-            }
+            // 충돌 파티클은 양쪽 중 한 쪽만 스폰 (NetworkObjectId 비교 — 머신 간 일관)
+            bool spawnSharedParticle = ShouldOwnSharedFX(collision.gameObject);
 
-            // 오버쿡드 스타일 팝업 (비주얼만)
+            // owner 로컬 즉시 피드백 (반응성)
+            PlayBounceFeedback(contact.point, spawnSharedParticle);
+            // 나머지 클라이언트로 멀티캐스트 (PlayerUnit이 ClientRpc로 복제).
+            // 테스트(비네트워크) 경로에선 PlayerUnit이 IsSpawned 체크로 no-op → 로컬 재생만 남는다.
+            OnBounceReplicate?.Invoke(contact.point, spawnSharedParticle);
+
+            OnBounce?.Invoke();
+        }
+
+        /// <summary>충돌 피드백(바디 팝업 + 사운드 + 파티클). 멀티캐스트로 모든 클라이언트가 동일하게 호출.</summary>
+        public void PlayBounceFeedback(Vector3 point, bool spawnSharedParticle)
+        {
+            PlayBodyPunch();
+            if (SoundManager.Instance != null) // 씬에 SoundManager 없는 클라 방어
+                SoundManager.Instance.PlaySFXAt(SFXType.PlayerBounce, point);
+            if (spawnSharedParticle)
+                SpawnBounceEffect(point);
+        }
+
+        // 오버쿡드 스타일 팝업 (비주얼만)
+        private void PlayBodyPunch()
+        {
             if (m_Body != null)
             {
                 m_Body.DOKill();
@@ -83,9 +102,38 @@ namespace Player
             {
                 m_IsBouncing = false;
             }
+        }
 
-            SoundManager.Instance.PlaySFX(SFXType.PlayerBounce);
-            OnBounce?.Invoke();
+        private void SpawnBounceEffect(Vector3 point)
+        {
+            var prefab = m_Config.GetBounceEffectPrefab();
+            if (prefab == null) return;
+
+            var pool = GetOrCreatePool(prefab);
+            var fx   = pool.Get();
+            fx.transform.position = point;
+            StartCoroutine(ReleaseAfter(fx, pool, m_Config.BounceEffectDuration));
+        }
+
+        // 네트워크 경로: Owner인 머신에서만 true. 테스트(비네트워크) 경로: 항상 true.
+        private bool HasBounceAuthority()
+        {
+            var nob = GetComponent<NetworkObject>();
+            return nob == null || !nob.IsSpawned || nob.IsOwner;
+        }
+
+        // 충돌 파티클을 어느 쪽이 스폰할지 — 양쪽 중복 방지
+        private bool ShouldOwnSharedFX(GameObject other)
+        {
+            var myNob    = GetComponent<NetworkObject>();
+            var otherNob = other.GetComponent<NetworkObject>();
+
+            // 네트워크 경로: NetworkObjectId는 모든 머신에서 동일 → 일관된 dedup
+            if (myNob != null && otherNob != null && myNob.IsSpawned && otherNob.IsSpawned)
+                return myNob.NetworkObjectId > otherNob.NetworkObjectId;
+
+            // 테스트(비네트워크) 경로: InstanceID로 dedup
+            return gameObject.GetInstanceID() > other.GetInstanceID();
         }
 
         // ── Pool ─────────────────────────────────────────────
