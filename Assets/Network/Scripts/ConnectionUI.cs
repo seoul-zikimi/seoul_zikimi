@@ -13,7 +13,7 @@ public class ConnectionUI : MonoBehaviour
         {
             NetworkManager.Singleton.StartHost();
             // NGO SceneManager 사용 — 모든 클라이언트 동시 씬 전환
-            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.AnswerAuthoring, LoadSceneMode.Single);
         }
 
         if (GUILayout.Button("Client", style, GUILayout.Height(120)))

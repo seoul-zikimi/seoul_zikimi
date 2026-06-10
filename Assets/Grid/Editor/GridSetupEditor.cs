@@ -105,6 +105,46 @@ public static class GridSetupEditor
                   "정답 = Floor@(0,0,0) + Pillar@(1,0,0)[고정 필요]. GridManager에 Catalog/Answer를 연결하세요.");
     }
 
+    // ── 네트워크 그리드 씬 세팅 (G4.2) ───────────────────────────────────
+    [MenuItem("Grid Setup/Setup Networked Grid In Active Scene")]
+    static void SetupNetworkedGrid()
+    {
+        var floor  = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Floor.asset");
+        var pillar = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Pillar.asset");
+        var wall   = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Wall.asset");
+        var cat    = AssetDatabase.LoadAssetAtPath<MaterialCatalog>($"{k_DataDir}/MaterialCatalog.asset");
+        var ans    = AssetDatabase.LoadAssetAtPath<MapAnswerData>($"{k_DataDir}/SampleAnswer.asset");
+        if (cat == null || ans == null)
+        {
+            Debug.LogError("[GridSetup] 먼저 'Create Sample Catalog + Answer' 를 실행하세요.");
+            return;
+        }
+
+        var go = new GameObject("GridManager");
+        go.AddComponent<Unity.Netcode.NetworkObject>();   // NetworkBehaviour 전에 추가
+        var mgr = go.AddComponent<GridManager>();
+        go.AddComponent<GridNetwork>();
+        var dbg = go.AddComponent<GridDebugController>();
+        go.AddComponent<AnswerPreview>();
+
+        var mso = new SerializedObject(mgr);
+        mso.FindProperty("m_GridSize").vector3IntValue = new Vector3Int(8, 4, 8);
+        mso.FindProperty("m_Catalog").objectReferenceValue = cat;
+        mso.FindProperty("m_Answer").objectReferenceValue = ans;
+        mso.ApplyModifiedProperties();
+
+        var dso = new SerializedObject(dbg);
+        var pal = dso.FindProperty("m_Palette");
+        pal.arraySize = 3;
+        pal.GetArrayElementAtIndex(0).objectReferenceValue = floor;
+        pal.GetArrayElementAtIndex(1).objectReferenceValue = pillar;
+        pal.GetArrayElementAtIndex(2).objectReferenceValue = wall;
+        dso.ApplyModifiedProperties();
+
+        Selection.activeGameObject = go;
+        Debug.Log("[GridSetup] 네트워크 그리드 생성/배선 완료. 현재 씬(GameScene 권장)에 배치 — 씬 저장 후 MPPM Host/Client로 테스트.");
+    }
+
     static void AddObject(System.Collections.Generic.List<AnswerCell> cells, MaterialDef def, Vector3Int anchor, int rot)
     {
         foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, def.Footprint, rot))
