@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca221d207f0bb8d4b89840a1ed25bfa1, type: 3}
+  m_Name: MaterialCatalog
+  m_EditorClassIdentifier: GridSystem::GridSystem.MaterialCatalog
+  m_Materials:
+  - {fileID: 11400000, guid: 0f567a52a39099b41867541d7ef4be63, type: 2}
+  - {fileID: 11400000, guid: e3fcb6f1573a5f24f99d311a761410f7, type: 2}
+  - {fileID: 11400000, guid: c5183db02dd2e5a4a91a72a113ebcae9, type: 2}
+  m_TileIdMap: []
