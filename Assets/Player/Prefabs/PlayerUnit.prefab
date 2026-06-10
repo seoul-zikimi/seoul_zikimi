@@ -202,6 +202,7 @@ GameObject:
   - component: {fileID: 6703730824583041007}
   - component: {fileID: 4719959342839255773}
   - component: {fileID: 1112921772051660238}
+  - component: {fileID: 8186700940800385809}
   m_Layer: 0
   m_Name: PlayerUnit
   m_TagString: Untagged
@@ -411,6 +412,25 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &8186700940800385809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7223451131215545806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fd0763dfab6f944cb57fd0a12919e02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCarry
+  ShowTopMostFoldoutHeaderGroup: 1
+  m_Palette:
+  - {fileID: 11400000, guid: 0f567a52a39099b41867541d7ef4be63, type: 2}
+  - {fileID: 11400000, guid: e3fcb6f1573a5f24f99d311a761410f7, type: 2}
+  - {fileID: 11400000, guid: c5183db02dd2e5a4a91a72a113ebcae9, type: 2}
+  m_HoldOffset: {x: 0, y: 2.2, z: 0}
+  m_Reach: 1.2
 --- !u!1 &8392801282134520978
 GameObject:
   m_ObjectHideFlags: 0

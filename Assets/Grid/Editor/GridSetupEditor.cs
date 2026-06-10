@@ -142,8 +142,70 @@ public static class GridSetupEditor
         dso.ApplyModifiedProperties();
 
         Selection.activeGameObject = go;
-        Debug.Log("[GridSetup] 네트워크 그리드 생성/배선 완료. 현재 씬(GameScene 권장)에 배치 — 씬 저장 후 MPPM Host/Client로 테스트.");
+        Debug.Log("[GridSetup] 네트워크 그리드 생성/배선 완료. 현재 씬에 배치 — 씬 저장 후 MPPM Host/Client로 테스트.");
     }
+
+    // ── 한방 세팅: 현재 씬을 멀티 테스트 가능 상태로 ─────────────────────
+    [MenuItem("Grid Setup/★ Setup Multiplayer Test (Active Scene)")]
+    static void SetupMultiplayerTest()
+    {
+        // 1) 샘플 에셋 보장
+        CreateSampleMaterials();
+        CreateSampleCatalogAndAnswer();
+
+        // 2) Main Camera에 CinemachineBrain (플레이어 vcam이 화면을 구동하도록)
+        var cam = Camera.main != null ? Camera.main : Object.FindFirstObjectByType<Camera>();
+        if (cam != null && cam.GetComponent<Unity.Cinemachine.CinemachineBrain>() == null)
+        {
+            cam.gameObject.AddComponent<Unity.Cinemachine.CinemachineBrain>();
+            Debug.Log("[GridSetup] Main Camera에 CinemachineBrain 추가.");
+        }
+
+        // 3) 네트워크 그리드(없을 때만 생성)
+        if (Object.FindFirstObjectByType<GridManager>() == null)
+            SetupNetworkedGrid();
+        else
+            Debug.Log("[GridSetup] 기존 GridManager 발견 — 그리드 생성 생략.");
+
+        // 4) PlayerUnit 프리팹에 PlayerCarry + Palette
+        EnsurePlayerCarryOnPrefab();
+
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
+            UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+        Debug.Log("[GridSetup] ★ 멀티 테스트 세팅 완료. 씬 저장(Ctrl+S) 후, BootstrapScene에서 Play→Host/Client(MPPM).");
+    }
+
+    static void EnsurePlayerCarryOnPrefab()
+    {
+        const string prefabPath = "Assets/Player/Prefabs/PlayerUnit.prefab";
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+        {
+            Debug.LogWarning("[GridSetup] PlayerUnit.prefab 없음 — PlayerCarry 배선 생략.");
+            return;
+        }
+
+        var floor  = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Floor.asset");
+        var pillar = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Pillar.asset");
+        var wall   = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Wall.asset");
+
+        using (var scope = new PrefabUtility.EditPrefabContentsScope(prefabPath))
+        {
+            var root = scope.prefabContentsRoot;
+            var carry = root.GetComponent<Player.PlayerCarry>();
+            if (carry == null) carry = root.AddComponent<Player.PlayerCarry>();
+
+            var so = new SerializedObject(carry);
+            var pal = so.FindProperty("m_Palette");
+            pal.arraySize = 3;
+            pal.GetArrayElementAtIndex(0).objectReferenceValue = floor;
+            pal.GetArrayElementAtIndex(1).objectReferenceValue = pillar;
+            pal.GetArrayElementAtIndex(2).objectReferenceValue = wall;
+            so.ApplyModifiedProperties();
+        }
+        Debug.Log("[GridSetup] PlayerUnit 프리팹에 PlayerCarry + Palette 배선.");
+    }
+
+    // ── 한방 세팅 (카메라+그리드+플레이어) ───────────────────────────────
 
     static void AddObject(System.Collections.Generic.List<AnswerCell> cells, MaterialDef def, Vector3Int anchor, int rot)
     {

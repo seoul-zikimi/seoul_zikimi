@@ -17,6 +17,14 @@ namespace GridSystem
             new(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         public float ScorePercent => m_ScorePercent.Value;
 
+        /// <summary>복제된 상태 기준 해당 셀이 비어있는지(클라이언트도 호출 가능). 배치 전 사전 검사용.</summary>
+        public bool IsCellFree(Vector3Int cell)
+        {
+            foreach (var e in m_Cells)
+                if (e.cell == cell) return false;
+            return true;
+        }
+
         private GridManager m_Manager;
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
         private ulong m_OwnerCounter;         // 서버 전용 고유 ownerObjectId 발급
