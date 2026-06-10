@@ -20,6 +20,8 @@ namespace GridSystem
             new(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<int> m_PlayerCount =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<int> m_AnswerIndex =
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkList<ulong> m_Consents = new();   // 건축종료 동의한 clientId (서버 관리)
 
         private GridManager m_Grid;
@@ -40,7 +42,24 @@ namespace GridSystem
 
         public override void OnNetworkSpawn()
         {
-            if (IsServer) ResetTimerAndPhase();
+            m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
+            if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
+            m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
+            if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            m_AnswerIndex.OnValueChanged -= OnAnswerIndexChanged;
+        }
+
+        private void OnAnswerIndexChanged(int _, int v) => m_Grid.SelectAnswer(v);
+
+        // 서버: 정답 목록에서 랜덤으로 하나 고른다(1개뿐이면 0). 코스메틱 아님 — 인덱스를 복제.
+        private void PickRandomAnswer()
+        {
+            int n = m_Grid != null ? m_Grid.AnswerCount : 0;
+            m_AnswerIndex.Value = n > 1 ? UnityEngine.Random.Range(0, n) : 0;
         }
 
         private void ResetTimerAndPhase()
@@ -103,6 +122,8 @@ namespace GridSystem
         private void RestartRpc()
         {
             if (IsBuilding) return;
+            PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
+            m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();
             if (m_Depot != null) m_Depot.ServerReset();
             ResetTimerAndPhase();

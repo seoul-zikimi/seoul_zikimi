@@ -133,7 +133,9 @@ public static class GridSetupEditor
         var mso = new SerializedObject(mgr);
         mso.FindProperty("m_GridSize").vector3IntValue = new Vector3Int(8, 4, 8);
         mso.FindProperty("m_Catalog").objectReferenceValue = cat;
-        mso.FindProperty("m_Answer").objectReferenceValue = ans;
+        var ansList = mso.FindProperty("m_Answers");   // 리스트(랜덤 선택). 더 추가하면 라운드마다 랜덤.
+        ansList.arraySize = 1;
+        ansList.GetArrayElementAtIndex(0).objectReferenceValue = ans;
         mso.ApplyModifiedProperties();
 
         var dso = new SerializedObject(dbg);
