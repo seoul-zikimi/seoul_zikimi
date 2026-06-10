@@ -430,7 +430,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e3fcb6f1573a5f24f99d311a761410f7, type: 2}
   - {fileID: 11400000, guid: c5183db02dd2e5a4a91a72a113ebcae9, type: 2}
   m_HoldOffset: {x: 0, y: 2.2, z: 0}
-  m_Reach: 1.2
+  m_WorkstationRange: 2.5
 --- !u!1 &8392801282134520978
 GameObject:
   m_ObjectHideFlags: 0

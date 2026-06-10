@@ -126,6 +126,9 @@ public static class GridSetupEditor
         go.AddComponent<GridNetwork>();
         var dbg = go.AddComponent<GridDebugController>();
         go.AddComponent<AnswerPreview>();
+        go.AddComponent<GameLoopManager>();
+        go.AddComponent<MaterialDepot>();
+        go.AddComponent<MaterialDropField>();
 
         var mso = new SerializedObject(mgr);
         mso.FindProperty("m_GridSize").vector3IntValue = new Vector3Int(8, 4, 8);
@@ -142,7 +145,47 @@ public static class GridSetupEditor
         dso.ApplyModifiedProperties();
 
         Selection.activeGameObject = go;
-        Debug.Log("[GridSetup] 네트워크 그리드 생성/배선 완료. 현재 씬에 배치 — 씬 저장 후 MPPM Host/Client로 테스트.");
+        EnsureWorkstations();
+        Debug.Log("[GridSetup] 네트워크 그리드 + 작업장 생성/배선 완료. 현재 씬에 배치 — 씬 저장 후 MPPM Host/Client로 테스트.");
+    }
+
+    static void EnsureWorkstations()
+    {
+        if (Object.FindFirstObjectByType<Player.Workstation>() != null) return;
+        MakeWorkstation("HammerStation", ProcessType.Fixed,   new Vector3(-2f, 0.5f, 2f));
+        MakeWorkstation("PaintStation",  ProcessType.Painted, new Vector3(-2f, 0.5f, 4f));
+    }
+
+    static void EnsureGameLoop()
+    {
+        var grid = Object.FindFirstObjectByType<GridManager>();
+        if (grid != null && grid.GetComponent<GameLoopManager>() == null)
+            grid.gameObject.AddComponent<GameLoopManager>();
+    }
+
+    static void EnsureDepot()
+    {
+        var grid = Object.FindFirstObjectByType<GridManager>();
+        if (grid != null && grid.GetComponent<MaterialDepot>() == null)
+            grid.gameObject.AddComponent<MaterialDepot>();
+    }
+
+    static void EnsureDropField()
+    {
+        var grid = Object.FindFirstObjectByType<GridManager>();
+        if (grid != null && grid.GetComponent<MaterialDropField>() == null)
+            grid.gameObject.AddComponent<MaterialDropField>();
+    }
+
+    static void MakeWorkstation(string name, ProcessType tool, Vector3 pos)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.position = pos;
+        var ws = go.AddComponent<Player.Workstation>();
+        var so = new SerializedObject(ws);
+        so.FindProperty("m_Tool").intValue = (int)tool;
+        so.ApplyModifiedProperties();
     }
 
     // ── 한방 세팅: 현재 씬을 멀티 테스트 가능 상태로 ─────────────────────
@@ -166,6 +209,11 @@ public static class GridSetupEditor
             SetupNetworkedGrid();
         else
             Debug.Log("[GridSetup] 기존 GridManager 발견 — 그리드 생성 생략.");
+
+        EnsureWorkstations();
+        EnsureGameLoop();
+        EnsureDepot();
+        EnsureDropField();
 
         // 4) PlayerUnit 프리팹에 PlayerCarry + Palette
         EnsurePlayerCarryOnPrefab();

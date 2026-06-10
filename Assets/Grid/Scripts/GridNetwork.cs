@@ -13,9 +13,10 @@ namespace GridSystem
     public class GridNetwork : NetworkBehaviour
     {
         private readonly NetworkList<CellEntry> m_Cells = new();
-        private readonly NetworkVariable<float> m_ScorePercent =
-            new(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-        public float ScorePercent => m_ScorePercent.Value;
+        private readonly NetworkVariable<ScoreSnapshot> m_Score =
+            new(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        public ScoreSnapshot Score => m_Score.Value;
+        public float ScorePercent => m_Score.Value.Percent;
 
         /// <summary>복제된 상태 기준 해당 셀이 비어있는지(클라이언트도 호출 가능). 배치 전 사전 검사용.</summary>
         public bool IsCellFree(Vector3Int cell)
@@ -26,11 +27,16 @@ namespace GridSystem
         }
 
         private GridManager m_Manager;
+        private MaterialDropField m_DropField; // 같은 오브젝트(붕괴/철거 재료를 바닥에 떨굼)
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
         private ulong m_OwnerCounter;         // 서버 전용 고유 ownerObjectId 발급
         private GameObject m_VisualRoot;      // 클라이언트 로컬 비주얼 부모
 
-        private void Awake() => m_Manager = GetComponent<GridManager>();
+        private void Awake()
+        {
+            m_Manager = GetComponent<GridManager>();
+            m_DropField = GetComponent<MaterialDropField>();
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -52,12 +58,14 @@ namespace GridSystem
         public void RequestPlace(Vector3Int anchor, int materialId, byte rot) => PlaceRpc(anchor, materialId, rot);
         public void RequestRemove(Vector3Int cell) => RemoveRpc(cell);
         public void RequestProcess(Vector3Int cell, int processBit, bool apply) => ProcessRpc(cell, processBit, apply);
+        public void RequestShock(Vector3Int cell) => ShockRpc(cell);   // 트리거①: 외부충격(플레이어 부딪힘)
 
         [Rpc(SendTo.Server)]
         private void PlaceRpc(Vector3Int anchor, int materialId, byte rot)
         {
             var mat = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(materialId) : null;
             if (mat == null || !m_ServerGrid.CanPlace(anchor, mat, rot)) return;
+            if (!m_ServerGrid.WouldBeSupported(anchor, mat, rot)) return;   // 허공(지지 없음) 배치 거부
 
             ulong owner = ++m_OwnerCounter;
             m_ServerGrid.Place(anchor, mat, rot, owner);
@@ -67,6 +75,11 @@ namespace GridSystem
                     cell = c, materialId = materialId, rotationStep = rot,
                     completedProcessMask = 0, ownerObjectId = owner
                 });
+
+            // 트리거②: 미고정 오브젝트 위에 놓임 → 그 미고정 지지물(+연쇄) 무너짐
+            foreach (var t in m_ServerGrid.FindUnfixedSupportsUnder(owner))
+                foreach (var co in m_ServerGrid.Collapse(t))
+                    RemoveCollapsed(co);
         }
 
         [Rpc(SendTo.Server)]
@@ -75,10 +88,47 @@ namespace GridSystem
             var cs = m_ServerGrid.GetCell(cell);
             if (!cs.occupied) return;
             ulong owner = cs.ownerObjectId;
+            int materialId = cs.materialId;
             m_ServerGrid.Remove(cell);
+
+            Vector3 from = default; bool have = false;
             for (int i = m_Cells.Count - 1; i >= 0; i--)
-                if (m_Cells[i].ownerObjectId == owner) m_Cells.RemoveAt(i);
+                if (m_Cells[i].ownerObjectId == owner)
+                {
+                    if (!have) { from = CellWorld(m_Cells[i].cell); have = true; }
+                    m_Cells.RemoveAt(i);
+                }
+            if (have && m_DropField != null) m_DropField.ServerDrop(materialId, from);   // 철거 재료를 바닥에 떨굼
+
+            foreach (var co in m_ServerGrid.SettleUnsupported())     // 받침 사라짐 → 위 미고정 블록 연쇄
+                RemoveCollapsed(co);
         }
+
+        [Rpc(SendTo.Server)]
+        private void ShockRpc(Vector3Int cell)
+        {
+            var cs = m_ServerGrid.GetCell(cell);
+            if (!cs.occupied) return;
+            var mat = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
+            if (mat == null || !mat.MustBeFixed) return;   // 하중부재(기둥/벽)만 충격에 무너짐 — 바닥은 밟아도 OK
+            foreach (var co in m_ServerGrid.Collapse(cell)) RemoveCollapsed(co);
+        }
+
+        /// <summary>무너진 오브젝트를 복제 리스트에서 제거하고 재료를 바닥에 떨군다(주워서 재배치 가능).</summary>
+        private void RemoveCollapsed(CollapsedObject co)
+        {
+            Vector3 from = default; bool have = false;
+            for (int i = m_Cells.Count - 1; i >= 0; i--)
+                if (m_Cells[i].ownerObjectId == co.ownerObjectId)
+                {
+                    if (!have) { from = CellWorld(m_Cells[i].cell); have = true; }
+                    m_Cells.RemoveAt(i);
+                }
+            if (have && m_DropField != null) m_DropField.ServerDrop(co.materialId, from);
+        }
+
+        private static Vector3 CellWorld(Vector3Int cell)
+            => GridCoordinates.CellToWorld(cell) + Vector3.one * 0.5f * GridContract.Unit;
 
         [Rpc(SendTo.Server)]
         private void ProcessRpc(Vector3Int cell, int processBit, bool apply)
@@ -131,7 +181,21 @@ namespace GridSystem
         {
             if (m_Manager.Answer == null) return;
             var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);
-            m_ScorePercent.Value = s.Ratio * 100f;
+            m_Score.Value = new ScoreSnapshot
+            {
+                score = s.score, maxScore = s.maxScore, answerCells = s.answerCellCount,
+                placedCorrect = s.placedCorrect, processCorrect = s.processCorrect,
+            };
+        }
+
+        /// <summary>게임 재시작용: 서버 그리드·복제 리스트를 비운다(→ 비주얼/점수 자동 0 갱신).</summary>
+        public void ServerResetGrid()
+        {
+            if (!IsServer) return;
+            m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+            m_OwnerCounter = 0;
+            for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
+            if (m_DropField != null) m_DropField.ServerReset();   // 바닥 재료도 정리
         }
 
         private void RebuildVisuals()
@@ -171,5 +235,26 @@ namespace GridSystem
             mpb.SetColor(s_Color, c);
             r.SetPropertyBlock(mpb);
         }
+    }
+
+    /// <summary>채점 분해 스냅샷(복제용). RuntimeGrid.GridScore를 네트워크로 노출한다.</summary>
+    public struct ScoreSnapshot : INetworkSerializable, System.IEquatable<ScoreSnapshot>
+    {
+        public int score, maxScore, answerCells, placedCorrect, processCorrect;
+
+        public float Percent => maxScore > 0 ? (float)score / maxScore * 100f : 0f;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
+        {
+            s.SerializeValue(ref score);
+            s.SerializeValue(ref maxScore);
+            s.SerializeValue(ref answerCells);
+            s.SerializeValue(ref placedCorrect);
+            s.SerializeValue(ref processCorrect);
+        }
+
+        public bool Equals(ScoreSnapshot o)
+            => score == o.score && maxScore == o.maxScore && answerCells == o.answerCells
+            && placedCorrect == o.placedCorrect && processCorrect == o.processCorrect;
     }
 }

@@ -16,6 +16,8 @@ namespace GridSystem
         [Tooltip("이 게임의 모든 재료 정의")]
         [SerializeField] private List<MaterialDef> m_Materials = new();
 
+        public IReadOnlyList<MaterialDef> Materials => m_Materials;
+
         [System.Serializable]
         private struct TileIdMap
         {

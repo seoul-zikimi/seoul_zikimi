@@ -146,6 +146,98 @@ namespace GridSystem
             }
         }
 
+        // ── 무너짐 (F, 규칙 기반 연쇄) ─────────────────────────────────────
+        // 고정됨(Fixed) = 앵커: 충격에 안 무너지고, 지지를 잃어도 떠 있으며 위 블록을 받쳐준다.
+        // 미고정 = 지지(바닥 또는 다른 오브젝트가 바로 아래)를 잃으면 무너진다.
+
+        private static bool IsFixed(CellState s)
+            => (s.completedProcessMask & (int)ProcessType.Fixed) != 0;
+
+        /// <summary>owner 오브젝트가 물리적으로 지지되는가: 셀이 바닥(y=0)에 닿거나, 바로 아래가 '다른' 오브젝트로 점유됨.</summary>
+        private bool HasPhysicalSupport(ulong owner)
+        {
+            foreach (var kv in m_Cells)
+            {
+                if (kv.Value.ownerObjectId != owner) continue;
+                var c = kv.Key;
+                if (c.y == 0) return true;                          // 바닥
+                var below = new Vector3Int(c.x, c.y - 1, c.z);
+                if (m_Cells.TryGetValue(below, out var b) && b.occupied && b.ownerObjectId != owner)
+                    return true;                                    // 다른 오브젝트가 받쳐줌
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// cell이 속한 '미고정' 오브젝트를 강제로 무너뜨리고, 지지를 잃은 미고정 오브젝트를 연쇄로 제거.
+        /// 고정된 오브젝트는 앵커로 남는다. 제거된 오브젝트 목록을 반환(서버가 복제/환원에 사용).
+        /// (지지 그래프가 아래로만 향하는 DAG라 제거 순서와 무관하게 결과 집합이 동일 — 결정론적)
+        /// </summary>
+        public List<CollapsedObject> Collapse(Vector3Int cell)
+        {
+            var removed = new List<CollapsedObject>();
+            if (!m_Cells.TryGetValue(cell, out var s) || !s.occupied) return removed;
+            if (IsFixed(s)) return removed;                         // 고정된 블록은 충격에 안 무너짐
+
+            RemoveObjectInternal(s.ownerObjectId, s.materialId, removed);
+            removed.AddRange(SettleUnsupported());                  // 트리거 블록 제거 후 연쇄 정착
+            return removed;
+        }
+
+        /// <summary>지지를 잃은 '미고정' 오브젝트를 고정점 도달까지 반복 제거(연쇄 정착). 제거 목록 반환.
+        /// 배치/철거/충격 등 구조 변경 직후 호출 → 떠 있는 미고정 블록을 무너뜨린다.</summary>
+        public List<CollapsedObject> SettleUnsupported()
+        {
+            var removed = new List<CollapsedObject>();
+            while (true)
+            {
+                ulong victim = 0; int victimMat = 0; bool found = false;
+                foreach (var kv in m_Cells)
+                {
+                    var cs = kv.Value;
+                    if (!cs.occupied || IsFixed(cs)) continue;
+                    if (HasPhysicalSupport(cs.ownerObjectId)) continue;
+                    victim = cs.ownerObjectId; victimMat = cs.materialId; found = true; break;
+                }
+                if (!found) break;
+                RemoveObjectInternal(victim, victimMat, removed);
+            }
+            return removed;
+        }
+
+        /// <summary>이 자리에 놓으면 지지를 받는가(트리거 외 사전검사): footprint 셀이 바닥에 닿거나 아래에 다른 점유 셀이 있음.</summary>
+        public bool WouldBeSupported(Vector3Int anchor, MaterialDef material, int rotationStep)
+        {
+            if (material == null) return false;
+            return GridSupport.WouldBeSupported(
+                GridFootprint.EnumerateFootprintCells(anchor, material.Footprint, rotationStep), IsOccupied);
+        }
+
+        /// <summary>새로 놓인 오브젝트(owner) 바로 아래에 깔린 '미고정' 오브젝트들의 대표 셀(트리거②: 미고정 위에 놓기).</summary>
+        public List<Vector3Int> FindUnfixedSupportsUnder(ulong owner)
+        {
+            var seen = new HashSet<ulong>();
+            var result = new List<Vector3Int>();
+            foreach (var kv in m_Cells)
+            {
+                if (kv.Value.ownerObjectId != owner) continue;
+                var below = new Vector3Int(kv.Key.x, kv.Key.y - 1, kv.Key.z);
+                if (m_Cells.TryGetValue(below, out var b) && b.occupied
+                    && b.ownerObjectId != owner && !IsFixed(b) && seen.Add(b.ownerObjectId))
+                    result.Add(below);
+            }
+            return result;
+        }
+
+        private void RemoveObjectInternal(ulong owner, int materialId, List<CollapsedObject> sink)
+        {
+            var keys = new List<Vector3Int>();
+            foreach (var kv in m_Cells)
+                if (kv.Value.ownerObjectId == owner) keys.Add(kv.Key);
+            foreach (var k in keys) m_Cells.Remove(k);
+            sink.Add(new CollapsedObject(owner, materialId));
+        }
+
         // ── 채점 (G2.4) ───────────────────────────────────────────────────
         /// <summary>
         /// 정답과 셀 단위 비교. 정답 칸마다 배치(재료+회전) 일치 +200, 요구 공정 완료 +100.
@@ -180,6 +272,18 @@ namespace GridSystem
                 }
             }
             return result;
+        }
+    }
+
+    /// <summary>무너진 오브젝트 1개(복제 제거·재고 환원용).</summary>
+    public readonly struct CollapsedObject
+    {
+        public readonly ulong ownerObjectId;
+        public readonly int materialId;
+        public CollapsedObject(ulong owner, int materialId)
+        {
+            ownerObjectId = owner;
+            this.materialId = materialId;
         }
     }
 
