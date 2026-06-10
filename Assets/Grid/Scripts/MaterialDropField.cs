@@ -80,20 +80,25 @@ namespace GridSystem
 
         private void ClampToFloor(ref Vector3 p)
         {
+            const float m = 6f;   // 그리드 밖(배송 구역 등)도 허용 — 킥 폭주만 막는 느슨한 경계
             var s = m_Grid.GridSize;
-            p.x = Mathf.Clamp(p.x, 0.5f, Mathf.Max(0.5f, s.x - 0.5f));
-            p.z = Mathf.Clamp(p.z, 0.5f, Mathf.Max(0.5f, s.z - 0.5f));
+            p.x = Mathf.Clamp(p.x, -m, s.x + m);
+            p.z = Mathf.Clamp(p.z, -m, s.z + m);
         }
 
         // ── 줍기 ────────────────────────────────────────────────────────────
-        public bool TryFindNearest(Vector3 from, float range, out ulong pickupId, out int materialId)
+        /// <summary>손 닿는 범위(reach, playerPos 기준) 내에서 '조준점(aim)에 가장 가까운' 바닥 재료.
+        /// 마우스로 가리켜 집기 — 정확히 안 가리켜도 닿는 것 중 커서에 제일 가까운 걸 집는다.</summary>
+        public bool TryFindForGrab(Vector3 playerPos, Vector3 aim, float reach, out ulong pickupId, out int materialId)
         {
             pickupId = 0; materialId = -1;
-            float best = range * range; bool ok = false;
+            float reach2 = reach * reach;
+            float best = float.MaxValue; bool ok = false;
             foreach (var p in m_Pickups)
             {
-                float d = (p.pos - from).sqrMagnitude;
-                if (d <= best) { best = d; pickupId = p.pickupId; materialId = p.materialId; ok = true; }
+                if ((p.pos - playerPos).sqrMagnitude > reach2) continue;   // 손 닿는 범위
+                float d = (p.pos - aim).sqrMagnitude;                       // 커서에 가까운 것 우선
+                if (d < best) { best = d; pickupId = p.pickupId; materialId = p.materialId; ok = true; }
             }
             return ok;
         }

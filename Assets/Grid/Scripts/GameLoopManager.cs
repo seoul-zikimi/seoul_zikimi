@@ -26,7 +26,6 @@ namespace GridSystem
 
         private GridManager m_Grid;
         private GridNetwork m_Net;
-        private MaterialDepot m_Depot;
         private GUIStyle m_Big, m_Mid, m_Small;
 
         public GamePhase Phase => (GamePhase)m_Phase.Value;
@@ -37,7 +36,6 @@ namespace GridSystem
         {
             m_Grid = GetComponent<GridManager>();
             m_Net = GetComponent<GridNetwork>();
-            m_Depot = GetComponent<MaterialDepot>();
         }
 
         public override void OnNetworkSpawn()
@@ -72,6 +70,8 @@ namespace GridSystem
 
         private void Update()
         {
+            if (!IsSpawned) return;   // 스폰 전/디스폰 후엔 네트워크 상태 접근 금지(NullRef 방지)
+
             // 입력(모든 클라): 건축중 Enter=동의 토글 / 종료화면 Enter=재시작
             var kb = Keyboard.current;
             if (kb != null && kb.enterKey.wasPressedThisFrame)
@@ -124,8 +124,7 @@ namespace GridSystem
             if (IsBuilding) return;
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
-            if (m_Net != null) m_Net.ServerResetGrid();
-            if (m_Depot != null) m_Depot.ServerReset();
+            if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리
             ResetTimerAndPhase();
         }
 

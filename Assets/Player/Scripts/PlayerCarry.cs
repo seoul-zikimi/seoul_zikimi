@@ -13,7 +13,6 @@ namespace Player
     /// </summary>
     public class PlayerCarry : NetworkBehaviour
     {
-        [SerializeField] private MaterialDef[] m_Palette;
         [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 2.2f, 0f);
         [SerializeField] private float m_WorkstationRange = 2.5f;
 
@@ -23,7 +22,6 @@ namespace Player
         private readonly NetworkVariable<int> m_NetTool =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
-        private static readonly Key[] s_Digits = { Key.Digit1, Key.Digit2, Key.Digit3 };
         private int m_Rotation;
         private int m_BuildHeight;
         private MaterialDef m_HeldMaterial;   // owner 로직용
@@ -32,9 +30,9 @@ namespace Player
 
         private Camera m_Cam;
         private GridManager m_Grid;
+        private MaterialCatalog m_Catalog;
         private GridNetwork m_Net;
         private GameLoopManager m_Loop;
-        private MaterialDepot m_Depot;
         private MaterialDropField m_Drop;
         private Vector3Int m_Target;
         private bool m_HasTarget;
@@ -85,17 +83,13 @@ namespace Player
             if (m_Grid == null) m_Grid = FindFirstObjectByType<GridManager>();   // 씬 전환 뒤 재탐색
             if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
             if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
-            if (m_Depot == null) m_Depot = FindFirstObjectByType<MaterialDepot>();
             if (m_Drop == null) m_Drop = FindFirstObjectByType<MaterialDropField>();
 
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             if (kb == null || mouse == null) return;
 
-            if (m_Palette != null)
-                for (int i = 0; i < m_Palette.Length && i < s_Digits.Length; i++)
-                    if (kb[s_Digits[i]].wasPressedThisFrame) HoldMaterial(i);
-            if (kb.fKey.wasPressedThisFrame) TryGrab();
+            if (kb.fKey.wasPressedThisFrame) TryGrab();   // 배송된 재료 / 작업장 도구 줍기
 
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
             if (kb.qKey.wasPressedThisFrame) m_BuildHeight = Mathf.Max(0, m_BuildHeight - 1);
@@ -171,19 +165,6 @@ namespace Player
             }
         }
 
-        private void HoldMaterial(int i)
-        {
-            if (m_Palette == null || i < 0 || i >= m_Palette.Length) return;
-            var def = m_Palette[i];
-            if (def == null) return;
-            if (m_Depot != null && !m_Depot.TryTake(def.Id)) return;   // 재고 없으면 못 듦
-            DropHeldMaterialToFloor();        // 들고 있던 재료가 있으면 바닥에 내려놓고 교체(안 사라짐)
-            m_HeldMaterial = def;
-            m_HeldTool = ProcessType.None;
-            m_NetMaterialId.Value = def.Id;   // 복제 → 전원 비주얼 재구성
-            m_NetTool.Value = 0;
-        }
-
         private void HoldTool(ProcessType tool)
         {
             DropHeldMaterialToFloor();        // 도구 들기 전, 들고 있던 재료는 바닥에
@@ -193,16 +174,25 @@ namespace Player
             m_NetTool.Value = (int)tool;
         }
 
-        // F: 손 비었으면 가까운 바닥 재료 먼저 줍고, 없으면 작업장 도구를 든다.
+        // F: 손 비었으면 '마우스가 가리킨(+손 닿는) 바닥 재료'를 줍고, 없으면 작업장 도구를 든다.
         private void TryGrab()
         {
             if (!HasMaterial && !HasTool && m_Drop != null &&
-                m_Drop.TryFindNearest(transform.position, m_WorkstationRange, out var pid, out var mid))
+                m_Drop.TryFindForGrab(transform.position, AimWorldPoint(), m_WorkstationRange, out var pid, out var mid))
             {
                 GrabMaterialFromFloor(pid, mid);
                 return;
             }
             TryGrabFromWorkstation();
+        }
+
+        // 마우스가 가리키는 바닥 지점(픽업 높이 평면). 못 구하면 플레이어 위치.
+        private Vector3 AimWorldPoint()
+        {
+            if (m_Cam == null || Mouse.current == null) return transform.position;
+            var plane = new Plane(Vector3.up, new Vector3(0f, 0.5f, 0f));
+            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+            return plane.Raycast(ray, out float d) ? ray.GetPoint(d) : transform.position;
         }
 
         private void GrabMaterialFromFloor(ulong pickupId, int materialId)
@@ -314,12 +304,19 @@ namespace Player
                 m_HeldVisual.transform.position = transform.position + m_HoldOffset;
         }
 
-        private MaterialDef FindMaterial(int id)
+        // 카탈로그(드는 재료 목록)를 lazy-find — 모든 클라에서 동일 에셋. 홀딩/든 비주얼 공용.
+        private MaterialCatalog Catalog()
         {
-            if (m_Palette == null) return null;
-            foreach (var d in m_Palette) if (d != null && d.Id == id) return d;
-            return null;
+            if (m_Catalog == null)
+            {
+                var g = m_Grid != null ? m_Grid : FindFirstObjectByType<GridManager>();
+                if (g != null) m_Catalog = g.Catalog;
+            }
+            return m_Catalog;
         }
+
+        private MaterialDef FindMaterial(int id)
+            => Catalog() != null ? Catalog().GetById(id) : null;
 
         private static Color ColorForMask(int mask)
         {
@@ -364,7 +361,7 @@ namespace Player
 
             string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
                         : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정)" : "페인트통(페인트)")
-                        :               "빈손 — 1/2/3 재고서 집기 · F 줍기/도구 · 우상단 주문";
+                        :               "빈손 — 우상단서 주문 → 배송 구역에서 F로 줍기 (F=도구도)";
             string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
             string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
             string text =

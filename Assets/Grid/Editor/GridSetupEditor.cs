@@ -234,25 +234,13 @@ public static class GridSetupEditor
             return;
         }
 
-        var floor  = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Floor.asset");
-        var pillar = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Pillar.asset");
-        var wall   = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{k_DataDir}/Mat_Wall.asset");
-
         using (var scope = new PrefabUtility.EditPrefabContentsScope(prefabPath))
         {
             var root = scope.prefabContentsRoot;
-            var carry = root.GetComponent<Player.PlayerCarry>();
-            if (carry == null) carry = root.AddComponent<Player.PlayerCarry>();
-
-            var so = new SerializedObject(carry);
-            var pal = so.FindProperty("m_Palette");
-            pal.arraySize = 3;
-            pal.GetArrayElementAtIndex(0).objectReferenceValue = floor;
-            pal.GetArrayElementAtIndex(1).objectReferenceValue = pillar;
-            pal.GetArrayElementAtIndex(2).objectReferenceValue = wall;
-            so.ApplyModifiedProperties();
+            if (root.GetComponent<Player.PlayerCarry>() == null)
+                root.AddComponent<Player.PlayerCarry>();
         }
-        Debug.Log("[GridSetup] PlayerUnit 프리팹에 PlayerCarry + Palette 배선.");
+        Debug.Log("[GridSetup] PlayerUnit 프리팹에 PlayerCarry 배선(재료는 카탈로그 기반, 숫자키 1~N).");
     }
 
     // ── 한방 세팅 (카메라+그리드+플레이어) ───────────────────────────────

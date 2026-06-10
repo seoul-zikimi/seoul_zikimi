@@ -204,16 +204,57 @@ namespace GridSystem
             foreach (Transform t in m_VisualRoot.transform) Destroy(t.gameObject);
 
             float u = GridContract.Unit;
+            var catalog = m_Manager.Catalog;
+
+            // 오브젝트(owner)별 점유 셀의 min-corner(프리팹 정렬 기준)
+            var minCell = new Dictionary<ulong, Vector3Int>();
+            foreach (var e in m_Cells)
+                minCell[e.ownerObjectId] = minCell.TryGetValue(e.ownerObjectId, out var mn)
+                    ? Vector3Int.Min(mn, e.cell) : e.cell;
+
+            var done = new HashSet<ulong>();
             foreach (var e in m_Cells)
             {
-                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                cube.transform.SetParent(m_VisualRoot.transform, true);
-                cube.transform.position = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
-                cube.transform.localScale = Vector3.one * (u * 0.95f);
-                var col = cube.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-                SetColor(cube, ColorForMask(e.completedProcessMask));
+                var def = catalog != null ? catalog.GetById(e.materialId) : null;
+                if (def != null && def.Prefab != null)
+                {
+                    if (!done.Add(e.ownerObjectId)) continue;   // 오브젝트당 프리팹 1개
+                    SpawnPrefabVisual(def, e.rotationStep, minCell[e.ownerObjectId]);
+                }
+                else
+                {
+                    // 프리팹 없음 → 칸마다 색칠 큐브(공정 색)
+                    var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    cube.transform.SetParent(m_VisualRoot.transform, true);
+                    cube.transform.position = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
+                    cube.transform.localScale = Vector3.one * (u * 0.95f);
+                    var col = cube.GetComponent<Collider>();
+                    if (col != null) Destroy(col);
+                    SetColor(cube, ColorForMask(e.completedProcessMask));
+                }
             }
+        }
+
+        // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 피벗=min-corner + Y회전 정렬.
+        private void SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
+        {
+            var fp = def.Footprint;
+            var r = Quaternion.Euler(0f, 90f * rot, 0f);
+
+            // footprint XZ 사각형 모서리를 회전 → 회전된 박스의 min-corner offset
+            float minX = float.MaxValue, minZ = float.MaxValue;
+            for (int cx = 0; cx <= 1; cx++)
+            for (int cz = 0; cz <= 1; cz++)
+            {
+                var p = r * new Vector3(cx * fp.x, 0f, cz * fp.z);
+                if (p.x < minX) minX = p.x;
+                if (p.z < minZ) minZ = p.z;
+            }
+
+            var go = Instantiate(def.Prefab, m_VisualRoot.transform);
+            go.transform.rotation = r;
+            go.transform.position = GridCoordinates.CellToWorld(minCell) - new Vector3(minX, 0f, minZ);
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(통과 유지)
         }
 
         private static Color ColorForMask(int mask)

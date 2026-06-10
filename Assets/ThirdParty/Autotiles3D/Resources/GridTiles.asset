@@ -14,23 +14,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_TileGroup
   Tiles:
   - _group: GridTiles
-    _tileID: 797483416
+    _tileID: 1262618549
     Default: {fileID: 1875540903879155407, guid: ae53dfdd6d8412348b83db210741c2dd, type: 3}
     Randoms: []
     Random: 0
     _name: Mat_Floor
     Rules: []
   - _group: GridTiles
-    _tileID: -1444847606
+    _tileID: -1009304463
     Default: {fileID: 1504874872812320020, guid: 2292f62495b86944bb52e3852450326e, type: 3}
     Randoms: []
     Random: 0
     _name: Mat_Pillar
     Rules: []
   - _group: GridTiles
-    _tileID: -1921800385
+    _tileID: -2063837616
     Default: {fileID: 5899251318277328522, guid: 3161336c2949c7c46ac3238f5fa7482c, type: 3}
     Randoms: []
     Random: 0
     _name: Mat_Wall
+    Rules: []
+  - _group: GridTiles
+    _tileID: 52975461
+    Default: {fileID: 4858698847071752898, guid: 241d0bdf135d31943b789d349100e4f5, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Mat_Test
     Rules: []
