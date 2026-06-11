@@ -151,11 +151,23 @@ public static class GridSetupEditor
         Debug.Log("[GridSetup] 네트워크 그리드 + 작업장 생성/배선 완료. 현재 씬에 배치 — 씬 저장 후 MPPM Host/Client로 테스트.");
     }
 
+    // 도구 작업장(망치=고정 / 페인트통=페인트). 공정은 도구를 들고 와서 E로 적용한다.
     static void EnsureWorkstations()
     {
         if (Object.FindFirstObjectByType<Player.Workstation>() != null) return;
         MakeWorkstation("HammerStation", ProcessType.Fixed,   new Vector3(-2f, 0.5f, 2f));
         MakeWorkstation("PaintStation",  ProcessType.Painted, new Vector3(-2f, 0.5f, 4f));
+    }
+
+    static void MakeWorkstation(string name, ProcessType tool, Vector3 pos)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.position = pos;
+        var ws = go.AddComponent<Player.Workstation>();
+        var so = new SerializedObject(ws);
+        so.FindProperty("m_Tool").intValue = (int)tool;
+        so.ApplyModifiedProperties();
     }
 
     static void EnsureGameLoop()
@@ -177,17 +189,6 @@ public static class GridSetupEditor
         var grid = Object.FindFirstObjectByType<GridManager>();
         if (grid != null && grid.GetComponent<MaterialDropField>() == null)
             grid.gameObject.AddComponent<MaterialDropField>();
-    }
-
-    static void MakeWorkstation(string name, ProcessType tool, Vector3 pos)
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        go.name = name;
-        go.transform.position = pos;
-        var ws = go.AddComponent<Player.Workstation>();
-        var so = new SerializedObject(ws);
-        so.FindProperty("m_Tool").intValue = (int)tool;
-        so.ApplyModifiedProperties();
     }
 
     // ── 한방 세팅: 현재 씬을 멀티 테스트 가능 상태로 ─────────────────────

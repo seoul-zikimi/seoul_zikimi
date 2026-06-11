@@ -26,6 +26,15 @@ namespace GridSystem
             return true;
         }
 
+        /// <summary>복제된 상태에서 셀의 재료 id·완료 공정 비트를 읽는다(클라도 호출 — E 공정 다음단계 판단용).</summary>
+        public bool TryGetCell(Vector3Int cell, out int materialId, out int completedMask)
+        {
+            foreach (var e in m_Cells)
+                if (e.cell == cell) { materialId = e.materialId; completedMask = e.completedProcessMask; return true; }
+            materialId = -1; completedMask = 0;
+            return false;
+        }
+
         private GridManager m_Manager;
         private MaterialDropField m_DropField; // 같은 오브젝트(붕괴/철거 재료를 바닥에 떨굼)
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
