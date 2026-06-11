@@ -59,9 +59,10 @@ public static class MapExporter
 
     /// <summary>
     /// (A) 오서링: 씬에서 Autotiles3D로 칠한 맵 → 정답(MapAnswerData)으로 익스포트.
-    /// 칠해진 칸마다 AnswerCell(위치+재료+회전)을 만든다. 재료 매칭은
-    ///   ① MaterialCatalog의 TileId→MaterialId 매핑, ② 타일 이름 ≈ MaterialDef 이름(fallback).
-    /// 정답은 셀단위 재료 비교라 멀티칸도 칸별로 그대로 들어간다. ExportedAnswer.asset에 저장.
+    /// 칠한 타일 1개 = 블록 1개(앵커=칠한 칸, min-corner). 그 블록의 footprint·회전대로
+    /// '점유하는 모든 칸'을 채운다 → 인게임에서 실제 블록 하나로 그대로 지어진다(빌드 가능 보장).
+    /// 재료 매칭: ① MaterialCatalog TileId→MaterialId, ② 타일 이름 ≈ MaterialDef 이름(fallback).
+    /// 칸이 겹치거나 그리드 밖으로 삐져나가는 블록은 스킵하고 경고. ExportedAnswer.asset에 저장.
     /// </summary>
     [MenuItem("Grid Setup/Export Answer from Autotiles3D")]
     static void ExportAnswerFromAutotiles3D()
@@ -81,9 +82,9 @@ public static class MapExporter
         }
 
         Vector3Int size = mgr.GridSize;
-        var cells = new List<AnswerCell>();
+        var occupied = new Dictionary<Vector3Int, AnswerCell>();   // 칸 → 어떤 블록이 차지(겹침 자동 검출)
         var unmapped = new Dictionary<string, int>();
-        int oob = 0, placed = 0;
+        int oobBlocks = 0, overlaps = 0, placed = 0, blocks = 0;
 
         foreach (var layer in grid.TileLayers)
         {
@@ -98,12 +99,33 @@ public static class MapExporter
                     unmapped[k] = unmapped.TryGetValue(k, out var c) ? c + 1 : 1;
                     continue;
                 }
-                var cell = node.InternalPosition;
-                if (cell.x < 0 || cell.x >= size.x || cell.y < 0 || cell.y >= size.y || cell.z < 0 || cell.z >= size.z)
-                { oob++; continue; }
-                cells.Add(new AnswerCell { cell = cell, materialId = matId, rotationStep = (byte)QuatToStep(node.LocalRotation) });
+
+                var def = catalog.GetById(matId);
+                var footprint = def != null ? def.Footprint : Vector3Int.one;
+                int rot = QuatToStep(node.LocalRotation);
+                var anchor = node.InternalPosition;
+
+                // 이 블록이 점유하는 칸들(인게임 배치와 동일 함수) — 하나라도 범위 밖이면 블록 통째 스킵
+                var fcells = new List<Vector3Int>();
+                bool anyOob = false;
+                foreach (var fc in GridFootprint.EnumerateFootprintCells(anchor, footprint, rot))
+                {
+                    if (fc.x < 0 || fc.x >= size.x || fc.y < 0 || fc.y >= size.y || fc.z < 0 || fc.z >= size.z)
+                    { anyOob = true; break; }
+                    fcells.Add(fc);
+                }
+                if (anyOob) { oobBlocks++; continue; }
+
+                foreach (var fc in fcells)
+                {
+                    if (occupied.ContainsKey(fc)) { overlaps++; continue; }   // 먼저 칠한 블록 우선
+                    occupied[fc] = new AnswerCell { cell = fc, materialId = matId, rotationStep = (byte)rot };
+                }
+                blocks++;
             }
         }
+
+        var cells = new List<AnswerCell>(occupied.Values);
 
         if (unmapped.Count > 0)
         {
@@ -112,7 +134,8 @@ public static class MapExporter
             sb.AppendLine("→ 타일 이름을 MaterialDef 이름과 맞추거나, MaterialCatalog의 TileId Map에 추가하세요.");
             Debug.LogWarning(sb.ToString());
         }
-        if (oob > 0) Debug.LogWarning($"[Grid] ⚠ 그리드 범위({size}) 밖 타일 {oob}개 스킵.");
+        if (oobBlocks > 0) Debug.LogWarning($"[Grid] ⚠ 그리드 범위({size}) 밖으로 삐져나가는 블록 {oobBlocks}개 스킵 — 앵커(칠한 칸)를 안쪽으로.");
+        if (overlaps > 0) Debug.LogWarning($"[Grid] ⚠ 다른 블록과 겹치는 칸 {overlaps}개 무시 — 멀티칸 블록은 블록 하나당 '한 번만' 칠하세요(겹치게 칠하지 말 것).");
 
         if (cells.Count == 0)
         {
@@ -143,8 +166,8 @@ public static class MapExporter
         else EditorUtility.SetDirty(asset);
         AssetDatabase.SaveAssets();
 
-        Debug.Log($"[Grid] ✅ 정답 익스포트 — {cells.Count}칸 → {path}\n" +
-                  "GridManager의 Answer 필드에 이 에셋을 지정하면 다음 플레이부터 정답으로 채점됩니다.");
+        Debug.Log($"[Grid] ✅ 정답 익스포트 — 블록 {blocks}개 / {cells.Count}칸 → {path}\n" +
+                  "GridManager의 Answers 리스트에 이 에셋이 있으면 다음 플레이부터 정답으로 채점됩니다.");
     }
 
     /// <summary>씬에 칠해진 Autotiles3D 타일들의 (그룹/이름/TileID)를 콘솔에 출력 — 카탈로그 매핑 채울 때 사용.</summary>

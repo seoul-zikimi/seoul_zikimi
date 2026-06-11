@@ -10,7 +10,8 @@ using GridSystem;
 ///  · MaterialCatalog의 재료마다 Autotiles3D 타일 자동 생성(이름=MaterialDef 이름 → 익스포터 자동 매칭).
 ///  · 씬에 Autotiles3D 그리드+레이어를 런타임 GridSize에 맞춰(8x4x8, Unit 1, identity) 보장.
 /// 디자이너는 TileGroup/그리드를 손으로 만들 필요 없이, 칠하고 Export만 하면 된다.
-/// 타일 1개 = 1셀(칸별로 칠함). 멀티칸 재료는 그 칸들을 칠하면 런타임 배치와 셀단위로 일치.
+/// 타일 1개 = 블록 1개(앵커=칠한 칸, min-corner). 멀티칸 재료는 '한 번' 칠하면 익스포터가
+/// footprint 전체로 펼쳐 채운다(겹치게 칠하지 말 것). 프리팹도 footprint 크기라 칠할 때 블록 전체가 보인다.
 /// </summary>
 public static class Autotiles3DBootstrap
 {
@@ -68,9 +69,9 @@ public static class Autotiles3DBootstrap
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
         Debug.Log($"[Grid] ★ Autotiles3D 오서링 세팅 완료 (그리드 {width}x{height}x{width}, Unit 1).\n" +
-                  "1) (선택된) 'Answer Layer'에서 씬을 좌클릭해 칸별로 칠하기 — Ctrl+휠 회전, Alt+휠 층 이동\n" +
+                  "1) (선택된) 'Answer Layer'에서 씬을 좌클릭 — 타일 1개 = 블록 1개(멀티칸은 한 번만 칠하면 통째로). Ctrl+휠 회전, Alt+휠 층 이동\n" +
                   "2) 'Grid Setup/Export Answer from Autotiles3D' → ExportedAnswer.asset\n" +
-                  "3) 런타임 씬 GridManager의 Answer 필드에 ExportedAnswer 지정.");
+                  "3) 런타임 씬 GridManager의 Answers 리스트에 ExportedAnswer 지정.");
     }
 
     // ── 타일만 생성 ──────────────────────────────────────────────────────
@@ -127,18 +128,18 @@ public static class Autotiles3DBootstrap
     static GameObject MakePlaceholderPrefab(MaterialDef def)
     {
         string path = $"{k_PrefabDir}/Tile_{def.name}.prefab";
-        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-        if (existing != null) return existing;
 
-        // 피벗 = 셀 min-corner(브리프 규약). 큐브를 +0.5 자식으로 둬 한 칸을 채운다.
+        // 피벗 = 셀 min-corner(규약). 큐브를 footprint 전체 크기로 둬, 칠하면 '블록 한 개'가 통째로 보이게.
+        var fp = def.Footprint;
+        float fx = Mathf.Max(1, fp.x), fy = Mathf.Max(1, fp.y), fz = Mathf.Max(1, fp.z);
         var root = new GameObject($"Tile_{def.name}");
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
         cube.transform.SetParent(root.transform, false);
-        cube.transform.localPosition = Vector3.one * 0.5f;
-        cube.transform.localScale = Vector3.one * 0.98f;
+        cube.transform.localPosition = new Vector3(fx * 0.5f, fy * 0.5f, fz * 0.5f);
+        cube.transform.localScale = new Vector3(fx, fy, fz) * 0.98f;
         cube.GetComponent<Renderer>().sharedMaterial = GetOrCreateMat(ColorForMask(def.RequiredMask));
 
-        var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+        var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);   // 매번 덮어써 footprint 변경 반영
         Object.DestroyImmediate(root);
         return prefab;
     }

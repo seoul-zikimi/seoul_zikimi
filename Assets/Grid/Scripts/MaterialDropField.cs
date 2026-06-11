@@ -177,20 +177,30 @@ namespace GridSystem
 
         private GameObject MakeVisual(PickupEntry p, bool animate)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = $"~Pickup{p.pickupId}";
-            go.transform.SetParent(m_Root.transform, true);
-
             var def = m_Grid.Catalog != null ? m_Grid.Catalog.GetById(p.materialId) : null;
             var fp = def != null ? def.Footprint : Vector3Int.one;
-            // 전체 크기 그대로(축소 X) — 배치된 블록과 같은 크기로 굴러다님
-            go.transform.localScale =
-                new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * (GridContract.Unit * 0.9f);
 
-            var col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            GameObject go;
+            if (def != null && def.Prefab != null)   // 진짜 블록 외형(물 재질 등) — 중심을 홀더 원점에 맞춰 굴림
+            {
+                go = new GameObject($"~Pickup{p.pickupId}");
+                var vis = Instantiate(def.Prefab, go.transform);
+                vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) 보정
+                foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+            }
+            else                                     // 프리팹 없음 → 공정색 큐브(폴백)
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = $"~Pickup{p.pickupId}";
+                // 전체 크기 그대로(축소 X) — 배치된 블록과 같은 크기로 굴러다님
+                go.transform.localScale =
+                    new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * (GridContract.Unit * 0.9f);
+                var col = go.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+                SetColor(go, ColorForMask(def != null ? def.RequiredMask : 0));
+            }
 
-            SetColor(go, ColorForMask(def != null ? def.RequiredMask : 0));
+            go.transform.SetParent(m_Root.transform, true);
             var body = go.AddComponent<PickupBody>();
             if (animate) body.Init(p.fromPos, p.pos);   // 새로 떨굼/던짐 → 비행 연출
             else body.Snap(p.pos);                       // 늦참 복원 → 제자리 스냅(유령 비행 방지)

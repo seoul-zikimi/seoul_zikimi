@@ -10,7 +10,7 @@ namespace Player
     /// <summary>
     /// 들기 + 배치 + 공정. 한 번에 '재료' 또는 '도구' 하나만 든다(협동 제약).
     /// F 줍기/도구 · 좌클릭 배치 · 우클릭 철거 · E(꾹) 공정(든 도구를 로딩바로 적용) · C 공정취소
-    /// · R 회전 · 마우스휠 층 · Space 바닥에 버리기. (어떤 블록에 뭐가 필요한지는 TAB 정답 안내로 확인)
+    /// · R 회전 · Q 층내림 / E톡 층올림 · Space 바닥에 버리기. (어떤 블록에 뭐가 필요한지는 TAB 정답 안내로 확인)
     /// 든 상태는 NetworkVariable로 복제 → 모든 클라가 머리 위 비주얼 재구성(원격도 보임).
     /// </summary>
     public class PlayerCarry : NetworkBehaviour
@@ -44,7 +44,6 @@ namespace Player
         private MaterialDropField m_Drop;
         private Vector3Int m_Target;
         private bool m_HasTarget;
-        private bool m_WasScrolling;
         private GUIStyle m_HudStyle, m_BarLabel;
         private static readonly Vector3Int s_NoCell = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
         private Vector3Int m_LastShockCell = s_NoCell;   // 같은 셀 안에 있는 동안 충격 중복 전송 방지
@@ -55,6 +54,10 @@ namespace Player
         private ProcessType m_ProcessKind;             // 진행 중인 공정(바 라벨) = 든 도구
         private Vector3Int m_PendingCell = s_NoCell;   // 방금 적용→복제 대기 중인 셀(중복 적용 방지)
         private ProcessType m_PendingKind;             // 그 공정(복제 반영되면 해제)
+        private string m_ProcessHint = "";             // 도구 들고 조준 시 "지금 무슨 공정 차례" 안내
+        private float m_EHeldTime;                     // E 누른 시간(톡 vs 꾹 판별)
+        private bool m_EProcessed;                     // 이번 E 누름에서 공정이 적용됐나(떼도 층 올림 방지)
+        private const float kTapMax = 0.25f;           // 이보다 짧게 떼면 '톡'(층 올림), 길면 '꾹'(공정)
 
         // 킥(노답중력): 몸에 닿은(근접) 바닥 재료를 찬다. 줍기 범위(grab)보다 좁아 살짝 떨어져선 F로 줍기 가능.
         private const float kKickRadius = 0.8f;
@@ -107,7 +110,7 @@ namespace Player
 
             if (kb.fKey.wasPressedThisFrame) TryGrab();   // 바닥 재료 줍기 / 작업장 도구 집기
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
-            UpdateLayerScroll(mouse);                     // 마우스휠 = 건축 층
+            if (m_Grid != null && kb.qKey.wasPressedThisFrame) m_BuildHeight = Mathf.Max(0, m_BuildHeight - 1);   // Q = 층 내림 (올림은 E 톡)
             if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
             if (kb.spaceKey.wasPressedThisFrame) Drop();
 
@@ -119,31 +122,37 @@ namespace Player
             if (mouse.leftButton.wasPressedThisFrame && HasMaterial) TryPlace();
             if (mouse.rightButton.wasPressedThisFrame) TryRemove();   // 철거(되돌리기)
 
-            UpdateProcessHold(kb);   // E 꾹 → 로딩바 → 든 도구의 공정 적용
+            UpdateEKey(kb);          // E 톡=층 올림 / E 꾹=공정(로딩바)
+            UpdateProcessHint();     // 도구 들었을 때 "지금 무슨 공정 차례인지" 안내 갱신
 
             TryBumpCollapse();   // C3: 미고정 기둥/벽에 몸으로 부딪히면 무너뜨림
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
         }
 
-        // 마우스휠로 건축 층 이동(노치당 1층, 에지 검출로 한 번씩만).
-        private void UpdateLayerScroll(Mouse mouse)
+        // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
+        // 꾹: '든 도구'가 조준 블록에 필요할 때만 바가 차고, 다 차면 그 공정을 적용(누른 채로 다음 단계 이어짐).
+        private void UpdateEKey(Keyboard kb)
         {
-            if (m_Grid == null) return;
-            float sy = mouse.scroll.ReadValue().y;
-            bool scrolling = Mathf.Abs(sy) > 0.1f;
-            if (scrolling && !m_WasScrolling)
-                m_BuildHeight = Mathf.Clamp(m_BuildHeight + (sy > 0f ? 1 : -1), 0, m_Grid.GridSize.y - 1);
-            m_WasScrolling = scrolling;
-        }
-
-        // E를 꾹 누르면 '든 도구'가 조준 블록에 필요할 때만 로딩바가 차고, 다 차면 그 공정을 적용한다.
-        // 누른 채로 두면 같은 도구로 가능한 다음 칸/단계를 이어서 진행(도구가 안 맞으면 바가 안 참).
-        private void UpdateProcessHold(Keyboard kb)
-        {
-            if (!kb.eKey.isPressed || !ToolReadyOnTarget())
+            if (kb.eKey.wasReleasedThisFrame)
             {
-                m_ProcessHold = 0f;
-                m_ProcessCell = s_NoCell;
+                // 짧게 떼고(꾹 아님) 공정도 안 했으면 → 층 올림(톡)
+                if (m_EHeldTime > 0f && m_EHeldTime < kTapMax && !m_EProcessed && m_Grid != null)
+                    m_BuildHeight = Mathf.Min(m_Grid.GridSize.y - 1, m_BuildHeight + 1);
+                m_EHeldTime = 0f; m_EProcessed = false;
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
+                return;
+            }
+            if (!kb.eKey.isPressed)
+            {
+                m_EHeldTime = 0f; m_EProcessed = false;
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
+                return;
+            }
+
+            m_EHeldTime += Time.deltaTime;
+            if (!ToolReadyOnTarget())   // 지금 공정 불가(도구 없음/안 맞음/빈 칸) → 바 안 참(톡이면 층 올림은 release에서)
+            {
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
             }
 
@@ -157,6 +166,7 @@ namespace Player
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
+                m_EProcessed = true;             // 이번 누름에 공정 적용 → 떼도 층 올림 안 함
             }
         }
 
@@ -187,6 +197,29 @@ namespace Player
             }
             return ProcessType.None;
         }
+
+        // 도구를 들고 블록을 조준할 때 "지금 무슨 공정 차례 / 든 도구가 맞는지"를 안내(공정 순서 혼동 방지).
+        private void UpdateProcessHint()
+        {
+            m_ProcessHint = "";
+            if (!HasTool || !m_HasTarget || m_Net == null) return;
+            if (m_Loop != null && !m_Loop.IsBuilding) return;
+            if (!m_Net.TryGetCell(m_Target, out int matId, out int completed)) { m_ProcessHint = "빈 칸 — 블록을 가리키세요"; return; }
+
+            var def = Catalog() != null ? Catalog().GetById(matId) : null;
+            int req = def != null ? def.RequiredMask : 0;
+            var next = NextNeeded(req, completed);
+            if (next == ProcessType.None)
+                // 다음 필요 공정이 없음 — 든 도구가 애초에 필요 없는 공정이면 그렇게 알려준다(혼동 방지).
+                m_ProcessHint = (req & (int)m_HeldTool) == 0
+                    ? $"이 블록엔 {ProcName(m_HeldTool)} 공정이 필요 없어요"
+                    : "이 블록은 공정이 다 됐어요";
+            else if (next == m_HeldTool)       m_ProcessHint = $"E 꾹 → {ProcName(next)}";
+            else                               m_ProcessHint = $"먼저 {ProcName(next)} 차례 — 지금 든 건 {ProcName(m_HeldTool)}";
+        }
+
+        private static string ProcName(ProcessType p)
+            => p == ProcessType.Painted ? "페인트(페인트통/초록)" : "고정(망치/파랑)";
 
         // 근접 진입한 바닥 재료를 '닿은 순간' 1회 찬다(서버가 그 방향으로 굴림).
         private void TryKickPickups()
@@ -370,12 +403,23 @@ namespace Player
             {
                 var def = FindMaterial(matId);
                 if (def == null) return;
-                m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 var fp = def.Footprint;
-                m_HeldVisual.transform.localScale =
-                    new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * 0.35f;
-                Paint(m_HeldVisual, ColorForMask(def.RequiredMask));
-                StripCollider(m_HeldVisual);
+                if (def.Prefab != null)   // 진짜 블록 외형(물 재질 등) — 중심 맞춰 작게 들기
+                {
+                    m_HeldVisual = new GameObject("~Held");
+                    var vis = Instantiate(def.Prefab, m_HeldVisual.transform);
+                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) 보정
+                    m_HeldVisual.transform.localScale = Vector3.one * 0.35f;
+                    foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
+                }
+                else                      // 프리팹 없음 → 공정색 큐브(폴백)
+                {
+                    m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    m_HeldVisual.transform.localScale =
+                        new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * 0.35f;
+                    Paint(m_HeldVisual, ColorForMask(def.RequiredMask));
+                    StripCollider(m_HeldVisual);
+                }
             }
             else if (tool != 0)   // 든 도구(구) — 망치=파랑(고정) / 페인트통=초록(페인트)
             {
@@ -462,7 +506,7 @@ namespace Player
             string text =
                 $"[Carry] 들기: {held}\n" +
                 $"좌클릭 배치 · 우클릭 철거 · F 줍기/도구 · E꾹 공정 · G 던지기 · Space 버리기\n" +
-                $"C 공정취소 · R 회전 · 휠 층 {m_BuildHeight} · TAB 정답/필요공정    {tgt}  {score}\n" +
+                $"C 공정취소 · R 회전 · 층 {m_BuildHeight}(Q내림·E톡 올림) · TAB 정답/필요공정    {tgt}  {score}\n" +
                 $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget}";
 
             var box = new Rect(10, 174, 700, 100);
@@ -473,6 +517,28 @@ namespace Player
             GUI.Label(new Rect(box.x + 8, box.y + 6, box.width - 16, box.height - 12), text, m_HudStyle);
 
             DrawProcessBar();
+            DrawProcessHint();
+        }
+
+        // 도구 들고 조준 중일 때(바가 안 차는 동안) 대상 블록 위에 공정 안내를 띄운다.
+        private void DrawProcessHint()
+        {
+            if (m_ProcessHold > 0f || string.IsNullOrEmpty(m_ProcessHint) || m_Cam == null || !m_HasTarget) return;
+            Vector3 world = GridCoordinates.CellToWorld(m_Target) + new Vector3(0.5f, 1.3f, 0.5f);
+            Vector3 sp = m_Cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f) return;
+
+            if (m_BarLabel == null)
+                m_BarLabel = new GUIStyle(GUI.skin.label)
+                    { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+
+            const float w = 280f, h = 20f;
+            var r = new Rect(sp.x - w / 2f, Screen.height - sp.y - h, w, h);
+            var prev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.72f);
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = prev;
+            GUI.Label(r, m_ProcessHint, m_BarLabel);
         }
 
         // E 공정 진행 중이면 대상 블록 위에 로딩바 + 라벨(고정/페인트).
