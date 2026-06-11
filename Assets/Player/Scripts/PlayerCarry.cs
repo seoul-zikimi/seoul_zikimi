@@ -21,6 +21,8 @@ namespace Player
         [SerializeField] private float m_GrabRange = 2.5f;
         [Tooltip("공정 한 단계를 끝내려고 E를 눌러야 하는 시간(초). 로딩바가 차는 속도.")]
         [SerializeField] private float m_ProcessSeconds = 1.2f;
+        [Tooltip("재료를 던질 수 있는 최대 거리(칸). 조준점이 더 멀면 이 거리까지만 날아간다.")]
+        [SerializeField] private float m_ThrowRange = 6f;
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -106,6 +108,7 @@ namespace Player
             if (kb.fKey.wasPressedThisFrame) TryGrab();   // 바닥 재료 줍기 / 작업장 도구 집기
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
             UpdateLayerScroll(mouse);                     // 마우스휠 = 건축 층
+            if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
             if (kb.spaceKey.wasPressedThisFrame) Drop();
 
             UpdateTarget();
@@ -298,6 +301,21 @@ namespace Player
             ClearHeld();
         }
 
+        // 든 재료를 마우스 조준 지점으로 던진다(협동 전달). 최대 m_ThrowRange까지. 도구는 못 던짐.
+        private void Throw()
+        {
+            if (!HasMaterial || m_Drop == null) return;
+            Vector3 aim = AimWorldPoint();                 // 커서 아래 바닥 지점(y=0.5)
+            Vector3 flat = aim - transform.position; flat.y = 0f;
+            float dist = flat.magnitude;
+            Vector3 to = dist > m_ThrowRange
+                ? transform.position + flat / Mathf.Max(dist, 1e-4f) * m_ThrowRange   // 너무 멀면 사거리까지만
+                : aim;
+            to.y = 0.5f;
+            m_Drop.RequestThrow(m_HeldMaterial.Id, transform.position + Vector3.up * 1.2f, to);
+            ClearHeld();
+        }
+
         // 든 재료가 있으면 발밑 바닥에 떨군다(놓기 외에 손을 떠나는 모든 경로 공통). 다시 주워 재배치 가능.
         private void DropHeldMaterialToFloor()
         {
@@ -443,8 +461,8 @@ namespace Player
             string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
             string text =
                 $"[Carry] 들기: {held}\n" +
-                $"F 줍기/도구 · 좌클릭 배치 · 우클릭 철거 · E(꾹) 공정 · C 공정취소 · R 회전 · 휠 층 {m_BuildHeight} · TAB 정답/필요공정\n" +
-                $"{tgt}    {score}\n" +
+                $"좌클릭 배치 · 우클릭 철거 · F 줍기/도구 · E꾹 공정 · G 던지기 · Space 버리기\n" +
+                $"C 공정취소 · R 회전 · 휠 층 {m_BuildHeight} · TAB 정답/필요공정    {tgt}  {score}\n" +
                 $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget}";
 
             var box = new Rect(10, 174, 700, 100);

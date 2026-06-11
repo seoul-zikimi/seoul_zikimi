@@ -19,6 +19,7 @@ namespace GridSystem
         private ulong m_Counter;                                   // 서버 전용 pickupId 발급
         private GameObject m_Root;                                 // 클라 비주얼 부모
         private readonly Dictionary<ulong, GameObject> m_Visuals = new();
+        private bool m_Spawned;                                    // 최초 Reconcile(늦참 복원) 이후 true → 그 후 추가분만 연출
 
         private void Awake() => m_Grid = GetComponent<GridManager>();
 
@@ -26,7 +27,8 @@ namespace GridSystem
         {
             m_Root = new GameObject("~Pickups");
             m_Pickups.OnListChanged += OnChanged;
-            Reconcile();   // 늦참: 이미 복제된 픽업들 즉시 표시
+            Reconcile();        // 늦참: 이미 복제된 픽업들은 연출 없이 제자리 스냅(m_Spawned=false 동안)
+            m_Spawned = true;   // 이후 추가되는 픽업만 떨굼/던지기 연출
         }
 
         public override void OnNetworkDespawn()
@@ -55,6 +57,24 @@ namespace GridSystem
 
         [Rpc(SendTo.Server)]
         private void DropRpc(int materialId, Vector3 fromPos) => ServerDrop(materialId, fromPos);
+
+        // ── 던지기(협동 전달): 조준 지점(toPos)에 착지하도록 떨군다. fromPos에서 날아오는 건 코스메틱.
+        //    위치 권위는 toPos라 착지 지점의 동료가 바로 F로 줍는다. ─────────────
+        public void ServerThrow(int materialId, Vector3 fromPos, Vector3 toPos)
+        {
+            if (!IsServer || materialId < 0) return;
+            var rest = new Vector3(toPos.x, 0.5f, toPos.z);
+            ClampToFloor(ref rest);
+            m_Pickups.Add(new PickupEntry
+            {
+                pickupId = ++m_Counter, materialId = materialId, pos = rest, fromPos = fromPos
+            });
+        }
+
+        public void RequestThrow(int materialId, Vector3 fromPos, Vector3 toPos) => ThrowRpc(materialId, fromPos, toPos);
+
+        [Rpc(SendTo.Server)]
+        private void ThrowRpc(int materialId, Vector3 fromPos, Vector3 toPos) => ServerThrow(materialId, fromPos, toPos);
 
         // ── 킥(몸에 닿음): 서버가 dir 방향으로 픽업을 차서 굴려보낸다 ──────────
         public void RequestKick(ulong pickupId, Vector3 dir) => KickRpc(pickupId, dir);
@@ -143,7 +163,7 @@ namespace GridSystem
                 {
                     if (go != null) go.GetComponent<PickupBody>().SetTarget(p.pos);   // 킥 → 새 목표로 굴림
                 }
-                else m_Visuals[p.pickupId] = MakeVisual(p);
+                else m_Visuals[p.pickupId] = MakeVisual(p, m_Spawned);   // 최초 복원은 스냅, 라이브 추가는 연출
             }
 
             var gone = new List<ulong>();
@@ -155,7 +175,7 @@ namespace GridSystem
             }
         }
 
-        private GameObject MakeVisual(PickupEntry p)
+        private GameObject MakeVisual(PickupEntry p, bool animate)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"~Pickup{p.pickupId}";
@@ -171,7 +191,9 @@ namespace GridSystem
             if (col != null) Destroy(col);
 
             SetColor(go, ColorForMask(def != null ? def.RequiredMask : 0));
-            go.AddComponent<PickupBody>().Init(p.fromPos, p.pos);
+            var body = go.AddComponent<PickupBody>();
+            if (animate) body.Init(p.fromPos, p.pos);   // 새로 떨굼/던짐 → 비행 연출
+            else body.Snap(p.pos);                       // 늦참 복원 → 제자리 스냅(유령 비행 방지)
             return go;
         }
 
