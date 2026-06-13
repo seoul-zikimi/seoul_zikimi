@@ -1,11 +1,6 @@
 {
-    "name": "GridSystem",
-    "rootNamespace": "GridSystem",
-    "references": [
-        "Unity.InputSystem",
-        "Unity.Netcode.Runtime",
-        "Core"
-    ],
+    "name": "Core",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

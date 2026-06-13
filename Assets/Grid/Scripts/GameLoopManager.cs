@@ -1,15 +1,17 @@
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 namespace GridSystem
 {
     public enum GamePhase { Building, Finished }
 
     /// <summary>
-    /// 게임 루프(L1~L3): 서버 권위 타이머/페이즈 + 전원동의 건축종료 + 채점/재시작.
-    /// 건축 중 Enter = '건축 종료' 동의 토글 → 접속 전원이 동의하면 종료(또는 시간초과).
-    /// 종료 화면 Enter = 재시작(그리드·재고·타이머 리셋). GridManager/GridNetwork 와 같은 오브젝트.
+    /// 게임 루프(L1~L3): 서버 권위 타이머/페이즈 + 전원동의 종료 + 채점 + 전원동의 재시작.
+    /// 건축 중 Enter = '건축 종료' 동의 토글 → 접속 전원 동의 시 종료(또는 시간초과).
+    /// 종료 화면 Enter = '재시작' 동의 토글 → 접속 전원 동의 시 새 라운드(그리드·재료·타이머 리셋).
+    /// 동의(m_Consents)는 두 페이즈가 재사용하고, 종료 진입 시 초기화한다. GridManager/GridNetwork 와 같은 오브젝트.
     /// </summary>
     [RequireComponent(typeof(GridManager))]
     public class GameLoopManager : NetworkBehaviour
@@ -22,7 +24,7 @@ namespace GridSystem
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<int> m_AnswerIndex =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-        private readonly NetworkList<ulong> m_Consents = new();   // 건축종료 동의한 clientId (서버 관리)
+        private readonly NetworkList<ulong> m_Consents = new();   // 동의한 clientId (건축중=종료동의 / 종료중=재시작동의, 서버 관리)
 
         private GridManager m_Grid;
         private GridNetwork m_Net;
@@ -72,23 +74,23 @@ namespace GridSystem
         {
             if (!IsSpawned) return;   // 스폰 전/디스폰 후엔 네트워크 상태 접근 금지(NullRef 방지)
 
-            // 입력(모든 클라): 건축중 Enter=동의 토글 / 종료화면 Enter=재시작
+            // 입력(모든 클라): Enter = 동의 토글 (건축중=종료 동의 / 종료화면=재시작 동의)
             var kb = Keyboard.current;
             if (kb != null && kb.enterKey.wasPressedThisFrame)
-            {
-                if (IsBuilding) ToggleConsentRpc();
-                else RestartRpc();
-            }
+                ToggleConsentRpc();
 
             if (!IsServer) return;
 
-            // 접속 인원 갱신 + 끊긴 클라 동의 정리 + 전원동의 검사
+            // 접속 인원 갱신 + 끊긴 클라 동의 정리 + 전원동의 검사(건축→종료 / 종료→재시작)
             var ids = NetworkManager.Singleton.ConnectedClientsIds;
             m_PlayerCount.Value = ids.Count;
             for (int i = m_Consents.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Consents[i])) m_Consents.RemoveAt(i);
-            if (IsBuilding && ids.Count > 0 && m_Consents.Count >= ids.Count)
-                Finish();
+            if (ids.Count > 0 && m_Consents.Count >= ids.Count)
+            {
+                if (IsBuilding) Finish();   // 건축 전원동의 → 종료
+                else            Restart();  // 종료 전원동의 → 재시작
+            }
 
             // 타이머
             if (IsBuilding)
@@ -106,9 +108,12 @@ namespace GridSystem
 
         private void Finish()
         {
-            if (IsBuilding) m_Phase.Value = (int)GamePhase.Finished;
+            if (!IsBuilding) return;
+            m_Phase.Value = (int)GamePhase.Finished;
+            for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);   // 종료 진입 → 동의 초기화(재시작 동의는 새로 받음)
         }
 
+        // Enter = 동의 토글(건축중=종료 동의 / 종료화면=재시작 동의). 두 페이즈 모두 유효.
         [Rpc(SendTo.Server)]
         private void ToggleConsentRpc(RpcParams rpc = default)
         {
@@ -118,14 +123,13 @@ namespace GridSystem
             m_Consents.Add(sender);
         }
 
-        [Rpc(SendTo.Server)]
-        private void RestartRpc()
+        // 종료 화면에서 접속 전원이 재시작 동의 → 새 랜덤 정답으로 다음 라운드(서버 전용, 전원동의 검사에서만 호출).
+        private void Restart()
         {
-            if (IsBuilding) return;
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리
-            ResetTimerAndPhase();
+            ResetTimerAndPhase();                          // 타이머·페이즈 리셋 + 동의 초기화
         }
 
         private bool LocalConsented()
@@ -168,7 +172,16 @@ namespace GridSystem
                 GUI.Label(new Rect(box.x, box.y + 78f, box.width, 30f), $"점수 {sc.Percent:F0}%  ({sc.score}/{sc.maxScore})", m_Mid);
                 GUI.Label(new Rect(box.x, box.y + 112f, box.width, 24f), $"배치 정확 {sc.placedCorrect}/{sc.answerCells}", m_Small);
                 GUI.Label(new Rect(box.x, box.y + 134f, box.width, 24f), $"공정 완료 {sc.processCorrect}/{sc.answerCells}", m_Small);
-                GUI.Label(new Rect(box.x, box.y + 168f, box.width, 26f), "Enter = 재시작", m_Mid);
+                GUI.Label(new Rect(box.x, box.y + 166f, box.width, 26f), $"재시작 동의 {m_Consents.Count}/{m_PlayerCount.Value}", m_Mid);
+                GUI.Label(new Rect(box.x, box.y + 192f, box.width, 22f), LocalConsented() ? "Enter = 동의 취소" : "Enter = 재시작 동의", m_Small);
+            }
+
+            // 나가기(채점 없이 세션 이탈) → 연결 끊고 Bootstrap(메뉴)으로 복귀.
+            // 좌하단(빈 공간)에 둠 — 우하단은 정답 미리보기 박스와 겹침.
+            if (GUI.Button(new Rect(12f, Screen.height - 46f, 100f, 34f), "나가기"))
+            {
+                if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
+                SceneManager.LoadScene(SceneNames.BootstrapScene);   // 메뉴로 복귀(다시 Host/Client)
             }
         }
 

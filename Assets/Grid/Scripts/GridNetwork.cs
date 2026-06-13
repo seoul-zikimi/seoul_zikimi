@@ -205,6 +205,7 @@ namespace GridSystem
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
             if (m_DropField != null) m_DropField.ServerReset();   // 바닥 재료도 정리
+            RecomputeScore();   // 새 정답 기준으로 점수 즉시 재계산(빈 그리드라 OnCellsChanged가 안 떠도)
         }
 
         private void RebuildVisuals()
