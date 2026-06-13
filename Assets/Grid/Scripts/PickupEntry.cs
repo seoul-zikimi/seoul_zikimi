@@ -11,7 +11,8 @@ namespace GridSystem
     public struct PickupEntry : INetworkSerializable, IEquatable<PickupEntry>
     {
         public ulong pickupId;     // 고유 id(서버 발급)
-        public int materialId;
+        public int materialId;     // 도구 픽업이면 -1
+        public int toolBit;        // 0=재료 / 그 외=도구(ProcessType 비트: 1=망치(고정), 2=페인트통)
         public Vector3 pos;        // 바닥 안착 위치(서버 권위, 줍기 판정 기준)
         public Vector3 fromPos;    // 낙하 시작 위치(로컬 '노답중력' 연출용)
 
@@ -19,11 +20,13 @@ namespace GridSystem
         {
             s.SerializeValue(ref pickupId);
             s.SerializeValue(ref materialId);
+            s.SerializeValue(ref toolBit);
             s.SerializeValue(ref pos);
             s.SerializeValue(ref fromPos);
         }
 
         public bool Equals(PickupEntry o)
-            => pickupId == o.pickupId && materialId == o.materialId && pos == o.pos && fromPos == o.fromPos;
+            => pickupId == o.pickupId && materialId == o.materialId && toolBit == o.toolBit
+            && pos == o.pos && fromPos == o.fromPos;
     }
 }

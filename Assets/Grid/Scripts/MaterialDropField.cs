@@ -76,6 +76,21 @@ namespace GridSystem
         [Rpc(SendTo.Server)]
         private void ThrowRpc(int materialId, Vector3 fromPos, Vector3 toPos) => ServerThrow(materialId, fromPos, toPos);
 
+        // 도구 던지기(협동 전달) — 재료 던지기와 동일하나 toolBit로 표시(재료 아님).
+        public void RequestThrowTool(int toolBit, Vector3 fromPos, Vector3 toPos) => ThrowToolRpc(toolBit, fromPos, toPos);
+
+        [Rpc(SendTo.Server)]
+        private void ThrowToolRpc(int toolBit, Vector3 fromPos, Vector3 toPos)
+        {
+            if (!IsServer || toolBit == 0) return;
+            var rest = new Vector3(toPos.x, 0.5f, toPos.z);
+            ClampToFloor(ref rest);
+            m_Pickups.Add(new PickupEntry
+            {
+                pickupId = ++m_Counter, materialId = -1, toolBit = toolBit, pos = rest, fromPos = fromPos
+            });
+        }
+
         // ── 킥(몸에 닿음): 서버가 dir 방향으로 픽업을 차서 굴려보낸다 ──────────
         public void RequestKick(ulong pickupId, Vector3 dir) => KickRpc(pickupId, dir);
 
@@ -109,16 +124,16 @@ namespace GridSystem
         // ── 줍기 ────────────────────────────────────────────────────────────
         /// <summary>손 닿는 범위(reach, playerPos 기준) 내에서 '조준점(aim)에 가장 가까운' 바닥 재료.
         /// 마우스로 가리켜 집기 — 정확히 안 가리켜도 닿는 것 중 커서에 제일 가까운 걸 집는다.</summary>
-        public bool TryFindForGrab(Vector3 playerPos, Vector3 aim, float reach, out ulong pickupId, out int materialId)
+        public bool TryFindForGrab(Vector3 playerPos, Vector3 aim, float reach, out ulong pickupId, out int materialId, out int toolBit)
         {
-            pickupId = 0; materialId = -1;
+            pickupId = 0; materialId = -1; toolBit = 0;
             float reach2 = reach * reach;
             float best = float.MaxValue; bool ok = false;
             foreach (var p in m_Pickups)
             {
                 if ((p.pos - playerPos).sqrMagnitude > reach2) continue;   // 손 닿는 범위
                 float d = (p.pos - aim).sqrMagnitude;                       // 커서에 가까운 것 우선
-                if (d < best) { best = d; pickupId = p.pickupId; materialId = p.materialId; ok = true; }
+                if (d < best) { best = d; pickupId = p.pickupId; materialId = p.materialId; toolBit = p.toolBit; ok = true; }
             }
             return ok;
         }
@@ -177,10 +192,24 @@ namespace GridSystem
 
         private GameObject MakeVisual(PickupEntry p, bool animate)
         {
+            GameObject go;
+            if (p.toolBit != 0)   // 던져진 도구 — 든 도구와 같은 색 구슬(파랑=망치/초록=페인트통)
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                go.name = $"~PickupTool{p.pickupId}";
+                go.transform.localScale = Vector3.one * 0.5f;
+                var tc = go.GetComponent<Collider>();
+                if (tc != null) Destroy(tc);
+                SetColor(go, ColorForMask(p.toolBit));
+                go.transform.SetParent(m_Root.transform, true);
+                var tbody = go.AddComponent<PickupBody>();
+                if (animate) tbody.Init(p.fromPos, p.pos); else tbody.Snap(p.pos);
+                return go;
+            }
+
             var def = m_Grid.Catalog != null ? m_Grid.Catalog.GetById(p.materialId) : null;
             var fp = def != null ? def.Footprint : Vector3Int.one;
 
-            GameObject go;
             if (def != null && def.Prefab != null)   // 진짜 블록 외형(물 재질 등) — 중심을 홀더 원점에 맞춰 굴림
             {
                 go = new GameObject($"~Pickup{p.pickupId}");

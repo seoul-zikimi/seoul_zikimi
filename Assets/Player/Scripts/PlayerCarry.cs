@@ -273,14 +273,14 @@ namespace Player
             }
         }
 
-        // F: 재료를 들고 있으면 무시. 손 비었/도구만 있으면 '마우스가 가리킨 바닥 재료' 우선, 없으면 작업장 도구.
+        // F: 재료를 들고 있으면 무시. 손 비었/도구만 있으면 '마우스가 가리킨 바닥 픽업(재료/던진 도구)' 우선, 없으면 작업장 도구.
         private void TryGrab()
         {
             if (HasMaterial) return;
             if (m_Drop != null &&
-                m_Drop.TryFindForGrab(transform.position, AimWorldPoint(), m_GrabRange, out var pid, out var mid))
+                m_Drop.TryFindForGrab(transform.position, AimWorldPoint(), m_GrabRange, out var pid, out var mid, out var toolBit))
             {
-                GrabMaterialFromFloor(pid, mid);
+                GrabFromFloor(pid, mid, toolBit);
                 return;
             }
             TryGrabFromWorkstation();
@@ -295,8 +295,14 @@ namespace Player
             return plane.Raycast(ray, out float d) ? ray.GetPoint(d) : transform.position;
         }
 
-        private void GrabMaterialFromFloor(ulong pickupId, int materialId)
+        private void GrabFromFloor(ulong pickupId, int materialId, int toolBit)
         {
+            if (toolBit != 0)                      // 던져진 도구 줍기
+            {
+                m_Drop.RequestGrab(pickupId);      // 서버가 픽업 제거(낙관적)
+                HoldTool((ProcessType)toolBit);
+                return;
+            }
             var def = m_Grid != null && m_Grid.Catalog != null ? m_Grid.Catalog.GetById(materialId) : null;
             if (def == null) return;
             m_Drop.RequestGrab(pickupId);          // 서버가 픽업 제거(낙관적)
@@ -334,10 +340,10 @@ namespace Player
             ClearHeld();
         }
 
-        // 든 재료를 마우스 조준 지점으로 던진다(협동 전달). 최대 m_ThrowRange까지. 도구는 못 던짐.
+        // 든 재료 또는 도구를 마우스 조준 지점으로 던진다(협동 전달). 최대 m_ThrowRange까지.
         private void Throw()
         {
-            if (!HasMaterial || m_Drop == null) return;
+            if (m_Drop == null || (!HasMaterial && !HasTool)) return;
             Vector3 aim = AimWorldPoint();                 // 커서 아래 바닥 지점(y=0.5)
             Vector3 flat = aim - transform.position; flat.y = 0f;
             float dist = flat.magnitude;
@@ -345,7 +351,9 @@ namespace Player
                 ? transform.position + flat / Mathf.Max(dist, 1e-4f) * m_ThrowRange   // 너무 멀면 사거리까지만
                 : aim;
             to.y = 0.5f;
-            m_Drop.RequestThrow(m_HeldMaterial.Id, transform.position + Vector3.up * 1.2f, to);
+            Vector3 from = transform.position + Vector3.up * 1.2f;
+            if (HasMaterial) m_Drop.RequestThrow(m_HeldMaterial.Id, from, to);
+            else             m_Drop.RequestThrowTool((int)m_HeldTool, from, to);
             ClearHeld();
         }
 
