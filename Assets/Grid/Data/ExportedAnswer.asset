@@ -14,50 +14,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MapAnswerData
   m_GridSize: {x: 8, y: 4, z: 8}
   m_Cells:
-  - cell: {x: 3, y: 0, z: 3}
-    materialId: 0
-    rotationStep: 0
-  - cell: {x: 4, y: 0, z: 3}
+  - cell: {x: 6, y: 0, z: 4}
     materialId: 0
     rotationStep: 0
   - cell: {x: 6, y: 0, z: 3}
     materialId: 0
     rotationStep: 0
-  - cell: {x: 7, y: 0, z: 3}
-    materialId: 0
-    rotationStep: 0
-  - cell: {x: 2, y: 0, z: 3}
-    materialId: 0
-    rotationStep: 0
-  - cell: {x: 5, y: 0, z: 3}
-    materialId: 0
-    rotationStep: 0
-  - cell: {x: 6, y: 0, z: 0}
+  - cell: {x: 7, y: 0, z: 6}
     materialId: 2
     rotationStep: 0
-  - cell: {x: 7, y: 0, z: 2}
+  - cell: {x: 7, y: 0, z: 7}
+    materialId: 2
+    rotationStep: 0
+  - cell: {x: 7, y: 1, z: 6}
+    materialId: 2
+    rotationStep: 0
+  - cell: {x: 7, y: 1, z: 7}
+    materialId: 2
+    rotationStep: 0
+  - cell: {x: 7, y: 2, z: 6}
+    materialId: 2
+    rotationStep: 0
+  - cell: {x: 7, y: 2, z: 7}
+    materialId: 2
+    rotationStep: 0
+  - cell: {x: 4, y: 0, z: 1}
     materialId: 1
     rotationStep: 0
-  - cell: {x: 7, y: 0, z: 1}
+  - cell: {x: 4, y: 0, z: 2}
     materialId: 1
     rotationStep: 0
-  - cell: {x: 6, y: 0, z: 1}
-    materialId: 2
-    rotationStep: 0
-  - cell: {x: 6, y: 0, z: 2}
-    materialId: 2
-    rotationStep: 0
-  - cell: {x: 7, y: 0, z: 0}
+  - cell: {x: 4, y: 0, z: 3}
     materialId: 1
-    rotationStep: 0
-  - cell: {x: 6, y: 1, z: 2}
-    materialId: 2
-    rotationStep: 0
-  - cell: {x: 6, y: 1, z: 1}
-    materialId: 2
-    rotationStep: 0
-  - cell: {x: 6, y: 1, z: 0}
-    materialId: 2
     rotationStep: 0
   m_StartPilePosition: {x: 0, y: 0, z: 0}
   m_TimeLimitSeconds: 180

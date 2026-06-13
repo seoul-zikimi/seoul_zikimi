@@ -215,11 +215,25 @@ namespace GridSystem
             float u = GridContract.Unit;
             var catalog = m_Manager.Catalog;
 
-            // 오브젝트(owner)별 점유 셀의 min-corner(프리팹 정렬 기준)
-            var minCell = new Dictionary<ulong, Vector3Int>();
+            // 오브젝트(owner)별 집계: min-corner(프리팹 정렬) + 중심·꼭대기(공정 마커 위치) + 재료/완료공정
+            var agg = new Dictionary<ulong, OwnerAgg>();
             foreach (var e in m_Cells)
-                minCell[e.ownerObjectId] = minCell.TryGetValue(e.ownerObjectId, out var mn)
-                    ? Vector3Int.Min(mn, e.cell) : e.cell;
+            {
+                Vector3 center = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
+                float top = GridCoordinates.CellToWorld(e.cell).y + u;
+                if (agg.TryGetValue(e.ownerObjectId, out var a))
+                {
+                    a.minCell = Vector3Int.Min(a.minCell, e.cell);
+                    a.sumCenter += center; a.count++;
+                    a.topY = Mathf.Max(a.topY, top);
+                    agg[e.ownerObjectId] = a;
+                }
+                else agg[e.ownerObjectId] = new OwnerAgg
+                {
+                    minCell = e.cell, sumCenter = center, count = 1, topY = top,
+                    materialId = e.materialId, completedMask = e.completedProcessMask,
+                };
+            }
 
             var done = new HashSet<ulong>();
             foreach (var e in m_Cells)
@@ -228,11 +242,11 @@ namespace GridSystem
                 if (def != null && def.Prefab != null)
                 {
                     if (!done.Add(e.ownerObjectId)) continue;   // 오브젝트당 프리팹 1개
-                    SpawnPrefabVisual(def, e.rotationStep, minCell[e.ownerObjectId]);
+                    SpawnPrefabVisual(def, e.rotationStep, agg[e.ownerObjectId].minCell);
                 }
                 else
                 {
-                    // 프리팹 없음 → 칸마다 색칠 큐브(공정 색)
+                    // 프리팹 없음 → 칸마다 색칠 큐브(완료 공정 색)
                     var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     cube.transform.SetParent(m_VisualRoot.transform, true);
                     cube.transform.position = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
@@ -242,6 +256,26 @@ namespace GridSystem
                     SetColor(cube, ColorForMask(e.completedProcessMask));
                 }
             }
+
+            // 공정 마커: 아직 할 공정이 남은 블록 위에 색 점(파랑=고정 필요 / 초록=페인트 필요). 다 되면 안 띄움.
+            foreach (var a in agg.Values)
+            {
+                var def = catalog != null ? catalog.GetById(a.materialId) : null;
+                var next = NextNeeded(def != null ? def.RequiredMask : 0, a.completedMask);
+                if (next == ProcessType.None) continue;
+                var pos = new Vector3(a.sumCenter.x / a.count, a.topY + 0.35f, a.sumCenter.z / a.count);
+                SpawnProcessMarker(pos, next);
+            }
+        }
+
+        private struct OwnerAgg
+        {
+            public Vector3Int minCell;
+            public Vector3 sumCenter;
+            public int count;
+            public float topY;
+            public int materialId;
+            public int completedMask;
         }
 
         // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 피벗=min-corner + Y회전 정렬.
@@ -264,6 +298,30 @@ namespace GridSystem
             go.transform.rotation = r;
             go.transform.position = GridCoordinates.CellToWorld(minCell) - new Vector3(minX, 0f, minZ);
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(통과 유지)
+        }
+
+        // 공정이 더 필요한 블록 위에 띄우는 색 점(다음 필요 공정 색 = 도구·HUD 색과 일치). 충돌 없음.
+        private void SpawnProcessMarker(Vector3 pos, ProcessType next)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = "~ProcMarker";
+            go.transform.SetParent(m_VisualRoot.transform, true);
+            go.transform.position = pos;
+            go.transform.localScale = Vector3.one * 0.35f;
+            var col = go.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            SetColor(go, ColorForMask((int)next));
+        }
+
+        // 고정 → 페인트 순서로 첫 미완료 필수 공정(없으면 None).
+        private static ProcessType NextNeeded(int reqMask, int completedMask)
+        {
+            foreach (var p in ProcessOrder.Sequence)
+            {
+                int pb = (int)p;
+                if ((reqMask & pb) != 0 && (completedMask & pb) == 0) return p;
+            }
+            return ProcessType.None;
         }
 
         private static Color ColorForMask(int mask)
