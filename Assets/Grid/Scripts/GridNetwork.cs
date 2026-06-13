@@ -266,6 +266,16 @@ namespace GridSystem
                 var pos = new Vector3(a.sumCenter.x / a.count, a.topY + 0.35f, a.sumCenter.z / a.count);
                 SpawnProcessMarker(pos, next);
             }
+
+            // 단단함: '고정된 하중부재(벽/기둥)'만 칸마다 BoxCollider로 플레이어를 막는다.
+            // 바닥(비하중)·미고정 하중부재는 통과 유지 → 그 위 보행 + 부딪혀 무너뜨리기(TryBumpCollapse) 보존.
+            foreach (var e in m_Cells)
+            {
+                var def = catalog != null ? catalog.GetById(e.materialId) : null;
+                if (def == null || !def.MustBeFixed) continue;
+                if ((e.completedProcessMask & (int)ProcessType.Fixed) == 0) continue;   // 미고정 → 통과
+                AddCellCollider(e.cell, u);
+            }
         }
 
         private struct OwnerAgg
@@ -298,6 +308,15 @@ namespace GridSystem
             go.transform.rotation = r;
             go.transform.position = GridCoordinates.CellToWorld(minCell) - new Vector3(minX, 0f, minZ);
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(통과 유지)
+        }
+
+        // 칸 하나를 막는 보이지 않는 BoxCollider(고정된 하중부재 전용). 렌더러 없음.
+        private void AddCellCollider(Vector3Int cell, float u)
+        {
+            var go = new GameObject("~Solid");
+            go.transform.SetParent(m_VisualRoot.transform, true);
+            go.transform.position = GridCoordinates.CellToWorld(cell) + Vector3.one * 0.5f * u;
+            go.AddComponent<BoxCollider>().size = Vector3.one * u;
         }
 
         // 공정이 더 필요한 블록 위에 띄우는 색 점(다음 필요 공정 색 = 도구·HUD 색과 일치). 충돌 없음.
