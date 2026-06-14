@@ -15,7 +15,8 @@ MonoBehaviour:
   m_Id: 0
   m_Footprint: {x: 1, y: 1, z: 1}
   m_Prefab: {fileID: 0}
-  m_RequiredProcesses: 
+  m_RequiredProcesses:
   m_MustBeFixed: 0
+  m_Walkable: 1
   m_IsBreakable: 0
   m_MaxSpawnCount: -1

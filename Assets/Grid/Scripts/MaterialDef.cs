@@ -24,6 +24,7 @@ namespace GridSystem
 
         [Header("규칙")]
         [SerializeField] private bool m_MustBeFixed;            // 하중 부재(기둥/벽)면 true
+        [SerializeField] private bool m_Walkable;              // 바닥처럼 플레이어가 위로 지나갈 수 있나(콜라이더 안 붙음)
         [SerializeField] private bool m_IsBreakable;            // 유리 등
         [SerializeField] private int  m_MaxSpawnCount = -1;     // 스폰 제한 (-1 = 무제한)
 
@@ -32,6 +33,7 @@ namespace GridSystem
         public GameObject Prefab => m_Prefab;
         public IReadOnlyList<ProcessType> RequiredProcesses => m_RequiredProcesses;
         public bool MustBeFixed => m_MustBeFixed;
+        public bool Walkable => m_Walkable;
         public bool IsBreakable => m_IsBreakable;
         public int  MaxSpawnCount => m_MaxSpawnCount;
 
