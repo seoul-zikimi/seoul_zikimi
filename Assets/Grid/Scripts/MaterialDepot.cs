@@ -4,7 +4,7 @@ using UnityEngine;
 namespace GridSystem
 {
     /// <summary>
-    /// 재료 보급소(물류창고). 리썰컴퍼니식 '주문 → 배송(물리 재료) → 걸어가서 F로 줍기'.
+    /// 재료 보급소(물류창고). 리썰컴퍼니식 '주문 → 배송(물리 재료) → 걸어가서 Space로 줍기'.
     /// 주문하면 배송 구역에 실제 재료(MaterialDropField 픽업)가 떨어진다.
     /// 추상 재고 카운트 없음 — 바닥에 놓인 물리 재료가 곧 재고. 한 번에 하나만 들 수 있으니 숫자키 선택도 없음.
     /// GridManager(=Catalog) + MaterialDropField 와 같은 오브젝트에 둔다.
@@ -75,7 +75,7 @@ namespace GridSystem
             float h = pad * 2 + 22f + mats.Count * rowH;
             var box = new Rect(Screen.width - w - 10f, 10f, w, h);
             DrawBox(box, 0.7f);
-            GUI.Label(new Rect(box.x + 8f, box.y + 6f, w - 16f, 20f), "재료 주문 (배송 → F로 줍기)", m_Style);
+            GUI.Label(new Rect(box.x + 8f, box.y + 6f, w - 16f, 20f), "재료 주문 (배송 → Space로 줍기)", m_Style);
 
             float y = box.y + 30f;
             foreach (var d in mats)

@@ -3,13 +3,14 @@ using GridSystem;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using UnityEngine.Serialization;
 
 namespace Player
 {
     /// <summary>
     /// 들기 + 배치 + 공정. 한 번에 '재료' 또는 '도구' 하나만 든다(협동 제약).
-    /// F 줍기/도구 · 좌클릭 배치 · 우클릭 철거 · E(꾹) 공정(든 도구를 로딩바로 적용) · C 공정취소
+    /// Space 들기/내려놓기(토글) · 좌클릭 배치 · 우클릭 철거 · E(꾹) 공정(든 도구를 로딩바로 적용) · C 공정취소
     /// · R 회전 · Q 층내림 / E톡 층올림 · Space 바닥에 버리기. (어떤 블록에 뭐가 필요한지는 TAB 정답 안내로 확인)
     /// 든 상태는 NetworkVariable로 복제 → 모든 클라가 머리 위 비주얼 재구성(원격도 보임).
     /// </summary>
@@ -59,7 +60,7 @@ namespace Player
         private bool m_EProcessed;                     // 이번 E 누름에서 공정이 적용됐나(떼도 층 올림 방지)
         private const float kTapMax = 0.25f;           // 이보다 짧게 떼면 '톡'(층 올림), 길면 '꾹'(공정)
 
-        // 킥(노답중력): 몸에 닿은(근접) 바닥 재료를 찬다. 줍기 범위(grab)보다 좁아 살짝 떨어져선 F로 줍기 가능.
+        // 킥(노답중력): 몸에 닿은(근접) 바닥 재료를 찬다. 줍기 범위(grab)보다 좁아 살짝 떨어져선 Space로 줍기 가능.
         private const float kKickRadius = 0.8f;
         private readonly HashSet<ulong> m_Touching = new();
         private readonly List<ulong> m_KickIds = new();
@@ -81,6 +82,7 @@ namespace Player
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_LineMat != null) Destroy(m_LineMat);
         }
 
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
@@ -108,11 +110,15 @@ namespace Player
             var mouse = Mouse.current;
             if (kb == null || mouse == null) return;
 
-            if (kb.fKey.wasPressedThisFrame) TryGrab();   // 바닥 재료 줍기 / 작업장 도구 집기
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
             if (m_Grid != null && kb.qKey.wasPressedThisFrame) m_BuildHeight = Mathf.Max(0, m_BuildHeight - 1);   // Q = 층 내림 (올림은 E 톡)
             if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
-            if (kb.spaceKey.wasPressedThisFrame) Drop();
+            // Space = 들기/내려놓기 토글: 손 비었으면 줍기(바닥 재료/작업장 도구), 들고 있으면 바닥에 내려놓기.
+            if (kb.spaceKey.wasPressedThisFrame)
+            {
+                if (HasMaterial || HasTool) Drop();
+                else TryGrab();
+            }
 
             UpdateTarget();
 
@@ -500,6 +506,70 @@ namespace Player
             }
         }
 
+        // ── 인게임 배치 외곽선 (Gizmos 토글과 무관하게 게임 화면에 보임) ──────
+        private Material m_LineMat;
+
+        private Material LineMat()
+        {
+            if (m_LineMat == null)
+            {
+                var sh = Shader.Find("Hidden/Internal-Colored");
+                if (sh == null) sh = Shader.Find("Sprites/Default");
+                m_LineMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+                m_LineMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m_LineMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m_LineMat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                m_LineMat.SetInt("_ZWrite", 0);
+                m_LineMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);   // 블록에 가려도 보이게
+            }
+            return m_LineMat;
+        }
+
+        // URP 카메라 렌더 콜백에 GL 라인을 그린다(게임뷰에 확실히 보임). 메인 카메라에만.
+        private void OnEnable()  => RenderPipelineManager.endCameraRendering += DrawOutline;
+        private void OnDisable() => RenderPipelineManager.endCameraRendering -= DrawOutline;
+
+        private void DrawOutline(ScriptableRenderContext ctx, Camera cam)
+        {
+            if (!IsOwner || !Application.isPlaying || cam != m_Cam || !m_HasTarget) return;
+            if (!HasMaterial && !HasTool) return;
+
+            LineMat().SetPass(0);
+            GL.PushMatrix();
+            GL.LoadProjectionMatrix(cam.projectionMatrix);
+            GL.modelview = cam.worldToCameraMatrix;
+            GL.Begin(GL.LINES);
+            if (HasMaterial)
+            {
+                GL.Color(new Color(0.25f, 0.9f, 1f, 0.95f));   // 시안 = 배치 자리
+                foreach (var c in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
+                    GLWireCube(GridCoordinates.CellToWorld(c) + Vector3.one * 0.5f, Vector3.one);
+            }
+            else
+            {
+                GL.Color(new Color(1f, 0.95f, 0.25f, 0.95f));  // 노랑 = 공정 대상
+                GLWireCube(GridCoordinates.CellToWorld(m_Target) + Vector3.one * 0.5f, Vector3.one);
+            }
+            GL.End();
+            GL.PopMatrix();
+        }
+
+        private static void GLWireCube(Vector3 center, Vector3 size)
+        {
+            var h = size * 0.5f;
+            for (int a = 0; a < 8; a++)
+            for (int b = a + 1; b < 8; b++)
+            {
+                int d = a ^ b;
+                if (d != 1 && d != 2 && d != 4) continue;   // 한 축만 다른 코너 쌍 = 모서리(총 12개)
+                GL.Vertex(GLCorner(center, h, a));
+                GL.Vertex(GLCorner(center, h, b));
+            }
+        }
+
+        private static Vector3 GLCorner(Vector3 c, Vector3 h, int k)
+            => c + new Vector3((k & 1) != 0 ? h.x : -h.x, (k & 2) != 0 ? h.y : -h.y, (k & 4) != 0 ? h.z : -h.z);
+
         private void OnGUI()
         {
             if (!IsOwner || !Application.isPlaying) return;
@@ -508,12 +578,12 @@ namespace Player
 
             string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
                         : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
-                        :               "빈손 — 우상단서 주문 → 배송 구역에서 F로 줍기 (작업장서 F=도구)";
+                        :               "빈손 — 우상단서 주문 → 배송 구역에서 Space로 줍기 (작업장서 Space=도구)";
             string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
             string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
             string text =
                 $"[Carry] 들기: {held}\n" +
-                $"좌클릭 배치 · 우클릭 철거 · F 줍기/도구 · E꾹 공정 · G 던지기 · Space 버리기\n" +
+                $"좌클릭 배치 · 우클릭 철거 · Space 들기/내려놓기 · E꾹 공정 · G 던지기\n" +
                 $"C 공정취소 · R 회전 · 층 {m_BuildHeight}(Q내림·E톡 올림) · TAB 정답/필요공정    {tgt}  {score}\n" +
                 $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget}";
 
