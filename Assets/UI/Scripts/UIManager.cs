@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UIManager : PersistentSingleton<UIManager>
+public class UIManager : Singleton<UIManager>
 {
     // Addressables 전환 시: new AddressablesProvider() 한 줄 교체
     IAssetProvider _loader = new ResourcesProvider();
@@ -16,6 +16,12 @@ public class UIManager : PersistentSingleton<UIManager>
     public GameObject HUDRoot    => GetOrCreateRoot("@UI_HUDRoot",    UIType.HUD);
     public GameObject PopupRoot  => GetOrCreateRoot("@UI_PopupRoot",  UIType.Popup);
     public GameObject SystemRoot => GetOrCreateRoot("@UI_SystemRoot", UIType.System);
+
+    protected override void Awake()
+    {
+        base.Awake();
+        DontDestroyOnLoad(this.gameObject);
+    }
 
     GameObject GetOrCreateRoot(string name, UIType type)
     {

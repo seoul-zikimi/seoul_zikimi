@@ -97,23 +97,30 @@ SoundManagerDemoScene에서 키보드로 모든 기능을 단독 테스트합니
 | `[2]` | BGM: Building |
 | `[3]` | BGM: BuildingUrgent |
 | `[4]` | BGM: Result |
-| `[Q]` | SFX: PlayerFootstep |
-| `[W]` | SFX: PlayerBounce |
+| `[Q]` | 2D SFX: PlayerFootstep |
+| `[W]` | 2D SFX: PlayerBounce |
+| `[A]` / `[D]` | 3D SFX: 왼쪽 / 오른쪽 (위치 패닝) |
+| `[S]` | 3D SFX 버스트 — 8곳에서 동시 발음 (voice 풀 확인) |
+| `[Z]` / `[X]` | SFX 볼륨 − / + |
+| `[C]` / `[V]` | BGM 볼륨 − / + |
 | `[F1]` | BGM 즉시 정지 |
 | `[F2]` | BGM fade-out 후 정지 |
-| `[F3]` | SFX 전체 정지 |
+| `[F3]` | SFX 전체 정지 (2D + 3D) |
 
 ### 3-3. 확인 항목
 
 - [ ] `[2]` 누름 → BGM 재생됨
 - [ ] `[3]` 누름 → 1초에 걸쳐 BGM이 부드럽게 전환됨 (crossfade)
 - [ ] `[2]` 연속 두 번 → 두 번째 호출에서 아무 변화 없음 (같은 클립 무시)
-- [ ] `[Q]` 빠르게 연타 → 여러 footstep SFX 겹쳐 재생됨
+- [ ] `[Q]` 빠르게 연타 → 여러 footstep SFX 겹쳐 재생됨 (2D PlayOneShot)
 - [ ] `[W]` → PlayerBounce SFX 재생됨
+- [ ] `[A]`/`[D]` → 소리가 왼쪽/오른쪽에서 들림 (3D 패닝)
+- [ ] `[S]` → 8개 소리가 한 점이 아니라 여러 위치에서 퍼져 들림 (voice 풀)
+- [ ] `[S]` 직후 `[Z]` 연타 → 울리던 3D 소리도 같이 작아짐 (3D가 SFX 믹서 볼륨 따라감)
 - [ ] `[F1]` → BGM 즉시 끊김
 - [ ] `[F2]` → BGM 서서히 사라짐
-- [ ] `[F3]` → 재생 중이던 SFX 모두 정지
-- [ ] Unity **Profiler** → SFX 연타 중 **GC Alloc 0** 확인
+- [ ] `[F3]` → 재생 중이던 SFX(2D·3D) 모두 정지
+- [ ] Unity **Profiler** → SFX 연타 중 **GC Alloc 0** 확인 (2D·3D 모두 재사용)
 
 ---
 
