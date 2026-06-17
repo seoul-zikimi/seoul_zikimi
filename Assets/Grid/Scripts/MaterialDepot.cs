@@ -18,8 +18,12 @@ namespace GridSystem
 
         private GridManager m_Grid;
         private MaterialDropField m_Drop;
-        private GUIStyle m_Style;
         private GameObject m_Marker;
+
+        // UI는 별도 어셈블리(UIManager)라 직접 못 부름 → 이벤트로 알리고 Assembly-CSharp 드라이버가 HUD 연결.
+        public static event System.Action<MaterialDepot> Spawned;
+        public static event System.Action<MaterialDepot> Despawned;
+        public MaterialCatalog Catalog => m_Grid != null ? m_Grid.Catalog : null;
 
         private void Awake()
         {
@@ -37,10 +41,13 @@ namespace GridSystem
             var col = m_Marker.GetComponent<Collider>();
             if (col != null) Destroy(col);
             SetColor(m_Marker, new Color(0.95f, 0.8f, 0.2f));
+
+            Spawned?.Invoke(this);   // 드라이버가 주문 HUD 띄움
         }
 
         public override void OnNetworkDespawn()
         {
+            Despawned?.Invoke(this);   // 드라이버가 주문 HUD 숨김
             if (m_Marker != null) Destroy(m_Marker);
         }
 
@@ -59,41 +66,6 @@ namespace GridSystem
                 2.5f,
                 m_DeliveryZone.z + Random.Range(-1.3f, 1.3f));
             m_Drop.ServerDrop(materialId, pos);
-        }
-
-        // ── 주문 UI ─────────────────────────────────────────────────────────
-        private void OnGUI()
-        {
-            if (!Application.isPlaying || !IsSpawned) return;
-            var cat = m_Grid != null ? m_Grid.Catalog : null;
-            if (cat == null) return;
-            if (m_Style == null)
-                m_Style = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-
-            var mats = cat.Materials;
-            const float w = 230f, rowH = 26f, pad = 8f;
-            float h = pad * 2 + 22f + mats.Count * rowH;
-            var box = new Rect(Screen.width - w - 10f, 10f, w, h);
-            DrawBox(box, 0.7f);
-            GUI.Label(new Rect(box.x + 8f, box.y + 6f, w - 16f, 20f), "재료 주문 (배송 → Space로 줍기)", m_Style);
-
-            float y = box.y + 30f;
-            foreach (var d in mats)
-            {
-                if (d == null) continue;
-                GUI.Label(new Rect(box.x + 8f, y, w - 96f, 22f), d.name, m_Style);
-                if (GUI.Button(new Rect(box.x + w - 86f, y, 78f, 22f), "주문"))
-                    RequestOrder(d.Id);
-                y += rowH;
-            }
-        }
-
-        private static void DrawBox(Rect r, float a)
-        {
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, a);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
         }
 
         private static void SetColor(GameObject go, Color c)

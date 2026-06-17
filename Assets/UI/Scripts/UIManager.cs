@@ -45,7 +45,8 @@ public class UIManager : Singleton<UIManager>
     // ── HUD (캐시 — 한 번만 인스턴스화, Show/Hide로 재사용) ────────────
     public T ShowHUDUI<T>(string name = null) where T : UIHUD
     {
-        if (_hudCache.TryGetValue(typeof(T), out var cached))
+        // Unity fake-null: 씬 전환으로 캐시된 HUD가 파괴됐으면 캐시 미스로 보고 재인스턴스화
+        if (_hudCache.TryGetValue(typeof(T), out var cached) && cached != null)
         {
             cached.gameObject.SetActive(true);
             return (T)cached;
@@ -63,7 +64,7 @@ public class UIManager : Singleton<UIManager>
 
     public void HideHUDUI<T>() where T : UIHUD
     {
-        if (_hudCache.TryGetValue(typeof(T), out var c))
+        if (_hudCache.TryGetValue(typeof(T), out var c) && c != null)
             c.gameObject.SetActive(false);
     }
 
