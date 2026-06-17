@@ -9,11 +9,11 @@ EditorBuildSettings:
     path: Assets/Scenes/BootstrapScene.unity
     guid: 50677dbe9e5e42549a8fb26e11e29437
   - enabled: 1
-    path: Assets/Grid/Scenes/AnswerAuthoring.unity
-    guid: b9a9d58a0448d00409bc5ef23e8591d4
-  - enabled: 1
     path: Assets/Scenes/GameScene.unity
     guid: 7a87fd83eba98a9498ae598c2ab5f77c
+  - enabled: 1
+    path: Assets/Grid/Scenes/AnswerAuthoring.unity
+    guid: b9a9d58a0448d00409bc5ef23e8591d4
   - enabled: 1
     path: Assets/Docs/Player/PlayerTest_YujinScene.unity
     guid: 1c554816ef1be8840ab5f848c75f57c9

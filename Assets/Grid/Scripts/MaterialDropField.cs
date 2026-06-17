@@ -122,22 +122,6 @@ namespace GridSystem
         }
 
         // ── 줍기 ────────────────────────────────────────────────────────────
-        /// <summary>손 닿는 범위(reach, playerPos 기준) 내에서 '조준점(aim)에 가장 가까운' 바닥 재료.
-        /// 마우스로 가리켜 집기 — 정확히 안 가리켜도 닿는 것 중 커서에 제일 가까운 걸 집는다.</summary>
-        public bool TryFindForGrab(Vector3 playerPos, Vector3 aim, float reach, out ulong pickupId, out int materialId, out int toolBit)
-        {
-            pickupId = 0; materialId = -1; toolBit = 0;
-            float reach2 = reach * reach;
-            float best = float.MaxValue; bool ok = false;
-            foreach (var p in m_Pickups)
-            {
-                if ((p.pos - playerPos).sqrMagnitude > reach2) continue;   // 손 닿는 범위
-                float d = (p.pos - aim).sqrMagnitude;                       // 커서에 가까운 것 우선
-                if (d < best) { best = d; pickupId = p.pickupId; materialId = p.materialId; toolBit = p.toolBit; ok = true; }
-            }
-            return ok;
-        }
-
         /// <summary>범위 내 모든 바닥 재료의 (id, pos)를 채운다(킥 감지용, 재사용 리스트).</summary>
         public void CollectWithin(Vector3 from, float range, List<ulong> ids, List<Vector3> positions)
         {
@@ -190,6 +174,14 @@ namespace GridSystem
             }
         }
 
+        // 픽업에 '통과는 그대로, 레이캐스트만 맞는' 트리거 콜라이더 부여(마우스로 가리켜 집기).
+        private static void AddPickupTrigger(GameObject go, Vector3 size)
+        {
+            var bc = go.AddComponent<BoxCollider>();
+            bc.isTrigger = true;
+            bc.size = size;
+        }
+
         private GameObject MakeVisual(PickupEntry p, bool animate)
         {
             GameObject go;
@@ -203,6 +195,8 @@ namespace GridSystem
                 SetColor(go, ColorForMask(p.toolBit));
                 go.transform.SetParent(m_Root.transform, true);
                 var tbody = go.AddComponent<PickupBody>();
+                tbody.SetIdentity(this, p.pickupId, p.materialId, p.toolBit);
+                AddPickupTrigger(go, Vector3.one * 0.6f);   // 레이캐스트 집기용
                 if (animate) tbody.Init(p.fromPos, p.pos); else tbody.Snap(p.pos);
                 return go;
             }
@@ -231,6 +225,8 @@ namespace GridSystem
 
             go.transform.SetParent(m_Root.transform, true);
             var body = go.AddComponent<PickupBody>();
+            body.SetIdentity(this, p.pickupId, p.materialId, p.toolBit);
+            AddPickupTrigger(go, new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * GridContract.Unit);   // 레이캐스트 집기용
             if (animate) body.Init(p.fromPos, p.pos);   // 새로 떨굼/던짐 → 비행 연출
             else body.Snap(p.pos);                       // 늦참 복원 → 제자리 스냅(유령 비행 방지)
             return go;

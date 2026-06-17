@@ -59,6 +59,7 @@ namespace Player
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
             m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm, m_InputHandler.IsSprinting);
+            if (m_InputHandler.ConsumeJump()) m_Movement.Jump();   // Space 점프(접지 시)
         }
 
         // ── 이동 FX 동기화 ────────────────────────────────────────────────
@@ -76,7 +77,8 @@ namespace Player
             }
             else
             {
-                float speed = m_Rb.linearVelocity.magnitude;
+                Vector3 horiz = m_Rb.linearVelocity; horiz.y = 0f;   // 점프/낙하 Y 제외 → 점프 중 대시 오판 방지
+                float speed = horiz.magnitude;
                 moving    = speed > 0.2f;
                 sprinting = speed > m_Config.MoveSpeed + 0.5f;
                 if (IsSpawned) // owner → 원격에 복제
@@ -121,8 +123,7 @@ namespace Player
             m_Config = config; // 런타임 활성 config 통일 (NGO=serialized, 테스트=주입)
 
             m_Rb = GetComponent<Rigidbody>();
-            m_Rb.constraints = RigidbodyConstraints.FreezePositionY
-                             | RigidbodyConstraints.FreezeRotationX
+            m_Rb.constraints = RigidbodyConstraints.FreezeRotationX   // Y 고정 해제 → 중력/점프
                              | RigidbodyConstraints.FreezeRotationY
                              | RigidbodyConstraints.FreezeRotationZ;
             m_Rb.interpolation = RigidbodyInterpolation.Interpolate; // 물리→렌더 프레임 보간

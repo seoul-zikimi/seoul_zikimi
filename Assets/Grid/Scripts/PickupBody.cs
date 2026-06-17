@@ -24,6 +24,16 @@ namespace GridSystem
         private float m_ArcT, m_ArcDur, m_ArcV0;
         private Vector3 m_Tumble;
 
+        // 마우스 레이캐스트 집기용: 자기 정체 + 소속(어느 MaterialDropField에 RequestGrab 할지)
+        public ulong PickupId   { get; private set; }
+        public int   MaterialId { get; private set; }
+        public int   ToolBit    { get; private set; }
+        public MaterialDropField Owner { get; private set; }
+        public void SetIdentity(MaterialDropField owner, ulong id, int materialId, int toolBit)
+        {
+            Owner = owner; PickupId = id; MaterialId = materialId; ToolBit = toolBit;
+        }
+
         public void Init(Vector3 from, Vector3 target)
         {
             transform.position = from;

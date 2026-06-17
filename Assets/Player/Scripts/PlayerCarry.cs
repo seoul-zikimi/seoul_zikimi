@@ -10,7 +10,7 @@ namespace Player
 {
     /// <summary>
     /// 들기 + 배치 + 공정. 한 번에 '재료' 또는 '도구' 하나만 든다(협동 제약).
-    /// Space 들기/내려놓기(토글) · 좌클릭 배치 · 우클릭 철거 · E(꾹) 공정(든 도구를 로딩바로 적용) · C 공정취소
+    /// Space 점프 · 좌클릭 집기/배치/내려놓기(토글) · 우클릭 철거 · E(꾹) 공정(든 도구를 로딩바로 적용) · C 공정취소
     /// · R 회전 · Q 층내림 / E톡 층올림 · Space 바닥에 버리기. (어떤 블록에 뭐가 필요한지는 TAB 정답 안내로 확인)
     /// 든 상태는 NetworkVariable로 복제 → 모든 클라가 머리 위 비주얼 재구성(원격도 보임).
     /// </summary>
@@ -20,6 +20,10 @@ namespace Player
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
         [SerializeField] private float m_GrabRange = 2.5f;
+        private bool        m_GrabValid;
+        private PickupBody  m_GrabBody;     // 레이캐스트로 가리킨 바닥 픽업(소속·정체 보유)
+        private Workstation m_GrabStation;  // 레이캐스트로 가리킨 도구함(있으면 그 도구를 집음)
+        private GameObject  m_HlGo;         // 현재 테두리 중인 오브젝트(대상 바뀌면 끔)
         [Tooltip("공정 한 단계를 끝내려고 E를 눌러야 하는 시간(초). 로딩바가 차는 속도.")]
         [SerializeField] private float m_ProcessSeconds = 1.2f;
         [Tooltip("재료를 던질 수 있는 최대 거리(칸). 조준점이 더 멀면 이 거리까지만 날아간다.")]
@@ -60,7 +64,7 @@ namespace Player
         private bool m_EProcessed;                     // 이번 E 누름에서 공정이 적용됐나(떼도 층 올림 방지)
         private const float kTapMax = 0.25f;           // 이보다 짧게 떼면 '톡'(층 올림), 길면 '꾹'(공정)
 
-        // 킥(노답중력): 몸에 닿은(근접) 바닥 재료를 찬다. 줍기 범위(grab)보다 좁아 살짝 떨어져선 Space로 줍기 가능.
+        // 킥(노답중력): 몸에 닿은(근접) 바닥 재료를 찬다. 줍기 범위(grab)보다 좁아 살짝 떨어져선 좌클릭으로 줍기 가능.
         private const float kKickRadius = 0.8f;
         private readonly HashSet<ulong> m_Touching = new();
         private readonly List<ulong> m_KickIds = new();
@@ -113,20 +117,26 @@ namespace Player
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
             if (m_Grid != null && kb.qKey.wasPressedThisFrame) m_BuildHeight = Mathf.Max(0, m_BuildHeight - 1);   // Q = 층 내림 (올림은 E 톡)
             if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
-            // Space = 들기/내려놓기 토글: 손 비었으면 줍기(바닥 재료/작업장 도구), 들고 있으면 바닥에 내려놓기.
-            if (kb.spaceKey.wasPressedThisFrame)
-            {
-                if (HasMaterial || HasTool) Drop();
-                else TryGrab();
-            }
+            // Space는 점프(PlayerInputHandler). 집기·배치·내려놓기는 좌클릭으로 통합.
 
             UpdateTarget();
+            UpdateGrabTarget();   // 빈손이면 near+aim 집기 대상 산출(하이라이트·집기 공용)
 
             if (kb.cKey.wasPressedThisFrame && m_HasTarget && m_Net != null)
                 m_Net.RequestCancelLast(m_Target);
 
-            if (mouse.leftButton.wasPressedThisFrame && HasMaterial) TryPlace();
-            if (mouse.rightButton.wasPressedThisFrame) TryRemove();   // 철거(되돌리기)
+            // 좌클릭: 빈손→집기 / 재료→건축 배치. (도구 들고 좌클릭은 무동작 — 도구는 우클릭으로 버림)
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                if (HasMaterial)   TryPlace();
+                else if (!HasTool) TryGrab();
+            }
+            // 우클릭: 도구 들고 있으면 발밑에 버리기, 그 외엔 철거.
+            if (mouse.rightButton.wasPressedThisFrame)
+            {
+                if (HasTool) Drop();
+                else         TryRemove();
+            }
 
             UpdateEKey(kb);          // E 톡=층 올림 / E 꾹=공정(로딩바)
             UpdateProcessHint();     // 도구 들었을 때 "지금 무슨 공정 차례인지" 안내 갱신
@@ -279,17 +289,65 @@ namespace Player
             }
         }
 
-        // F: 재료를 들고 있으면 무시. 손 비었/도구만 있으면 '마우스가 가리킨 바닥 픽업(재료/던진 도구)' 우선, 없으면 작업장 도구.
+        // 손 비었을 때 '마우스가 가리킨' 바닥 픽업 또는 도구함을 집는다(테두리=집기 동일 대상).
         private void TryGrab()
         {
             if (HasMaterial) return;
-            if (m_Drop != null &&
-                m_Drop.TryFindForGrab(transform.position, AimWorldPoint(), m_GrabRange, out var pid, out var mid, out var toolBit))
+            if (m_GrabBody != null)    { GrabFromFloor(m_GrabBody); return; }
+            if (m_GrabStation != null) { HoldTool(m_GrabStation.Tool); return; }
+        }
+
+        // 마우스 레이캐스트로 '가리킨' 집기 대상을 산출 — 바닥 픽업(트리거) 또는 도구함(콜라이더).
+        // 손 닿는 거리(reach) 안에서 레이 최단(커서에 제일 가까운) 1개. 그 오브젝트에 테두리(집기·발광 공용).
+        private void UpdateGrabTarget()
+        {
+            m_GrabBody = null;
+            m_GrabStation = null;
+            GameObject hitGo = null;
+
+            if (!HasMaterial && !HasTool && m_Cam != null && Mouse.current != null)
             {
-                GrabFromFloor(pid, mid, toolBit);
-                return;
+                var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                float reach2 = m_GrabRange * m_GrabRange;
+                float best = float.MaxValue;
+                foreach (var h in Physics.RaycastAll(ray, 100f, ~0, QueryTriggerInteraction.Collide))
+                {
+                    var pb = h.collider.GetComponentInParent<PickupBody>();   // 바닥 픽업 우선
+                    if (pb != null && pb.Owner != null)
+                    {
+                        if ((pb.transform.position - transform.position).sqrMagnitude > reach2) continue;   // 손 닿는 거리
+                        if (h.distance < best) { best = h.distance; m_GrabBody = pb; m_GrabStation = null; hitGo = pb.gameObject; }
+                        continue;
+                    }
+                    var ws = h.collider.GetComponentInParent<Workstation>();  // 도구함(도구 집기)
+                    if (ws != null)
+                    {
+                        if ((ws.transform.position - transform.position).sqrMagnitude > reach2) continue;
+                        if (h.distance < best) { best = h.distance; m_GrabStation = ws; m_GrabBody = null; hitGo = ws.gameObject; }
+                    }
+                }
             }
-            TryGrabFromWorkstation();
+            m_GrabValid = m_GrabBody != null || m_GrabStation != null;
+
+            SetGrabHighlight(hitGo);   // 가리킨 대상에 테두리(대상 바뀌면 이전 건 끔)
+        }
+
+        // 집기 대상 오브젝트에 인버티드 헐 테두리를 켜고, 직전 대상은 끈다.
+        private void SetGrabHighlight(GameObject go)
+        {
+            if (go == m_HlGo) return;
+            if (m_HlGo != null)
+            {
+                var prev = m_HlGo.GetComponent<OutlineHighlight>();
+                if (prev != null) prev.SetOutline(false);
+            }
+            if (go != null)
+            {
+                var oh = go.GetComponent<OutlineHighlight>();
+                if (oh == null) oh = go.AddComponent<OutlineHighlight>();
+                oh.SetOutline(true);
+            }
+            m_HlGo = go;
         }
 
         // 마우스가 가리키는 바닥 지점(픽업 높이 평면). 못 구하면 플레이어 위치.
@@ -301,39 +359,26 @@ namespace Player
             return plane.Raycast(ray, out float d) ? ray.GetPoint(d) : transform.position;
         }
 
-        private void GrabFromFloor(ulong pickupId, int materialId, int toolBit)
+        private void GrabFromFloor(PickupBody pb)
         {
-            if (toolBit != 0)                      // 던져진 도구 줍기
+            if (pb.ToolBit != 0)                       // 던져진 도구 줍기
             {
-                m_Drop.RequestGrab(pickupId);      // 서버가 픽업 제거(낙관적)
-                HoldTool((ProcessType)toolBit);
+                pb.Owner.RequestGrab(pb.PickupId);     // 그 픽업의 '소속' 인스턴스에 요청(드롭필드 2개 문제 회피)
+                HoldTool((ProcessType)pb.ToolBit);
                 return;
             }
-            var def = m_Grid != null && m_Grid.Catalog != null ? m_Grid.Catalog.GetById(materialId) : null;
+            var def = m_Grid != null && m_Grid.Catalog != null ? m_Grid.Catalog.GetById(pb.MaterialId) : null;
             if (def == null) return;
-            m_Drop.RequestGrab(pickupId);          // 서버가 픽업 제거(낙관적)
+            pb.Owner.RequestGrab(pb.PickupId);
             m_HeldMaterial = def;
             m_HeldTool = ProcessType.None;
             m_NetMaterialId.Value = def.Id;
             m_NetTool.Value = 0;
         }
 
-        // 가까운 작업장의 도구를 든다(망치=고정 / 페인트통=페인트). 재사용이라 환원 없음.
-        private void TryGrabFromWorkstation()
-        {
-            Workstation best = null;
-            float bestSqr = m_GrabRange * m_GrabRange;
-            foreach (var w in FindObjectsByType<Workstation>(FindObjectsSortMode.None))
-            {
-                float d = (w.transform.position - transform.position).sqrMagnitude;
-                if (d <= bestSqr) { bestSqr = d; best = w; }
-            }
-            if (best != null) HoldTool(best.Tool);
-        }
-
         private void HoldTool(ProcessType tool)
         {
-            DropHeldMaterialToFloor();        // 도구 들기 전, 들고 있던 재료는 바닥에
+            DropHeldToFloor();                // 도구 들기 전, 들고 있던 것은 바닥에
             m_HeldMaterial = null;
             m_HeldTool = tool;
             m_NetMaterialId.Value = -1;
@@ -342,7 +387,7 @@ namespace Player
 
         private void Drop()
         {
-            DropHeldMaterialToFloor();   // 버리기 = 든 재료를 발밑 바닥에(도구는 그냥 비움)
+            DropHeldToFloor();   // 버리기 = 든 재료/도구를 발밑 바닥에(픽업으로)
             ClearHeld();
         }
 
@@ -364,10 +409,14 @@ namespace Player
         }
 
         // 든 재료가 있으면 발밑 바닥에 떨군다(놓기 외에 손을 떠나는 모든 경로 공통). 다시 주워 재배치 가능.
-        private void DropHeldMaterialToFloor()
+        // 든 재료/도구를 발밑 바닥에 떨군다(픽업으로 — 주워서 재배치/재사용). 놓기 외 손을 떠나는 공통 경로.
+        private void DropHeldToFloor()
         {
-            if (HasMaterial && m_Drop != null)
+            if (m_Drop == null) return;
+            if (HasMaterial)
                 m_Drop.RequestDrop(m_HeldMaterial.Id, transform.position + Vector3.up * 0.6f);
+            else if (HasTool)
+                m_Drop.RequestThrowTool((int)m_HeldTool, transform.position + Vector3.up * 0.6f, transform.position);
         }
 
         private void ClearHeld()
@@ -531,25 +580,28 @@ namespace Player
 
         private void DrawOutline(ScriptableRenderContext ctx, Camera cam)
         {
-            if (!IsOwner || !Application.isPlaying || cam != m_Cam || !m_HasTarget) return;
-            if (!HasMaterial && !HasTool) return;
+            if (!IsOwner || !Application.isPlaying || cam != m_Cam) return;
 
             LineMat().SetPass(0);
             GL.PushMatrix();
             GL.LoadProjectionMatrix(cam.projectionMatrix);
             GL.modelview = cam.worldToCameraMatrix;
             GL.Begin(GL.LINES);
-            if (HasMaterial)
+
+            if (m_HasTarget && HasMaterial)                    // 든 재료의 배치 자리(시안)
             {
-                GL.Color(new Color(0.25f, 0.9f, 1f, 0.95f));   // 시안 = 배치 자리
+                GL.Color(new Color(0.25f, 0.9f, 1f, 0.95f));
                 foreach (var c in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
                     GLWireCube(GridCoordinates.CellToWorld(c) + Vector3.one * 0.5f, Vector3.one);
             }
-            else
+            else if (m_HasTarget && HasTool)                   // 공정 대상(노랑)
             {
-                GL.Color(new Color(1f, 0.95f, 0.25f, 0.95f));  // 노랑 = 공정 대상
+                GL.Color(new Color(1f, 0.95f, 0.25f, 0.95f));
                 GLWireCube(GridCoordinates.CellToWorld(m_Target) + Vector3.one * 0.5f, Vector3.one);
             }
+
+            // 집기 대상 하이라이트는 GL 박스가 아니라 OutlineHighlight(인버티드 헐 테두리)로 처리(UpdateGrabTarget).
+
             GL.End();
             GL.PopMatrix();
         }
@@ -578,14 +630,17 @@ namespace Player
 
             string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
                         : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
-                        :               "빈손 — 우상단서 주문 → 배송 구역에서 Space로 줍기 (작업장서 Space=도구)";
+                        :               "빈손 — 우상단서 주문 → 배송 구역에서 좌클릭으로 줍기 (작업장서 좌클릭=도구)";
             string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
             string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
+            string grab = !m_GrabValid ? "없음"
+                        : m_GrabStation != null ? "도구함"
+                        : m_GrabBody.ToolBit != 0 ? "도구" : "재료" + m_GrabBody.MaterialId;
             string text =
                 $"[Carry] 들기: {held}\n" +
-                $"좌클릭 배치 · 우클릭 철거 · Space 들기/내려놓기 · E꾹 공정 · G 던지기\n" +
+                $"좌클릭 집기/배치 · 우클릭 철거 · Space 점프 · E꾹 공정 · G 던지기\n" +
                 $"C 공정취소 · R 회전 · 층 {m_BuildHeight}(Q내림·E톡 올림) · TAB 정답/필요공정    {tgt}  {score}\n" +
-                $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget}";
+                $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget} · 집기대상={grab}";
 
             var box = new Rect(10, 174, 700, 100);
             var prev = GUI.color;

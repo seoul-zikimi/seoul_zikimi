@@ -425,12 +425,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCarry
   ShowTopMostFoldoutHeaderGroup: 1
-  m_Palette:
-  - {fileID: 11400000, guid: 0f567a52a39099b41867541d7ef4be63, type: 2}
-  - {fileID: 11400000, guid: e3fcb6f1573a5f24f99d311a761410f7, type: 2}
-  - {fileID: 11400000, guid: c5183db02dd2e5a4a91a72a113ebcae9, type: 2}
   m_HoldOffset: {x: 0, y: 2.2, z: 0}
-  m_WorkstationRange: 2.5
+  m_GrabRange: 2.5
+  m_ProcessSeconds: 1.2
+  m_ThrowRange: 6
 --- !u!1 &8392801282134520978
 GameObject:
   m_ObjectHideFlags: 0

@@ -44,7 +44,25 @@ namespace GridSystem
             OnAnswerChanged?.Invoke();
         }
 
-        private void Awake() => EnsureGrid();
+        private void Awake()
+        {
+            EnsureGrid();
+            CreateGround();   // 물리 점프로 Y가 풀려도 플레이어가 추락하지 않게 그리드 바닥 콜라이더 생성
+        }
+
+        // 그리드 XZ를 덮는, 보이지 않는 바닥 콜라이더(윗면 = 그리드 바닥 y). 렌더러 없음.
+        private void CreateGround()
+        {
+            float u = GridContract.Unit;
+            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);   // 그리드 min-corner(바닥)
+            float sx = m_GridSize.x * u, sz = m_GridSize.z * u;
+            const float thick = 1f, margin = 4f;
+
+            var go = new GameObject("~Ground");
+            go.transform.SetParent(transform, false);
+            go.transform.position = new Vector3(baseW.x + sx * 0.5f, baseW.y - thick * 0.5f, baseW.z + sz * 0.5f);
+            go.AddComponent<BoxCollider>().size = new Vector3(sx + margin, thick, sz + margin);
+        }
 
         public void EnsureGrid()
         {

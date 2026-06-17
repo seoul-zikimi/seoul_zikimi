@@ -17,5 +17,6 @@ MonoBehaviour:
   m_Prefab: {fileID: 0}
   m_RequiredProcesses: 01000000
   m_MustBeFixed: 1
+  m_Walkable: 0
   m_IsBreakable: 0
   m_MaxSpawnCount: -1
