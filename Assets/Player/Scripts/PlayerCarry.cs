@@ -125,17 +125,21 @@ namespace Player
             if (kb.cKey.wasPressedThisFrame && m_HasTarget && m_Net != null)
                 m_Net.RequestCancelLast(m_Target);
 
-            // 좌클릭: 빈손→집기 / 재료→건축 배치. (도구 들고 좌클릭은 무동작 — 도구는 우클릭으로 버림)
-            if (mouse.leftButton.wasPressedThisFrame)
+            // 정답 패널 위에선 마우스 클릭이 게임 조작이 아니라 정답 카메라 조작 → 게임 클릭 무시.
+            if (!AnswerPanelFocus.Active)
             {
-                if (HasMaterial)   TryPlace();
-                else if (!HasTool) TryGrab();
-            }
-            // 우클릭: 도구 들고 있으면 발밑에 버리기, 그 외엔 철거.
-            if (mouse.rightButton.wasPressedThisFrame)
-            {
-                if (HasTool) Drop();
-                else         TryRemove();
+                // 좌클릭: 빈손→집기 / 재료→건축 배치. (도구 들고 좌클릭은 무동작 — 도구는 우클릭으로 버림)
+                if (mouse.leftButton.wasPressedThisFrame)
+                {
+                    if (HasMaterial)   TryPlace();
+                    else if (!HasTool) TryGrab();
+                }
+                // 우클릭: 도구 들고 있으면 발밑에 버리기, 그 외엔 철거.
+                if (mouse.rightButton.wasPressedThisFrame)
+                {
+                    if (HasTool) Drop();
+                    else         TryRemove();
+                }
             }
 
             UpdateEKey(kb);          // E 톡=층 올림 / E 꾹=공정(로딩바)

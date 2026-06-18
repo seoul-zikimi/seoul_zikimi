@@ -12,18 +12,22 @@ namespace GridSystem
     [RequireComponent(typeof(GridManager))]
     public class AnswerPreview : MonoBehaviour
     {
-        [SerializeField] private int m_BoxSize = 240;
         [SerializeField] private Vector3 m_Offset = new Vector3(500f, 500f, 500f);
 
         private GridManager m_Manager;
         private GameLoopManager m_Loop;
         private Camera m_Cam;
         private RenderTexture m_RT;
+        private CameraOrbit m_Orbit;       // 정답 카메라 오빗(플레이어와 동일 로직)
+        private Vector3 m_PivotCenter;     // 오빗 중심 = 모델 바운드 중심
         private GameObject m_Root;        // 미리보기 렌더용(멀리 떨어진 미니씬)
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
         private GUIStyle m_LabelStyle;
         private bool m_Visible = true;
         private bool m_Built;
+        private bool m_LastShow;          // Show() 변화 감지 → VisibilityChanged 1회 발화
+        private const int kPreviewLayer = 30;   // 정답 미리보기 전용 레이어(메인 씬과 분리)
+        private bool m_MainExcluded;             // 메인 카메라 cullingMask에서 1회 제외
 
         private void Awake()
         {
@@ -53,7 +57,15 @@ namespace GridSystem
             if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
                 m_Visible = !m_Visible;
 
-            if (m_GhostRoot != null) m_GhostRoot.SetActive(Show());
+            bool show = Show();
+            if (m_GhostRoot != null) m_GhostRoot.SetActive(show);
+            if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
+
+            if (!m_MainExcluded && Camera.main != null)   // 메인 뷰에서 미니씬 누출 방지(타이밍 안전)
+            {
+                Camera.main.cullingMask &= ~(1 << kPreviewLayer);
+                m_MainExcluded = true;
+            }
         }
 
         private bool Building() => m_Loop == null || m_Loop.IsBuilding;
@@ -118,11 +130,50 @@ namespace GridSystem
             m_Cam.backgroundColor = new Color(0.08f, 0.09f, 0.12f, 1f);
             m_Cam.fieldOfView = 40f;
             float radius = Mathf.Max(1.5f, b.extents.magnitude + 1f);
-            Vector3 dir = new Vector3(0.8f, 0.9f, -0.8f).normalized;
-            m_Cam.transform.position = b.center + dir * radius * 2.2f;
-            m_Cam.transform.LookAt(b.center);
+            Vector3 dir = new Vector3(0.8f, 0.9f, -0.8f).normalized;   // 기준 쿼터뷰 방향
+            m_PivotCenter = b.center;
+            m_Orbit = new CameraOrbit
+            {
+                Pitch    = Mathf.Asin(dir.y) * Mathf.Rad2Deg,           // ≈38.5°
+                Yaw      = Mathf.Atan2(-dir.x, -dir.z) * Mathf.Rad2Deg, // ≈-45° (Unity Y회전 부호)
+                Distance = radius * 2.2f,                               // 기존 정적뷰와 동일 거리
+                DistMin  = radius * 1.2f, DistMax = radius * 4f,        // 모델 바운드 기준 줌 한계
+                PitchMin = 10f, PitchMax = 85f,
+                RotateSpeed = 0.3f, ZoomSpeed = 0.5f,                  // 플레이어와 동일 감도
+            };
+            RepositionCam();   // 시드 위치 = 기존 정적뷰 재현
+
+            SetLayerRecursive(m_Root, kPreviewLayer);   // 미니씬 전용 레이어
+            m_Cam.cullingMask = 1 << kPreviewLayer;      // 정답 카메라는 그 레이어만 렌더(외부 누출 차단)
 
             m_Built = true;
+            Ready?.Invoke(this);   // RT 준비됨 → HUD가 RawImage.texture 갱신
+        }
+
+        // ── HUD 브리지(Assembly-CSharp 드라이버가 구독) ──
+        public static event System.Action<AnswerPreview> Ready;      // Build 끝마다(=RT 최신화)
+        public static event System.Action<bool> VisibilityChanged;   // 표시/숨김 전환
+        public bool IsVisible => Show();
+
+        // ── 인터랙티브 오빗(로컬) — 정답 패널 라우터(Assembly-CSharp)가 호출 ──
+        public RenderTexture RT => m_RT;
+        public void DriveOrbit(Vector2 rotDelta, float zoom)
+        {
+            if (!m_Built) return;
+            m_Orbit.Integrate(rotDelta, zoom);
+            RepositionCam();
+        }
+
+        private void RepositionCam()
+        {
+            if (m_Cam == null) return;
+            m_Cam.transform.position = m_Orbit.WorldPosition(m_PivotCenter);
+            m_Cam.transform.LookAt(m_PivotCenter);
+        }
+
+        private static void SetLayerRecursive(GameObject go, int layer)
+        {
+            foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
         }
 
         private void OnGUI()
@@ -141,31 +192,7 @@ namespace GridSystem
                 GUI.DrawTexture(ir, img.texture, ScaleMode.ScaleToFit, true);
             }
 
-            // ④ 우하단 3D 미리보기 + 색 범례
-            int s = m_BoxSize;
-            var rect = new Rect(Screen.width - s - 14, Screen.height - s - 14, s, s);
-            Box(new Rect(rect.x - 5, rect.y - 24, rect.width + 10, rect.height + 70), 0.65f);
-            GUI.Label(new Rect(rect.x, rect.y - 22, rect.width, 20), "정답 (TAB 토글)", m_LabelStyle);
-            if (m_RT != null) GUI.DrawTexture(rect, m_RT, ScaleMode.ScaleToFit, false);
-            Legend(new Rect(rect.x, rect.y + rect.height + 4, rect.width, 40));
-        }
-
-        private void Legend(Rect r)
-        {
-            float x = r.x;
-            Swatch(ref x, r.y, new Color(0.72f, 0.72f, 0.72f), "배치");
-            Swatch(ref x, r.y, new Color(0.35f, 0.60f, 1.00f), "고정");
-            Swatch(ref x, r.y, new Color(0.30f, 0.85f, 0.40f), "페인트");
-        }
-
-        private void Swatch(ref float x, float y, Color c, string label)
-        {
-            var prev = GUI.color;
-            GUI.color = c;
-            GUI.DrawTexture(new Rect(x, y + 2, 14, 14), Texture2D.whiteTexture);
-            GUI.color = prev;
-            GUI.Label(new Rect(x + 17, y, 60, 18), label, m_LabelStyle);
-            x += 78;
+            // ④ 3D 미리보기·범례는 AnswerPanelHUD(uGUI)로 이전됨.
         }
 
         private static void Box(Rect r, float a)
