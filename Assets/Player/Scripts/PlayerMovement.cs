@@ -43,7 +43,7 @@ namespace Player
         }
 
         // 발밑 짧은 레이로 접지 판정(자기/자식 콜라이더는 제외).
-        private bool IsGrounded()
+        public bool IsGrounded()
         {
             var hits = Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
                                           0.3f, ~0, QueryTriggerInteraction.Ignore);

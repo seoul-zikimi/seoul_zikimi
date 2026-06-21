@@ -161,6 +161,8 @@ namespace Player
             m_InputHandler      = GetComponent<PlayerInputHandler>();
             m_CameraArm         = transform.Find("CameraArm");
             m_CinemachineCamera = GetComponentInChildren<CinemachineCamera>(includeInactive: true);
+
+            if (GetComponent<PlayerAnimator>() == null) gameObject.AddComponent<PlayerAnimator>();   // 애니 파라미터 구동(널 가드)
         }
     }
 }

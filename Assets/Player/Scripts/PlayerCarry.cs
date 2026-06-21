@@ -75,6 +75,13 @@ namespace Player
         private bool HasMaterial => m_HeldMaterial != null;
         private bool HasTool => m_HeldTool != ProcessType.None;
 
+        // 애니메이터/외부용 상태 노출
+        public bool IsHolding     => HasMaterial || HasTool;
+        public bool IsHoldingTool => HasTool;
+        public bool IsProcessing  => m_ProcessHold > 0f;   // E 꾹 도구 작업 중
+        public event System.Action OnPlace;   // 배치/버리기(내려놓기 모션)
+        public event System.Action OnThrow;   // 던지기
+
         public override void OnNetworkSpawn()
         {
             m_NetMaterialId.OnValueChanged += OnHeldChanged;
@@ -413,8 +420,10 @@ namespace Player
 
         private void Drop()
         {
+            if (!HasMaterial && !HasTool) return;   // 빈손 무동작
             DropHeldToFloor();   // 버리기 = 든 재료/도구를 발밑 바닥에(픽업으로)
             ClearHeld();
+            OnPlace?.Invoke();
         }
 
         // 든 재료 또는 도구를 마우스 조준 지점으로 던진다(협동 전달). 최대 m_ThrowRange까지.
@@ -433,6 +442,7 @@ namespace Player
             else             m_Drop.RequestThrowTool((int)m_HeldTool, from, to);
             PlaySFX(SFXType.ThrowObject);
             ClearHeld();
+            OnThrow?.Invoke();
         }
 
         // 든 재료가 있으면 발밑 바닥에 떨군다(놓기 외에 손을 떠나는 모든 경로 공통). 다시 주워 재배치 가능.
@@ -479,6 +489,7 @@ namespace Player
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
             PlaySFX(SFXType.LandObject);
             ClearHeld();   // 놓으면 손이 빔 → 재고서 다시 집어야(리썰컴퍼니식)
+            OnPlace?.Invoke();
         }
 
         private static void PlaySFX(SFXType type)
