@@ -1,6 +1,6 @@
 # 플레이어 애니메이션 — 셋업 가이드 & 남은 작업
 
-> 코드(파라미터 구동)는 끝났고, **Animator 에셋 + 클립 연결만 남았다.** 이 문서대로 붙이면 내 캐릭터가 상태대로 전환된다.
+> 코드(파라미터 구동)는 끝났고, **Animator 에셋 + 클립 연결만 남았다.** 클립 붙기 전까지는 **임시 표시기**(색/크기, 아래 섹션)가 상태를 보여준다. 이 문서대로 붙이면 내 캐릭터가 상태대로 전환된다.
 
 ---
 
@@ -14,6 +14,27 @@
   - `PlayerMovement.IsGrounded()`, `PlayerMovement.IsClimbing`
   - `PlayerCarry.IsHolding`, `IsHoldingTool`, `IsProcessing` + 이벤트 `OnPlace` / `OnThrow`
   - `PlayerInputHandler.MoveInput`, `Rigidbody.linearVelocity`
+- **`Assets/Player/Scripts/PlayerStateVisualizer.cs`** — **임시** 표시기. 클립 붙기 전까지 달팽이를 색/크기 펄스/반짝임으로 상태별 표시(owner만). 진짜 애니 붙이면 제거(§6).
+
+---
+
+## 임시 상태 표시기 (지금 굴러가는 것)
+
+클립이 없어서 `PlayerStateVisualizer`가 `MaterialPropertyBlock` 색 틴트 + 크기 펄스로 상태를 임시 표시한다(내 캐릭터/owner만, idle이면 원본 외형 복원).
+
+| 상태 | 표시 |
+|---|---|
+| idle | 원래 외형 |
+| 걷기 | 연두 + 느린 펄스 |
+| 대시 | 붉은기 + 빠른 펄스 |
+| 점프 | 하늘색 + 세로 늘림 |
+| 기어오르기 | 주황 + 펄스 |
+| 들고있기 | 초록기 오버레이 |
+| 공정(E꾹) | 노랑 반짝 |
+| 배치/던지기 | 흰 팝(크기 펀치) |
+
+- 색·속도 튜닝: `PlayerStateVisualizer.cs`의 색 / `pulseSpeed` / `pulseAmp` 숫자만 수정.
+- 메쉬가 자식이면 크기 펄스, 루트(물리)면 색만(물리 안 깨지게).
 
 ---
 
@@ -123,9 +144,21 @@ stateDiagram-v2
 
 ---
 
+## §6. 임시 → 진짜 애니로 교체 (나중에 바꾸는 법)
+
+진짜 클립/Animator를 붙일 때:
+1. 위 §1~§5대로 `Body`에 Animator + Controller + 클립 연결.
+2. **임시 표시기 제거** — `PlayerUnit.InitComponents`의 `PlayerStateVisualizer` 자동부착 줄 삭제(또는 프리팹에서 컴포넌트 제거). **안 지우면** 색 틴트·크기 펄스가 진짜 애니 위에 겹쳐 보임.
+3. `PlayerAnimator`(파라미터 구동)는 **그대로 둠** — `GetComponentInChildren<Animator>()`로 Animator를 자동으로 잡아 굴린다.
+
+> 즉 교체 = "클립 연결 + 임시 표시기 한 줄 삭제". 로직 코드는 안 건드림.
+
+---
+
 ## 코드 참조
 
-- `Assets/Player/Scripts/PlayerAnimator.cs` — 파라미터 구동(여기만 보면 됨)
+- `Assets/Player/Scripts/PlayerAnimator.cs` — 파라미터 구동(진짜 애니용, 여기만 보면 됨)
+- `Assets/Player/Scripts/PlayerStateVisualizer.cs` — **임시** 상태 표시(색/크기). 진짜 애니 붙이면 제거(§6)
 - `Assets/Player/Scripts/PlayerMovement.cs` — `IsGrounded()`, `IsClimbing`
 - `Assets/Player/Scripts/PlayerCarry.cs` — `IsHolding/IsHoldingTool/IsProcessing`, `OnPlace/OnThrow`
-- `Assets/Player/Scripts/PlayerUnit.cs` — `PlayerAnimator` 자동 부착, 멀티 복제 패턴
+- `Assets/Player/Scripts/PlayerUnit.cs` — `PlayerAnimator`/`PlayerStateVisualizer` 자동 부착, 멀티 복제 패턴
