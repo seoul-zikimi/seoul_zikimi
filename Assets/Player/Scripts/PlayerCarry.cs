@@ -10,8 +10,8 @@ namespace Player
 {
     /// <summary>
     /// 들기 + 배치 + 공정. 한 번에 '재료' 또는 '도구' 하나만 든다(협동 제약).
-    /// Space 점프 · 좌클릭 집기/배치/내려놓기(토글) · 우클릭 철거 · E(꾹) 공정(든 도구를 로딩바로 적용) · C 공정취소
-    /// · R 회전 · Q 층내림 / E톡 층올림 · Space 바닥에 버리기. (어떤 블록에 뭐가 필요한지는 TAB 정답 안내로 확인)
+    /// Space 점프/벽점프 · 좌클릭 집기/배치(토글) · C 철거 · Q 버리기 · E(꾹) 공정 · Z(꾹) 공정 되돌리기
+    /// · R 회전 · 벽 보고 W/S 기어오르기 · 배치 높이=플레이어가 선 높이 · G 던지기. (우클릭=카메라 회전. TAB 정답 안내)
     /// 든 상태는 NetworkVariable로 복제 → 모든 클라가 머리 위 비주얼 재구성(원격도 보임).
     /// </summary>
     public class PlayerCarry : NetworkBehaviour
@@ -60,9 +60,11 @@ namespace Player
         private Vector3Int m_PendingCell = s_NoCell;   // 방금 적용→복제 대기 중인 셀(중복 적용 방지)
         private ProcessType m_PendingKind;             // 그 공정(복제 반영되면 해제)
         private string m_ProcessHint = "";             // 도구 들고 조준 시 "지금 무슨 공정 차례" 안내
-        private float m_EHeldTime;                     // E 누른 시간(톡 vs 꾹 판별)
-        private bool m_EProcessed;                     // 이번 E 누름에서 공정이 적용됐나(떼도 층 올림 방지)
-        private const float kTapMax = 0.25f;           // 이보다 짧게 떼면 '톡'(층 올림), 길면 '꾹'(공정)
+
+        // C 꾹 되돌리기: 조준 블록에 완료된 공정이 있으면 누적시간으로 마지막 공정을 되돌림.
+        private float m_RevertHold;
+        private Vector3Int m_RevertCell = s_NoCell;
+        private bool m_RevertDone;            // 이번 C 누름에 1회 되돌림(떼야 다음)
 
         // 킥(노답중력): 몸에 닿은(근접) 바닥 재료를 찬다. 줍기 범위(grab)보다 좁아 살짝 떨어져선 좌클릭으로 줍기 가능.
         private const float kKickRadius = 0.8f;
@@ -115,34 +117,24 @@ namespace Player
             if (kb == null || mouse == null) return;
 
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
-            if (m_Grid != null && kb.qKey.wasPressedThisFrame) m_BuildHeight = Mathf.Max(0, m_BuildHeight - 1);   // Q = 층 내림 (올림은 E 톡)
+            if (kb.qKey.wasPressedThisFrame) Drop();      // Q = 들고 있는 것 버리기(발밑에)
             if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
-            // Space는 점프(PlayerInputHandler). 집기·배치·내려놓기는 좌클릭으로 통합.
+            // Space는 점프(PlayerInputHandler). 집기·배치는 좌클릭. 우클릭은 카메라 회전 전용.
 
             UpdateTarget();
             UpdateGrabTarget();   // 빈손이면 near+aim 집기 대상 산출(하이라이트·집기 공용)
 
-            if (kb.cKey.wasPressedThisFrame && m_HasTarget && m_Net != null)
-                m_Net.RequestCancelLast(m_Target);
+            if (kb.cKey.wasPressedThisFrame) TryRemove();   // C = 철거(현재 조준 칸)
 
-            // 정답 패널 위에선 마우스 클릭이 게임 조작이 아니라 정답 카메라 조작 → 게임 클릭 무시.
-            if (!AnswerPanelFocus.Active)
+            // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
+            if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
             {
-                // 좌클릭: 빈손→집기 / 재료→건축 배치. (도구 들고 좌클릭은 무동작 — 도구는 우클릭으로 버림)
-                if (mouse.leftButton.wasPressedThisFrame)
-                {
-                    if (HasMaterial)   TryPlace();
-                    else if (!HasTool) TryGrab();
-                }
-                // 우클릭: 도구 들고 있으면 발밑에 버리기, 그 외엔 철거.
-                if (mouse.rightButton.wasPressedThisFrame)
-                {
-                    if (HasTool) Drop();
-                    else         TryRemove();
-                }
+                if (HasMaterial)   TryPlace();
+                else if (!HasTool) TryGrab();
             }
 
-            UpdateEKey(kb);          // E 톡=층 올림 / E 꾹=공정(로딩바)
+            UpdateEKey(kb);          // E 꾹=공정(로딩바)
+            UpdateZKey(kb);          // Z 꾹=마지막 공정 되돌리기(로딩바)
             UpdateProcessHint();     // 도구 들었을 때 "지금 무슨 공정 차례인지" 안내 갱신
 
             TryBumpCollapse();   // C3: 미고정 기둥/벽에 몸으로 부딪히면 무너뜨림
@@ -153,24 +145,13 @@ namespace Player
         // 꾹: '든 도구'가 조준 블록에 필요할 때만 바가 차고, 다 차면 그 공정을 적용(누른 채로 다음 단계 이어짐).
         private void UpdateEKey(Keyboard kb)
         {
-            if (kb.eKey.wasReleasedThisFrame)
+            if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
-                // 짧게 떼고(꾹 아님) 공정도 안 했으면 → 층 올림(톡)
-                if (m_EHeldTime > 0f && m_EHeldTime < kTapMax && !m_EProcessed && m_Grid != null)
-                    m_BuildHeight = Mathf.Min(m_Grid.GridSize.y - 1, m_BuildHeight + 1);
-                m_EHeldTime = 0f; m_EProcessed = false;
-                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
-                return;
-            }
-            if (!kb.eKey.isPressed)
-            {
-                m_EHeldTime = 0f; m_EProcessed = false;
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
             }
 
-            m_EHeldTime += Time.deltaTime;
-            if (!ToolReadyOnTarget())   // 지금 공정 불가(도구 없음/안 맞음/빈 칸) → 바 안 참(톡이면 층 올림은 release에서)
+            if (!ToolReadyOnTarget())   // 공정 불가(도구 없음/안 맞음/빈 칸) → 바 안 참
             {
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
@@ -187,8 +168,41 @@ namespace Player
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
-                m_EProcessed = true;             // 이번 누름에 공정 적용 → 떼도 층 올림 안 함
             }
+        }
+
+        // Z 꾹: 완료된 공정이 있으면 바가 차고, 다 차면 마지막 공정 되돌림(서버 검증). 한 번 누름에 1회.
+        private void UpdateZKey(Keyboard kb)
+        {
+            if (!kb.zKey.isPressed)
+            {
+                m_RevertHold = 0f; m_RevertCell = s_NoCell; m_RevertDone = false;
+                return;
+            }
+            if (m_RevertDone) return;   // 이번 누름에 이미 되돌림 → 떼야 다음
+
+            if (!RevertReadyOnTarget())
+            {
+                m_RevertHold = 0f; m_RevertCell = s_NoCell;
+                return;
+            }
+            if (m_Target != m_RevertCell) { m_RevertCell = m_Target; m_RevertHold = 0f; }
+            m_RevertHold += Time.deltaTime;
+            if (m_RevertHold >= m_ProcessSeconds)
+            {
+                m_Net.RequestCancelLast(m_RevertCell);
+                m_RevertHold = 0f;
+                m_RevertDone = true;
+            }
+        }
+
+        // 되돌릴 게 있나: 건축 중 + 유효 셀 + 완료된 공정 비트가 하나라도 있으면.
+        private bool RevertReadyOnTarget()
+        {
+            if (m_Loop != null && !m_Loop.IsBuilding) return false;
+            if (!m_HasTarget || m_Net == null) return false;
+            if (!m_Net.TryGetCell(m_Target, out _, out int completed)) return false;
+            return completed != 0;
         }
 
         // 든 도구의 공정이 조준 블록의 '지금 필요한 다음 공정'과 일치하면 true. (서버 수락 조건과 동일 판단)
@@ -279,6 +293,11 @@ namespace Player
         {
             m_HasTarget = false;
             if (m_Cam == null || m_Grid == null) return;
+
+            // 배치 높이 = 플레이어가 선 높이(기어올라간 층에서 건축). Q/E 층 선택 폐지.
+            m_BuildHeight = Mathf.Clamp(
+                Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
+                0, m_Grid.GridSize.y - 1);
 
             float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
             var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
@@ -659,8 +678,8 @@ namespace Player
                         : m_GrabBody.ToolBit != 0 ? "도구" : "재료" + m_GrabBody.MaterialId;
             string text =
                 $"[Carry] 들기: {held}\n" +
-                $"좌클릭 집기/배치 · 우클릭 철거 · Space 점프 · E꾹 공정 · G 던지기\n" +
-                $"C 공정취소 · R 회전 · 층 {m_BuildHeight}(Q내림·E톡 올림) · TAB 정답/필요공정    {tgt}  {score}\n" +
+                $"좌클릭 집기/배치 · C 철거 · Q 버리기 · Space 점프/벽점프 · G 던지기\n" +
+                $"E꾹 공정 · Z꾹 되돌리기 · R 회전 · 벽 보고 W/S 기어오르기 · 층 {m_BuildHeight}(자동) · TAB 정답    {tgt}  {score}\n" +
                 $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget} · 집기대상={grab}";
 
             var box = new Rect(10, 174, 700, 100);
@@ -695,11 +714,21 @@ namespace Player
             GUI.Label(r, m_ProcessHint, m_BarLabel);
         }
 
-        // E 공정 진행 중이면 대상 블록 위에 로딩바 + 라벨(고정/페인트).
+        // E 공정 / C 되돌리기 로딩바(대상 블록 위).
         private void DrawProcessBar()
         {
-            if (m_ProcessHold <= 0f || m_Cam == null || m_ProcessCell == s_NoCell) return;
-            Vector3 world = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f);
+            if (m_ProcessHold > 0f && m_ProcessCell != s_NoCell)
+                DrawHoldBar(m_ProcessCell, m_ProcessHold,
+                    m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
+                    m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+            if (m_RevertHold > 0f && m_RevertCell != s_NoCell)
+                DrawHoldBar(m_RevertCell, m_RevertHold, new Color(0.90f, 0.45f, 0.30f), "되돌리는 중…");
+        }
+
+        private void DrawHoldBar(Vector3Int cell, float hold, Color fill, string label)
+        {
+            if (m_Cam == null) return;
+            Vector3 world = GridCoordinates.CellToWorld(cell) + new Vector3(0.5f, 1.1f, 0.5f);
             Vector3 sp = m_Cam.WorldToScreenPoint(world);
             if (sp.z <= 0f) return;
 
@@ -711,17 +740,15 @@ namespace Player
             GUI.color = new Color(0f, 0f, 0f, 0.7f);
             GUI.DrawTexture(new Rect(x - 2f, y - 2f, bw + 4f, bh + 4f), Texture2D.whiteTexture);
 
-            float t = Mathf.Clamp01(m_ProcessHold / m_ProcessSeconds);
-            GUI.color = m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f)
-                                                             : new Color(0.35f, 0.60f, 1.00f);
+            float t = Mathf.Clamp01(hold / m_ProcessSeconds);
+            GUI.color = fill;
             GUI.DrawTexture(new Rect(x, y, bw * t, bh), Texture2D.whiteTexture);
             GUI.color = prev;
 
             if (m_BarLabel == null)
                 m_BarLabel = new GUIStyle(GUI.skin.label)
                     { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x - 30f, y - 20f, bw + 60f, 18f),
-                m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…", m_BarLabel);
+            GUI.Label(new Rect(x - 30f, y - 20f, bw + 60f, 18f), label, m_BarLabel);
         }
     }
 }

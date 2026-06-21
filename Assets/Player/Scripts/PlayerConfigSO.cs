@@ -11,6 +11,7 @@ namespace Player
         [Header("Movement")]
         public float MoveSpeed   = 5f;
         public float SprintSpeed = 9f;   // Shift 달리기 속도
+        public float ClimbSpeed  = 3.5f; // 벽 기어오르기 속도
 
         [Header("Bounce")]
         public float ReboundForce   = 8f;

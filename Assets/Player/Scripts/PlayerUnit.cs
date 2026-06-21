@@ -59,8 +59,19 @@ namespace Player
             if (!IsOwner) return;
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
-            m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm, m_InputHandler.IsSprinting);
-            if (m_InputHandler.ConsumeJump()) m_Movement.Jump();   // Space 점프(접지 시)
+
+            if (m_Movement.IsClimbing || m_Movement.TryStartClimb(m_InputHandler.MoveInput, m_CameraArm))
+            {
+                m_Rb.useGravity = false;
+                if (m_InputHandler.ConsumeJump()) m_Movement.ClimbJumpOff(m_CameraArm);
+                else                              m_Movement.Climb(m_InputHandler.MoveInput, m_CameraArm);
+            }
+            else
+            {
+                m_Rb.useGravity = true;
+                m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm, m_InputHandler.IsSprinting);
+                if (m_InputHandler.ConsumeJump()) m_Movement.Jump();   // Space 점프(접지 시)
+            }
         }
 
         // ── 이동 FX 동기화 ────────────────────────────────────────────────
@@ -82,6 +93,7 @@ namespace Player
                 float speed = horiz.magnitude;
                 moving    = speed > 0.2f;
                 sprinting = speed > m_Config.MoveSpeed + 0.5f;
+                if (m_Movement.IsClimbing) { moving = false; sprinting = false; }   // 기어오르기 중엔 이동 FX 끔
                 if (IsSpawned) // owner → 원격에 복제
                 {
                     m_NetMoving.Value    = moving;

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerConfigSO
   MoveSpeed: 5
   SprintSpeed: 9
+  ClimbSpeed: 3.5
   ReboundForce: 1
   BounceHeight: 1.5
   BounceDuration: 0.4
