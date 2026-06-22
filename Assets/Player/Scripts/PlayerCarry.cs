@@ -16,7 +16,8 @@ namespace Player
     /// </summary>
     public class PlayerCarry : NetworkBehaviour
     {
-        [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 2.2f, 0f);
+        [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 1.2f, 0f);
+        [SerializeField] private float m_BlockHoldRaise = 0.6f;   // 재료(블록)는 머리 안 가리게 더 위로
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
         [SerializeField] private float m_GrabRange = 2.5f;
@@ -100,11 +101,14 @@ namespace Player
 
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
 
+        // 든 게 블록(재료)이면 머리 안 가리게 더 위로, 도구는 그대로. (복제값 기준 — 원격도 동일)
+        private Vector3 HeldOffset() => m_HoldOffset + (m_NetMaterialId.Value >= 0 ? Vector3.up * m_BlockHoldRaise : Vector3.zero);
+
         private void Update()
         {
             // 모든 클라: 든 비주얼이 플레이어를 따라감
             if (m_HeldVisual != null)
-                m_HeldVisual.transform.position = transform.position + m_HoldOffset;
+                m_HeldVisual.transform.position = transform.position + HeldOffset();
 
             if (!IsOwner) return;
             OwnerUpdate();
@@ -544,7 +548,7 @@ namespace Player
             }
 
             if (m_HeldVisual != null)
-                m_HeldVisual.transform.position = transform.position + m_HoldOffset;
+                m_HeldVisual.transform.position = transform.position + HeldOffset();
         }
 
         // 카탈로그(드는 재료 목록)를 lazy-find — 모든 클라에서 동일 에셋.

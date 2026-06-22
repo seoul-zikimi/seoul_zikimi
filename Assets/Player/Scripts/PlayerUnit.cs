@@ -163,7 +163,7 @@ namespace Player
             m_CinemachineCamera = GetComponentInChildren<CinemachineCamera>(includeInactive: true);
 
             if (GetComponent<PlayerAnimator>() == null) gameObject.AddComponent<PlayerAnimator>();   // 애니 파라미터 구동(널 가드)
-            if (GetComponent<PlayerStateVisualizer>() == null) gameObject.AddComponent<PlayerStateVisualizer>();   // 임시 상태 표시(클립 전)
+            if (GetComponent<PlayerFacing>() == null) gameObject.AddComponent<PlayerFacing>();       // 비주얼이 이동 방향 보게
         }
     }
 }

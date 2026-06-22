@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Player
@@ -25,6 +26,7 @@ namespace Player
         private PlayerCarry m_Carry;
         private PlayerInputHandler m_Input;
         private Rigidbody m_Rb;
+        private HashSet<int> m_Params;   // 컨트롤러에 실제 있는 파라미터(없는 거 SetX 하면 경고)
 
         private void Awake()
         {
@@ -45,8 +47,20 @@ namespace Player
             if (m_Carry != null) { m_Carry.OnPlace -= HandlePlace; m_Carry.OnThrow -= HandleThrow; }
         }
 
-        private void HandlePlace() { if (m_Anim != null) m_Anim.SetTrigger(P_PutDown); }
-        private void HandleThrow() { if (m_Anim != null) m_Anim.SetTrigger(P_Throw); }
+        private void HandlePlace() { if (Has(P_PutDown)) m_Anim.SetTrigger(P_PutDown); }
+        private void HandleThrow() { if (Has(P_Throw))   m_Anim.SetTrigger(P_Throw); }
+
+        // 컨트롤러에 있는 파라미터만 세팅(없으면 경고 → 무시). 지연 캐시.
+        private bool Has(int hash)
+        {
+            if (m_Anim == null) return false;
+            if (m_Params == null)
+            {
+                m_Params = new HashSet<int>();
+                foreach (var p in m_Anim.parameters) m_Params.Add(p.nameHash);
+            }
+            return m_Params.Contains(hash);
+        }
 
         private void Update()
         {
@@ -54,13 +68,13 @@ namespace Player
             if (m_Carry == null || !m_Carry.IsOwner) return;  // 우선 내 캐릭터만(원격은 후속)
 
             Vector3 h = m_Rb != null ? m_Rb.linearVelocity : Vector3.zero; h.y = 0f;
-            m_Anim.SetFloat(P_Speed, h.magnitude);
-            m_Anim.SetBool(P_Grounded, m_Move.IsGrounded());
-            m_Anim.SetBool(P_Climbing, m_Move.IsClimbing);
-            m_Anim.SetBool(P_Holding, m_Carry.IsHolding);
-            m_Anim.SetBool(P_HoldingTool, m_Carry.IsHoldingTool);
-            m_Anim.SetBool(P_Processing, m_Carry.IsProcessing);
-            if (m_Input != null) m_Anim.SetFloat(P_ClimbDir, m_Input.MoveInput.y);
+            if (Has(P_Speed))       m_Anim.SetFloat(P_Speed, h.magnitude);
+            if (Has(P_Grounded))    m_Anim.SetBool(P_Grounded, m_Move.IsGrounded());
+            if (Has(P_Climbing))    m_Anim.SetBool(P_Climbing, m_Move.IsClimbing);
+            if (Has(P_Holding))     m_Anim.SetBool(P_Holding, m_Carry.IsHolding);
+            if (Has(P_HoldingTool)) m_Anim.SetBool(P_HoldingTool, m_Carry.IsHoldingTool);
+            if (Has(P_Processing))  m_Anim.SetBool(P_Processing, m_Carry.IsProcessing);
+            if (m_Input != null && Has(P_ClimbDir)) m_Anim.SetFloat(P_ClimbDir, m_Input.MoveInput.y);
         }
     }
 }

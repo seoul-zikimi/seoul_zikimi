@@ -40,6 +40,11 @@ namespace Player
             m_Rb               = GetComponent<Rigidbody>();
             m_Config           = config;
             m_Body             = transform.Find("Body");
+            if (m_Body == null)   // 모델 교체로 Body 없으면 → 보이는 모델(Animator 루트)을 팝업 대상으로
+            {
+                var anim = GetComponentInChildren<Animator>();
+                if (anim != null) m_Body = anim.transform;
+            }
             m_OnBounceComplete = () => m_IsBouncing = false; // 1회만 alloc
         }
 
@@ -100,7 +105,8 @@ namespace Player
             }
             else
             {
-                m_IsBouncing = false;
+                // Body 비주얼이 없어도 바운스 지속시간 유지 — 즉시 false면 다음 FixedUpdate의 Move가 임펄스를 덮어 안 튕김.
+                DG.Tweening.DOVirtual.DelayedCall(m_Config.BounceDuration, m_OnBounceComplete);
             }
         }
 

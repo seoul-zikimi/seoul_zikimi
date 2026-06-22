@@ -1,6 +1,22 @@
 # 플레이어 애니메이션 — 셋업 가이드 & 남은 작업
 
-> 코드(파라미터 구동)는 끝났고, **Animator 에셋 + 클립 연결만 남았다.** 클립 붙기 전까지는 **임시 표시기**(색/크기, 아래 섹션)가 상태를 보여준다. 이 문서대로 붙이면 내 캐릭터가 상태대로 전환된다.
+> 코드(파라미터 구동)는 끝났다. **Mixamo FBX 8개 + 빌드 스크립트**로 실제 애니를 붙인다 — 아래 "지금 셋업" 참고. (§1~§6은 설계 참고용.)
+
+---
+
+## ▶ 지금 셋업 (Mixamo FBX 8개 → 메뉴 한 방)
+
+준비: `Assets/Player/Animations/` 에 `model.fbx` + 7클립(`Idle/walk/run/Jumping/Climbing/hammer/Throw`) 복사됨.
+
+1. **메뉴 실행** — `Tools ▸ Player ▸ Setup Animations (Mixamo)` (스크립트: `Assets/Player/Editor/PlayerAnimatorBuilder.cs`)
+   - 8개 FBX를 **Humanoid**로 임포트(클립은 model 아바타로 리타게팅) + 루프(Idle/Walk/Run/Climb/Hammer)
+   - `Assets/Player/Animations/PlayerAnim.controller` 자동 생성 — 상태(Idle/Walk/Run/Jump/Climb/Hammer/Throw) + 전이 + 파라미터(Speed/Grounded/Climbing/Processing/Throw)
+2. **캐릭터 교체** — 플레이어 프리팹 아래에 `model.fbx`를 비주얼로 넣고, 기존 비주얼은 제거.
+3. **Animator 연결** — model 오브젝트(또는 자식)에 `Animator` 추가 → `PlayerAnim.controller` 할당. `PlayerAnimator`가 `GetComponentInChildren<Animator>()`로 자동으로 잡아 구동.
+4. **임시 표시기** — `PlayerUnit`의 `PlayerStateVisualizer` 자동부착은 **제거됨**(새 모델에 색/크기 틴트 겹침 방지). 파일은 남겨둠(필요시 수동 부착).
+
+> 스킴(단일 레이어): Idle/Walk/Run/Jump/Climb + **Hammer=공정(E꾹)** + **Throw=던지기**. 손에 든 재료/도구는 **머리 위 비주얼 그대로**(carry/putdown 애니 없음).
+> 문제 시: 콘솔의 `[AnimSetup]` 로그 확인 · Humanoid 안 맞으면 `model.fbx` Rig 탭 Configure로 본 매핑 점검 · 클립 루프는 각 FBX Animation 탭에서 조정.
 
 ---
 

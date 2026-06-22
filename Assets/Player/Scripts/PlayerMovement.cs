@@ -60,8 +60,12 @@ namespace Player
             inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             var origin = transform.position + Vector3.up * kClimbRayH;
             foreach (var h in Physics.RaycastAll(origin, inDir, kWallReach, ~0, QueryTriggerInteraction.Ignore))
-                if (h.collider.transform != transform && !h.collider.transform.IsChildOf(transform))
-                    return true;
+            {
+                var t = h.collider.transform;
+                if (t == transform || t.IsChildOf(transform)) continue;   // 자기/자식 제외
+                if (h.collider.CompareTag("Player")) continue;            // 다른 플레이어는 벽 아님(기어오르기 X → 바운스)
+                return true;
+            }
             return false;
         }
 
