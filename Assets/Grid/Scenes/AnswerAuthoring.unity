@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1024586705
+--- !u!1 &661315628
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,46 +127,50 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1024586706}
-  - component: {fileID: 1024586707}
+  - component: {fileID: 661315630}
+  - component: {fileID: 661315629}
   m_Layer: 0
-  m_Name: Anchor Mat_Floor
+  m_Name: Grid (16x8x16)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1024586706
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1024586705}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2101857952}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1024586707
+--- !u!114 &661315629
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1024586705}
+  m_GameObject: {fileID: 661315628}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f2ba00f3f4dfea343bd5339890fa858d, type: 3}
+  m_Script: {fileID: 11500000, guid: 24923d3a4e93ae34394654345257543c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_Anchor
-  _tileID: -2060087447
-  BakedParent: {fileID: 0}
-  _childCount: 0
-  _bakeCount: 0
+  m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_Grid
+  GridSize: 0
+  Height: 8
+  Width: 16
+  Unit: 1
+  TileLayers:
+  - {fileID: 1923240940}
+  _LayerIndex: 7
+--- !u!4 &661315630
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 661315628}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1923240941}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1031229440
 GameObject:
   m_ObjectHideFlags: 0
@@ -400,59 +404,11 @@ Transform:
   m_GameObject: {fileID: 1294949583}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2, y: 0.5, z: 4}
+  m_LocalPosition: {x: -3.87, y: 0.5, z: 3.33}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1308076354
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1308076356}
-  - component: {fileID: 1308076355}
-  m_Layer: 0
-  m_Name: Anchor Mat_Pillar
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1308076355
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1308076354}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f2ba00f3f4dfea343bd5339890fa858d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_Anchor
-  _tileID: 272289905
-  BakedParent: {fileID: 0}
-  _childCount: 0
-  _bakeCount: 0
---- !u!4 &1308076356
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1308076354}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2101857952}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1375711731
 GameObject:
@@ -681,7 +637,7 @@ Transform:
   m_GameObject: {fileID: 1539493974}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -5.04, y: 0, z: -3.94}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -699,7 +655,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa71a96adf8245446a3155a14114d12e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.AnswerPreview
-  m_BoxSize: 280
   m_Offset: {x: 500, y: 500, z: 500}
 --- !u!114 &1539493979
 MonoBehaviour:
@@ -726,10 +681,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b21a251144d6a24398bf5c18fcb8bd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.GridManager
-  m_GridSize: {x: 8, y: 4, z: 8}
-  m_Catalog: {fileID: 11400000, guid: 0e36ad08b0a4ff443a41195c9ebd74cd, type: 2}
+  m_GridSize: {x: 10, y: 8, z: 16}
+  m_Catalog: {fileID: 11400000, guid: b117a5dd7ba826b4a85c32745fd4eea9, type: 2}
   m_Answers:
-  - {fileID: 11400000, guid: 485468a3ce01bab488bd21c2ea89a53e, type: 2}
+  - {fileID: 11400000, guid: d78e9df26347844458abed33474e6bbb, type: 2}
   m_DrawGizmos: 1
 --- !u!114 &1539493981
 MonoBehaviour:
@@ -757,7 +712,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDepot
   ShowTopMostFoldoutHeaderGroup: 1
-  m_DeliveryZone: {x: -3.5, y: 0, z: 4}
+  m_DeliveryZone: {x: -8, y: 0, z: 4}
 --- !u!114 &1539493983
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -771,106 +726,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDropField
   ShowTopMostFoldoutHeaderGroup: 1
---- !u!1 &1652906609
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1652906610}
-  - component: {fileID: 1652906611}
-  m_Layer: 0
-  m_Name: Anchor Mat_Wall
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1652906610
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1652906609}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2101857952}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1652906611
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1652906609}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f2ba00f3f4dfea343bd5339890fa858d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_Anchor
-  _tileID: 543055506
-  BakedParent: {fileID: 0}
-  _childCount: 0
-  _bakeCount: 0
---- !u!1 &1760943333
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1760943335}
-  - component: {fileID: 1760943334}
-  m_Layer: 0
-  m_Name: Grid (8x4x8)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1760943334
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1760943333}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 24923d3a4e93ae34394654345257543c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_Grid
-  GridSize: 0
-  Height: 4
-  Width: 8
-  Unit: 1
-  TileLayers:
-  - {fileID: 2101857951}
-  _LayerIndex: 0
---- !u!4 &1760943335
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1760943333}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2101857952}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1910132564
 GameObject:
   m_ObjectHideFlags: 0
@@ -1118,13 +973,13 @@ Transform:
   m_GameObject: {fileID: 1921863387}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2, y: 0.5, z: 2}
+  m_LocalPosition: {x: -3.82, y: 0.5, z: 0.52}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2101857950
+--- !u!1 &1923240939
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1132,8 +987,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2101857952}
-  - component: {fileID: 2101857951}
+  - component: {fileID: 1923240941}
+  - component: {fileID: 1923240940}
   m_Layer: 0
   m_Name: Answer Layer
   m_TagString: Untagged
@@ -1141,13 +996,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2101857951
+--- !u!114 &1923240940
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2101857950}
+  m_GameObject: {fileID: 1923240939}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 962878b2c93e50544bf2e4e4c234a454, type: 3}
@@ -1157,19 +1012,16 @@ MonoBehaviour:
   Group: {fileID: 11400000, guid: caac3a93c0aeb8c44bb801dfb78ec0ef, type: 2}
   _NodesKeys: []
   _NodesValues: []
-  _AnchorKeys: 698f3585925e5e2071d03a10
-  _AnchorValues:
-  - {fileID: 1024586707}
-  - {fileID: 1652906611}
-  - {fileID: 1308076355}
+  _AnchorKeys: 
+  _AnchorValues: []
   LoadedGroups:
   - {fileID: 11400000, guid: 1edde58f529342444af1e40ece72ce29, type: 2}
   - {fileID: 11400000, guid: caac3a93c0aeb8c44bb801dfb78ec0ef, type: 2}
   - {fileID: 11400000, guid: 086471ca33d4b294b87b2cecdd98e4fd, type: 2}
   - {fileID: 11400000, guid: 87b8d609771fb4943b46588342cee428, type: 2}
-  HoverPrefabObject: {fileID: 1504874872812320020, guid: 2292f62495b86944bb52e3852450326e, type: 3}
-  LocalHoverPosition: {x: 35, y: 0, z: 22}
-  PrevLocalHoverPosition: {x: 35, y: 0, z: 22}
+  HoverPrefabObject: {fileID: 1593461715113577070, guid: 568d0070416207f45976ebc50c098714, type: 3}
+  LocalHoverPosition: {x: 12, y: 7, z: 20}
+  PrevLocalHoverPosition: {x: 12, y: 7, z: 20}
   SearchedInternalPosition: {x: 0, y: 0, z: 0}
   SearchedInternalNode:
     Layer: {fileID: 0}
@@ -1181,23 +1033,20 @@ MonoBehaviour:
     _tileName: 
     _tileID: 0
     _ruleID: 0
---- !u!4 &2101857952
+--- !u!4 &1923240941
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2101857950}
+  m_GameObject: {fileID: 1923240939}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1024586706}
-  - {fileID: 1652906610}
-  - {fileID: 1308076356}
-  m_Father: {fileID: 1760943335}
+  m_Children: []
+  m_Father: {fileID: 661315630}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
@@ -1205,8 +1054,8 @@ SceneRoots:
   m_Roots:
   - {fileID: 1375711734}
   - {fileID: 1910132566}
-  - {fileID: 1760943335}
   - {fileID: 1539493976}
   - {fileID: 1921863392}
   - {fileID: 1294949588}
   - {fileID: 1031229444}
+  - {fileID: 661315630}
