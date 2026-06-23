@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: 3_Pier
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 3
-  m_Footprint: {x: 2, y: 1, z: 5}
+  m_Footprint: {x: 2, y: 1, z: 4}
   m_Prefab: {fileID: 7309153541407950982, guid: 3a75160edc163e1438fb1c7538f1b43f, type: 3}
   m_RequiredProcesses: 01000000
   m_MustBeFixed: 1
   m_Walkable: 0
   m_IsBreakable: 0
-  m_MaxSpawnCount: 4
+  m_MaxSpawnCount: 6

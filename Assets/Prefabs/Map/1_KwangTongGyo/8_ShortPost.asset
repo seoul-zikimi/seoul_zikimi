@@ -19,4 +19,4 @@ MonoBehaviour:
   m_MustBeFixed: 1
   m_Walkable: 0
   m_IsBreakable: 0
-  m_MaxSpawnCount: -1
+  m_MaxSpawnCount: 8

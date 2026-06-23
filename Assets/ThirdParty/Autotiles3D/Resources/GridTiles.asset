@@ -14,30 +14,58 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_TileGroup
   Tiles:
   - _group: GridTiles
-    _tileID: -2060087447
-    Default: {fileID: 1875540903879155407, guid: ae53dfdd6d8412348b83db210741c2dd, type: 3}
+    _tileID: -291814126
+    Default: {fileID: 1887469075001577258, guid: 026a4092daea1a247ab759ad74afa8ee, type: 3}
     Randoms: []
     Random: 0
-    _name: Mat_Floor
+    _name: 1_LowerPillar
     Rules: []
   - _group: GridTiles
-    _tileID: 272289905
-    Default: {fileID: 1504874872812320020, guid: 2292f62495b86944bb52e3852450326e, type: 3}
+    _tileID: 2023375819
+    Default: {fileID: 8391025224284902483, guid: cd080ffc050b8a34199cdf0f20c4d324, type: 3}
     Randoms: []
     Random: 0
-    _name: Mat_Pillar
+    _name: 2_UpperPillar
     Rules: []
   - _group: GridTiles
-    _tileID: 543055506
-    Default: {fileID: 5899251318277328522, guid: 3161336c2949c7c46ac3238f5fa7482c, type: 3}
+    _tileID: 446351096
+    Default: {fileID: 7309153541407950982, guid: 3a75160edc163e1438fb1c7538f1b43f, type: 3}
     Randoms: []
     Random: 0
-    _name: Mat_Wall
+    _name: 3_Pier
     Rules: []
   - _group: GridTiles
-    _tileID: -1653277046
-    Default: {fileID: 4858698847071752898, guid: 241d0bdf135d31943b789d349100e4f5, type: 3}
+    _tileID: -296485047
+    Default: {fileID: 624811965546752978, guid: 69eb28210989889408f03ffb43868ee7, type: 3}
     Randoms: []
     Random: 0
-    _name: Mat_Test
+    _name: 4_Floor44
+    Rules: []
+  - _group: GridTiles
+    _tileID: 2019482711
+    Default: {fileID: 624811965546752978, guid: 4e3c871b7138b6f4a878280d579406d3, type: 3}
+    Randoms: []
+    Random: 0
+    _name: 5_Floor64
+    Rules: []
+  - _group: GridTiles
+    _tileID: -992450701
+    Default: {fileID: 1593461715113577070, guid: 568d0070416207f45976ebc50c098714, type: 3}
+    Randoms: []
+    Random: 0
+    _name: 6_hatch
+    Rules: []
+  - _group: GridTiles
+    _tileID: -456338830
+    Default: {fileID: 3513822841861358522, guid: 3a126406c095f424486de5921e5c35a2, type: 3}
+    Randoms: []
+    Random: 0
+    _name: 7_LongPost
+    Rules: []
+  - _group: GridTiles
+    _tileID: -1019652543
+    Default: {fileID: 2231575165527779503, guid: 63bfe4f713af8b942892b26377660ebd, type: 3}
+    Randoms: []
+    Random: 0
+    _name: 8_ShortPost
     Rules: []
