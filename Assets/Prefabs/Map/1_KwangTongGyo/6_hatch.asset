@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c9502f08cc24a78a50bfd3f09a6f79e, type: 3}
+  m_Name: 6_hatch
+  m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
+  m_Id: 6
+  m_Footprint: {x: 1, y: 1, z: 1}
+  m_Prefab: {fileID: 1593461715113577070, guid: 568d0070416207f45976ebc50c098714, type: 3}
+  m_RequiredProcesses: 02000000
+  m_MustBeFixed: 0
+  m_Walkable: 0
+  m_IsBreakable: 0
+  m_MaxSpawnCount: 4
