@@ -90,7 +90,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCameraController
   m_RotateSpeed: 0.3
   m_ZoomSpeed: 0.5
-  m_VertMin: 15
+  m_VertMin: 3
   m_VertMax: 80
   m_DistMin: 3
   m_DistMax: 20

@@ -24,7 +24,7 @@ namespace Player
                 RotateSpeed = m_RotateSpeed, ZoomSpeed = m_ZoomSpeed,
                 PitchMin = m_VertMin, PitchMax = m_VertMax,
                 DistMin  = m_DistMin, DistMax  = m_DistMax,
-                Pitch = 45f, Distance = 10f,
+                Pitch = 30f, Distance = 10f,   // 30° = 빌드 내려다보면서 하늘도 보이는 절충
             };
         }
 
