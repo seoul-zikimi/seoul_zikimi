@@ -42,8 +42,12 @@ public class LobbyManager : MonoBehaviour
             if (!AuthenticationService.Instance.IsSignedIn)
             {
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                string shortId = AuthenticationService.Instance.PlayerId.Substring(0, 5);
-                string myName = $"Guest{shortId}";
+                string playerId = AuthenticationService.Instance.PlayerId ?? "";
+                string shortId = playerId.Length <= 5 ? playerId : playerId.Substring(0, 5);
+                if (string.IsNullOrEmpty(shortId))
+                    shortId = UnityEngine.Random.Range(10000, 99999).ToString();
+                string savedName = PlayerPrefs.GetString("PlayerNickname", "").Trim();
+                string myName = string.IsNullOrEmpty(savedName) ? $"Guest{shortId}" : savedName;
 
                 await AuthenticationService.Instance.UpdatePlayerNameAsync(myName);
                 Debug.Log($"[LobbyManager] 익명 로그인 성공! PlayerID: {AuthenticationService.Instance.PlayerId}");
@@ -178,12 +182,18 @@ public class LobbyManager : MonoBehaviour
 
         if (session.IsHost)
         {
-            Unity.Netcode.NetworkManager.Singleton.StartHost();
+            if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.StartHost();
+            else if (NetworkManager.Singleton == null)
+                Debug.LogWarning("[LobbyManager] NetworkManager가 없어서 StartHost를 건너뜁니다.");
             
         }
         else
         {
-            Unity.Netcode.NetworkManager.Singleton.StartClient();
+            if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.StartClient();
+            else if (NetworkManager.Singleton == null)
+                Debug.LogWarning("[LobbyManager] NetworkManager가 없어서 StartClient를 건너뜁니다.");
         }
 
         if (LobbyRoomHUD != null)
@@ -242,14 +252,17 @@ public class LobbyManager : MonoBehaviour
     {
         if (active)
         {
-            Unity.Netcode.NetworkManager.Singleton.StartHost();
+            if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.StartHost();
+            else if (NetworkManager.Singleton == null)
+                Debug.LogWarning("[LobbyManager] NetworkManager가 없어서 StartHost를 건너뜁니다.");
             
-            joinCodeHUD.SetActive(false);
-            LobbyRoomHUD.SetActive(true);
-            startHUD.SetActive(false);
-            createSessionHUD.SetActive(false);
-            joinByCodeHUD.SetActive(false);
-            sessionListHUD.SetActive(false);
+            if (joinCodeHUD != null) joinCodeHUD.SetActive(false);
+            if (LobbyRoomHUD != null) LobbyRoomHUD.SetActive(true);
+            if (startHUD != null) startHUD.SetActive(false);
+            if (createSessionHUD != null) createSessionHUD.SetActive(false);
+            if (joinByCodeHUD != null) joinByCodeHUD.SetActive(false);
+            if (sessionListHUD != null) sessionListHUD.SetActive(false);
         }
         
     }

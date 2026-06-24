@@ -4,8 +4,18 @@ using Unity.Netcode;
 
 public class ConnectionUI : MonoBehaviour
 {
+    private bool m_ShowLegacyOnGUI;
+
+    private void Start()
+    {
+        JobsnailMainMenu.Show();
+    }
+
     void OnGUI()
     {
+        if (!m_ShowLegacyOnGUI)
+            return;
+
         var style = new GUIStyle(GUI.skin.button);
         style.fontSize = 36;
 

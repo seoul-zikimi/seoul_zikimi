@@ -17,6 +17,7 @@ namespace Player
         private Transform          m_CameraArm;
         private CinemachineCamera  m_CinemachineCamera;
         private Rigidbody          m_Rb;
+        private float              m_NextDashSfxTime;
 
         // 원격 클라에 이동/스프린트 상태 복제 → 먼지·스프린트 트레일 동기화 (owner가 write)
         private readonly NetworkVariable<bool> m_NetMoving = new(
@@ -88,6 +89,13 @@ namespace Player
                 }
             }
             m_DustTrail.Apply(moving, sprinting);
+
+            if ((IsOwner || !IsSpawned) && moving && sprinting && Time.time >= m_NextDashSfxTime)
+            {
+                m_NextDashSfxTime = Time.time + 0.45f;
+                if (SoundManager.Instance != null)
+                    SoundManager.Instance.PlaySFX(SFXType.Dash);
+            }
         }
 
         // ── 충돌 FX 멀티캐스트 ─────────────────────────────────────────────

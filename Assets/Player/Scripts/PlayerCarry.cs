@@ -183,6 +183,7 @@ namespace Player
             if (m_ProcessHold >= m_ProcessSeconds)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
+                PlaySFX(m_HeldTool == ProcessType.Painted ? SFXType.Painting : SFXType.Hammering);
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
@@ -378,6 +379,7 @@ namespace Player
             m_HeldTool = ProcessType.None;
             m_NetMaterialId.Value = def.Id;
             m_NetTool.Value = 0;
+            PlaySFX(SFXType.PickUpObject);
         }
 
         private void HoldTool(ProcessType tool)
@@ -387,6 +389,7 @@ namespace Player
             m_HeldTool = tool;
             m_NetMaterialId.Value = -1;
             m_NetTool.Value = (int)tool;
+            PlaySFX(SFXType.PickUpObject);
         }
 
         private void Drop()
@@ -409,6 +412,7 @@ namespace Player
             Vector3 from = transform.position + Vector3.up * 1.2f;
             if (HasMaterial) m_Drop.RequestThrow(m_HeldMaterial.Id, from, to);
             else             m_Drop.RequestThrowTool((int)m_HeldTool, from, to);
+            PlaySFX(SFXType.ThrowObject);
             ClearHeld();
         }
 
@@ -418,9 +422,15 @@ namespace Player
         {
             if (m_Drop == null) return;
             if (HasMaterial)
+            {
                 m_Drop.RequestDrop(m_HeldMaterial.Id, transform.position + Vector3.up * 0.6f);
+                PlaySFX(SFXType.LandObject);
+            }
             else if (HasTool)
+            {
                 m_Drop.RequestThrowTool((int)m_HeldTool, transform.position + Vector3.up * 0.6f, transform.position);
+                PlaySFX(SFXType.LandObject);
+            }
         }
 
         private void ClearHeld()
@@ -448,7 +458,14 @@ namespace Player
                 return;
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
+            PlaySFX(SFXType.LandObject);
             ClearHeld();   // 놓으면 손이 빔 → 재고서 다시 집어야(리썰컴퍼니식)
+        }
+
+        private static void PlaySFX(SFXType type)
+        {
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlaySFX(type);
         }
 
         private void TryRemove()

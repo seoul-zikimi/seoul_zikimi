@@ -82,6 +82,7 @@ namespace GridSystem
             {
                 transform.position = m_Target;
                 m_Arc = false; m_VVel = 0f;
+                GridSoundBridge.PlaySFXAt("FallObjectWhileThrowing", m_Target);
                 return;
             }
             float u = m_ArcT / m_ArcDur;

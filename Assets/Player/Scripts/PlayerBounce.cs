@@ -79,7 +79,7 @@ namespace Player
         {
             PlayBodyPunch();
             if (SoundManager.Instance != null) // 씬에 SoundManager 없는 클라 방어
-                SoundManager.Instance.PlaySFXAt(SFXType.PlayerBounce, point);
+                SoundManager.Instance.PlaySFXAt(SFXType.BumpPlayers, point);
             if (spawnSharedParticle)
                 SpawnBounceEffect(point);
         }

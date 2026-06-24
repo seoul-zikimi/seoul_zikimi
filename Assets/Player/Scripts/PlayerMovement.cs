@@ -33,6 +33,8 @@ namespace Player
             if (!IsGrounded()) return;
             float jumpV = Mathf.Sqrt(2f * Physics.gravity.magnitude * kJumpHeight);
             m_Rb.linearVelocity = new Vector3(m_Rb.linearVelocity.x, jumpV, m_Rb.linearVelocity.z);
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlaySFX(SFXType.Jump);
         }
 
         // 발밑 짧은 레이로 접지 판정(자기/자식 콜라이더는 제외).
