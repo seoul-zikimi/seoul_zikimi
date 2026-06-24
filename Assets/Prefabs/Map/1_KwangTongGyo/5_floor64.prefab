@@ -42,7 +42,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalScale.x
-      value: 6.1
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalScale.y
@@ -58,7 +58,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalPosition.z
@@ -74,15 +74,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
+      value: 90
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
@@ -106,7 +106,7 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 3939406923825996935, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 6831225129981350148}
+      addedObject: {fileID: 8202912999751739317}
   m_SourcePrefab: {fileID: -4161369568681901532, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
 --- !u!4 &6093099590886889110 stripped
 Transform:
@@ -118,7 +118,7 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 3939406923825996935, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
   m_PrefabInstance: {fileID: 6619318161506870301}
   m_PrefabAsset: {fileID: 0}
---- !u!65 &6831225129981350148
+--- !u!65 &8202912999751739317
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

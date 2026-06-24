@@ -42,15 +42,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalScale.x
-      value: 4.5
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalScale.y
-      value: 4.5
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalScale.z
-      value: 4.5
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalPosition.x
@@ -58,7 +58,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1104370401872229003, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       propertyPath: m_LocalPosition.z
@@ -106,7 +106,7 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 3939406923825996935, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 723496949825994080}
+      addedObject: {fileID: 8006473720192491200}
   m_SourcePrefab: {fileID: -4161369568681901532, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
 --- !u!4 &6093099590886889110 stripped
 Transform:
@@ -118,7 +118,7 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 3939406923825996935, guid: 30af473014383654aac6dff27a8c42f9, type: 3}
   m_PrefabInstance: {fileID: 6619318161506870301}
   m_PrefabAsset: {fileID: 0}
---- !u!65 &723496949825994080
+--- !u!65 &8006473720192491200
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
