@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: 5_Floor64
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 5
-  m_Footprint: {x: 6, y: 1, z: 4}
+  m_Footprint: {x: 4, y: 1, z: 6}
   m_Prefab: {fileID: 624811965546752978, guid: 4e3c871b7138b6f4a878280d579406d3, type: 3}
   m_RequiredProcesses: 00000000
   m_MustBeFixed: 0
