@@ -54,7 +54,7 @@ public class GameHudDriver : MonoBehaviour
 
         var items = new List<OrderHUD.Entry>();
         foreach (var d in depot.Catalog.Materials)
-            if (d != null) items.Add(new OrderHUD.Entry(d.Id, d.name));
+            if (d != null) items.Add(new OrderHUD.Entry(d.Id, d.name, d.Prefab));
 
         UIManager.Instance.ShowHUDUI<OrderHUD>().Build(items, depot.RequestOrder);
     }

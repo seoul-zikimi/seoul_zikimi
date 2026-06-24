@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -6,7 +7,7 @@ namespace GridSystem
 {
     /// <summary>
     /// 정답 안내(브리프 §6). 플레이 중 '어디에 뭘 지을지' 보여준다:
-    ///  ① 실제 그리드 위 반투명 고스트(색=요구공정), ② 2D 정답 이미지(있으면), ③ 우하단 3D 미리보기, ④ 색 범례.
+    ///  ① 실제 그리드 위 진짜 블록 프리팹 반투명 고스트 + 공정 숫자, ② 2D 정답 이미지(있으면), ③ 우하단 3D 미리보기(진짜 블록).
     /// TAB으로 전체 토글. 건축 종료(채점 화면)에선 자동으로 숨긴다. GridManager 와 같은 오브젝트.
     /// </summary>
     [RequireComponent(typeof(GridManager))]
@@ -22,6 +23,7 @@ namespace GridSystem
         private Vector3 m_PivotCenter;     // 오빗 중심 = 모델 바운드 중심
         private GameObject m_Root;        // 미리보기 렌더용(멀리 떨어진 미니씬)
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
+        private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
         private GUIStyle m_LabelStyle;
         private bool m_Visible = true;
         private bool m_Built;
@@ -46,6 +48,8 @@ namespace GridSystem
         {
             if (m_Root != null) { Destroy(m_Root); m_Root = null; }
             if (m_GhostRoot != null) { Destroy(m_GhostRoot); m_GhostRoot = null; }
+            foreach (var m in m_GhostMats) if (m != null) Destroy(m);
+            m_GhostMats.Clear();
             if (m_RT != null) { m_RT.Release(); m_RT = null; }
             m_Cam = null;
             m_Built = false;
@@ -77,48 +81,28 @@ namespace GridSystem
             if (answer == null || answer.Cells.Count == 0) return;
             var catalog = m_Manager.Catalog;
 
-            // ① 실제 그리드 위 반투명 고스트
-            var ghostMatBase = MakeTransparentMaterial();
-            m_GhostRoot = new GameObject("~AnswerGhost");
             float u = GridContract.Unit;
-            foreach (var c in answer.Cells)
-            {
-                var def = catalog != null ? catalog.GetById(c.materialId) : null;
-                Color col = ColorForMask(def != null ? def.RequiredMask : 0);
-                col.a = 0.22f;
+            var objects = GroupAnswer(answer, catalog);   // 펼쳐 저장된 칸 → 오브젝트(프리팹) 단위 재구성
 
-                var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                g.name = "~Ghost";
-                g.transform.SetParent(m_GhostRoot.transform, true);
-                g.transform.position = GridCoordinates.CellToWorld(c.cell) + Vector3.one * 0.5f * u;
-                g.transform.localScale = Vector3.one * (u * 1.0f);
-                var col0 = g.GetComponent<Collider>();
-                if (col0 != null) Destroy(col0);
-                var rend = g.GetComponent<Renderer>();
-                if (ghostMatBase != null) rend.sharedMaterial = ghostMatBase;
-                var mpb = new MaterialPropertyBlock();
-                rend.GetPropertyBlock(mpb);
-                mpb.SetColor(s_BaseColor, col);
-                mpb.SetColor(s_Color, col);
-                rend.SetPropertyBlock(mpb);
+            // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨
+            m_GhostRoot = new GameObject("~AnswerGhost");
+            foreach (var o in objects)
+            {
+                Vector3 pos = GridCoordinates.CellToWorld(o.minCell) + o.dims * (0.5f * u);
+                Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
+                MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
             }
 
-            // ② 우하단 3D 미리보기(멀리 떨어진 미니씬 → RenderTexture)
+            // ② 우하단 3D 미리보기 = 진짜 블록 프리팹 솔리드(멀리 떨어진 미니씬 → RenderTexture)
             m_Root = new GameObject("~AnswerPreview");
             Bounds b = default; bool first = true;
-            foreach (var c in answer.Cells)
+            foreach (var o in objects)
             {
-                Vector3 p = m_Offset + GridCoordinates.CellToWorld(c.cell) + Vector3.one * 0.5f;
-                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                cube.transform.SetParent(m_Root.transform, true);
-                cube.transform.position = p;
-                cube.transform.localScale = Vector3.one * 0.92f;
-                var col = cube.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-                var def = catalog != null ? catalog.GetById(c.materialId) : null;
-                SetColor(cube, ColorForMask(def != null ? def.RequiredMask : 0));
-                if (first) { b = new Bounds(p, Vector3.one); first = false; }
-                else b.Encapsulate(new Bounds(p, Vector3.one));
+                Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell) + o.dims * (0.5f * u);
+                Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
+                MakeBlockVisual(o, m_Root.transform, pos, rot, u, ghost: false);
+                var bb = new Bounds(pos, new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);
+                if (first) { b = bb; first = false; } else b.Encapsulate(bb);
             }
 
             m_RT = new RenderTexture(512, 512, 16);
@@ -229,6 +213,7 @@ namespace GridSystem
             if (m_RT != null) m_RT.Release();
             if (m_Root != null) Destroy(m_Root);
             if (m_GhostRoot != null) Destroy(m_GhostRoot);
+            foreach (var m in m_GhostMats) if (m != null) Destroy(m);
         }
 
         // 런타임 반투명(URP) 머티리얼. 셰이더 없으면 null → 고스트는 불투명 폴백.
@@ -256,8 +241,119 @@ namespace GridSystem
             return new Color(0.72f, 0.72f, 0.72f);
         }
 
+        // ── 정답 오브젝트(진짜 블록 프리팹) ──
+        private const float kGhostAlpha = 0.4f;                                                // 프리팹 고스트 투명도
+        private static readonly Color kNoPrefabSolid = new Color(0.85f, 0.83f, 0.75f);          // 프리팹 없는 블록(패널)
+        private static readonly Color kNoPrefabGhost = new Color(0.85f, 0.83f, 0.75f, 0.30f);   // 프리팹 없는 블록(고스트)
+
+        // 정답 칸(칸 단위로 펼쳐 저장됨)을 footprint로 오브젝트 단위 재구성.
+        // EnumerateFootprintCells가 anchor를 항상 min-corner로 정규화 → lex 첫 미점유 셀 = anchor.
+        private struct AnsObject { public MaterialDef def; public int rot; public Vector3Int minCell; public Vector3 dims; }
+
+        private static List<AnsObject> GroupAnswer(MapAnswerData answer, MaterialCatalog catalog)
+        {
+            var objs = new List<AnsObject>();
+            var cells = new List<AnswerCell>(answer.Cells);
+            cells.Sort((a, c) =>
+            {
+                if (a.cell.x != c.cell.x) return a.cell.x - c.cell.x;
+                if (a.cell.y != c.cell.y) return a.cell.y - c.cell.y;
+                return a.cell.z - c.cell.z;
+            });
+            var claimed = new HashSet<Vector3Int>();
+            foreach (var c in cells)
+            {
+                if (claimed.Contains(c.cell)) continue;
+                var def = catalog != null ? catalog.GetById(c.materialId) : null;
+                var fp  = def != null ? def.Footprint : Vector3Int.one;
+                int rot = c.rotationStep;
+                var fcells = GridFootprint.EnumerateFootprintCells(c.cell, fp, rot);
+
+                bool ok = true;
+                foreach (var fc in fcells)
+                    if (claimed.Contains(fc) || !answer.TryGet(fc, out var ac)
+                        || ac.materialId != c.materialId || ac.rotationStep != rot)
+                    { ok = false; break; }
+
+                Vector3 dims;
+                if (ok)
+                {
+                    foreach (var fc in fcells) claimed.Add(fc);
+                    bool swap = ((((rot % 4) + 4) % 4) % 2) == 1;            // 90°/270° → x/z 치수 스왑
+                    dims = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z);
+                }
+                else { claimed.Add(c.cell); dims = Vector3.one; }            // 데이터 불일치 → 1칸 폴백
+
+                objs.Add(new AnsObject { def = def, rot = rot, minCell = c.cell, dims = dims });
+            }
+            return objs;
+        }
+
+        // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
+        // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell)+dims*0.5u, rot = Euler(0,90·step,0).
+        private GameObject MakeBlockVisual(AnsObject o, Transform parent, Vector3 pos, Quaternion rot, float u, bool ghost)
+        {
+            GameObject go;
+            if (o.def != null && o.def.Prefab != null)
+            {
+                go = Instantiate(o.def.Prefab, parent);
+                go.transform.SetPositionAndRotation(pos, rot);
+                foreach (var col in go.GetComponentsInChildren<Collider>()) Destroy(col);
+                if (ghost) MakeTransparent(go, kGhostAlpha);
+            }
+            else   // 프리팹 없는 재료(Floor/Pillar/Wall 등) → footprint 모양 박스, 공정색 대신 중립색
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.transform.SetParent(parent, true);
+                go.transform.position = pos;
+                go.transform.localScale = new Vector3(o.dims.x, o.dims.y, o.dims.z) * (u * (ghost ? 1f : 0.96f));
+                var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
+                if (ghost)
+                {
+                    var m = MakeTransparentMaterial();
+                    if (m != null) { m.SetColor(s_BaseColor, kNoPrefabGhost); m.SetColor(s_Color, kNoPrefabGhost); m_GhostMats.Add(m); }
+                    go.GetComponent<Renderer>().sharedMaterial = m;
+                }
+                else SetColor(go, kNoPrefabSolid);
+            }
+            return go;
+        }
+
+        // 고스트 전용. 원본 셰이더가 투명을 지원 안 해도 항상 반투명이 되도록,
+        // '확실히 반투명한' URP Lit 머티리얼을 새로 만들고 원본 텍스처(_BaseMap)+색만 옮긴다. 사본은 m_GhostMats로 정리.
+        private void MakeTransparent(GameObject go, float alpha)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                var src = r.sharedMaterials;
+                var dst = new Material[src.Length];
+                for (int i = 0; i < src.Length; i++)
+                {
+                    var m = MakeTransparentMaterial();
+                    if (m == null) { dst[i] = src[i]; continue; }   // 셰이더 없으면 원본 유지
+                    m_GhostMats.Add(m);
+
+                    Color tint = Color.white;
+                    if (src[i] != null)
+                    {
+                        if      (src[i].HasProperty(s_BaseMap)) m.SetTexture(s_BaseMap, src[i].GetTexture(s_BaseMap));
+                        else if (src[i].HasProperty(s_MainTex)) m.SetTexture(s_BaseMap, src[i].GetTexture(s_MainTex));
+                        if      (src[i].HasProperty(s_BaseColor)) tint = src[i].GetColor(s_BaseColor);
+                        else if (src[i].HasProperty(s_Color))     tint = src[i].GetColor(s_Color);
+                    }
+                    tint.a = alpha;
+                    m.SetColor(s_BaseColor, tint);
+                    m.SetColor(s_Color, tint);
+                    dst[i] = m;
+                }
+                r.sharedMaterials = dst;
+            }
+        }
+
         private static readonly int s_BaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int s_Color = Shader.PropertyToID("_Color");
+        private static readonly int s_BaseMap = Shader.PropertyToID("_BaseMap");
+        private static readonly int s_MainTex = Shader.PropertyToID("_MainTex");
         private static void SetColor(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();

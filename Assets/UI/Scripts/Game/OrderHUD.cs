@@ -12,8 +12,8 @@ public class OrderHUD : UIHUD
 {
     public readonly struct Entry
     {
-        public readonly int Id; public readonly string Name;
-        public Entry(int id, string name) { Id = id; Name = name; }
+        public readonly int Id; public readonly string Name; public readonly GameObject Prefab;
+        public Entry(int id, string name, GameObject prefab) { Id = id; Name = name; Prefab = prefab; }
     }
 
     private const float kPanelW = 240f;   // 콘텐츠 패널 너비(접힘 계산에 사용)
@@ -48,7 +48,8 @@ public class OrderHUD : UIHUD
         {
             float y = -(pad + titleH + i * rowH);
             var e = items[i];
-            MakeText(m_Panel.transform, e.Name, new Vector2(8, y), new Vector2(kPanelW - 92, 24), 14, TextAnchor.MiddleLeft);
+            MakeThumb(m_Panel.transform, e.Prefab, new Vector2(8, y - 1), 26f);   // 무슨 블록인지 미리보기
+            MakeText(m_Panel.transform, e.Name, new Vector2(40, y), new Vector2(kPanelW - 124, 24), 14, TextAnchor.MiddleLeft);
             int id = e.Id;   // 클로저 캡처 고정
             MakeButton(m_Panel.transform, "주문", new Vector2(kPanelW - 80, y), new Vector2(72, 24), () => onOrder(id));
         }
@@ -92,6 +93,16 @@ public class OrderHUD : UIHUD
         rt.anchorMin = aMin; rt.anchorMax = aMax; rt.pivot = aMax;
         rt.anchoredPosition = pos; rt.sizeDelta = size;
         return go;
+    }
+
+    // 주문 행의 블록 썸네일(프리팹 1회 렌더 → 캐시). 프리팹 없으면 옅은 박스.
+    private static void MakeThumb(Transform parent, GameObject prefab, Vector2 pos, float size)
+    {
+        var go = NewRect("Thumb", parent, new Vector2(0, 1), new Vector2(0, 1), pos, new Vector2(size, size));
+        var ri = go.AddComponent<RawImage>();
+        var tex = prefab != null ? BlockThumbnail.Get(prefab, 96) : null;
+        if (tex != null) ri.texture = tex;
+        else ri.color = new Color(1f, 1f, 1f, 0.15f);
     }
 
     private static void MakeText(Transform parent, string s, Vector2 pos, Vector2 size, int fontSize, TextAnchor anchor)
