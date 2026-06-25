@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Id: 4
   m_Footprint: {x: 4, y: 1, z: 4}
   m_Prefab: {fileID: 624811965546752978, guid: 69eb28210989889408f03ffb43868ee7, type: 3}
-  m_RequiredProcesses: 00000000
+  m_RequiredProcesses: 
   m_MustBeFixed: 0
   m_Walkable: 0
   m_IsBreakable: 0
