@@ -14,19 +14,49 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SoundLibrarySO
   sfxEntries:
   - type: 0
-    clips:
-    - {fileID: 8300000, guid: 3376c0b6a8c5f4b539dbbf44b0698d59, type: 3}
-    - {fileID: 8300000, guid: d1d3cb96244b84eb8bb9acd2272505ce, type: 3}
-    - {fileID: 8300000, guid: c8ad05c7ac4804d67a9aba9617b6abcc, type: 3}
+    clips: []
   - type: 1
     clips:
-    - {fileID: 8300000, guid: 1739ff78014ab3f44a5757aede3c7ea9, type: 3}
+    - {fileID: 8300000, guid: 1955d049dc9b44b6c98af9e7d84300d9, type: 3}
+  - type: 2
+    clips:
+    - {fileID: 8300000, guid: 42f3481bfd7864d46902db98fb2f5663, type: 3}
+  - type: 3
+    clips:
+    - {fileID: 8300000, guid: 21825c5631e474df59fa1cd3b45a9f37, type: 3}
+  - type: 4
+    clips:
+    - {fileID: 8300000, guid: 700cf002d1f82437b8f7f55a33820167, type: 3}
+  - type: 5
+    clips:
+    - {fileID: 8300000, guid: cc5bb173808f84b838f2bfd685334946, type: 3}
+  - type: 6
+    clips:
+    - {fileID: 8300000, guid: 61ae9c89ad1d14b85bfa77b5c947e100, type: 3}
+  - type: 7
+    clips:
+    - {fileID: 8300000, guid: 2ba0f7d84c087446daf8321590b6ef7e, type: 3}
+  - type: 8
+    clips:
+    - {fileID: 8300000, guid: 80cf62e8abf294446b975dcc78640766, type: 3}
+  - type: 9
+    clips:
+    - {fileID: 8300000, guid: 1955d049dc9b44b6c98af9e7d84300d9, type: 3}
+  - type: 10
+    clips:
+    - {fileID: 8300000, guid: 22827686287a1414fac9cd73295b355b, type: 3}
+  - type: 11
+    clips:
+    - {fileID: 8300000, guid: de4368e3386c145a9af3ae77f8c4d705, type: 3}
+  - type: 12
+    clips:
+    - {fileID: 8300000, guid: 7fb1445db77f64d82b7250d2f05d425e, type: 3}
   bgmEntries:
   - phase: 0
-    clip: {fileID: 8300000, guid: 4a74f61bf7075e8439f9a759ece2693f, type: 3}
+    clip: {fileID: 8300000, guid: 1fe5c867001a848d1893d0720a0fe2b3, type: 3}
   - phase: 1
-    clip: {fileID: 8300000, guid: ae7e74295b743cb4ea17c6a29d1549f1, type: 3}
+    clip: {fileID: 8300000, guid: a111d07e9785f4183b292a19f53eaa12, type: 3}
   - phase: 2
-    clip: {fileID: 8300000, guid: 0f7d61faae5d12a449619239c43b6faf, type: 3}
+    clip: {fileID: 8300000, guid: ca2dd57d7ca9d42b3a0145c570ec88e4, type: 3}
   - phase: 3
-    clip: {fileID: 8300000, guid: ccdc1026f90774226b4c0759093380b3, type: 3}
+    clip: {fileID: 8300000, guid: ca2dd57d7ca9d42b3a0145c570ec88e4, type: 3}

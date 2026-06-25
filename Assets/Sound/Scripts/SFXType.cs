@@ -26,4 +26,15 @@ public enum SFXType
 {
     PlayerFootstep,
     PlayerBounce,
+    UIClick,
+    PickUpObject,
+    LandObject,
+    ThrowObject,
+    FallObjectWhileThrowing,
+    Hammering,
+    Painting,
+    BumpPlayers,
+    Dash,
+    Jump,
+    GameOver,
 }

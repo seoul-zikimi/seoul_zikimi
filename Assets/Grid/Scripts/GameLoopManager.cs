@@ -29,10 +29,15 @@ namespace GridSystem
         private GridManager m_Grid;
         private GridNetwork m_Net;
         private GUIStyle m_Big, m_Mid, m_Small;
+        [SerializeField] private bool m_UseLegacyOnGUI;
+        private bool m_UrgentBgmStarted;
 
         public GamePhase Phase => (GamePhase)m_Phase.Value;
         public float TimeLeft => m_TimeLeft.Value;
         public bool IsBuilding => Phase == GamePhase.Building;
+        public int PlayerCount => m_PlayerCount.Value;
+        public int ConsentCount => m_Consents.Count;
+        public ScoreSnapshot Score => m_Net != null ? m_Net.Score : default;
 
         private void Awake()
         {
@@ -42,18 +47,34 @@ namespace GridSystem
 
         public override void OnNetworkSpawn()
         {
+            m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
             if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
+            OnPhaseChanged((int)Phase, (int)Phase);
         }
 
         public override void OnNetworkDespawn()
         {
+            m_Phase.OnValueChanged -= OnPhaseChanged;
             m_AnswerIndex.OnValueChanged -= OnAnswerIndexChanged;
         }
 
         private void OnAnswerIndexChanged(int _, int v) => m_Grid.SelectAnswer(v);
+
+        private void OnPhaseChanged(int _, int next)
+        {
+            if ((GamePhase)next == GamePhase.Building)
+            {
+                m_UrgentBgmStarted = false;
+                GridSoundBridge.SetPhase("Building");
+            }
+            else
+            {
+                GridSoundBridge.PlaySFX("GameOver");
+            }
+        }
 
         // 서버: 정답 목록에서 랜덤으로 하나 고른다(1개뿐이면 0). 코스메틱 아님 — 인덱스를 복제.
         private void PickRandomAnswer()
@@ -78,6 +99,12 @@ namespace GridSystem
             var kb = Keyboard.current;
             if (kb != null && kb.enterKey.wasPressedThisFrame)
                 ToggleConsentRpc();
+
+            if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f)
+            {
+                m_UrgentBgmStarted = true;
+                GridSoundBridge.SetPhase("BuildingUrgent");
+            }
 
             if (!IsServer) return;
 
@@ -139,8 +166,23 @@ namespace GridSystem
             return false;
         }
 
+        public bool HasLocalConsent => IsSpawned && NetworkManager.Singleton != null && LocalConsented();
+
+        public void RequestToggleConsent()
+        {
+            if (!IsSpawned) return;
+            ToggleConsentRpc();
+        }
+
+        public void RequestLeaveToLobby()
+        {
+            if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
+            SceneManager.LoadScene(SceneNames.BootstrapScene);
+        }
+
         private void OnGUI()
         {
+            if (!m_UseLegacyOnGUI) return;
             if (!Application.isPlaying || !IsSpawned) return;
             if (m_Big == null)
             {

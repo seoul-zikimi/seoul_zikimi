@@ -15,7 +15,7 @@ public class CreateSessionVM : IDisposable
     public bool IsPrivate { get; private set; }
     public string Password { get; private set; } = "";
     
-    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrEmpty(Password) && Password.Length >= 8);
+    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrEmpty(Password?.Trim()) && Password.Trim().Length >= 8);
     
     public void SetIsPrivate(bool isPrivate)
     {
@@ -26,6 +26,7 @@ public class CreateSessionVM : IDisposable
     
     public void SetPassword(string newPassword)
     {
+        newPassword ??= "";
         if (Password == newPassword) return;
         Password = newPassword;
         Notify(); // 값이 바뀌었으니 UI 갱신 신호 보내기!
@@ -109,7 +110,7 @@ public class CreateSessionVM : IDisposable
         if (m_SessionObserver.Session != null)
         {
             OnSessionAdded(m_SessionObserver.Session);
-            TryDeleteSessionAsync();
+            _ = TryDeleteSessionAsync();
         }
         
         CanRegisterSession = true;
@@ -152,13 +153,20 @@ public class CreateSessionVM : IDisposable
     /// </summary>
     public async Task TryDeleteSessionAsync()
     {
-        if(m_SessionObserver.Session != null)
+        var session = m_SessionObserver != null ? m_SessionObserver.Session : m_Session;
+        if(session != null)
         {
-            var hostSession = m_SessionObserver.Session as IHostSession;
+            var hostSession = session as IHostSession;
+            if (hostSession == null)
+            {
+                CanRegisterSession = true;
+                return;
+            }
             
             try
             {
                 await hostSession.DeleteAsync();
+                m_Session = null;
                 CanRegisterSession = true;
                 
             }
@@ -176,8 +184,11 @@ public class CreateSessionVM : IDisposable
     /// <returns></returns>
     public async Task<IHostSession> CreateSessionAsync(SessionOptions sessionOptions)
     {
+        if (m_SessionObserver?.Session != null || m_Session != null)
+            await TryDeleteSessionAsync();
+
         sessionOptions.Name = SessionName;
-        sessionOptions.Password = Password;
+        sessionOptions.Password = IsPrivate ? Password.Trim() : null;
         IHostSession session = await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
         SessionCode = session.Code;
         //ShowJoinCode.SetData(session);
@@ -214,4 +225,3 @@ public class CreateSessionVM : IDisposable
     }
         
 }
-
