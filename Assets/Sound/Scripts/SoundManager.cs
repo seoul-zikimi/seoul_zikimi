@@ -7,7 +7,7 @@ using DG.Tweening;
 /// 게임 전체 BGM · SFX 담당 매니저.
 /// Singleton&lt;SoundManager&gt; 상속 → 단일 인스턴스, DontDestroyOnLoad.
 ///
-/// ── BGM (AudioSource 1개, loop) ──────────────────────────
+/// ── BGM (AudioSource 1개, phase별 loop 설정) ─────────────
 /// SetPhase(GamePhase)   : 페이즈 BGM으로 DOTween crossfade
 /// PlayBGM(AudioClip)    : 미등록 곡으로 crossfade
 /// StopBGM() / StopBGMFade()
@@ -37,7 +37,7 @@ public class SoundManager : Singleton<SoundManager>
     // AudioSource 볼륨 = "믹서에 얼마나 보낼지" 비율(0~1). 실제 사용자 볼륨은 AudioMixer 파라미터가 담당.
     const float kBgmVolume = 1f;
 
-    AudioSource   _bgmSource;   // BGM (loop)
+    AudioSource   _bgmSource;   // BGM
     AudioSource   _sfx2D;       // 2D 효과음 — PlayOneShot으로 겹쳐 재생
     AudioSource[] _sfx3D;       // 3D 효과음 — 위치별 동시 발음 위해 자식 소스 여러 개 round-robin
     int           _sfx3DIndex;
@@ -106,7 +106,7 @@ public class SoundManager : Singleton<SoundManager>
 
         _bgmSource = gameObject.AddComponent<AudioSource>();
         _bgmSource.outputAudioMixerGroup = _mixer.FindMatchingGroups("BGM")[0];
-        _bgmSource.loop        = true;  // BGM = loop
+        _bgmSource.loop        = true;
         _bgmSource.playOnAwake = false;
     }
 
@@ -121,13 +121,25 @@ public class SoundManager : Singleton<SoundManager>
     /// <summary>게임 페이즈 BGM으로 crossfade. 같은 곡이면 무시.</summary>
     public void SetPhase(GamePhase phase)
     {
-        if (_bgmMap.TryGetValue(phase, out var clip)) PlayBGM(clip);
+        if (_bgmMap.TryGetValue(phase, out var clip))
+            PlayBGM(clip, ShouldLoopPhase(phase));
     }
 
     /// <summary>지정 클립으로 crossfade(라이브러리 미등록 곡도 가능). 같은 곡이면 무시.</summary>
-    public void PlayBGM(AudioClip clip)
+    public void PlayBGM(AudioClip clip) => PlayBGM(clip, true);
+
+    /// <summary>지정 클립으로 crossfade. loop=false면 한 번만 재생한다.</summary>
+    public void PlayBGM(AudioClip clip, bool loop)
     {
-        if (clip == null || _bgmSource.clip == clip) return;
+        if (clip == null) return;
+
+        if (_bgmSource.clip == clip)
+        {
+            _bgmSource.loop = loop;
+            if (!_bgmSource.isPlaying)
+                _bgmSource.Play();
+            return;
+        }
 
         _bgmTween?.Kill();
         var seq = DOTween.Sequence();
@@ -136,11 +148,17 @@ public class SoundManager : Singleton<SoundManager>
         seq.AppendCallback(() =>
             {
                 _bgmSource.clip   = clip;
+                _bgmSource.loop   = loop;
                 _bgmSource.volume = 0f;
                 _bgmSource.Play();
             })
            .Append(_bgmSource.DOFade(kBgmVolume, _bgmFadeDuration));   // 새 곡 fade-in
         _bgmTween = seq;
+    }
+
+    static bool ShouldLoopPhase(GamePhase phase)
+    {
+        return phase != GamePhase.Building && phase != GamePhase.BuildingUrgent;
     }
 
     /// <summary>BGM 즉시 정지.</summary>

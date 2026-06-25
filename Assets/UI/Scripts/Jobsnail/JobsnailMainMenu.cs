@@ -138,7 +138,11 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             if (SoundManager.Instance != null) SoundManager.Instance.SetSFXVolume(value);
             else PlayerPrefs.SetFloat("SFXVolume", value);
         });
-        MakeText(m_SettingsPopup.transform, "마우스 감도 조절", 18, Color.black, new Vector2(0, -65), new Vector2(260, 42), TextAnchor.MiddleCenter, new Color(0.84f, 0.84f, 0.84f, 1f));
+        var done = JobsnailUiKit.Button("SettingsDoneButton", m_SettingsPopup.transform, null, new Vector2(0.28f, 0.30f), new Vector2(0.72f, 0.40f), Vector2.zero, Vector2.zero, ToggleSettings);
+        var doneImage = done.GetComponent<Image>();
+        if (doneImage != null)
+            doneImage.color = new Color(0.84f, 0.84f, 0.84f, 1f);
+        MakeButtonText(done.transform, "완료", 20, Color.black);
 
         var close = JobsnailUiKit.Button("SettingsCloseButton", m_SettingsPopup.transform, null, new Vector2(0.86f, 0.86f), new Vector2(0.96f, 0.96f), Vector2.zero, Vector2.zero, ToggleSettings);
         MakeButtonText(close.transform, "×", 26, Color.black);
@@ -149,11 +153,11 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             image.color = new Color(1f, 0.70f, 0.70f, 1f);
         MakeButtonText(leave.transform, "게임 나가기", 20, Color.black);
 
-        var ok = JobsnailUiKit.Button("SettingsOkButton", m_SettingsPopup.transform, null, new Vector2(0.38f, 0.22f), new Vector2(0.62f, 0.32f), Vector2.zero, Vector2.zero, ToggleSettings);
+        var ok = JobsnailUiKit.Button("SettingsOkButton", m_SettingsPopup.transform, null, new Vector2(0.38f, 0.22f), new Vector2(0.62f, 0.28f), Vector2.zero, Vector2.zero, ToggleSettings);
         var okImage = ok.GetComponent<Image>();
         if (okImage != null)
             okImage.color = new Color(1f, 0.78f, 0.44f, 1f);
-        MakeButtonText(ok.transform, "확인", 20, Color.black);
+        MakeButtonText(ok.transform, "확인", 18, Color.black);
     }
 
     private static void Quit()

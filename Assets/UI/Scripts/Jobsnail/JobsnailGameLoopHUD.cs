@@ -14,8 +14,11 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private TextMeshProUGUI m_ActionButtonText;
     private TextMeshProUGUI m_ResultText;
     private GameObject m_ResultPanel;
+    private GameObject m_TopBar;
+    private GameObject m_ConsentBox;
     private Button m_ActionButton;
     private Button m_LeaveButton;
+    private bool m_UrgentBgmStarted;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -32,8 +35,11 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
         EnsureEventSystem();
         var canvas = JobsnailUiKit.EnsureOverlayCanvas("@JobsnailGameLoopHUD", 120);
-        if (canvas.GetComponent<JobsnailGameLoopHUD>() == null)
+        var hud = canvas.GetComponent<JobsnailGameLoopHUD>();
+        if (hud == null)
             canvas.gameObject.AddComponent<JobsnailGameLoopHUD>();
+        else
+            hud.Rebuild();
     }
 
     private static void EnsureEventSystem()
@@ -47,7 +53,7 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
     private void Awake()
     {
-        Build();
+        Rebuild();
     }
 
     private void Update()
@@ -58,7 +64,37 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         bool ready = m_Loop != null && m_Loop.IsSpawned;
         SetVisible(ready);
         if (!ready)
+        {
+            if (m_ResultPanel != null)
+                m_ResultPanel.SetActive(false);
             return;
+        }
+
+        if (m_Loop.IsBuilding)
+        {
+            if (m_ResultPanel != null)
+                m_ResultPanel.SetActive(false);
+
+            if (m_Loop.TimeLeft <= 0f)
+            {
+                m_Loop.RequestFinishByTimeout();
+                return;
+            }
+
+            if (m_Loop.TimeLeft > 60f)
+                m_UrgentBgmStarted = false;
+
+            if (!m_UrgentBgmStarted && m_Loop.TimeLeft <= 60f)
+            {
+                m_UrgentBgmStarted = true;
+                if (SoundManager.Instance != null)
+                    SoundManager.Instance.SetPhase(global::GamePhase.BuildingUrgent);
+            }
+        }
+        else if (m_ResultPanel == null)
+        {
+            BuildResultPanel(transform);
+        }
 
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
@@ -70,7 +106,8 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             ? (m_Loop.HasLocalConsent ? "요청 취소" : "종료 요청")
             : (m_Loop.HasLocalConsent ? "준비 취소" : "한 판 더하기");
 
-        m_ResultPanel.SetActive(!m_Loop.IsBuilding);
+        if (m_ResultPanel != null)
+            m_ResultPanel.SetActive(!m_Loop.IsBuilding);
         if (!m_Loop.IsBuilding)
         {
             var score = m_Loop.Score;
@@ -84,17 +121,24 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         }
     }
 
-    private void Build()
+    private void Rebuild()
     {
         var root = transform;
 
+        for (int i = root.childCount - 1; i >= 0; i--)
+            Destroy(root.GetChild(i).gameObject);
+
+        m_ResultPanel = null;
+        m_ResultText = null;
+        m_Loop = null;
+        m_UrgentBgmStarted = false;
+
         var top = JobsnailUiKit.Box("TopBar", root, new Vector2(0.42f, 0.92f), new Vector2(0.58f, 0.99f), Vector2.zero, Vector2.zero, new Color(0.84f, 0.82f, 0.70f, 0.92f));
+        m_TopBar = top.gameObject;
         m_TimerText = JobsnailUiKit.Label("Timer", top.transform, "0:00", 34, Color.black, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
 
-        var tip = JobsnailUiKit.Box("ControlTip", root, new Vector2(0.03f, 0.84f), new Vector2(0.20f, 0.96f), Vector2.zero, Vector2.zero, new Color(0.78f, 0.78f, 0.78f, 0.82f));
-        JobsnailUiKit.Label("TipText", tip.transform, "조작 튜토리얼\nWASD 이동 / Space 점프\nE 들기·놓기 / 마우스 공정", 20, Color.black, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
-
         var consent = JobsnailUiKit.Box("ConsentBox", root, new Vector2(0.82f, 0.93f), new Vector2(0.98f, 0.985f), Vector2.zero, Vector2.zero, new Color(1f, 1f, 1f, 0.90f));
+        m_ConsentBox = consent.gameObject;
         m_ConsentText = JobsnailUiKit.Label("Consent", consent.transform, "종료 요청 0/0", 20, Color.black, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
 
         m_ActionButton = JobsnailUiKit.Button("EndRequestButton", root, null, new Vector2(0.865f, 0.875f), new Vector2(0.965f, 0.925f), Vector2.zero, Vector2.zero, OnActionClicked, "종료 요청");
@@ -102,11 +146,15 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
         m_LeaveButton = JobsnailUiKit.Button("LeaveButton", root, null, new Vector2(0.02f, 0.02f), new Vector2(0.11f, 0.07f), Vector2.zero, Vector2.zero, OnLeaveClicked, "나가기");
 
-        BuildResultPanel(root);
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.SetPhase(global::GamePhase.Building);
     }
 
     private void BuildResultPanel(Transform root)
     {
+        if (m_ResultPanel != null)
+            return;
+
         m_ResultPanel = JobsnailUiKit.Box("ResultPanelDim", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.32f)).gameObject;
 
         var receipt = JobsnailUiKit.Box("Receipt", m_ResultPanel.transform, new Vector2(0.38f, 0.18f), new Vector2(0.62f, 0.82f), Vector2.zero, Vector2.zero, Color.white);
@@ -120,8 +168,14 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
     private void SetVisible(bool visible)
     {
+        if (m_TopBar != null)
+            m_TopBar.SetActive(visible);
+        if (m_ConsentBox != null)
+            m_ConsentBox.SetActive(visible);
         m_ActionButton.gameObject.SetActive(visible);
         m_LeaveButton.gameObject.SetActive(visible);
+        if (!visible && m_ResultPanel != null)
+            m_ResultPanel.SetActive(false);
     }
 
     private void OnActionClicked()

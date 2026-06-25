@@ -1,4 +1,6 @@
 using System;
+using System.Security.Cryptography;
+using System.Text;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Unity.Netcode;
@@ -15,7 +17,7 @@ public class CreateSessionVM : IDisposable
     public bool IsPrivate { get; private set; }
     public string Password { get; private set; } = "";
     
-    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrWhiteSpace(Password) && !Password.Contains(" "));
+    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrWhiteSpace(Password) && Password.Trim().Length >= 8);
     
     public void SetIsPrivate(bool isPrivate)
     {
@@ -194,7 +196,7 @@ public class CreateSessionVM : IDisposable
         {
             sessionOptions.SessionProperties ??= new System.Collections.Generic.Dictionary<string, SessionProperty>();
         
-            string hashedPassword = SecurityUtils.Sha256Hash(Password);
+            string hashedPassword = Sha256Hash(Password);
             sessionOptions.SessionProperties["PasswordHash"] = new SessionProperty(hashedPassword);
         }
     
@@ -202,6 +204,17 @@ public class CreateSessionVM : IDisposable
         SessionCode = session.Code;
     
         return session;
+    }
+
+    private static string Sha256Hash(string value)
+    {
+        value ??= "";
+        using var sha = SHA256.Create();
+        byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(value));
+        var builder = new StringBuilder(bytes.Length * 2);
+        foreach (byte b in bytes)
+            builder.Append(b.ToString("x2"));
+        return builder.ToString();
     }
 
     public void Dispose()

@@ -1,5 +1,10 @@
+using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
+using Unity.Services.Multiplayer;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -14,6 +19,12 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private GameObject m_CreateOverlay;
     private GameObject m_LobbyRoomOverlay;
     private RectTransform m_SessionPcRoot;
+    private RectTransform m_CustomSessionListRoot;
+    private readonly List<ISessionInfo> m_CustomSessions = new();
+    private GameObject m_JoinPasswordOverlay;
+    private InputField m_JoinPasswordInput;
+    private Text m_CustomSessionStatus;
+    private string m_PendingJoinSessionId;
     private StartUGUI m_StartUi;
     private InputField m_CustomRoomNameInput;
     private InputField m_CustomPasswordInput;
@@ -27,6 +38,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private GameObject m_PasswordLabel;
     private GameObject m_PasswordHint;
     private CreateSession m_CreateSession;
+    private bool m_IsStartingGame;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -285,6 +297,11 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             HideEntryOverlay();
             HideCustomCreateOverlay();
             HideCustomSessionOverlay();
+            if (m_IsStartingGame)
+            {
+                HideCustomLobbyRoomOverlay();
+                return;
+            }
             SetActive(transform, "StartHUD", false);
             SetActive(transform, "CreateSessionHUD", false);
             SetActive(transform, "SessionListHUD", false);
@@ -342,6 +359,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         HideCustomCreateOverlay();
         HideOriginalLobbyHuds();
         ShowCustomSessionOverlay();
+        _ = RefreshCustomSessionListAsync();
     }
 
     private bool IsCustomScreenOpen()
@@ -418,7 +436,14 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var listPanel = JobsnailUiKit.Box("ListPanel", m_SessionPcRoot, new Vector2(0.22f, 0.18f), new Vector2(0.78f, 0.70f), Vector2.zero, Vector2.zero, new Color(1f, 0.76f, 0.42f, 1f));
         listPanel.raycastTarget = false;
 
-        MakeText(m_SessionPcRoot, "방을 만들면 대기실로 이동합니다", 18, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(0, 20), new Vector2(420, 34), TextAnchor.MiddleCenter);
+        m_CustomSessionListRoot = new GameObject("CustomSessionListRoot", typeof(RectTransform)).GetComponent<RectTransform>();
+        m_CustomSessionListRoot.SetParent(m_SessionPcRoot, false);
+        m_CustomSessionListRoot.anchorMin = new Vector2(0.5f, 0.5f);
+        m_CustomSessionListRoot.anchorMax = new Vector2(0.5f, 0.5f);
+        m_CustomSessionListRoot.anchoredPosition = new Vector2(-36, -55);
+        m_CustomSessionListRoot.sizeDelta = new Vector2(820, 410);
+
+        m_CustomSessionStatus = MakeText(m_SessionPcRoot, "방 목록을 불러오는 중...", 18, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(0, -8), new Vector2(520, 34), TextAnchor.MiddleCenter);
 
         MakeFixedButton(m_SessionPcRoot, "메인으로", new Vector2(-485, -290), new Vector2(105, 50), () =>
         {
@@ -426,6 +451,194 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
             SceneManager.LoadScene(SceneNames.BootstrapScene);
         }, 18, Color.white);
+
+        MakeFixedButton(m_SessionPcRoot, "새로고침", new Vector2(205, 204), new Vector2(105, 38), () => _ = RefreshCustomSessionListAsync(), 16, new Color(1f, 0.90f, 0.70f, 1f));
+    }
+
+    private async System.Threading.Tasks.Task RefreshCustomSessionListAsync()
+    {
+        if (m_CustomSessionListRoot == null)
+            return;
+
+        ClearCustomSessionCards();
+        SetSessionStatus("방 목록을 불러오는 중...");
+
+        try
+        {
+            await EnsureServicesReadyAsync();
+
+            var result = await MultiplayerService.Instance.QuerySessionsAsync(new QuerySessionsOptions
+            {
+                SortOptions = new List<SortOption> { new(SortOrder.Descending, SortField.Name) }
+            });
+
+            m_CustomSessions.Clear();
+            foreach (var session in result.Sessions)
+                m_CustomSessions.Add(session);
+
+            DrawCustomSessionCards();
+        }
+        catch (System.Exception ex)
+        {
+            SetSessionStatus($"방 목록 불러오기 실패: {ex.Message}");
+        }
+    }
+
+    private void DrawCustomSessionCards()
+    {
+        ClearCustomSessionCards();
+
+        if (m_CustomSessions.Count == 0)
+        {
+            SetSessionStatus("현재 열린 방이 없어요. 방 만들기를 눌러 새 방을 만들어줘!");
+            return;
+        }
+
+        SetSessionStatus("");
+
+        int count = Mathf.Min(m_CustomSessions.Count, 6);
+        for (int i = 0; i < count; i++)
+        {
+            var session = m_CustomSessions[i];
+            float x = i % 2 == 0 ? -210f : 210f;
+            float y = 135f - (i / 2) * 135f;
+            MakeCustomSessionCard(i, session, new Vector2(x, y));
+        }
+    }
+
+    private void ClearCustomSessionCards()
+    {
+        if (m_CustomSessionListRoot == null)
+            return;
+
+        for (int i = m_CustomSessionListRoot.childCount - 1; i >= 0; i--)
+            Destroy(m_CustomSessionListRoot.GetChild(i).gameObject);
+    }
+
+    private void MakeCustomSessionCard(int index, ISessionInfo session, Vector2 anchored)
+    {
+        var button = MakeFixedButton(m_CustomSessionListRoot, "", anchored, new Vector2(360, 118), () => OnCustomSessionClicked(index), 16, Color.white);
+        var image = button.GetComponent<Image>();
+        var cardSprite = JobsnailUiKit.Sprite("UI_pngs/2.sesh/SessionList_Unit");
+        if (cardSprite != null)
+        {
+            image.sprite = cardSprite;
+            image.preserveAspect = true;
+        }
+
+        bool hasPassword = HasPassword(session);
+        string tag = hasPassword ? "🔒 비밀방" : "공개방";
+        Color tagColor = hasPassword ? new Color(1f, 0.55f, 0.55f, 1f) : new Color(0.58f, 1f, 0.54f, 1f);
+        int joined = Mathf.Max(0, session.MaxPlayers - session.AvailableSlots);
+
+        MakeText(button.transform, string.IsNullOrEmpty(session.Name) ? "이름 없는 방" : session.Name, 17, Color.black, new Vector2(0, 25), new Vector2(300, 32), TextAnchor.MiddleCenter);
+        MakeText(button.transform, tag, 14, Color.black, new Vector2(-90, -28), new Vector2(90, 26), TextAnchor.MiddleCenter, tagColor);
+        MakeText(button.transform, $"인원 {joined} / {session.MaxPlayers}", 14, Color.black, new Vector2(105, -28), new Vector2(110, 26), TextAnchor.MiddleCenter);
+    }
+
+    private async void OnCustomSessionClicked(int index)
+    {
+        if (index < 0 || index >= m_CustomSessions.Count)
+            return;
+
+        var session = m_CustomSessions[index];
+        if (HasPassword(session))
+        {
+            ShowJoinPasswordOverlay(session.Id);
+            return;
+        }
+
+        await JoinCustomSessionAsync(session.Id, null);
+    }
+
+    private void ShowJoinPasswordOverlay(string sessionId)
+    {
+        m_PendingJoinSessionId = sessionId;
+
+        if (m_JoinPasswordOverlay == null)
+            BuildJoinPasswordOverlay();
+
+        if (m_JoinPasswordInput != null)
+            m_JoinPasswordInput.text = "";
+
+        m_JoinPasswordOverlay.SetActive(true);
+        m_JoinPasswordOverlay.transform.SetAsLastSibling();
+    }
+
+    private void BuildJoinPasswordOverlay()
+    {
+        m_JoinPasswordOverlay = new GameObject("@JobsnailJoinPasswordOverlay", typeof(RectTransform));
+        m_JoinPasswordOverlay.transform.SetParent(m_SessionPcRoot, false);
+        var rt = (RectTransform)m_JoinPasswordOverlay.transform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        JobsnailUiKit.Box("Dim", m_JoinPasswordOverlay.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.25f));
+        JobsnailUiKit.Box("PasswordPanel", m_JoinPasswordOverlay.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(360, 190), new Color(1f, 1f, 1f, 0.98f));
+        MakeText(m_JoinPasswordOverlay.transform, "비밀번호 입력", 22, Color.black, new Vector2(0, 55), new Vector2(220, 36), TextAnchor.MiddleCenter);
+        m_JoinPasswordInput = MakeLegacyInput(m_JoinPasswordOverlay.transform, "", new Vector2(0, 8), new Vector2(230, 30));
+        m_JoinPasswordInput.contentType = InputField.ContentType.Standard;
+        MakeFixedButton(m_JoinPasswordOverlay.transform, "입장", new Vector2(-65, -55), new Vector2(100, 34), () =>
+        {
+            _ = JoinCustomSessionAsync(m_PendingJoinSessionId, m_JoinPasswordInput != null ? m_JoinPasswordInput.text : "");
+        }, 16);
+        MakeFixedButton(m_JoinPasswordOverlay.transform, "취소", new Vector2(65, -55), new Vector2(100, 34), () =>
+        {
+            m_JoinPasswordOverlay.SetActive(false);
+        }, 16, Color.white);
+        m_JoinPasswordOverlay.SetActive(false);
+    }
+
+    private async System.Threading.Tasks.Task JoinCustomSessionAsync(string sessionId, string password)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+            return;
+
+        SetSessionStatus("방 입장 중...");
+
+        try
+        {
+            await EnsureServicesReadyAsync();
+            PrepareNetworkTransport();
+
+            var sessionBrowser = FindFirstObjectByType<SessionBrowser>(FindObjectsInactive.Include);
+            string sessionType = sessionBrowser != null && sessionBrowser.SessionSettings != null
+                ? sessionBrowser.SessionSettings.sessionType
+                : "default-session";
+
+            await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, new JoinSessionOptions
+            {
+                Type = sessionType,
+                Password = string.IsNullOrEmpty(password) ? null : password
+            });
+
+            if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
+                NetworkManager.Singleton.StartClient();
+
+            if (m_JoinPasswordOverlay != null)
+                m_JoinPasswordOverlay.SetActive(false);
+
+            HideCustomCreateOverlay();
+            HideCustomSessionOverlay();
+            ShowCustomLobbyRoomOverlay();
+        }
+        catch (System.Exception ex)
+        {
+            SetSessionStatus($"방 입장 실패: {ex.Message}");
+        }
+    }
+
+    private static bool HasPassword(ISessionInfo session)
+    {
+        return session.Properties != null && session.Properties.ContainsKey("PasswordHash");
+    }
+
+    private void SetSessionStatus(string message)
+    {
+        if (m_CustomSessionStatus != null)
+            m_CustomSessionStatus.text = message;
     }
 
     private void MakeRoomCard(Vector2 anchored, string roomName, string tag, string count, Color tagColor)
@@ -487,8 +700,30 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         SetActive(transform, "JoinCodeHUD", false);
         SetActive(transform, "JoinByCodeHUD", false);
         EnsureHostStarted();
+
+        if (m_SelectedMaxPlayers <= 1)
+        {
+            m_IsStartingGame = true;
+            HideCustomLobbyRoomOverlay();
+            SetActive(transform, "LobbyRoomHUD", false);
+            StartCoroutine(StartSinglePlayerGameAfterHostReady());
+            return;
+        }
+
         SetActive(transform, "LobbyRoomHUD", false);
         ShowCustomLobbyRoomOverlay();
+    }
+
+    private System.Collections.IEnumerator StartSinglePlayerGameAfterHostReady()
+    {
+        float timeout = Time.unscaledTime + 3f;
+        while ((NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening || !NetworkManager.Singleton.IsServer) && Time.unscaledTime < timeout)
+            yield return null;
+
+        yield return null;
+        yield return null;
+
+        StartGameFromLobby();
     }
 
     private void ShowCustomLobbyRoomOverlay()
@@ -537,14 +772,14 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         pc.preserveAspect = true;
 
         MakeText(pcRoot, "구인 대기", 34, Color.black, new Vector2(0, 205), new Vector2(520, 60), TextAnchor.MiddleCenter);
-        MakeText(pcRoot, "신체 건강한 달팽이 구합니다", 24, Color.black, new Vector2(0, 145), new Vector2(520, 42), TextAnchor.MiddleCenter);
+        MakeText(pcRoot, "신체 건강한 달팽이 구합니다", 24, Color.black, new Vector2(0, 150), new Vector2(620, 42), TextAnchor.MiddleCenter);
 
-        MakeLobbySlot(pcRoot, new Vector2(-275, 45), "유저 1", "방장 / 준비 완료");
-        MakeLobbySlot(pcRoot, new Vector2(85, 45), "유저 2", "대기중...");
-        MakeLobbySlot(pcRoot, new Vector2(-275, -105), "유저 3", "대기중...");
-        MakeLobbySlot(pcRoot, new Vector2(85, -105), "유저 4", "대기중...");
+        MakeLobbySlot(pcRoot, new Vector2(-270, 70), "유저 1", "방장 / 준비 완료");
+        MakeLobbySlot(pcRoot, new Vector2(20, 70), "유저 2", "대기중...");
+        MakeLobbySlot(pcRoot, new Vector2(-270, -45), "유저 3", "대기중...");
+        MakeLobbySlot(pcRoot, new Vector2(20, -45), "유저 4", "대기중...");
 
-        MakeText(pcRoot, "현재 선택된 맵 이미지", 16, Color.black, new Vector2(355, 10), new Vector2(150, 110), TextAnchor.MiddleCenter, new Color(0.82f, 0.82f, 0.82f, 1f));
+        MakeText(pcRoot, "현재 선택된\n맵 이미지", 15, Color.black, new Vector2(350, 12), new Vector2(145, 150), TextAnchor.MiddleCenter, new Color(0.82f, 0.82f, 0.82f, 1f));
         MakeFixedButton(pcRoot, "나가기", new Vector2(-485, -290), new Vector2(105, 50), () =>
         {
             if (NetworkManager.Singleton != null)
@@ -552,16 +787,16 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             SceneManager.LoadScene(SceneNames.BootstrapScene);
         }, 18, Color.white);
 
-        MakeFixedButton(pcRoot, "건축 시작!", new Vector2(352, -235), new Vector2(150, 58), StartGameFromLobby, 18, new Color(1f, 0.78f, 0.44f, 1f));
-        MakeText(pcRoot, "방장만 시작할 수 있어요", 13, new Color(0.35f, 0.25f, 0.18f, 1f), new Vector2(352, -285), new Vector2(220, 24), TextAnchor.MiddleCenter);
+        MakeFixedButton(pcRoot, "건축 시작!", new Vector2(350, -125), new Vector2(150, 58), StartGameFromLobby, 18, new Color(1f, 0.78f, 0.44f, 1f));
+        MakeText(pcRoot, "방장만 시작할 수 있어요", 13, new Color(0.35f, 0.25f, 0.18f, 1f), new Vector2(350, -172), new Vector2(220, 24), TextAnchor.MiddleCenter);
     }
 
     private static void MakeLobbySlot(Transform parent, Vector2 anchored, string name, string status)
     {
-        var slot = JobsnailUiKit.Box("LobbyUserSlot", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(330, 118), Color.white);
-        MakeText(slot.transform, "유저\n캐릭터", 14, Color.black, new Vector2(-105, 0), new Vector2(84, 84), TextAnchor.MiddleCenter, new Color(0.86f, 0.86f, 0.86f, 1f));
-        MakeText(slot.transform, name, 17, Color.black, new Vector2(38, 22), new Vector2(170, 30), TextAnchor.MiddleLeft);
-        MakeText(slot.transform, status, 16, Color.black, new Vector2(38, -22), new Vector2(170, 30), TextAnchor.MiddleRight);
+        var slot = JobsnailUiKit.Box("LobbyUserSlot", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(270, 88), Color.white);
+        MakeText(slot.transform, "유저\n캐릭터", 12, Color.black, new Vector2(-88, 0), new Vector2(68, 68), TextAnchor.MiddleCenter, new Color(0.86f, 0.86f, 0.86f, 1f));
+        MakeText(slot.transform, name, 15, Color.black, new Vector2(32, 18), new Vector2(145, 26), TextAnchor.MiddleLeft);
+        MakeText(slot.transform, status, 14, Color.black, new Vector2(32, -18), new Vector2(145, 26), TextAnchor.MiddleRight);
     }
 
     private void UpdateCustomLobbyRoomOverlay()
@@ -581,7 +816,13 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (SoundManager.Instance != null)
             SoundManager.Instance.PlaySFX(SFXType.UIClick);
 
-        NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+        if (NetworkManager.Singleton.SceneManager != null && NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
+        {
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+            return;
+        }
+
+        SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
     }
 
     private void OnCreateSessionFailed(string message)
@@ -676,7 +917,27 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (NetworkManager.Singleton == null || NetworkManager.Singleton.IsListening)
             return;
 
+        PrepareNetworkTransport();
         NetworkManager.Singleton.StartHost();
+    }
+
+    private static async System.Threading.Tasks.Task EnsureServicesReadyAsync()
+    {
+        if (UnityServices.State == ServicesInitializationState.Uninitialized)
+            await UnityServices.InitializeAsync();
+
+        if (!AuthenticationService.Instance.IsSignedIn)
+            await AuthenticationService.Instance.SignInAnonymouslyAsync();
+    }
+
+    private static void PrepareNetworkTransport()
+    {
+        if (NetworkManager.Singleton == null)
+            return;
+
+        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (transport != null)
+            NetworkManager.Singleton.NetworkConfig.NetworkTransport = transport;
     }
 
     private void SetCreateStatus(string message)

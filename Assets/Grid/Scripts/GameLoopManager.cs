@@ -70,7 +70,7 @@ namespace GridSystem
                 m_UrgentBgmStarted = false;
                 GridSoundBridge.SetPhase("Building");
             }
-            else
+            else if ((GamePhase)next == GamePhase.Finished)
             {
                 GridSoundBridge.PlaySFX("GameOver");
             }
@@ -172,6 +172,23 @@ namespace GridSystem
         {
             if (!IsSpawned) return;
             ToggleConsentRpc();
+        }
+
+        public void RequestFinishByTimeout()
+        {
+            if (!IsSpawned || !IsBuilding) return;
+
+            if (IsServer)
+                Finish();
+            else
+                FinishByTimeoutRpc();
+        }
+
+        [Rpc(SendTo.Server)]
+        private void FinishByTimeoutRpc()
+        {
+            if (IsBuilding)
+                Finish();
         }
 
         public void RequestLeaveToLobby()
