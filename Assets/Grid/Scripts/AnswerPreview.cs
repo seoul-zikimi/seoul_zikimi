@@ -88,7 +88,7 @@ namespace GridSystem
             m_GhostRoot = new GameObject("~AnswerGhost");
             foreach (var o in objects)
             {
-                Vector3 pos = GridCoordinates.CellToWorld(o.minCell) + o.dims * (0.5f * u);
+                Vector3 pos = GridCoordinates.CellToWorld(o.minCell) + new Vector3(o.dims.x, 0f, o.dims.z) * (0.5f * u);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
             }
@@ -98,10 +98,10 @@ namespace GridSystem
             Bounds b = default; bool first = true;
             foreach (var o in objects)
             {
-                Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell) + o.dims * (0.5f * u);
+                Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell) + new Vector3(o.dims.x, 0f, o.dims.z) * (0.5f * u);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 MakeBlockVisual(o, m_Root.transform, pos, rot, u, ghost: false);
-                var bb = new Bounds(pos, new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);
+                var bb = new Bounds(pos + Vector3.up * (0.5f * o.dims.y * u), new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);
                 if (first) { b = bb; first = false; } else b.Encapsulate(bb);
             }
 
@@ -290,7 +290,7 @@ namespace GridSystem
         }
 
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
-        // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell)+dims*0.5u, rot = Euler(0,90·step,0).
+        // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell)+(dims.x,0,dims.z)*0.5u (피벗=바닥), rot = Euler(0,90·step,0).
         private GameObject MakeBlockVisual(AnsObject o, Transform parent, Vector3 pos, Quaternion rot, float u, bool ghost)
         {
             GameObject go;
@@ -305,7 +305,7 @@ namespace GridSystem
             {
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.transform.SetParent(parent, true);
-                go.transform.position = pos;
+                go.transform.position = pos + Vector3.up * (0.5f * o.dims.y * u);   // 큐브=중심 피벗 → 셀 바닥에 안착하도록 올림
                 go.transform.localScale = new Vector3(o.dims.x, o.dims.y, o.dims.z) * (u * (ghost ? 1f : 0.96f));
                 var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
                 if (ghost)

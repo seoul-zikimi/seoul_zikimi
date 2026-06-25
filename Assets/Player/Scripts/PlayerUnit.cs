@@ -46,6 +46,18 @@ namespace Player
             }
             // owner: dynamic Rigidbody 유지 (InitComponents에서 constraints 설정됨)
 
+            // ── 그리드 위로 스폰: 맵(GridManager)을 어디로 옮겨도 빌드 영역 위에 떨어지게.
+            //    Origin = GridManager.position 이므로 그리드를 옮기면 스폰도 따라감. ──
+            var gm = FindFirstObjectByType<GridSystem.GridManager>();
+            if (gm != null)
+            {
+                var s = gm.GridSize;
+                Vector3 spawn = GridSystem.GridContract.Origin
+                    + new Vector3(s.x * 0.5f, 1.5f, s.z * 0.5f) * GridSystem.GridContract.Unit;
+                transform.position = spawn;
+                rb.position = spawn;
+            }
+
             // ── Smooth Follow: 카메라가 플레이어를 딜레이와 함께 부드럽게 추적 ──
             if (m_CameraArm != null)
             {

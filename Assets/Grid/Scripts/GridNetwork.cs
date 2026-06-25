@@ -289,21 +289,21 @@ namespace GridSystem
             public int completedMask;
         }
 
-        // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 피벗=min-corner + Y회전 정렬.
+        // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 프리팹 피벗=바닥 → X/Z만 중심, Y는 셀 바닥에 안착.
         private void SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
         {
             var fp = def.Footprint;
             var r = Quaternion.Euler(0f, 90f * rot, 0f);
             float u = GridContract.Unit;
 
-            // 프리팹은 '중심 피벗'(자식 메쉬가 로컬 0 중심). 점유칸 월드 AABB의 '중심'에 둬야
-            // 색칠 큐브·~Solid 콜라이더(둘 다 셀 중심 기준)와 정렬된다. 90°/270° 회전이면 x/z 치수 스왑.
+            // 프리팹 피벗=바닥(자식 메쉬 밑면이 로컬 0). X/Z는 점유칸 중심, Y는 셀 바닥(min-corner)에 안착해야
+            // 색칠 큐브·~Solid 콜라이더(셀 [c,c+1] 점유)와 정렬된다. 90°/270° 회전이면 x/z 치수 스왑.
             bool swap = (((((rot % 4) + 4) % 4) % 2) == 1);
             var dims = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z);
 
             var go = Instantiate(def.Prefab, m_VisualRoot.transform);
             go.transform.rotation = r;
-            go.transform.position = GridCoordinates.CellToWorld(minCell) + dims * (0.5f * u);
+            go.transform.position = GridCoordinates.CellToWorld(minCell) + new Vector3(dims.x, 0f, dims.z) * (0.5f * u);
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(~Solid가 막음)
         }
 
