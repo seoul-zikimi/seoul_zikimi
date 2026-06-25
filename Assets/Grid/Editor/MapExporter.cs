@@ -104,6 +104,7 @@ public static class MapExporter
                 var def = catalog.GetById(matId);
                 var footprint = def != null ? def.Footprint : Vector3Int.one;
                 int rot = QuatToStep(node.LocalRotation);
+                // InternalPosition = 피벗 위치 = min-corner anchor (피벗을 XZ min-corner로 정렬했으므로 보정 불필요)
                 var anchor = node.InternalPosition;
 
                 // 이 블록이 점유하는 칸들(인게임 배치와 동일 함수) — 하나라도 범위 밖이면 블록 통째 스킵
