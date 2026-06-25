@@ -26,6 +26,7 @@ public static class MapExporter
             Debug.LogError("[Grid] 열린 씬에 Autotiles3D_Grid가 없습니다.");
             return;
         }
+        GridContract.Origin = grid.transform.position;   // 그리드를 옮겼으면 그 위치를 기준으로 검증
 
         const float eps = 1e-3f;
         int w = Mathf.Max(1, grid.Width);

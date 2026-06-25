@@ -46,6 +46,7 @@ namespace GridSystem
 
         private void Awake()
         {
+            GridContract.Origin = transform.position;   // 그리드 기준점 = 이 오브젝트 위치(맵 옮기면 정답·그리드도 따라감)
             EnsureGrid();
             CreateGround();   // 물리 점프로 Y가 풀려도 플레이어가 추락하지 않게 그리드 바닥 콜라이더 생성
         }
@@ -71,6 +72,7 @@ namespace GridSystem
 
         private void OnDrawGizmos()
         {
+            GridContract.Origin = transform.position;   // 에디터에서도 옮긴 위치 반영(기즈모 off여도 동기화)
             if (!m_DrawGizmos) return;
 
             float u = GridContract.Unit;

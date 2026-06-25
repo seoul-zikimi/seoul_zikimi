@@ -64,6 +64,7 @@ namespace Player
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;   // 자기/자식 제외
                 if (h.collider.CompareTag("Player")) continue;            // 다른 플레이어는 벽 아님(기어오르기 X → 바운스)
+                if (h.collider.CompareTag("Boundary")) continue;          // 투명 경계벽은 기어오르기 X(탈출 방지)
                 return true;
             }
             return false;
