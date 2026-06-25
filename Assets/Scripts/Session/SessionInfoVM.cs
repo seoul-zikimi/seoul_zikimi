@@ -48,7 +48,14 @@ public class SessionInfoVM : ISessionInfo, IDisposable
         => _sessionInfo?.IsLocked ?? _session?.IsLocked ?? true;
     
     public bool HasPassword
-        => _sessionInfo?.HasPassword ?? _session?.HasPassword ?? true;
+    {
+        get
+        {
+            // 유니티 순정 기능 대신, 우리가 심어둔 PasswordHash 키가 있는지 검사합니다.
+            var props = _sessionInfo?.Properties ?? _session?.Properties;
+            return props != null && props.ContainsKey("PasswordHash");
+        }
+    }
     
     public DateTime LastUpdated
         => _sessionInfo?.LastUpdated ?? DateTime.UnixEpoch;

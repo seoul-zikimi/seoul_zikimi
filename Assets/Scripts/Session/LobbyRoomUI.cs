@@ -54,6 +54,6 @@ public class LobbyRoomUI : MonoBehaviour
             startGameButton.interactable = false;
 
         Debug.Log("[LobbyRoom] 게임 시작! 인게임 씬으로 이동합니다.");
-        NetworkManager.Singleton.SceneManager.LoadScene("GameScene", UnityEngine.SceneManagement.LoadSceneMode.Single);
+        NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 }
