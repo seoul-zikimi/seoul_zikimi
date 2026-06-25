@@ -15,7 +15,7 @@ public class CreateSessionVM : IDisposable
     public bool IsPrivate { get; private set; }
     public string Password { get; private set; } = "";
     
-    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrEmpty(Password?.Trim()) && Password.Trim().Length >= 8);
+    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrWhiteSpace(Password) && !Password.Contains(" "));
     
     public void SetIsPrivate(bool isPrivate)
     {
@@ -188,11 +188,19 @@ public class CreateSessionVM : IDisposable
             await TryDeleteSessionAsync();
 
         sessionOptions.Name = SessionName;
-        sessionOptions.Password = IsPrivate ? Password.Trim() : null;
+        
+        
+        if (IsPrivate)
+        {
+            sessionOptions.SessionProperties ??= new System.Collections.Generic.Dictionary<string, SessionProperty>();
+        
+            string hashedPassword = SecurityUtils.Sha256Hash(Password);
+            sessionOptions.SessionProperties["PasswordHash"] = new SessionProperty(hashedPassword);
+        }
+    
         IHostSession session = await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
         SessionCode = session.Code;
-        //ShowJoinCode.SetData(session);
-        
+    
         return session;
     }
 

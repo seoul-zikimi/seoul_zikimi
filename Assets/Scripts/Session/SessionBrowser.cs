@@ -20,8 +20,7 @@ public class SessionBrowser : MonoBehaviour
     private SessionBrowserVM viewModel;
     private List<GameObject> createdItems = new();
 
-    // 💡 [변경] 매니저에게 방 ID와 비밀번호 설정 여부를 넘겨줄 이벤트
-    public event Action<string, bool> OnSessionSelected;
+    public event Action<string, bool, string> OnSessionSelected;
 
     [SerializeField]
     private SessionSettings sessionSettings;
@@ -73,9 +72,16 @@ public class SessionBrowser : MonoBehaviour
         // 💡 [핵심] 선택된 방의 ID와 비밀번호가 걸려있는지 여부를 뽑아냅니다.
         string sessionId = viewModel.Sessions[index].Id;
         bool hasPassword = viewModel.Sessions[index].HasPassword;
+        
+        string passwordHash = "";
+        var props = viewModel.Sessions[index].Properties;
+        if (props != null && props.TryGetValue("PasswordHash", out var prop))
+        {
+            passwordHash = prop.Value; 
+        }
 
-        // 💡 중앙 매니저(LobbyManager)에게 이 정보를 전달합니다.
-        OnSessionSelected?.Invoke(sessionId, hasPassword);
+        // 💡 매니저(LobbyManager)에게 해시값까지 삼총사로 전달합니다.
+        OnSessionSelected?.Invoke(sessionId, hasPassword, passwordHash);
     }
     
     void OnViewModelChanged(string propertyName)
