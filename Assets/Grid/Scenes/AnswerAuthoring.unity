@@ -1998,7 +1998,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e1a31a5c083880843a39de6883a980fc, type: 2}
+  - {fileID: 2100000, guid: 2a5e8a7675f140347a5439765db4680c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2267,7 +2267,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e1a31a5c083880843a39de6883a980fc, type: 2}
+  - {fileID: 2100000, guid: 2a5e8a7675f140347a5439765db4680c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4157,6 +4157,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.GameLoopManager
   ShowTopMostFoldoutHeaderGroup: 1
+  m_UseLegacyOnGUI: 0
 --- !u!114 &1539493982
 MonoBehaviour:
   m_ObjectHideFlags: 0
