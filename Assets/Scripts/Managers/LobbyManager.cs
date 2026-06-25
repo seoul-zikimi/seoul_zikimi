@@ -86,7 +86,7 @@ public class LobbyManager : MonoBehaviour
     /// <summary>
     /// 방 목록에서 방을 선택했을 때 실행되는 함수
     /// </summary>
-    private async void OnRoomSelectedFromList(string sessionId, bool hasPassword)
+    private async void OnRoomSelectedFromList(string sessionId, bool hasPassword, string passwordHash)
     {
         if (hasPassword)
         {
