@@ -123,13 +123,10 @@ namespace Player
             if (m_Rb == null)
                 m_Rb = GetComponent<Rigidbody>();
 
-            bool wasKinematic = m_Rb != null && m_Rb.isKinematic;
+            // 대기 동안만 정지(빈 BootstrapScene에서 추락 방지). owner는 끝나면 반드시 dynamic으로 복귀.
+            // (velocity는 kinematic 상태에선 의미 없어 건드리지 않음 — 경고 방지)
             if (m_Rb != null)
-            {
-                m_Rb.linearVelocity = Vector3.zero;
-                m_Rb.angularVelocity = Vector3.zero;
                 m_Rb.isKinematic = true;
-            }
 
             for (int i = 0; i < 300; i++)
             {
@@ -138,21 +135,21 @@ namespace Player
                 {
                     yield return null;
                     PlaceOnGrid(gm);
-                    if (m_Rb != null)
-                    {
-                        m_Rb.isKinematic = wasKinematic;
-                        m_Rb.linearVelocity = Vector3.zero;
-                        m_Rb.angularVelocity = Vector3.zero;
-                    }
-                    m_SpawnRoutine = null;
+                    FinishSpawn();
                     yield break;
                 }
                 yield return null;
             }
 
+            FinishSpawn();
+        }
+
+        // 스폰 마무리: owner Rigidbody를 dynamic으로 복귀 + 속도 0. (대기 동안 kinematic이었음 → 안 풀면 안 움직임)
+        private void FinishSpawn()
+        {
             if (m_Rb != null)
             {
-                m_Rb.isKinematic = wasKinematic;
+                m_Rb.isKinematic = false;
                 m_Rb.linearVelocity = Vector3.zero;
                 m_Rb.angularVelocity = Vector3.zero;
             }
@@ -189,11 +186,7 @@ namespace Player
                 m_Rb = GetComponent<Rigidbody>();
 
             if (m_Rb != null)
-            {
-                m_Rb.linearVelocity = Vector3.zero;
-                m_Rb.angularVelocity = Vector3.zero;
-                m_Rb.position = spawn;
-            }
+                m_Rb.position = spawn;   // 대기 중엔 kinematic → position으로 이동(velocity는 FinishSpawn에서 0)
             transform.position = spawn;
             Physics.SyncTransforms();
         }
