@@ -18,7 +18,7 @@ namespace Player
         [SerializeField] float m_FadedAlpha = 0.2f;   // 가렸을 때 목표 알파
         [SerializeField] float m_CastRadius = 0.4f;   // 0이면 순수 레이, >0이면 굵은 레이(SphereCast)
         [SerializeField] float m_FadeSpeed  = 10f;     // 페이드 인/아웃 속도(클수록 빠름)
-        [SerializeField] bool  m_DebugDraw  = true;    // 레이 시각화 + 페이드 로그(원인 분리용)
+        [SerializeField] bool  m_DebugDraw  = false;   // true면 레이 시각화(빨간선) + 페이드 로그
 
         Transform m_Target;                            // 카메라가 바라보는 지점(보통 CameraArm = 허리 높이)
         int       m_Mask;                              // 가림 판정 레이어(물/UI/Ignore Raycast 제외)

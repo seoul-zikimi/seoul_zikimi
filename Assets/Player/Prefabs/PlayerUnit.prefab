@@ -113,6 +113,7 @@ GameObject:
   - component: {fileID: 4719959342839255773}
   - component: {fileID: 1112921772051660238}
   - component: {fileID: 8186700940800385809}
+  - component: {fileID: 5322060586137079395}
   m_Layer: 0
   m_Name: PlayerUnit
   m_TagString: Player
@@ -342,6 +343,46 @@ MonoBehaviour:
   m_GrabRange: 2.5
   m_ProcessSeconds: 1.2
   m_ThrowRange: 6
+--- !u!114 &5322060586137079395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7223451131215545806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c74cbf737f9a5a488384a841ba553a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.OwnerNetworkAnimator
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkAnimatorExpanded: 0
+  AuthorityMode: 0
+  m_Animator: {fileID: 6056745866639871935}
+  TransitionStateInfoList: []
+  AnimatorParameterEntries:
+    ParameterEntries:
+    - name: Speed
+      NameHash: -823668238
+      Synchronize: 1
+      ParameterType: 1
+    - name: Grounded
+      NameHash: 862969536
+      Synchronize: 1
+      ParameterType: 4
+    - name: Climbing
+      NameHash: 1056877677
+      Synchronize: 1
+      ParameterType: 4
+    - name: Processing
+      NameHash: -953046789
+      Synchronize: 1
+      ParameterType: 4
+    - name: Throw
+      NameHash: -1907200461
+      Synchronize: 1
+      ParameterType: 9
+  AnimatorParametersExpanded: 0
 --- !u!1 &8392801282134520978
 GameObject:
   m_ObjectHideFlags: 0
@@ -442,5 +483,10 @@ PrefabInstance:
 --- !u!4 &211051884396369349 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: dacaf33136a5e7149b92c2cb765925eb, type: 3}
+  m_PrefabInstance: {fileID: 389411762918797870}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &6056745866639871935 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: dacaf33136a5e7149b92c2cb765925eb, type: 3}
   m_PrefabInstance: {fileID: 389411762918797870}
   m_PrefabAsset: {fileID: 0}
