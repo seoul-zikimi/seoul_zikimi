@@ -172,7 +172,7 @@ public class CreateSessionVM : IDisposable
                 CanRegisterSession = true;
                 
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 
             }

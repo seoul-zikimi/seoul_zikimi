@@ -12,8 +12,10 @@ public class StartUGUI : MonoBehaviour
     
     void Start()
     {
-        createButton.onClick.AddListener(OnCreateSessionUI);
-        joinButton.onClick.AddListener(OnJoinByCodeUI);
+        if (createButton != null)
+            createButton.onClick.AddListener(OnCreateSessionUI);
+        if (joinButton != null)
+            joinButton.onClick.AddListener(OnJoinByCodeUI);
     }
 
     private void OnCreateSessionUI()

@@ -1,6 +1,8 @@
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Cinemachine;
+using UnityEngine.SceneManagement;
+using System.Collections;
 
 namespace Player
 {
@@ -18,6 +20,8 @@ namespace Player
         private CinemachineCamera  m_CinemachineCamera;
         private Rigidbody          m_Rb;
         private float              m_NextDashSfxTime;
+        private Coroutine          m_SpawnRoutine;
+        private float              m_NextFallRecoveryTime;
 
         // 원격 클라에 이동/스프린트 상태 복제 → 먼지·스프린트 트레일 동기화 (owner가 write)
         private readonly NetworkVariable<bool> m_NetMoving = new(
@@ -46,6 +50,9 @@ namespace Player
             }
             // owner: dynamic Rigidbody 유지 (InitComponents에서 constraints 설정됨)
 
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            QueueSpawnOnGrid();
             // ── 스폰 위치: Host는 BootstrapScene(NetworkManager가 거기 있음)에서 스폰되므로 이 시점엔
             //    게임플레이 씬의 스폰마커/그리드가 아직 로드 전이라 없다. 씬이 로드돼 마커/그리드가
             //    나타날 때까지 '정지' 상태로 기다린 뒤 위치를 적용한다(빈 메뉴씬에서 추락 방지). ──
@@ -59,6 +66,24 @@ namespace Player
             }
         }
 
+        public override void OnNetworkDespawn()
+        {
+            if (IsOwner)
+                SceneManager.sceneLoaded -= OnSceneLoaded;
+            base.OnNetworkDespawn();
+        }
+
+        public override void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            base.OnDestroy();
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (!IsOwner) return;
+            if (scene.name == SceneNames.GameScene)
+                QueueSpawnOnGrid();
         // 게임플레이 씬(스폰마커/그리드) 로드 완료까지 정지 대기 후 위치 적용.
         // PlayerSpawnPoint 마커 우선, 없으면 그리드 중앙. 둘 다 10초 내 못 찾으면 그냥 풀어줌.
         private System.Collections.IEnumerator PositionAtSpawnWhenReady(Rigidbody rb)
@@ -93,6 +118,8 @@ namespace Player
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
 
+            RecoverIfFallingThroughStage();
+
             if (m_Movement.IsClimbing || m_Movement.TryStartClimb(m_InputHandler.MoveInput, m_CameraArm))
             {
                 m_Rb.useGravity = false;
@@ -105,6 +132,125 @@ namespace Player
                 m_Movement.Move(m_InputHandler.MoveInput, m_CameraArm, m_InputHandler.IsSprinting);
                 if (m_InputHandler.ConsumeJump()) m_Movement.Jump();   // Space 점프(접지 시)
             }
+        }
+
+        private void QueueSpawnOnGrid()
+        {
+            if (!IsOwner || !isActiveAndEnabled)
+                return;
+
+            if (m_SpawnRoutine != null)
+                StopCoroutine(m_SpawnRoutine);
+            m_SpawnRoutine = StartCoroutine(SpawnOnGridWhenReady());
+        }
+
+        private IEnumerator SpawnOnGridWhenReady()
+        {
+            // NetworkManager의 플레이어 프리팹은 BootstrapScene에서 먼저 생길 수 있다.
+            // GameScene 로드 후 GridManager.Awake/CreateGround가 끝난 다음 위치를 다시 잡아준다.
+            // 그 전까지 dynamic Rigidbody가 빈 BootstrapScene에서 중력으로 떨어지지 않도록 잠깐 정지시킨다.
+            if (m_Rb == null)
+                m_Rb = GetComponent<Rigidbody>();
+
+            bool wasKinematic = m_Rb != null && m_Rb.isKinematic;
+            if (m_Rb != null)
+            {
+                m_Rb.linearVelocity = Vector3.zero;
+                m_Rb.angularVelocity = Vector3.zero;
+                m_Rb.isKinematic = true;
+            }
+
+            for (int i = 0; i < 300; i++)
+            {
+                var gm = FindFirstObjectByType<GridSystem.GridManager>();
+                if (gm != null)
+                {
+                    yield return null;
+                    PlaceOnGrid(gm);
+                    if (m_Rb != null)
+                    {
+                        m_Rb.isKinematic = wasKinematic;
+                        m_Rb.linearVelocity = Vector3.zero;
+                        m_Rb.angularVelocity = Vector3.zero;
+                    }
+                    m_SpawnRoutine = null;
+                    yield break;
+                }
+                yield return null;
+            }
+
+            if (m_Rb != null)
+            {
+                m_Rb.isKinematic = wasKinematic;
+                m_Rb.linearVelocity = Vector3.zero;
+                m_Rb.angularVelocity = Vector3.zero;
+            }
+            m_SpawnRoutine = null;
+        }
+
+        private void PlaceOnGrid(GridSystem.GridManager gm)
+        {
+            if (gm == null)
+                return;
+
+            GridSystem.GridContract.Origin = gm.transform.position;
+
+            float u = GridSystem.GridContract.Unit;
+            Vector3Int size = gm.GridSize;
+            Vector3 gridCenter = gm.transform.position + new Vector3(size.x * 0.5f, 0f, size.z * 0.5f) * u;
+            Vector3 spawn = gridCenter + Vector3.up * 2f;
+
+            Vector3 rayOrigin = gridCenter + Vector3.up * 20f;
+            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 80f, ~0, QueryTriggerInteraction.Ignore);
+            float bestY = float.NegativeInfinity;
+            foreach (var hit in hits)
+            {
+                if (hit.collider.transform == transform || hit.collider.transform.IsChildOf(transform))
+                    continue;
+                if (hit.point.y > bestY)
+                    bestY = hit.point.y;
+            }
+
+            if (!float.IsNegativeInfinity(bestY))
+                spawn.y = bestY - GetColliderLocalBottomY() + 0.05f;
+
+            if (m_Rb == null)
+                m_Rb = GetComponent<Rigidbody>();
+
+            if (m_Rb != null)
+            {
+                m_Rb.linearVelocity = Vector3.zero;
+                m_Rb.angularVelocity = Vector3.zero;
+                m_Rb.position = spawn;
+            }
+            transform.position = spawn;
+            Physics.SyncTransforms();
+        }
+
+        private float GetColliderLocalBottomY()
+        {
+            if (TryGetComponent<CapsuleCollider>(out var capsule))
+                return capsule.center.y - capsule.height * 0.5f;
+            if (TryGetComponent<BoxCollider>(out var box))
+                return box.center.y - box.size.y * 0.5f;
+            if (TryGetComponent<SphereCollider>(out var sphere))
+                return sphere.center.y - sphere.radius;
+            return 0f;
+        }
+
+        private void RecoverIfFallingThroughStage()
+        {
+            if (Time.time < m_NextFallRecoveryTime)
+                return;
+
+            float killY = GridSystem.GridContract.Origin.y - 12f;
+            if (transform.position.y > killY)
+                return;
+
+            m_NextFallRecoveryTime = Time.time + 0.5f;
+            var gm = FindFirstObjectByType<GridSystem.GridManager>();
+            if (gm != null)
+                PlaceOnGrid(gm);
         }
 
         // ── 이동 FX 동기화 ────────────────────────────────────────────────

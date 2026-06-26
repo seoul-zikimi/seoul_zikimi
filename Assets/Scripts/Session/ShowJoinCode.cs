@@ -16,8 +16,19 @@ public class ShowJoinCode : MonoBehaviour
 
     private void OnEnable()
     {
-        roomNameText.text = _roomName;
-        joinCodeText.text = _sessionCode;
+        if (roomNameText != null)
+        {
+            if (JobsnailUiKit.TmpFont != null)
+                roomNameText.font = JobsnailUiKit.TmpFont;
+            roomNameText.text = _roomName;
+        }
+
+        if (joinCodeText != null)
+        {
+            if (JobsnailUiKit.TmpFont != null)
+                joinCodeText.font = JobsnailUiKit.TmpFont;
+            joinCodeText.text = _sessionCode;
+        }
     }
 
     private void OnDisable()

@@ -9,6 +9,9 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public sealed class JobsnailLobbySkinner : MonoBehaviour
 {
@@ -39,6 +42,14 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private GameObject m_PasswordHint;
     private CreateSession m_CreateSession;
     private bool m_IsStartingGame;
+    private Button m_CustomLobbyStartButton;
+    private Button m_CustomLobbyReadyButton;
+    private Text m_CustomLobbyStartHint;
+    private Text m_CustomLobbyReadyStatus;
+    private readonly List<GameObject> m_CustomLobbySlotRoots = new();
+    private readonly List<Text> m_CustomLobbySlotNames = new();
+    private readonly List<Text> m_CustomLobbySlotStatuses = new();
+    private int m_CurrentRoomMaxPlayers = 1;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -166,6 +177,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     {
         foreach (var label in root.GetComponentsInChildren<TextMeshProUGUI>(true))
         {
+            if (JobsnailUiKit.TmpFont != null)
+                label.font = JobsnailUiKit.TmpFont;
             label.color = JobsnailUiKit.Brown;
             if (label.fontSize < 18)
                 label.fontSize = 18;
@@ -542,6 +555,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return;
 
         var session = m_CustomSessions[index];
+        m_CurrentRoomMaxPlayers = Mathf.Clamp(session.MaxPlayers, 1, 4);
         if (HasPassword(session))
         {
             ShowJoinPasswordOverlay(session.Id);
@@ -699,6 +713,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         SetActive(transform, "StartHUD", false);
         SetActive(transform, "JoinCodeHUD", false);
         SetActive(transform, "JoinByCodeHUD", false);
+        m_CurrentRoomMaxPlayers = Mathf.Clamp(m_SelectedMaxPlayers, 1, 4);
+        LobbyRoomNet.RequiredTotalPlayers = m_CurrentRoomMaxPlayers;
         EnsureHostStarted();
 
         if (m_SelectedMaxPlayers <= 1)
@@ -716,9 +732,19 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private System.Collections.IEnumerator StartSinglePlayerGameAfterHostReady()
     {
-        float timeout = Time.unscaledTime + 3f;
-        while ((NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening || !NetworkManager.Singleton.IsServer) && Time.unscaledTime < timeout)
+        SetActive(transform, "LobbyRoomHUD", false);
+        HideCustomLobbyRoomOverlay();
+
+        float timeout = Time.unscaledTime + 6f;
+        while (Time.unscaledTime < timeout)
+        {
+            EnsureHostStarted();
+
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && NetworkManager.Singleton.IsServer)
+                break;
+
             yield return null;
+        }
 
         yield return null;
         yield return null;
@@ -728,14 +754,18 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private void ShowCustomLobbyRoomOverlay()
     {
+        // RefreshEntryOverlay()는 연결 상태에서 계속 호출된다.
+        // 여기서 매번 Destroy/Build를 하면 Unity의 지연 Destroy와 겹쳐서
+        // 텍스트 생성 중 NullReference가 연쇄적으로 터지고, 대기실 UI가 반쯤 빈 화면으로 남는다.
+        // 따라서 대기실 UI는 한 번만 만들고 이후에는 상태만 갱신한다.
         if (m_LobbyRoomOverlay == null)
             BuildCustomLobbyRoomOverlay();
 
         if (m_LobbyRoomOverlay != null)
         {
-            UpdateCustomLobbyRoomOverlay();
             m_LobbyRoomOverlay.SetActive(true);
             m_LobbyRoomOverlay.transform.SetAsLastSibling();
+            UpdateCustomLobbyRoomOverlay();
         }
     }
 
@@ -747,62 +777,216 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private void BuildCustomLobbyRoomOverlay()
     {
-        m_LobbyRoomOverlay = new GameObject("@JobsnailLobbyRoomOverlay", typeof(RectTransform));
-        m_LobbyRoomOverlay.transform.SetParent(transform, false);
-        var overlayRt = (RectTransform)m_LobbyRoomOverlay.transform;
-        overlayRt.anchorMin = Vector2.zero;
-        overlayRt.anchorMax = Vector2.one;
-        overlayRt.offsetMin = Vector2.zero;
-        overlayRt.offsetMax = Vector2.zero;
+        GameObject overlay = null;
 
-        var pcRoot = new GameObject("LobbyPcRoot", typeof(RectTransform)).GetComponent<RectTransform>();
-        pcRoot.SetParent(m_LobbyRoomOverlay.transform, false);
-        pcRoot.anchorMin = new Vector2(0.5f, 0.5f);
-        pcRoot.anchorMax = new Vector2(0.5f, 0.5f);
-        pcRoot.anchoredPosition = Vector2.zero;
-        pcRoot.sizeDelta = new Vector2(1210, 765);
-
-        var pcSprite = JobsnailUiKit.Sprite("UI_pngs/2.sesh/Session_PC_BG");
-        var pc = JobsnailUiKit.Image("LobbySessionPc", pcRoot, pcSprite);
-        var pcRt = pc.rectTransform;
-        pcRt.anchorMin = Vector2.zero;
-        pcRt.anchorMax = Vector2.one;
-        pcRt.offsetMin = Vector2.zero;
-        pcRt.offsetMax = Vector2.zero;
-        pc.preserveAspect = true;
-
-        MakeText(pcRoot, "구인 대기", 34, Color.black, new Vector2(0, 205), new Vector2(520, 60), TextAnchor.MiddleCenter);
-        MakeText(pcRoot, "신체 건강한 달팽이 구합니다", 24, Color.black, new Vector2(0, 150), new Vector2(620, 42), TextAnchor.MiddleCenter);
-
-        MakeLobbySlot(pcRoot, new Vector2(-270, 70), "유저 1", "방장 / 준비 완료");
-        MakeLobbySlot(pcRoot, new Vector2(20, 70), "유저 2", "대기중...");
-        MakeLobbySlot(pcRoot, new Vector2(-270, -45), "유저 3", "대기중...");
-        MakeLobbySlot(pcRoot, new Vector2(20, -45), "유저 4", "대기중...");
-
-        MakeText(pcRoot, "현재 선택된\n맵 이미지", 15, Color.black, new Vector2(350, 12), new Vector2(145, 150), TextAnchor.MiddleCenter, new Color(0.82f, 0.82f, 0.82f, 1f));
-        MakeFixedButton(pcRoot, "나가기", new Vector2(-485, -290), new Vector2(105, 50), () =>
+        try
         {
-            if (NetworkManager.Singleton != null)
-                NetworkManager.Singleton.Shutdown();
-            SceneManager.LoadScene(SceneNames.BootstrapScene);
-        }, 18, Color.white);
+            overlay = new GameObject("@JobsnailLobbyRoomOverlay", typeof(RectTransform));
+            overlay.transform.SetParent(transform, false);
+            var overlayRt = (RectTransform)overlay.transform;
+            overlayRt.anchorMin = Vector2.zero;
+            overlayRt.anchorMax = Vector2.one;
+            overlayRt.offsetMin = Vector2.zero;
+            overlayRt.offsetMax = Vector2.zero;
 
-        MakeFixedButton(pcRoot, "건축 시작!", new Vector2(350, -125), new Vector2(150, 58), StartGameFromLobby, 18, new Color(1f, 0.78f, 0.44f, 1f));
-        MakeText(pcRoot, "방장만 시작할 수 있어요", 13, new Color(0.35f, 0.25f, 0.18f, 1f), new Vector2(350, -172), new Vector2(220, 24), TextAnchor.MiddleCenter);
+            var pcRoot = new GameObject("LobbyPcRoot", typeof(RectTransform)).GetComponent<RectTransform>();
+            pcRoot.SetParent(overlay.transform, false);
+            pcRoot.anchorMin = new Vector2(0.5f, 0.5f);
+            pcRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            pcRoot.anchoredPosition = Vector2.zero;
+            pcRoot.sizeDelta = new Vector2(1210, 765);
+
+            var pcSprite = JobsnailUiKit.Sprite("UI_pngs/2.sesh/Session_PC_BG");
+            var pc = JobsnailUiKit.Image("LobbySessionPc", pcRoot, pcSprite);
+            var pcRt = pc.rectTransform;
+            pcRt.anchorMin = Vector2.zero;
+            pcRt.anchorMax = Vector2.one;
+            pcRt.offsetMin = Vector2.zero;
+            pcRt.offsetMax = Vector2.zero;
+            pc.preserveAspect = true;
+
+            MakeText(pcRoot, "구인 대기", 36, Color.black, new Vector2(0, 212), new Vector2(520, 60), TextAnchor.MiddleCenter);
+            MakeText(pcRoot, "신체 건강한 달팽이 구합니다", 24, Color.black, new Vector2(0, 160), new Vector2(620, 42), TextAnchor.MiddleCenter);
+            MakeText(pcRoot, "모집중", 16, Color.black, new Vector2(330, 160), new Vector2(94, 30), TextAnchor.MiddleCenter, new Color(1f, 0.78f, 0.44f, 1f));
+
+            m_CustomLobbySlotNames.Clear();
+            m_CustomLobbySlotStatuses.Clear();
+            m_CustomLobbySlotRoots.Clear();
+            MakeLobbySlot(pcRoot, new Vector2(-250, 60), "방장", "방장 / 준비 완료", out var slotRoot0, out var slotName0, out var slotStatus0);
+            MakeLobbySlot(pcRoot, new Vector2(60, 60), "팀원 1", "대기중...", out var slotRoot1, out var slotName1, out var slotStatus1);
+            MakeLobbySlot(pcRoot, new Vector2(-250, -65), "팀원 2", "대기중...", out var slotRoot2, out var slotName2, out var slotStatus2);
+            MakeLobbySlot(pcRoot, new Vector2(60, -65), "팀원 3", "대기중...", out var slotRoot3, out var slotName3, out var slotStatus3);
+            m_CustomLobbySlotRoots.Add(slotRoot0);
+            m_CustomLobbySlotRoots.Add(slotRoot1);
+            m_CustomLobbySlotRoots.Add(slotRoot2);
+            m_CustomLobbySlotRoots.Add(slotRoot3);
+            m_CustomLobbySlotNames.Add(slotName0);
+            m_CustomLobbySlotNames.Add(slotName1);
+            m_CustomLobbySlotNames.Add(slotName2);
+            m_CustomLobbySlotNames.Add(slotName3);
+            m_CustomLobbySlotStatuses.Add(slotStatus0);
+            m_CustomLobbySlotStatuses.Add(slotStatus1);
+            m_CustomLobbySlotStatuses.Add(slotStatus2);
+            m_CustomLobbySlotStatuses.Add(slotStatus3);
+
+            MakeText(pcRoot, "현재 선택된\n맵 이미지", 16, Color.black, new Vector2(385, 10), new Vector2(150, 150), TextAnchor.MiddleCenter, new Color(0.82f, 0.82f, 0.82f, 1f));
+            MakeFixedButton(pcRoot, "나가기", new Vector2(-485, -260), new Vector2(105, 50), () =>
+            {
+                if (NetworkManager.Singleton != null)
+                    NetworkManager.Singleton.Shutdown();
+                SceneManager.LoadScene(SceneNames.BootstrapScene);
+            }, 18, Color.white);
+
+            m_CustomLobbyStartButton = MakeFixedButton(pcRoot, "게임 시작", new Vector2(385, -115), new Vector2(155, 58), TryStartCustomLobbyGame, 20, new Color(1f, 0.78f, 0.44f, 1f));
+            m_CustomLobbyReadyButton = MakeFixedButton(pcRoot, "준비 완료", new Vector2(385, -115), new Vector2(155, 58), ToggleCustomReadyState, 20, new Color(1f, 0.78f, 0.44f, 1f));
+            m_CustomLobbyStartHint = MakeText(pcRoot, "팀원이 준비하면 시작할 수 있어요", 16, new Color(0.35f, 0.25f, 0.18f, 1f), new Vector2(385, -160), new Vector2(300, 30), TextAnchor.MiddleCenter);
+            m_CustomLobbyReadyStatus = MakeText(pcRoot, "준비 상태를 확인하는 중...", 19, new Color(0.18f, 0.12f, 0.08f, 1f), new Vector2(0, -192), new Vector2(620, 36), TextAnchor.MiddleCenter, new Color(1f, 0.92f, 0.76f, 0.95f));
+
+            m_LobbyRoomOverlay = overlay;
+        }
+        catch (System.Exception ex)
+        {
+            if (overlay != null)
+                Destroy(overlay);
+            m_LobbyRoomOverlay = null;
+            m_CustomLobbyStartButton = null;
+            m_CustomLobbyReadyButton = null;
+            m_CustomLobbyStartHint = null;
+            m_CustomLobbyReadyStatus = null;
+            m_CustomLobbySlotRoots.Clear();
+            m_CustomLobbySlotNames.Clear();
+            m_CustomLobbySlotStatuses.Clear();
+            Debug.LogError($"[JobsnailLobbySkinner] 대기실 UI 생성 실패: {ex}");
+        }
     }
 
-    private static void MakeLobbySlot(Transform parent, Vector2 anchored, string name, string status)
+    private static void MakeLobbySlot(Transform parent, Vector2 anchored, string name, string status, out GameObject slotRoot, out Text nameText, out Text statusText)
     {
-        var slot = JobsnailUiKit.Box("LobbyUserSlot", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(270, 88), Color.white);
-        MakeText(slot.transform, "유저\n캐릭터", 12, Color.black, new Vector2(-88, 0), new Vector2(68, 68), TextAnchor.MiddleCenter, new Color(0.86f, 0.86f, 0.86f, 1f));
-        MakeText(slot.transform, name, 15, Color.black, new Vector2(32, 18), new Vector2(145, 26), TextAnchor.MiddleLeft);
-        MakeText(slot.transform, status, 14, Color.black, new Vector2(32, -18), new Vector2(145, 26), TextAnchor.MiddleRight);
+        var slot = JobsnailUiKit.Box("LobbyUserSlot", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(295, 102), new Color(1f, 1f, 1f, 0.98f));
+        slotRoot = slot.gameObject;
+        MakeText(slot.transform, "유저\n캐릭터", 13, new Color(0.25f, 0.25f, 0.25f, 1f), new Vector2(-94, 0), new Vector2(74, 74), TextAnchor.MiddleCenter, new Color(0.86f, 0.86f, 0.86f, 1f));
+        nameText = MakeText(slot.transform, name, 19, Color.black, new Vector2(45, 20), new Vector2(165, 30), TextAnchor.MiddleLeft);
+        statusText = MakeText(slot.transform, status, 17, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(45, -21), new Vector2(165, 30), TextAnchor.MiddleRight);
     }
 
     private void UpdateCustomLobbyRoomOverlay()
     {
-        // 지금 기존 세션 코드에는 준비/멤버 목록 동기화가 아직 없어서,
-        // 화면은 안정적인 대기실 레이아웃만 유지한다.
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        bool isHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
+        bool hasReadyNet = readyNet != null && readyNet.IsSpawned;
+        int maxPlayers = Mathf.Clamp(m_CurrentRoomMaxPlayers, 1, 4);
+        int expectedReadyCount = Mathf.Max(0, maxPlayers - 1);
+        int joinedCount = hasReadyNet ? Mathf.Clamp(readyNet.ConnectedCount, 1, maxPlayers) : 1;
+        int targetReadyCount = Mathf.Max(expectedReadyCount, hasReadyNet ? readyNet.TargetReadyCount : 0);
+        int readyCount = hasReadyNet ? readyNet.ReadyCount : 0;
+        bool roomIsFullEnough = joinedCount >= maxPlayers;
+        bool allReady = hasReadyNet && readyNet.IsAllReady && roomIsFullEnough;
+
+        if (m_CustomLobbyStartButton != null)
+        {
+            m_CustomLobbyStartButton.gameObject.SetActive(isHost);
+            m_CustomLobbyStartButton.interactable = hasReadyNet && allReady;
+            SetButtonLabel(m_CustomLobbyStartButton, "게임 시작");
+            SetButtonColor(m_CustomLobbyStartButton, allReady ? new Color(1f, 0.78f, 0.44f, 1f) : new Color(0.78f, 0.78f, 0.78f, 1f));
+        }
+
+        if (m_CustomLobbyReadyButton != null)
+        {
+            bool showReady = !isHost;
+            m_CustomLobbyReadyButton.gameObject.SetActive(showReady);
+            m_CustomLobbyReadyButton.interactable = hasReadyNet;
+            if (!hasReadyNet)
+            {
+                SetButtonLabel(m_CustomLobbyReadyButton, "준비");
+                SetButtonColor(m_CustomLobbyReadyButton, new Color(0.78f, 0.78f, 0.78f, 1f));
+            }
+            else
+            {
+                SetButtonLabel(m_CustomLobbyReadyButton, "준비");
+                SetButtonColor(m_CustomLobbyReadyButton, readyNet.IsLocallyReady ? new Color(0.45f, 0.84f, 0.38f, 1f) : new Color(1f, 0.42f, 0.42f, 1f));
+            }
+        }
+
+        if (m_CustomLobbyStartHint != null)
+        {
+            if (!hasReadyNet)
+                m_CustomLobbyStartHint.text = "레디 시스템 연결 중...";
+            else if (isHost)
+                m_CustomLobbyStartHint.text = allReady ? "모든 팀원 준비 완료!" : $"팀원을 기다리는 중 ({joinedCount}/{maxPlayers})";
+            else
+                m_CustomLobbyStartHint.text = readyNet.IsLocallyReady ? "방장이 시작하기를 기다리는 중" : "준비 완료를 눌러줘";
+        }
+
+        if (m_CustomLobbyReadyStatus != null)
+        {
+            if (!hasReadyNet)
+                m_CustomLobbyReadyStatus.text = "준비 상태를 불러오는 중...";
+            else if (targetReadyCount <= 0)
+                m_CustomLobbyReadyStatus.text = "혼자 플레이는 바로 시작돼요.";
+            else
+                m_CustomLobbyReadyStatus.text = $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{expectedReadyCount}";
+        }
+
+        UpdateLobbySlots(joinedCount, readyCount, maxPlayers, allReady);
+    }
+
+    private void UpdateLobbySlots(int joinedCount, int readyCount, int maxPlayers, bool allReady)
+    {
+        for (int i = 0; i < m_CustomLobbySlotNames.Count && i < m_CustomLobbySlotStatuses.Count; i++)
+        {
+            if (i < m_CustomLobbySlotRoots.Count && m_CustomLobbySlotRoots[i] != null)
+                m_CustomLobbySlotRoots[i].SetActive(i < maxPlayers);
+
+            if (i >= maxPlayers)
+                continue;
+
+            var name = m_CustomLobbySlotNames[i];
+            var status = m_CustomLobbySlotStatuses[i];
+            if (name == null || status == null)
+                continue;
+
+            if (i == 0)
+            {
+                name.text = "방장";
+                status.text = allReady ? "시작 가능" : "방장 / 준비 완료";
+                continue;
+            }
+
+            int memberIndex = i;
+            if (memberIndex < joinedCount)
+            {
+                name.text = $"팀원 {memberIndex}";
+                status.text = memberIndex <= readyCount ? "준비 완료" : "대기중...";
+            }
+            else
+            {
+                name.text = "빈 자리";
+                status.text = "";
+            }
+        }
+    }
+
+    private void ToggleCustomReadyState()
+    {
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet == null || !readyNet.IsSpawned)
+            return;
+
+        readyNet.ToggleReadyState();
+        UpdateCustomLobbyRoomOverlay();
+    }
+
+    private void TryStartCustomLobbyGame()
+    {
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null && readyNet.IsSpawned)
+        {
+            readyNet.OnStartGameButtonClicked();
+            return;
+        }
+
+        if (m_CustomLobbyStartHint != null)
+            m_CustomLobbyStartHint.text = "레디 시스템 연결 후 시작할 수 있어요.";
     }
 
     private static void StartGameFromLobby()
@@ -998,6 +1182,26 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         return button;
     }
 
+    private static void SetButtonColor(Button button, Color color)
+    {
+        if (button == null)
+            return;
+
+        var image = button.GetComponent<Image>();
+        if (image != null)
+            image.color = color;
+    }
+
+    private static void SetButtonLabel(Button button, string label)
+    {
+        if (button == null)
+            return;
+
+        var text = button.GetComponentInChildren<Text>(true);
+        if (text != null)
+            text.text = label;
+    }
+
     private static InputField MakeLegacyInput(Transform parent, string value, Vector2 anchored, Vector2 size)
     {
         var go = new GameObject("InputField", typeof(RectTransform), typeof(Image), typeof(InputField));
@@ -1122,7 +1326,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private static Text MakeText(Transform parent, string text, int size, Color color, Vector2 anchored, Vector2 sizeDelta, TextAnchor anchor, Color? background = null)
     {
-        var go = new GameObject(text, typeof(RectTransform));
+        text ??= string.Empty;
+
+        if (parent == null)
+        {
+            Debug.LogError($"[JobsnailLobbySkinner] MakeText parent is null. text='{text}'");
+            parent = GetFallbackTextRoot();
+        }
+
+        var go = new GameObject(string.IsNullOrEmpty(text) ? "Text" : text, typeof(RectTransform));
         go.transform.SetParent(parent, false);
         var rt = (RectTransform)go.transform;
         rt.anchorMin = sizeDelta == Vector2.zero ? Vector2.zero : new Vector2(0.5f, 0.5f);
@@ -1130,18 +1342,25 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         rt.anchoredPosition = anchored;
         rt.sizeDelta = sizeDelta;
 
+        GameObject textGo = go;
         if (background.HasValue)
         {
             var image = go.AddComponent<Image>();
             image.color = background.Value;
             image.raycastTarget = false;
+
+            textGo = new GameObject("Label", typeof(RectTransform));
+            textGo.transform.SetParent(go.transform, false);
+            var textRt = (RectTransform)textGo.transform;
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
         }
 
-        var label = go.AddComponent<Text>();
+        var label = textGo.AddComponent<Text>();
         label.text = text;
-        var font = GetDefaultFont();
-        if (font != null)
-            label.font = font;
+        TryAssignFont(label, text);
         label.fontSize = size;
         label.color = color;
         label.alignment = anchor;
@@ -1149,22 +1368,76 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         return label;
     }
 
+    private static Transform GetFallbackTextRoot()
+    {
+        const string rootName = "@JobsnailFallbackTextRoot";
+        var existing = GameObject.Find(rootName);
+        if (existing != null)
+            return existing.transform;
+
+        var canvas = JobsnailUiKit.EnsureOverlayCanvas("@JobsnailFallbackCanvas", 10000);
+        var root = new GameObject(rootName, typeof(RectTransform));
+        root.transform.SetParent(canvas.transform, false);
+        var rt = (RectTransform)root.transform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        return root.transform;
+    }
+
     private static Font GetDefaultFont()
     {
         if (s_DefaultFont != null)
             return s_DefaultFont;
 
-        s_DefaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (s_DefaultFont == null)
-            s_DefaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        if (s_DefaultFont == null)
-            s_DefaultFont = Font.CreateDynamicFontFromOSFont("Apple SD Gothic Neo", 16);
-        if (s_DefaultFont == null)
-            s_DefaultFont = Font.CreateDynamicFontFromOSFont("Arial", 16);
-        if (s_DefaultFont == null)
-            s_DefaultFont = Font.CreateDynamicFontFromOSFont("Helvetica", 16);
+#if UNITY_EDITOR
+        s_DefaultFont = LoadFontSafely(() => AssetDatabase.LoadAssetAtPath<Font>("Assets/Font/서울한강 장체M.ttf"), "Assets/Font/서울한강 장체M.ttf");
+        if (s_DefaultFont != null)
+            return s_DefaultFont;
+#endif
+
+        s_DefaultFont = LoadFontSafely(() => JobsnailUiKit.LegacyFont, "JobsnailUiKit.LegacyFont");
+        if (s_DefaultFont != null)
+            return s_DefaultFont;
+
+        s_DefaultFont = LoadFontSafely(() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"), "LegacyRuntime.ttf");
+        if (s_DefaultFont != null)
+            return s_DefaultFont;
+
+        s_DefaultFont = LoadFontSafely(() => Font.CreateDynamicFontFromOSFont("Apple SD Gothic Neo", 16), "Apple SD Gothic Neo");
 
         return s_DefaultFont;
+    }
+
+    private static void TryAssignFont(Text label, string debugText)
+    {
+        if (label == null)
+            return;
+
+        try
+        {
+            var font = GetDefaultFont();
+            if (font != null)
+                label.font = font;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[JobsnailLobbySkinner] 텍스트 폰트 적용 실패, 기본 폰트로 진행: '{debugText}' / {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static Font LoadFontSafely(System.Func<Font> loader, string label)
+    {
+        try
+        {
+            return loader?.Invoke();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[JobsnailLobbySkinner] 폰트 로드 실패: {label} / {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
     }
 
     private static void PlayUIClick()
