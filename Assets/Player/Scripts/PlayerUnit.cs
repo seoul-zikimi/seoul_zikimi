@@ -23,6 +23,7 @@ namespace Player
         private float              m_NextDashSfxTime;
         private Coroutine          m_SpawnRoutine;
         private float              m_NextFallRecoveryTime;
+        private bool               m_DbgMoving;   // 진단용(원격 먼지 복제 로그 throttle)
 
         [Header("비계 (더블탭 Space)")]
         [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
@@ -38,6 +39,12 @@ namespace Player
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<bool> m_NetSprinting = new(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // 비주얼 모델의 바라보는 yaw 복제 → 원격에서 방향 전환 동기화 (owner가 write, PlayerFacing이 read)
+        private readonly NetworkVariable<float> m_NetFacingYaw = new(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        public float FacingYaw => m_NetFacingYaw.Value;
+        public void ReportFacingYaw(float yaw) { if (IsSpawned && IsOwner) m_NetFacingYaw.Value = yaw; }
 
         public string ProductName { get; set; }
 
@@ -369,6 +376,12 @@ namespace Player
                 }
             }
             m_DustTrail.Apply(moving, sprinting);
+
+            if (IsSpawned && !IsOwner && moving != m_DbgMoving)   // 진단: 원격에서 먼지 상태 복제 + 파티클 상태 확인
+            {
+                m_DbgMoving = moving;
+                Debug.Log($"[FXSync] remote dust moving={moving} sprint={sprinting} | {m_DustTrail.DebugState()}", this);
+            }
 
             if ((IsOwner || !IsSpawned) && moving && sprinting && Time.time >= m_NextDashSfxTime)
             {
