@@ -48,5 +48,45 @@ namespace GridSystem
                 result.Add(anchor + new Vector3Int(r.x - minX, r.y - minY, r.z - minZ));
             return result;
         }
+
+        /// <summary>
+        /// 피벗=min-corner 프리팹을 step·90° 회전하면 회전된 박스의 min-corner가 -방향으로 밀린다.
+        /// CellToWorld(minCell)에 이 오프셋을 더하면 회전 프리팹이 점유칸 AABB(EnumerateFootprintCells)와 정합된다.
+        /// </summary>
+        public static Vector3 RotatedPivotOffset(Vector3Int footprint, int step, float unit)
+        {
+            var r = Quaternion.Euler(0f, 90f * step, 0f);
+            Vector3 cx = r * new Vector3(footprint.x * unit, 0f, 0f);
+            Vector3 cz = r * new Vector3(0f, 0f, footprint.z * unit);
+            Vector3 minc = Vector3.Min(Vector3.Min(Vector3.zero, cx), Vector3.Min(cz, cx + cz));
+            return -minc;
+        }
+
+        /// <summary>
+        /// 회전 프리팹(피벗=min-corner)을 점유칸에 정확히 안착시킨다.
+        /// + 메시가 footprint와 90° 다르게 모델링된 경우(렌더러 XZ 장축이 footprint 장축과 수직)
+        ///   자동으로 추가 90° 보정 → 셀/프리뷰/콜라이더와 정합(놓는·고스트 공용).
+        /// </summary>
+        public static void PlaceRotatedPrefab(GameObject go, Vector3 cellWorldMin, Vector3Int footprint, int rotStep, float unit)
+        {
+            int modelYaw = 0;
+            var rends = go.GetComponentsInChildren<Renderer>();
+            if (rends.Length > 0)
+            {
+                Bounds b = rends[0].bounds;
+                for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+                bool meshXLong = b.size.x > b.size.z * 1.05f;
+                bool meshZLong = b.size.z > b.size.x * 1.05f;
+                bool fpXLong = footprint.x > footprint.z;
+                bool fpZLong = footprint.z > footprint.x;
+                if ((meshXLong && fpZLong) || (meshZLong && fpXLong)) modelYaw = 1;   // 메시가 footprint와 90° 어긋남
+            }
+
+            int eff = rotStep - modelYaw;
+            bool myOdd = (((modelYaw % 2) + 2) % 2) == 1;
+            Vector3Int meshFp = myOdd ? new Vector3Int(footprint.z, footprint.y, footprint.x) : footprint;
+            go.transform.rotation = Quaternion.Euler(0f, 90f * eff, 0f);
+            go.transform.position = cellWorldMin + RotatedPivotOffset(meshFp, eff, unit);
+        }
     }
 }

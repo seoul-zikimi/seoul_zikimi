@@ -292,18 +292,10 @@ namespace GridSystem
         // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 프리팹 피벗=바닥 → X/Z만 중심, Y는 셀 바닥에 안착.
         private void SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
         {
-            var fp = def.Footprint;
-            var r = Quaternion.Euler(0f, 90f * rot, 0f);
             float u = GridContract.Unit;
-
-            // 프리팹 피벗=바닥 XZ min-corner(로컬 0,0,0 = 점유 칸의 최솟값 모서리).
-            // Autotiles3D InternalPosition = min-corner이므로 추가 오프셋 없이 minCell 월드좌표에 바로 배치.
-            bool swap = (((((rot % 4) + 4) % 4) % 2) == 1);
-            var dims = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z);
-
             var go = Instantiate(def.Prefab, m_VisualRoot.transform);
-            go.transform.rotation = r;
-            go.transform.position = GridCoordinates.CellToWorld(minCell);
+            // 피벗=min-corner 가정 + 메시가 footprint와 90° 다르면 자동 보정.
+            GridFootprint.PlaceRotatedPrefab(go, GridCoordinates.CellToWorld(minCell), def.Footprint, rot, u);
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(~Solid가 막음)
         }
 
