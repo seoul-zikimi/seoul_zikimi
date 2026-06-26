@@ -31,6 +31,7 @@ public class OrderHUD : UIHUD
     {
         if (m_Panel != null)  Destroy(m_Panel);
         if (m_Toggle != null) Destroy(m_Toggle);
+        if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         const float rowH = 30f, pad = 8f, titleH = 24f;

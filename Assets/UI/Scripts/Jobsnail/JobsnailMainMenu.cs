@@ -203,13 +203,23 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         rt.anchoredPosition = anchored;
         rt.sizeDelta = sizeDelta;
 
+        GameObject textGo = go;
         if (background.HasValue)
         {
             var image = go.AddComponent<Image>();
             image.color = background.Value;
+            image.raycastTarget = false;
+
+            textGo = new GameObject("Label", typeof(RectTransform));
+            textGo.transform.SetParent(go.transform, false);
+            var textRt = (RectTransform)textGo.transform;
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
         }
 
-        var label = go.AddComponent<Text>();
+        var label = textGo.AddComponent<Text>();
         label.text = text;
         var font = GetDefaultFont();
         if (font != null)
@@ -233,15 +243,13 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         if (s_DefaultFont != null)
             return s_DefaultFont;
 
-        s_DefaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        s_DefaultFont = JobsnailUiKit.LegacyFont;
+        if (s_DefaultFont == null)
+            s_DefaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (s_DefaultFont == null)
             s_DefaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
         if (s_DefaultFont == null)
             s_DefaultFont = Font.CreateDynamicFontFromOSFont("Apple SD Gothic Neo", 16);
-        if (s_DefaultFont == null)
-            s_DefaultFont = Font.CreateDynamicFontFromOSFont("Arial", 16);
-        if (s_DefaultFont == null)
-            s_DefaultFont = Font.CreateDynamicFontFromOSFont("Helvetica", 16);
         return s_DefaultFont;
     }
 

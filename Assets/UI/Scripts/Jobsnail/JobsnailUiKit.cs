@@ -2,6 +2,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public static class JobsnailUiKit
 {
@@ -9,6 +12,55 @@ public static class JobsnailUiKit
     public static readonly Color Apricot = new(1f, 0.79f, 0.46f, 1f);
     public static readonly Color Brown = new(0.22f, 0.14f, 0.09f, 1f);
     public static readonly Color SoftGray = new(0.82f, 0.82f, 0.82f, 1f);
+
+    private static Font s_LegacyFont;
+    private static TMP_FontAsset s_TmpFont;
+
+    public static Font LegacyFont
+    {
+        get
+        {
+            if (s_LegacyFont != null)
+                return s_LegacyFont;
+
+#if UNITY_EDITOR
+            s_LegacyFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Font/서울한강 장체M.ttf");
+            if (s_LegacyFont != null)
+                return s_LegacyFont;
+#endif
+
+            s_LegacyFont = Font.CreateDynamicFontFromOSFont("서울한강 장체 M", 16);
+            if (s_LegacyFont == null)
+                s_LegacyFont = Font.CreateDynamicFontFromOSFont("SeoulHangang", 16);
+            if (s_LegacyFont == null)
+                s_LegacyFont = Font.CreateDynamicFontFromOSFont("SeoulHangangC", 16);
+            if (s_LegacyFont == null)
+                s_LegacyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (s_LegacyFont == null)
+                s_LegacyFont = Font.CreateDynamicFontFromOSFont("Apple SD Gothic Neo", 16);
+            return s_LegacyFont;
+        }
+    }
+
+    public static TMP_FontAsset TmpFont
+    {
+        get
+        {
+            if (s_TmpFont != null)
+                return s_TmpFont;
+
+#if UNITY_EDITOR
+            s_TmpFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Font/서울한강 장체M SDF.asset");
+            if (s_TmpFont != null)
+                return s_TmpFont;
+#endif
+
+            s_TmpFont = Resources.Load<TMP_FontAsset>("Fonts/서울한강 장체M SDF");
+            if (s_TmpFont == null)
+                s_TmpFont = TMP_Settings.defaultFontAsset;
+            return s_TmpFont;
+        }
+    }
 
     public static Sprite Sprite(string resourcesPath) => Resources.Load<Sprite>(resourcesPath);
 
@@ -78,6 +130,8 @@ public static class JobsnailUiKit
 
         var label = rt.gameObject.AddComponent<TextMeshProUGUI>();
         label.text = text;
+        if (TmpFont != null)
+            label.font = TmpFont;
         label.fontSize = size;
         label.color = color;
         label.alignment = align;

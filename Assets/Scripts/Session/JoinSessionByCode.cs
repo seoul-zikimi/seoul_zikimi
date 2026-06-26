@@ -29,8 +29,10 @@ public class JoinSessionByCode : MonoBehaviour
         _viewModel = new JoinSessionByCodeVM(SessionSettings?.sessionType);
         _viewModel.PropertyChanged += OnViewModelChanged;
 
-        inputField.onValueChanged.AddListener(OnInputFieldValueChanged);
-        joinButton.onClick.AddListener(JoinSession);
+        if (inputField != null)
+            inputField.onValueChanged.AddListener(OnInputFieldValueChanged);
+        if (joinButton != null)
+            joinButton.onClick.AddListener(JoinSession);
 
     }
 

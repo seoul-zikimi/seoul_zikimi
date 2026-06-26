@@ -29,7 +29,8 @@ public class LobbyRoomUI : MonoBehaviour
             
             if (startGameButton != null)
             {
-                startGameButton.interactable = true;
+                var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+                startGameButton.interactable = readyNet != null && readyNet.IsAllReady;
                 startGameButton.onClick.RemoveAllListeners();
                 startGameButton.onClick.AddListener(OnStartGameButtonClicked);
             }
@@ -49,6 +50,13 @@ public class LobbyRoomUI : MonoBehaviour
     {
         // 싱글톤으로 서버 검증
         if (!NetworkManager.Singleton.IsServer) return;
+
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null)
+        {
+            readyNet.OnStartGameButtonClicked();
+            return;
+        }
         
         if (startGameButton != null) 
             startGameButton.interactable = false;

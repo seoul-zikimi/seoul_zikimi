@@ -15,6 +15,7 @@ public class AnswerPanelHUD : UIHUD
 
     public override void Init()
     {
+        if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         const float w = 240f, img = 240f, titleH = 22f, legendH = 24f;
