@@ -45,13 +45,14 @@ public static class MaterialBoxPrefabGenerator
         var fp = def.Footprint;
         int fx = Mathf.Max(1, fp.x), fy = Mathf.Max(1, fp.y), fz = Mathf.Max(1, fp.z);
 
-        // 루트(피벗=바닥-중심) + 자식 큐브(footprint 크기, 밑면이 루트 Y=0)
+        // 루트(피벗=min-corner: 로컬 0,0,0 = 점유칸 최솟값 모서리) + 자식 큐브(footprint 크기, +방향으로 채움)
+        // → GridNetwork/AnswerPreview의 배치(CellToWorld(minCell), 오프셋 없음) 및 ~Solid 콜라이더와 정합.
         var root = new GameObject(prefabName);
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
         cube.name = "Box";
         cube.transform.SetParent(root.transform, false);
         cube.transform.localScale    = new Vector3(fx, fy, fz);
-        cube.transform.localPosition = new Vector3(0f, fy * 0.5f, 0f);   // 밑면을 루트 Y=0에
+        cube.transform.localPosition = new Vector3(fx * 0.5f, fy * 0.5f, fz * 0.5f);   // min-corner를 루트 0,0,0에 맞춤
         Object.DestroyImmediate(cube.GetComponent<Collider>());          // 배치 시 콜라이더는 어차피 제거됨(~Solid가 담당)
         cube.GetComponent<MeshRenderer>().sharedMaterial = mat;
 
