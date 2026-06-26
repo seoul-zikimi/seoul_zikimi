@@ -3,6 +3,7 @@ using Unity.Netcode;
 using Unity.Cinemachine;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Player
 {
@@ -23,6 +24,15 @@ namespace Player
         private Coroutine          m_SpawnRoutine;
         private float              m_NextFallRecoveryTime;
 
+        [Header("비계 (더블탭 Space)")]
+        [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
+        [SerializeField] private Material   m_ScaffoldMaterial;  // 폴백 큐브 색(프리팹 없을 때만)
+        // 서버 권위 상태: 이 플레이어의 비계 셀 목록. 모든 클라가 이 리스트로 로컬 비계(콜라이더+외형) 재구성.
+        private readonly NetworkList<Vector3Int> m_NetScaffolds = new();
+        private readonly List<GameObject> m_Scaffolds = new();   // 로컬 비주얼(모든 클라)
+        private Vector2Int m_ScaffoldColumn;   // owner 판단용(기둥 칸)
+        private bool m_HasScaffolds;            // owner 판단용
+
         // 원격 클라에 이동/스프린트 상태 복제 → 먼지·스프린트 트레일 동기화 (owner가 write)
         private readonly NetworkVariable<bool> m_NetMoving = new(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
@@ -38,6 +48,10 @@ namespace Player
             InitComponents(m_Config);
 
             var rb = GetComponent<Rigidbody>();
+
+            // 비계: 모든 클라(owner·원격)가 네트워크 리스트로 로컬 비계를 재구성(늦참 포함).
+            m_NetScaffolds.OnListChanged += OnScaffoldsChanged;
+            RebuildScaffoldVisuals();
 
             if (!IsOwner)
             {
@@ -66,6 +80,8 @@ namespace Player
         {
             if (IsOwner)
                 SceneManager.sceneLoaded -= OnSceneLoaded;
+            m_NetScaffolds.OnListChanged -= OnScaffoldsChanged;
+            ClearScaffoldVisuals();
             base.OnNetworkDespawn();
         }
 
@@ -90,6 +106,9 @@ namespace Player
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
 
             RecoverIfFallingThroughStage();
+
+            if (m_InputHandler.ConsumeScaffold()) PlaceScaffold();   // 더블탭 Space = 발밑 비계 + 올라타기
+            UpdateScaffolds();                                        // 기둥에서 벗어나면 비계 제거
 
             if (m_Movement.IsClimbing || m_Movement.TryStartClimb(m_InputHandler.MoveInput, m_CameraArm))
             {
@@ -215,6 +234,105 @@ namespace Player
             var gm = FindFirstObjectByType<GridSystem.GridManager>();
             if (gm != null)
                 PlaceOnGrid(gm);
+        }
+
+        // ── 비계 (더블탭 Space): 발밑 1×1 비계 + 그 위로 올라타기. 기둥에서 벗어나면 전부 사라짐 ──
+        // 네트워크: owner가 ServerRpc로 셀 추가/제거 → 서버 NetworkList → 모든 클라가 로컬 비계 재구성(전원 보고 딛음).
+        private void PlaceScaffold()
+        {
+            if (m_Rb == null || !IsSpawned) return;
+            float u = GridSystem.GridContract.Unit;
+            Vector3 origin = GridSystem.GridContract.Origin;
+
+            float feetY = transform.position.y + GetColliderLocalBottomY() + 0.05f;
+            Vector3Int cell = GridSystem.GridCoordinates.WorldToCell(
+                new Vector3(transform.position.x, feetY, transform.position.z));
+
+            if (m_HasScaffolds && (cell.x != m_ScaffoldColumn.x || cell.z != m_ScaffoldColumn.y))
+                ClearScaffoldsServerRpc();   // 다른 칸이면 새 기둥
+
+            AddScaffoldServerRpc(cell);
+            m_ScaffoldColumn = new Vector2Int(cell.x, cell.z);
+            m_HasScaffolds = true;
+
+            // 올라타기(칸 중심 정렬 + 수직속도 0). 위치는 owner 권위. 더블탭 반복 = 한 칸씩 상승.
+            float topY = origin.y + (cell.y + 1) * u;
+            Vector3 pos = new Vector3(origin.x + (cell.x + 0.5f) * u,
+                                      topY - GetColliderLocalBottomY() + 0.02f,
+                                      origin.z + (cell.z + 0.5f) * u);
+            transform.position = pos;
+            m_Rb.position = pos;
+            var v = m_Rb.linearVelocity; v.y = 0f; m_Rb.linearVelocity = v;
+        }
+
+        // owner: 기둥에서 수평으로 벗어나면(걸어 나가거나 뛰어내리면) 비계 전부 제거 요청.
+        private void UpdateScaffolds()
+        {
+            if (!m_HasScaffolds || !IsSpawned) return;
+            float feetY = transform.position.y + GetColliderLocalBottomY() + 0.05f;
+            Vector3Int cell = GridSystem.GridCoordinates.WorldToCell(
+                new Vector3(transform.position.x, feetY, transform.position.z));
+            if (cell.x != m_ScaffoldColumn.x || cell.z != m_ScaffoldColumn.y)
+            {
+                ClearScaffoldsServerRpc();
+                m_HasScaffolds = false;
+            }
+        }
+
+        [Rpc(SendTo.Server)]
+        private void AddScaffoldServerRpc(Vector3Int cell)
+        {
+            for (int i = 0; i < m_NetScaffolds.Count; i++)
+                if (m_NetScaffolds[i] == cell) return;   // 같은 칸 중복 방지
+            m_NetScaffolds.Add(cell);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void ClearScaffoldsServerRpc() => m_NetScaffolds.Clear();
+
+        // 모든 클라: 네트워크 리스트 변경 시 로컬 비계(콜라이더+외형) 재구성.
+        private void OnScaffoldsChanged(NetworkListEvent<Vector3Int> _) => RebuildScaffoldVisuals();
+
+        private void RebuildScaffoldVisuals()
+        {
+            ClearScaffoldVisuals();
+            float u = GridSystem.GridContract.Unit;
+            Vector3 origin = GridSystem.GridContract.Origin;
+            for (int i = 0; i < m_NetScaffolds.Count; i++)
+                m_Scaffolds.Add(CreateScaffold(origin + (Vector3)m_NetScaffolds[i] * u, u));
+        }
+
+        private void ClearScaffoldVisuals()
+        {
+            for (int i = 0; i < m_Scaffolds.Count; i++)
+                if (m_Scaffolds[i] != null) Destroy(m_Scaffolds[i]);
+            m_Scaffolds.Clear();
+        }
+
+        // 비계 1개: 칸 크기 BoxCollider(딛고 섬) + 외형(프리팹 또는 큐브).
+        private GameObject CreateScaffold(Vector3 cellMin, float u)
+        {
+            var go = new GameObject("~Scaffold");
+            go.transform.position = cellMin + Vector3.one * (0.5f * u);   // 칸 중심
+            go.AddComponent<BoxCollider>().size = Vector3.one * u;
+
+            if (m_ScaffoldPrefab != null)
+            {
+                var vis = Instantiate(m_ScaffoldPrefab, go.transform);
+                vis.transform.localPosition = -Vector3.one * (0.5f * u);   // 프리팹 피벗=min-corner → 칸에 맞춤
+                vis.transform.localRotation = Quaternion.identity;
+                foreach (var c in vis.GetComponentsInChildren<Collider>()) Destroy(c);   // 콜라이더는 루트 1개만
+            }
+            else
+            {
+                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(cube.GetComponent<Collider>());
+                cube.transform.SetParent(go.transform, false);
+                cube.transform.localScale = Vector3.one * u;
+                if (m_ScaffoldMaterial != null)
+                    cube.GetComponent<Renderer>().sharedMaterial = m_ScaffoldMaterial;
+            }
+            return go;
         }
 
         // ── 이동 FX 동기화 ────────────────────────────────────────────────

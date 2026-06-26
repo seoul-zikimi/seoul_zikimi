@@ -8,6 +8,9 @@ namespace Player
     {
         private PlayerControls m_Controls;
         private bool m_JumpQueued;
+        private bool m_ScaffoldQueued;
+        private float m_LastSpaceTime = -10f;
+        private const float kDoubleTapWindow = 0.3f;
         
         public Vector2 MoveInput    { get; private set; }
         public Vector2 CameraRotate { get; private set; }
@@ -22,11 +25,31 @@ namespace Player
             return true;
         }
 
+        /// <summary>Space 더블탭(빠른 두 번째 탭)이 있었으면 true 반환 후 소비 — 비계 설치용.</summary>
+        public bool ConsumeScaffold()
+        {
+            if (!m_ScaffoldQueued) return false;
+            m_ScaffoldQueued = false;
+            return true;
+        }
+
         // Space는 InputActions에 없어 직접 읽음(이 컴포넌트는 owner에서만 enabled).
+        // 첫 탭 = 점프 / 0.3초 내 두 번째 탭 = 비계.
         private void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb.spaceKey.wasPressedThisFrame) m_JumpQueued = true;
+            if (kb == null || !kb.spaceKey.wasPressedThisFrame) return;
+
+            if (Time.time - m_LastSpaceTime <= kDoubleTapWindow)
+            {
+                m_ScaffoldQueued = true;
+                m_LastSpaceTime = -10f;   // 리셋: 연속 탭이 또 더블로 오인되지 않게
+            }
+            else
+            {
+                m_JumpQueued = true;
+                m_LastSpaceTime = Time.time;
+            }
         }
 
         public override void OnNetworkSpawn()
