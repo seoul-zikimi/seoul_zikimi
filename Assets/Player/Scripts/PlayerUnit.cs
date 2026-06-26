@@ -118,19 +118,43 @@ namespace Player
         {
             // NetworkManager의 플레이어 프리팹은 BootstrapScene에서 먼저 생길 수 있다.
             // GameScene 로드 후 GridManager.Awake/CreateGround가 끝난 다음 위치를 다시 잡아준다.
-            for (int i = 0; i < 30; i++)
+            // 그 전까지 dynamic Rigidbody가 빈 BootstrapScene에서 중력으로 떨어지지 않도록 잠깐 정지시킨다.
+            if (m_Rb == null)
+                m_Rb = GetComponent<Rigidbody>();
+
+            bool wasKinematic = m_Rb != null && m_Rb.isKinematic;
+            if (m_Rb != null)
+            {
+                m_Rb.linearVelocity = Vector3.zero;
+                m_Rb.angularVelocity = Vector3.zero;
+                m_Rb.isKinematic = true;
+            }
+
+            for (int i = 0; i < 300; i++)
             {
                 var gm = FindFirstObjectByType<GridSystem.GridManager>();
                 if (gm != null)
                 {
                     yield return null;
                     PlaceOnGrid(gm);
+                    if (m_Rb != null)
+                    {
+                        m_Rb.isKinematic = wasKinematic;
+                        m_Rb.linearVelocity = Vector3.zero;
+                        m_Rb.angularVelocity = Vector3.zero;
+                    }
                     m_SpawnRoutine = null;
                     yield break;
                 }
                 yield return null;
             }
 
+            if (m_Rb != null)
+            {
+                m_Rb.isKinematic = wasKinematic;
+                m_Rb.linearVelocity = Vector3.zero;
+                m_Rb.angularVelocity = Vector3.zero;
+            }
             m_SpawnRoutine = null;
         }
 
