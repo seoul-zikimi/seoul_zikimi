@@ -88,7 +88,7 @@ namespace GridSystem
             m_GhostRoot = new GameObject("~AnswerGhost");
             foreach (var o in objects)
             {
-                Vector3 pos = GridCoordinates.CellToWorld(o.minCell) + new Vector3(o.dims.x, 0f, o.dims.z) * (0.5f * u);
+                Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
             }
@@ -98,7 +98,7 @@ namespace GridSystem
             Bounds b = default; bool first = true;
             foreach (var o in objects)
             {
-                Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell) + new Vector3(o.dims.x, 0f, o.dims.z) * (0.5f * u);
+                Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 MakeBlockVisual(o, m_Root.transform, pos, rot, u, ghost: false);
                 var bb = new Bounds(pos + Vector3.up * (0.5f * o.dims.y * u), new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);

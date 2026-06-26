@@ -53,6 +53,10 @@ namespace Player
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
             QueueSpawnOnGrid();
+            // ── 스폰 위치: Host는 BootstrapScene(NetworkManager가 거기 있음)에서 스폰되므로 이 시점엔
+            //    게임플레이 씬의 스폰마커/그리드가 아직 로드 전이라 없다. 씬이 로드돼 마커/그리드가
+            //    나타날 때까지 '정지' 상태로 기다린 뒤 위치를 적용한다(빈 메뉴씬에서 추락 방지). ──
+            StartCoroutine(PositionAtSpawnWhenReady(rb));
 
             // ── Smooth Follow: 카메라가 플레이어를 딜레이와 함께 부드럽게 추적 ──
             if (m_CameraArm != null)
@@ -80,11 +84,37 @@ namespace Player
             if (!IsOwner) return;
             if (scene.name == SceneNames.GameScene)
                 QueueSpawnOnGrid();
+        // 게임플레이 씬(스폰마커/그리드) 로드 완료까지 정지 대기 후 위치 적용.
+        // PlayerSpawnPoint 마커 우선, 없으면 그리드 중앙. 둘 다 10초 내 못 찾으면 그냥 풀어줌.
+        private System.Collections.IEnumerator PositionAtSpawnWhenReady(Rigidbody rb)
+        {
+            rb.isKinematic = true;   // 로드 대기 동안 추락 방지
+            Vector3? target = null;
+            for (float t = 0f; t < 10f; t += Time.deltaTime)
+            {
+                var sp = FindFirstObjectByType<PlayerSpawnPoint>();
+                if (sp != null) { target = sp.transform.position; break; }
+
+                var gm = FindFirstObjectByType<GridSystem.GridManager>();
+                if (gm != null)
+                {
+                    var s = gm.GridSize;
+                    target = GridSystem.GridContract.Origin
+                        + new Vector3(s.x * 0.5f, 1.5f, s.z * 0.5f) * GridSystem.GridContract.Unit;
+                    break;
+                }
+                yield return null;
+            }
+
+            if (target.HasValue) { transform.position = target.Value; rb.position = target.Value; }
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
         }
 
         private void FixedUpdate()
         {
             if (!IsOwner) return;
+            if (m_Rb != null && m_Rb.isKinematic) return;   // 스폰 위치 대기 중(정지) — 이동 로직 스킵
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
 

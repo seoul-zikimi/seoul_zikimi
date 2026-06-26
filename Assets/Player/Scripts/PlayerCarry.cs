@@ -48,6 +48,7 @@ namespace Player
         private GridNetwork m_Net;
         private GameLoopManager m_Loop;
         private MaterialDropField m_Drop;
+        private PlayerMovement m_Movement;
         private Vector3Int m_Target;
         private bool m_HasTarget;
         private GUIStyle m_HudStyle, m_BarLabel;
@@ -96,7 +97,8 @@ namespace Player
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
-            if (m_LineMat != null) Destroy(m_LineMat);
+            if (m_Preview != null) Destroy(m_Preview);
+            if (m_PreviewMat != null) Destroy(m_PreviewMat);
         }
 
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
@@ -122,6 +124,7 @@ namespace Player
             if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
             if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
             if (m_Drop == null) m_Drop = FindFirstObjectByType<MaterialDropField>();
+            if (m_Movement == null) m_Movement = GetComponent<PlayerMovement>();
 
             var kb = Keyboard.current;
             var mouse = Mouse.current;
@@ -150,6 +153,8 @@ namespace Player
 
             TryBumpCollapse();   // C3: 미고정 기둥/벽에 몸으로 부딪히면 무너뜨림
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
+
+            UpdatePreview();     // 배치 미리보기(반투명 박스 GameObject — GL 폐지)
         }
 
         // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
@@ -305,10 +310,12 @@ namespace Player
             m_HasTarget = false;
             if (m_Cam == null || m_Grid == null) return;
 
-            // 배치 높이 = 플레이어가 선 높이(기어올라간 층에서 건축). Q/E 층 선택 폐지.
-            m_BuildHeight = Mathf.Clamp(
-                Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
-                0, m_Grid.GridSize.y - 1);
+            // 배치 높이 = 플레이어가 '딛고 선' 높이. 단, 벽타기/점프/낙하 중엔 갱신하지 않는다
+            // (그 동안 transform.y가 올라가면 프리뷰가 같이 떠버림 → 접지한 순간에만 층 확정).
+            if (m_Movement == null || (!m_Movement.IsClimbing && m_Movement.IsGrounded()))
+                m_BuildHeight = Mathf.Clamp(
+                    Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
+                    0, m_Grid.GridSize.y - 1);
 
             float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
             var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
@@ -526,7 +533,7 @@ namespace Player
                 {
                     m_HeldVisual = new GameObject("~Held");
                     var vis = Instantiate(def.Prefab, m_HeldVisual.transform);
-                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) 보정
+                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) → 머리 위 중앙 정렬
                     m_HeldVisual.transform.localScale = Vector3.one * 0.35f;
                     foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
                 }
@@ -595,8 +602,8 @@ namespace Player
             if (HasMaterial && m_HasTarget)
             {
                 Gizmos.color = Color.cyan;
-                foreach (var c in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
-                    Gizmos.DrawWireCube(GridCoordinates.CellToWorld(c) + Vector3.one * 0.5f, Vector3.one * 1.02f);
+                HeldPlacementBox(out var center, out var size);
+                Gizmos.DrawWireCube(center, size);
             }
             else if (HasTool && m_HasTarget)
             {
@@ -610,72 +617,82 @@ namespace Player
             }
         }
 
-        // ── 인게임 배치 외곽선 (Gizmos 토글과 무관하게 게임 화면에 보임) ──────
-        private Material m_LineMat;
+        // ── 인게임 배치 미리보기: 반투명 박스 GameObject (URP 정상 렌더 — GL 즉시모드 폐지) ──────
+        private GameObject m_Preview;
+        private Material m_PreviewMat;
+        private static readonly int s_PvBase = Shader.PropertyToID("_BaseColor");
+        private static readonly int s_PvCol  = Shader.PropertyToID("_Color");
 
-        private Material LineMat()
+        // 든 재료를 놓을 자리의 월드 박스 — GridNetwork.SpawnPrefabVisual과 동일 산출(프리뷰=실제 배치 정합).
+        private void HeldPlacementBox(out Vector3 center, out Vector3 size)
         {
-            if (m_LineMat == null)
-            {
-                var sh = Shader.Find("Hidden/Internal-Colored");
-                if (sh == null) sh = Shader.Find("Sprites/Default");
-                m_LineMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
-                m_LineMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                m_LineMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                m_LineMat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-                m_LineMat.SetInt("_ZWrite", 0);
-                m_LineMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);   // 블록에 가려도 보이게
-            }
-            return m_LineMat;
+            float u = GridContract.Unit;
+            var fp = m_HeldMaterial.Footprint;
+            var cells = GridFootprint.EnumerateFootprintCells(m_Target, fp, m_Rotation);
+            Vector3Int minCell = cells[0];
+            for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
+            bool swap = ((((m_Rotation % 4) + 4) % 4) % 2) == 1;
+            size = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z) * u;
+            center = GridCoordinates.CellToWorld(minCell) + size * 0.5f;
         }
 
-        // URP 카메라 렌더 콜백에 GL 라인을 그린다(게임뷰에 확실히 보임). 메인 카메라에만.
-        private void OnEnable()  => RenderPipelineManager.endCameraRendering += DrawOutline;
-        private void OnDisable() => RenderPipelineManager.endCameraRendering -= DrawOutline;
-
-        private void DrawOutline(ScriptableRenderContext ctx, Camera cam)
+        // 매 프레임 배치 미리보기 박스를 대상 칸에 맞춰 갱신. 고스트/놓은블록과 '같은 좌표·같은 렌더 경로'
+        // (일반 GameObject) → 정확히 정합. (이전 GL 즉시모드는 URP 클립공간 불일치로 화면에서 떠 보였음.)
+        private void UpdatePreview()
         {
-            if (!IsOwner || !Application.isPlaying || cam != m_Cam) return;
-
-            LineMat().SetPass(0);
-            GL.PushMatrix();
-            GL.LoadProjectionMatrix(cam.projectionMatrix);
-            GL.modelview = cam.worldToCameraMatrix;
-            GL.Begin(GL.LINES);
-
-            if (m_HasTarget && HasMaterial)                    // 든 재료의 배치 자리(시안)
+            bool show = m_HasTarget && (HasMaterial || HasTool);
+            if (!show)
             {
-                GL.Color(new Color(0.25f, 0.9f, 1f, 0.95f));
-                foreach (var c in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
-                    GLWireCube(GridCoordinates.CellToWorld(c) + Vector3.one * 0.5f, Vector3.one);
+                if (m_Preview != null && m_Preview.activeSelf) m_Preview.SetActive(false);
+                return;
             }
-            else if (m_HasTarget && HasTool)                   // 공정 대상(노랑)
+            if (m_Preview == null) m_Preview = CreatePreview();
+
+            Vector3 center, size; Color col;
+            if (HasMaterial)
             {
-                GL.Color(new Color(1f, 0.95f, 0.25f, 0.95f));
-                GLWireCube(GridCoordinates.CellToWorld(m_Target) + Vector3.one * 0.5f, Vector3.one);
+                HeldPlacementBox(out center, out size);
+                col = new Color(0.25f, 0.9f, 1f, 0.32f);    // 시안: 배치 자리
             }
-
-            // 집기 대상 하이라이트는 GL 박스가 아니라 OutlineHighlight(인버티드 헐 테두리)로 처리(UpdateGrabTarget).
-
-            GL.End();
-            GL.PopMatrix();
+            else
+            {
+                float u = GridContract.Unit;
+                center = GridCoordinates.CellToWorld(m_Target) + Vector3.one * (0.5f * u);
+                size   = Vector3.one * u;
+                col = new Color(1f, 0.95f, 0.25f, 0.32f);   // 노랑: 공정 대상
+            }
+            m_Preview.transform.SetPositionAndRotation(center, Quaternion.identity);
+            m_Preview.transform.localScale = size;
+            m_PreviewMat.SetColor(s_PvBase, col);
+            m_PreviewMat.SetColor(s_PvCol, col);
+            if (!m_Preview.activeSelf) m_Preview.SetActive(true);
         }
 
-        private static void GLWireCube(Vector3 center, Vector3 size)
+        private GameObject CreatePreview()
         {
-            var h = size * 0.5f;
-            for (int a = 0; a < 8; a++)
-            for (int b = a + 1; b < 8; b++)
-            {
-                int d = a ^ b;
-                if (d != 1 && d != 2 && d != 4) continue;   // 한 축만 다른 코너 쌍 = 모서리(총 12개)
-                GL.Vertex(GLCorner(center, h, a));
-                GL.Vertex(GLCorner(center, h, b));
-            }
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "~PlacePreview";
+            var c = go.GetComponent<Collider>(); if (c != null) Destroy(c);
+            go.GetComponent<Renderer>().sharedMaterial = PreviewMat();
+            return go;
         }
 
-        private static Vector3 GLCorner(Vector3 c, Vector3 h, int k)
-            => c + new Vector3((k & 1) != 0 ? h.x : -h.x, (k & 2) != 0 ? h.y : -h.y, (k & 4) != 0 ? h.z : -h.z);
+        private Material PreviewMat()
+        {
+            if (m_PreviewMat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Lit");
+                m_PreviewMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+                m_PreviewMat.SetOverrideTag("RenderType", "Transparent");
+                m_PreviewMat.SetFloat("_Surface", 1f);   // URP: 0=Opaque 1=Transparent
+                m_PreviewMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m_PreviewMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m_PreviewMat.SetInt("_ZWrite", 0);
+                m_PreviewMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m_PreviewMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            return m_PreviewMat;
+        }
 
         private void OnGUI()
         {
