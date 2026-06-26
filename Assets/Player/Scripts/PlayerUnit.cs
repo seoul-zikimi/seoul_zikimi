@@ -73,6 +73,13 @@ namespace Player
             {
                 var follow = m_CameraArm.gameObject.AddComponent<PlayerCameraFollow>();
                 follow.Init(transform);
+
+                // ── 시야 가림 반투명: 카메라→플레이어 사이 콜라이더를 α=0.2로 ──
+                if (m_CinemachineCamera != null)
+                {
+                    var fader = m_CinemachineCamera.gameObject.AddComponent<CameraObstructionFader>();
+                    fader.Init(m_CameraArm);   // 카메라가 바라보는 지점(허리 높이)
+                }
             }
         }
 
