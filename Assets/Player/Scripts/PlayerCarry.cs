@@ -697,6 +697,7 @@ namespace Player
         private void OnGUI()
         {
             if (!IsOwner || !Application.isPlaying) return;
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene) return;   // 조작법 HUD는 GameScene만
             if (m_HudStyle == null)
                 m_HudStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
 
