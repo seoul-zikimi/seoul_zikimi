@@ -180,7 +180,7 @@ namespace Player
             if (m_ProcessHold >= m_ProcessSeconds)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
-                PlaySFX(m_HeldTool == ProcessType.Painted ? SFXType.Painting : SFXType.Hammering);
+                PlayProcessSfx(m_HeldTool == ProcessType.Painted);             // 로컬 + 원격 복제(옆 플레이어도 들림)
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
@@ -508,6 +508,20 @@ namespace Player
             if (SoundManager.Instance != null)
                 SoundManager.Instance.PlaySFX(type);
         }
+
+        // 공정 소리: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 들리게).
+        private void PlayProcessSfx(bool painted)
+        {
+            PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
+            if (IsSpawned) RequestProcessSfxRpc(painted);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestProcessSfxRpc(bool painted) => ProcessSfxRpc(painted);
+
+        [Rpc(SendTo.NotOwner)]
+        private void ProcessSfxRpc(bool painted)
+            => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
 
         private void TryRemove()
         {

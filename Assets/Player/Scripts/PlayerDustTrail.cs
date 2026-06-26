@@ -141,6 +141,11 @@ namespace Player
             return null;
         }
 
+        // 진단: 먼지 파티클 시스템 현재 상태(원격에서 안 보이는 원인 분리용).
+        public string DebugState()
+            => m_Ps == null ? "ps=NULL(Init안됨/prefab없음)"
+                            : $"emit={m_Ps.emission.enabled} count={m_Ps.particleCount} size={m_Ps.main.startSize.constant:F2} cfg={(m_Config != null)}";
+
         // 이동/스프린트 상태를 받아 먼지·트레일 emission 적용.
         // owner는 Rigidbody 속도로, 원격은 NetworkVariable 복제값으로 PlayerUnit이 호출.
         public void Apply(bool isMoving, bool isSprinting)

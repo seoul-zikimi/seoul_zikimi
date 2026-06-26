@@ -377,10 +377,10 @@ namespace Player
             }
             m_DustTrail.Apply(moving, sprinting);
 
-            if (IsSpawned && !IsOwner && moving != m_DbgMoving)   // 진단: 원격에서 먼지 상태 복제 확인
+            if (IsSpawned && !IsOwner && moving != m_DbgMoving)   // 진단: 원격에서 먼지 상태 복제 + 파티클 상태 확인
             {
                 m_DbgMoving = moving;
-                Debug.Log($"[FXSync] remote dust moving={moving} sprint={sprinting}", this);
+                Debug.Log($"[FXSync] remote dust moving={moving} sprint={sprinting} | {m_DustTrail.DebugState()}", this);
             }
 
             if ((IsOwner || !IsSpawned) && moving && sprinting && Time.time >= m_NextDashSfxTime)
