@@ -651,6 +651,8 @@ namespace Player
 
             if (m_HeldVisual != null)
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
+
+            Debug.Log($"[FXSync] RebuildHeld {(IsOwner ? "owner" : "remote")} mat={matId} tool={tool} visual={(m_HeldVisual != null)}", this);
         }
 
         // 카탈로그(드는 재료 목록)를 lazy-find — 모든 클라에서 동일 에셋.
