@@ -48,6 +48,7 @@ namespace Player
         private GridNetwork m_Net;
         private GameLoopManager m_Loop;
         private MaterialDropField m_Drop;
+        private PlayerMovement m_Movement;
         private Vector3Int m_Target;
         private bool m_HasTarget;
         private GUIStyle m_HudStyle, m_BarLabel;
@@ -122,6 +123,7 @@ namespace Player
             if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
             if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
             if (m_Drop == null) m_Drop = FindFirstObjectByType<MaterialDropField>();
+            if (m_Movement == null) m_Movement = GetComponent<PlayerMovement>();
 
             var kb = Keyboard.current;
             var mouse = Mouse.current;
@@ -305,10 +307,12 @@ namespace Player
             m_HasTarget = false;
             if (m_Cam == null || m_Grid == null) return;
 
-            // 배치 높이 = 플레이어가 선 높이(기어올라간 층에서 건축). Q/E 층 선택 폐지.
-            m_BuildHeight = Mathf.Clamp(
-                Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
-                0, m_Grid.GridSize.y - 1);
+            // 배치 높이 = 플레이어가 '딛고 선' 높이. 단, 벽타기/점프/낙하 중엔 갱신하지 않는다
+            // (그 동안 transform.y가 올라가면 프리뷰가 같이 떠버림 → 접지한 순간에만 층 확정).
+            if (m_Movement == null || (!m_Movement.IsClimbing && m_Movement.IsGrounded()))
+                m_BuildHeight = Mathf.Clamp(
+                    Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
+                    0, m_Grid.GridSize.y - 1);
 
             float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
             var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
@@ -526,7 +530,7 @@ namespace Player
                 {
                     m_HeldVisual = new GameObject("~Held");
                     var vis = Instantiate(def.Prefab, m_HeldVisual.transform);
-                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) 보정
+                    vis.transform.localPosition = new Vector3(0f, -fp.y * 0.5f, 0f);   // 피벗(바닥-중심) → 머리 위 중앙 정렬
                     m_HeldVisual.transform.localScale = Vector3.one * 0.35f;
                     foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
                 }
@@ -595,8 +599,8 @@ namespace Player
             if (HasMaterial && m_HasTarget)
             {
                 Gizmos.color = Color.cyan;
-                foreach (var c in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
-                    Gizmos.DrawWireCube(GridCoordinates.CellToWorld(c) + Vector3.one * 0.5f, Vector3.one * 1.02f);
+                HeldPlacementBox(out var center, out var size);
+                Gizmos.DrawWireCube(center, size);
             }
             else if (HasTool && m_HasTarget)
             {
@@ -624,7 +628,7 @@ namespace Player
                 m_LineMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 m_LineMat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
                 m_LineMat.SetInt("_ZWrite", 0);
-                m_LineMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);   // 블록에 가려도 보이게
+                m_LineMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.LessEqual);   // 씬 깊이 따름(접지감) — 떠 보이는 현상 방지
             }
             return m_LineMat;
         }
@@ -632,6 +636,19 @@ namespace Player
         // URP 카메라 렌더 콜백에 GL 라인을 그린다(게임뷰에 확실히 보임). 메인 카메라에만.
         private void OnEnable()  => RenderPipelineManager.endCameraRendering += DrawOutline;
         private void OnDisable() => RenderPipelineManager.endCameraRendering -= DrawOutline;
+
+        // 든 재료를 놓을 자리의 월드 박스 — GridNetwork.SpawnPrefabVisual과 동일 산출(프리뷰=실제 배치 정합).
+        private void HeldPlacementBox(out Vector3 center, out Vector3 size)
+        {
+            float u = GridContract.Unit;
+            var fp = m_HeldMaterial.Footprint;
+            var cells = GridFootprint.EnumerateFootprintCells(m_Target, fp, m_Rotation);
+            Vector3Int minCell = cells[0];
+            for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
+            bool swap = ((((m_Rotation % 4) + 4) % 4) % 2) == 1;
+            size = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z) * u;
+            center = GridCoordinates.CellToWorld(minCell) + size * 0.5f;
+        }
 
         private void DrawOutline(ScriptableRenderContext ctx, Camera cam)
         {
@@ -643,11 +660,11 @@ namespace Player
             GL.modelview = cam.worldToCameraMatrix;
             GL.Begin(GL.LINES);
 
-            if (m_HasTarget && HasMaterial)                    // 든 재료의 배치 자리(시안)
+            if (m_HasTarget && HasMaterial)                    // 든 재료의 배치 자리(시안) — 놓는 블록과 동일한 박스 1개
             {
                 GL.Color(new Color(0.25f, 0.9f, 1f, 0.95f));
-                foreach (var c in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
-                    GLWireCube(GridCoordinates.CellToWorld(c) + Vector3.one * 0.5f, Vector3.one);
+                HeldPlacementBox(out var center, out var size);
+                GLWireCube(center, size);
             }
             else if (m_HasTarget && HasTool)                   // 공정 대상(노랑)
             {
