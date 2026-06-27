@@ -148,7 +148,11 @@ namespace Player
                     if (m_HasTarget) TryPlace();    // 그리드 위 → 그리드 배치
                     else             TryFreeDrop(); // 그리드 밖 → 바닥 자유 배치
                 }
-                else if (!HasTool) TryGrab();
+                else if (!HasTool)
+                {
+                    if (m_GrabValid) TryGrab();          // 바닥 픽업/도구함 우선
+                    else             TryPickupPlaced();  // 그리드 위 미고정 블록 집기
+                }
             }
 
             UpdateEKey(kb);          // E 꾹=공정(로딩바)
@@ -175,6 +179,43 @@ namespace Player
             PlaySFX(SFXType.LandObject);
             ClearHeld();
             OnPlace?.Invoke();
+        }
+
+        // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
+        private void TryPickupPlaced()
+        {
+            if (m_Loop != null && !m_Loop.IsBuilding) return;
+            if (!m_HasTarget || m_Net == null) return;
+            if (!m_Net.IsPickupable(m_Target)) return;
+            PickupPlacedServerRpc(m_Target);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void PickupPlacedServerRpc(Vector3Int cell)
+        {
+            if (m_NetMaterialId.Value >= 0 || m_NetTool.Value != 0) return;   // 복제 상태 기준 이미 손에 뭔가
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
+            if (net == null) return;
+            if (!net.ServerPickupBlock(cell, out int matId)) return;
+            m_Net = net;   // 서버 인스턴스 캐시(다음 호출 FindFirstObjectByType 회피)
+            PickupPlacedConfirmRpc(matId);
+        }
+
+        [Rpc(SendTo.Owner)]
+        private void PickupPlacedConfirmRpc(int materialId)
+        {
+            var def = Catalog() != null ? Catalog().GetById(materialId) : null;
+            if (def == null) return;
+            if (HasMaterial || HasTool)   // 인플라이트 중 다른 걸 집었음 → 분실 방지로 바닥 재드롭
+            {
+                if (m_Drop != null) m_Drop.RequestDrop(materialId, transform.position + Vector3.up * 0.6f);
+                return;
+            }
+            m_HeldMaterial = def;
+            m_HeldTool = ProcessType.None;
+            m_NetMaterialId.Value = def.Id;   // owner write
+            m_NetTool.Value = 0;
+            PlaySFX(SFXType.PickUpObject);
         }
 
         // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
@@ -737,6 +778,8 @@ namespace Player
             string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
                         : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
                         :               "빈손 — 우상단서 주문 → 배송 구역에서 좌클릭으로 줍기 (작업장서 좌클릭=도구)";
+            if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
+                held = "빈손 — 좌클릭 = 미고정 블록 집기 (고정 전)";
             string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
             string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
             string grab = !m_GrabValid ? "없음"

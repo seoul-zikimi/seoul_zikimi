@@ -35,6 +35,15 @@ namespace GridSystem
             return false;
         }
 
+        /// <summary>해당 셀이 '미고정 하중부재'(고정 전)면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)</summary>
+        public bool IsPickupable(Vector3Int cell)
+        {
+            if (!TryGetCell(cell, out int matId, out int completed)) return false;
+            var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
+            if (def == null) return false;
+            return def.MustBeFixed && (completed & (int)ProcessType.Fixed) == 0;
+        }
+
         private GridManager m_Manager;
         private MaterialDropField m_DropField; // 같은 오브젝트(붕괴/철거 재료를 바닥에 떨굼)
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
@@ -111,6 +120,32 @@ namespace GridSystem
 
             foreach (var co in m_ServerGrid.SettleUnsupported())     // 받침 사라짐 → 위 미고정 블록 연쇄
                 RemoveCollapsed(co);
+        }
+
+        /// <summary>서버: 미고정 블록을 그리드에서 제거(바닥 드롭 없이) + 재료 id 반환. 좌클릭 집기 전용.</summary>
+        public bool ServerPickupBlock(Vector3Int cell, out int materialId)
+        {
+            materialId = -1;
+            if (!IsServer) return false;
+            var cs = m_ServerGrid.GetCell(cell);
+            if (!cs.occupied) return false;
+
+            // 서버 권위 재검증: 미고정 하중부재만(고정 완료 블록은 C로만)
+            var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
+            if (def == null || !def.MustBeFixed || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
+                return false;
+
+            ulong owner = cs.ownerObjectId;
+            materialId = cs.materialId;
+            m_ServerGrid.Remove(cell);                       // 같은 owner 전 셀 제거(멀티셀)
+
+            for (int i = m_Cells.Count - 1; i >= 0; i--)
+                if (m_Cells[i].ownerObjectId == owner) m_Cells.RemoveAt(i);
+
+            foreach (var co in m_ServerGrid.SettleUnsupported())   // 받침 잃은 위 블록은 기존대로 무너져 드롭
+                RemoveCollapsed(co);
+
+            return true;   // 집은 블록 자체는 드롭 X → 손으로
         }
 
         [Rpc(SendTo.Server)]
