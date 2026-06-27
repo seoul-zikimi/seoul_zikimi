@@ -143,7 +143,11 @@ namespace Player
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
             if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
             {
-                if (HasMaterial)   TryPlace();
+                if (HasMaterial)
+                {
+                    if (m_HasTarget) TryPlace();    // 그리드 위 → 그리드 배치
+                    else             TryFreeDrop(); // 그리드 밖 → 바닥 자유 배치
+                }
                 else if (!HasTool) TryGrab();
             }
 
@@ -155,6 +159,22 @@ namespace Player
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
 
             UpdatePreview();     // 배치 미리보기(반투명 박스 GameObject — GL 폐지)
+        }
+        
+        private void TryFreeDrop()
+        {
+            if (!HasMaterial || m_Drop == null) return;
+            // 마우스 레이 → Y=0 평면(바닥)과 교점 구하기
+            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+            var plane = new Plane(Vector3.up, Vector3.zero);  // Y=0 바닥
+            if (!plane.Raycast(ray, out float dist)) return;
+            Vector3 dropPos = ray.GetPoint(dist);
+            dropPos.y = 0.5f;  // 바닥 위 약간 뜨게
+            // MaterialDropField의 RequestDrop을 사용해 그 위치에 픽업으로 떨굼
+            m_Drop.RequestDrop(m_HeldMaterial.Id, dropPos);
+            PlaySFX(SFXType.LandObject);
+            ClearHeld();
+            OnPlace?.Invoke();
         }
 
         // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
@@ -307,7 +327,6 @@ namespace Player
 
         private void UpdateTarget()
         {
-            m_HasTarget = false;
             if (m_Cam == null || m_Grid == null) return;
 
             // 배치 높이 = 플레이어가 '딛고 선' 높이. 단, 벽타기/점프/낙하 중엔 갱신하지 않는다
