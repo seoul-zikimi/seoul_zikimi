@@ -555,10 +555,11 @@ namespace Player
                 if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) return;
                 if (!m_Net.IsCellFree(cell)) return;
             }
-            // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지)
+            // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
                     GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation),
-                    cell => !m_Net.IsCellFree(cell)))
+                    cell => !m_Net.IsCellFree(cell),
+                    cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
                 return;
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);

@@ -59,7 +59,10 @@ namespace GridSystem
         public override void OnNetworkSpawn()
         {
             if (IsServer)
+            {
                 m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+                m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);   // 환경 바닥·스캐폴드도 지지로 인정
+            }
 
             m_VisualRoot = new GameObject("~GridVisuals");
             m_Cells.OnListChanged += OnCellsChanged;
@@ -237,6 +240,7 @@ namespace GridSystem
         {
             if (!IsServer) return;
             m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+            m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
             if (m_DropField != null) m_DropField.ServerReset();   // 바닥 재료도 정리
