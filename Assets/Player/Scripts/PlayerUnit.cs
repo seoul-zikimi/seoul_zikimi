@@ -24,6 +24,7 @@ namespace Player
         private Coroutine          m_SpawnRoutine;
         private float              m_NextFallRecoveryTime;
         private bool               m_DbgMoving;   // 진단용(원격 먼지 복제 로그 throttle)
+        
 
         [Header("비계 (더블탭 Space)")]
         [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.

@@ -90,11 +90,16 @@ namespace GridSystem
 
             ulong owner = ++m_OwnerCounter;
             m_ServerGrid.Place(anchor, mat, rot, owner);
+
+            // 망치질이 필요 없는 재료(바닥 등 비-하중부재)는 배치 즉시 '고정'(앵커) → 위에 다른 블록 놓아도 안 무너짐.
+            int initialMask = mat.MustBeFixed ? 0 : (int)ProcessType.Fixed;
+            if (initialMask != 0) m_ServerGrid.TryApplyProcess(anchor, ProcessType.Fixed, mat);
+
             foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
                 m_Cells.Add(new CellEntry
                 {
                     cell = c, materialId = materialId, rotationStep = rot,
-                    completedProcessMask = 0, ownerObjectId = owner
+                    completedProcessMask = initialMask, ownerObjectId = owner
                 });
 
             // 트리거②: 미고정 오브젝트 위에 놓임 → 그 미고정 지지물(+연쇄) 무너짐
