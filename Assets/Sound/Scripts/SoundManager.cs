@@ -131,7 +131,7 @@ public class SoundManager : Singleton<SoundManager>
     public void SetPhase(GamePhase phase)
     {
         if (_bgmMap.TryGetValue(phase, out var clip))
-            PlayBGM(clip, ShouldLoopPhase(phase));
+            PlayBGM(clip, true);
     }
 
     /// <summary>지정 클립으로 crossfade(라이브러리 미등록 곡도 가능). 같은 곡이면 무시.</summary>
@@ -165,10 +165,7 @@ public class SoundManager : Singleton<SoundManager>
         _bgmTween = seq;
     }
 
-    static bool ShouldLoopPhase(GamePhase phase)
-    {
-        return phase != GamePhase.Building && phase != GamePhase.BuildingUrgent;
-    }
+ 
 
     /// <summary>BGM 즉시 정지.</summary>
     public void StopBGM()
