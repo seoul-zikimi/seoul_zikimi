@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -53,7 +54,15 @@ public class SoundManager : Singleton<SoundManager>
         DontDestroyOnLoad(this.gameObject);
         BuildMaps();
         BuildAudioSources();
-        LoadVolumes();
+        // 볼륨 적용은 Start(한 프레임 뒤)로 — AudioMixer.SetFloat는 Awake 프레임엔 안 먹는 Unity 버그.
+    }
+
+    // AudioMixer는 Awake/첫 프레임엔 SetFloat가 적용되지 않는다(Unity 버그) → 한 프레임 뒤 저장 볼륨 적용.
+    // (런타임 드래그는 정상 적용되나, 시작 시 로드값이 안 먹어 재시작하면 소리가 다시 커지는 문제 해결.)
+    IEnumerator Start()
+    {
+        yield return null;
+        if (Instance == this) LoadVolumes();
     }
 
     // ── 초기화 ───────────────────────────────────────────
@@ -122,7 +131,7 @@ public class SoundManager : Singleton<SoundManager>
     public void SetPhase(GamePhase phase)
     {
         if (_bgmMap.TryGetValue(phase, out var clip))
-            PlayBGM(clip, ShouldLoopPhase(phase));
+            PlayBGM(clip, true);
     }
 
     /// <summary>지정 클립으로 crossfade(라이브러리 미등록 곡도 가능). 같은 곡이면 무시.</summary>
@@ -156,10 +165,7 @@ public class SoundManager : Singleton<SoundManager>
         _bgmTween = seq;
     }
 
-    static bool ShouldLoopPhase(GamePhase phase)
-    {
-        return phase != GamePhase.Building && phase != GamePhase.BuildingUrgent;
-    }
+ 
 
     /// <summary>BGM 즉시 정지.</summary>
     public void StopBGM()
@@ -235,4 +241,11 @@ public class SoundManager : Singleton<SoundManager>
         _mixer.SetFloat("SFXVolume", Mathf.Log10(linear) * 20f);
         PlayerPrefs.SetFloat("SFXVolume", linear);
     }
+
+    /// <summary>볼륨 설정(PlayerPrefs)을 디스크에 보장 저장. UI가 설정 닫을 때 호출.
+    /// SetFloat은 메모리 캐시만 갱신하므로, 드래그마다 말고 닫기/종료 시 1회 호출(I/O 폭주 방지).</summary>
+    public void SaveVolumes() => PlayerPrefs.Save();
+
+    void OnApplicationQuit() => SaveVolumes();
+    void OnApplicationPause(bool paused) { if (paused) SaveVolumes(); }
 }

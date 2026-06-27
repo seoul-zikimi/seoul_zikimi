@@ -118,8 +118,14 @@ public sealed class JobsnailMainMenu : MonoBehaviour
 
     private void ToggleSettings()
     {
-        if (m_SettingsPopup != null)
-            m_SettingsPopup.SetActive(!m_SettingsPopup.activeSelf);
+        if (m_SettingsPopup == null) return;
+        bool show = !m_SettingsPopup.activeSelf;
+        m_SettingsPopup.SetActive(show);
+        if (!show)   // 닫을 때 볼륨 설정 저장 — SoundManager에 위임(없으면 폴백)
+        {
+            if (SoundManager.Instance != null) SoundManager.Instance.SaveVolumes();
+            else PlayerPrefs.Save();
+        }
     }
 
     private void BuildSettingsPopup(Transform root)

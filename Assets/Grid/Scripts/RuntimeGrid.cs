@@ -16,6 +16,10 @@ namespace GridSystem
 
         public RuntimeGrid(Vector3Int size) => Size = size;
 
+        /// <summary>그리드 외(환경 바닥·스캐폴드 등) 솔리드가 그 셀을 받치는지 묻는 훅. Unity 물리 의존이라
+        /// 호스트(GridNetwork)가 주입한다. null이면 순수 그리드 규칙만(유닛테스트 기본). 배치·무너짐이 함께 본다.</summary>
+        public System.Func<Vector3Int, bool> ExternalSupportBelow;
+
         public bool IsInBounds(Vector3Int cell)
             => cell.x >= 0 && cell.x < Size.x
             && cell.y >= 0 && cell.y < Size.y
@@ -164,6 +168,8 @@ namespace GridSystem
                 var below = new Vector3Int(c.x, c.y - 1, c.z);
                 if (m_Cells.TryGetValue(below, out var b) && b.occupied && b.ownerObjectId != owner)
                     return true;                                    // 다른 오브젝트가 받쳐줌
+                if (ExternalSupportBelow != null && ExternalSupportBelow(below))
+                    return true;                                    // 환경/스캐폴드 위에 얹힘
             }
             return false;
         }
@@ -210,7 +216,7 @@ namespace GridSystem
         {
             if (material == null) return false;
             return GridSupport.WouldBeSupported(
-                GridFootprint.EnumerateFootprintCells(anchor, material.Footprint, rotationStep), IsOccupied);
+                GridFootprint.EnumerateFootprintCells(anchor, material.Footprint, rotationStep), IsOccupied, ExternalSupportBelow);
         }
 
         /// <summary>새로 놓인 오브젝트(owner) 바로 아래에 깔린 '미고정' 오브젝트들의 대표 셀(트리거②: 미고정 위에 놓기).</summary>

@@ -29,6 +29,12 @@ namespace Player
         [SerializeField] private float m_ProcessSeconds = 1.2f;
         [Tooltip("재료를 던질 수 있는 최대 거리(칸). 조준점이 더 멀면 이 거리까지만 날아간다.")]
         [SerializeField] private float m_ThrowRange = 6f;
+        [Tooltip("든 '망치'(고정 도구) 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
+        [SerializeField] private GameObject m_HammerModel;
+        [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
+        [SerializeField] private GameObject m_PaintCanModel;
+        [Tooltip("든 도구 모델 스케일.")]
+        [SerializeField] private float m_ToolModelScale = 0.4f;
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -143,8 +149,16 @@ namespace Player
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
             if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
             {
-                if (HasMaterial)   TryPlace();
-                else if (!HasTool) TryGrab();
+                if (HasMaterial)
+                {
+                    if (m_HasTarget) TryPlace();    // 그리드 위 → 그리드 배치
+                    else             TryFreeDrop(); // 그리드 밖 → 바닥 자유 배치
+                }
+                else if (!HasTool)
+                {
+                    if (m_GrabValid) TryGrab();          // 바닥 픽업/도구함 우선
+                    else             TryPickupPlaced();  // 그리드 위 미고정 블록 집기
+                }
             }
 
             UpdateEKey(kb);          // E 꾹=공정(로딩바)
@@ -155,6 +169,59 @@ namespace Player
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
 
             UpdatePreview();     // 배치 미리보기(반투명 박스 GameObject — GL 폐지)
+        }
+        
+        private void TryFreeDrop()
+        {
+            if (!HasMaterial || m_Drop == null) return;
+            // 마우스 레이 → Y=0 평면(바닥)과 교점 구하기
+            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+            var plane = new Plane(Vector3.up, Vector3.zero);  // Y=0 바닥
+            if (!plane.Raycast(ray, out float dist)) return;
+            Vector3 dropPos = ray.GetPoint(dist);
+            dropPos.y = 0.5f;  // 바닥 위 약간 뜨게
+            // MaterialDropField의 RequestDrop을 사용해 그 위치에 픽업으로 떨굼
+            m_Drop.RequestDrop(m_HeldMaterial.Id, dropPos);
+            PlaySFX(SFXType.LandObject);
+            ClearHeld();
+            OnPlace?.Invoke();
+        }
+
+        // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
+        private void TryPickupPlaced()
+        {
+            if (m_Loop != null && !m_Loop.IsBuilding) return;
+            if (!m_HasTarget || m_Net == null) return;
+            if (!m_Net.IsPickupable(m_Target)) return;
+            PickupPlacedServerRpc(m_Target);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void PickupPlacedServerRpc(Vector3Int cell)
+        {
+            if (m_NetMaterialId.Value >= 0 || m_NetTool.Value != 0) return;   // 복제 상태 기준 이미 손에 뭔가
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
+            if (net == null) return;
+            if (!net.ServerPickupBlock(cell, out int matId)) return;
+            m_Net = net;   // 서버 인스턴스 캐시(다음 호출 FindFirstObjectByType 회피)
+            PickupPlacedConfirmRpc(matId);
+        }
+
+        [Rpc(SendTo.Owner)]
+        private void PickupPlacedConfirmRpc(int materialId)
+        {
+            var def = Catalog() != null ? Catalog().GetById(materialId) : null;
+            if (def == null) return;
+            if (HasMaterial || HasTool)   // 인플라이트 중 다른 걸 집었음 → 분실 방지로 바닥 재드롭
+            {
+                if (m_Drop != null) m_Drop.RequestDrop(materialId, transform.position + Vector3.up * 0.6f);
+                return;
+            }
+            m_HeldMaterial = def;
+            m_HeldTool = ProcessType.None;
+            m_NetMaterialId.Value = def.Id;   // owner write
+            m_NetTool.Value = 0;
+            PlaySFX(SFXType.PickUpObject);
         }
 
         // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
@@ -180,7 +247,7 @@ namespace Player
             if (m_ProcessHold >= m_ProcessSeconds)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
-                PlaySFX(m_HeldTool == ProcessType.Painted ? SFXType.Painting : SFXType.Hammering);
+                PlayProcessSfx(m_HeldTool == ProcessType.Painted);             // 로컬 + 원격 복제(옆 플레이어도 들림)
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
@@ -307,7 +374,6 @@ namespace Player
 
         private void UpdateTarget()
         {
-            m_HasTarget = false;
             if (m_Cam == null || m_Grid == null) return;
 
             // 배치 높이 = 플레이어가 '딛고 선' 높이. 단, 벽타기/점프/낙하 중엔 갱신하지 않는다
@@ -491,10 +557,11 @@ namespace Player
                 if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) return;
                 if (!m_Net.IsCellFree(cell)) return;
             }
-            // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지)
+            // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
                     GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation),
-                    cell => !m_Net.IsCellFree(cell)))
+                    cell => !m_Net.IsCellFree(cell),
+                    cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
                 return;
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
@@ -508,6 +575,20 @@ namespace Player
             if (SoundManager.Instance != null)
                 SoundManager.Instance.PlaySFX(type);
         }
+
+        // 공정 소리: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 들리게).
+        private void PlayProcessSfx(bool painted)
+        {
+            PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
+            if (IsSpawned) RequestProcessSfxRpc(painted);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestProcessSfxRpc(bool painted) => ProcessSfxRpc(painted);
+
+        [Rpc(SendTo.NotOwner)]
+        private void ProcessSfxRpc(bool painted)
+            => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
 
         private void TryRemove()
         {
@@ -546,12 +627,26 @@ namespace Player
                     StripCollider(m_HeldVisual);
                 }
             }
-            else if (tool != 0)   // 든 도구(구) — 망치=파랑(고정) / 페인트통=초록(페인트)
+            else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
-                m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                m_HeldVisual.transform.localScale = Vector3.one * 0.4f;
-                Paint(m_HeldVisual, ColorForMask(tool));
-                StripCollider(m_HeldVisual);
+                var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel
+                          : (tool & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
+                          : null;
+                if (model != null)
+                {
+                    m_HeldVisual = new GameObject("~Held");
+                    var vis = Instantiate(model, m_HeldVisual.transform);
+                    vis.transform.localPosition = Vector3.zero;
+                    m_HeldVisual.transform.localScale = Vector3.one * m_ToolModelScale;
+                    foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
+                }
+                else
+                {
+                    m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    m_HeldVisual.transform.localScale = Vector3.one * 0.4f;
+                    Paint(m_HeldVisual, ColorForMask(tool));
+                    StripCollider(m_HeldVisual);
+                }
             }
 
             if (m_HeldVisual != null)
@@ -697,12 +792,15 @@ namespace Player
         private void OnGUI()
         {
             if (!IsOwner || !Application.isPlaying) return;
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene) return;   // 조작법 HUD는 GameScene만
             if (m_HudStyle == null)
                 m_HudStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
 
             string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
                         : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
                         :               "빈손 — 우상단서 주문 → 배송 구역에서 좌클릭으로 줍기 (작업장서 좌클릭=도구)";
+            if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
+                held = "빈손 — 좌클릭 = 미고정 블록 집기 (고정 전)";
             string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
             string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
             string grab = !m_GrabValid ? "없음"

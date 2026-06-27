@@ -1,12 +1,14 @@
 using System.Collections.Generic;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 namespace Player
 {
     /// <summary>
-    /// 게임 상태 → Animator 파라미터 구동(스켈레톤). Animator/클립은 나중에 Body에 붙임 — 없으면 무동작.
-    /// 우선 내 캐릭터(owner)만. 파라미터: Speed/Grounded/Climbing/ClimbDir/Holding/HoldingTool/Processing + PutDown/Throw(trigger).
-    /// 원격 캐릭터 애니(복제·RPC)는 후속.
+    /// 게임 상태 → Animator 파라미터 구동. owner만 구동하고, OwnerNetworkAnimator가 원격 클라로 복제한다.
+    /// 연속/Bool 파라미터(Speed/Grounded/Climbing/Processing)는 NetworkAnimator 폴링으로 자동 동기화,
+    /// 트리거(Throw)는 NetworkAnimator.SetTrigger로 명시 전송. 원격에선 Update가 owner-가드라 무동작.
+    /// 파라미터: Speed/Grounded/Climbing/ClimbDir/Holding/HoldingTool/Processing + PutDown/Throw(trigger).
     /// </summary>
     [RequireComponent(typeof(PlayerMovement), typeof(PlayerCarry))]
     public class PlayerAnimator : MonoBehaviour
@@ -22,6 +24,7 @@ namespace Player
         static readonly int P_Throw       = Animator.StringToHash("Throw");
 
         private Animator m_Anim;
+        private NetworkAnimator m_NetAnim;   // 트리거 복제용(없으면 싱글/테스트로 간주, 로컬 폴백)
         private PlayerMovement m_Move;
         private PlayerCarry m_Carry;
         private PlayerInputHandler m_Input;
@@ -30,11 +33,12 @@ namespace Player
 
         private void Awake()
         {
-            m_Anim  = GetComponentInChildren<Animator>();   // 나중에 Body에 Animator 붙이면 자동 연결(없으면 null)
-            m_Move  = GetComponent<PlayerMovement>();
-            m_Carry = GetComponent<PlayerCarry>();
-            m_Input = GetComponent<PlayerInputHandler>();
-            m_Rb    = GetComponent<Rigidbody>();
+            m_Anim    = GetComponentInChildren<Animator>();   // model 자식 Animator 자동 연결(없으면 null)
+            m_NetAnim = GetComponent<NetworkAnimator>();      // 루트의 OwnerNetworkAnimator(없으면 로컬 폴백)
+            m_Move    = GetComponent<PlayerMovement>();
+            m_Carry   = GetComponent<PlayerCarry>();
+            m_Input   = GetComponent<PlayerInputHandler>();
+            m_Rb      = GetComponent<Rigidbody>();
         }
 
         private void OnEnable()
@@ -47,8 +51,17 @@ namespace Player
             if (m_Carry != null) { m_Carry.OnPlace -= HandlePlace; m_Carry.OnThrow -= HandleThrow; }
         }
 
-        private void HandlePlace() { if (Has(P_PutDown)) m_Anim.SetTrigger(P_PutDown); }
-        private void HandleThrow() { if (Has(P_Throw))   m_Anim.SetTrigger(P_Throw); }
+        private void HandlePlace() => FireTrigger(P_PutDown);
+        private void HandleThrow() => FireTrigger(P_Throw);
+
+        // 트리거 발사: owner만(원격은 NetworkAnimator가 받아 재생). NetworkAnimator 경유로 복제, 없으면 로컬.
+        private void FireTrigger(int hash)
+        {
+            if (m_Carry != null && !m_Carry.IsOwner) return;
+            if (!Has(hash)) return;   // 컨트롤러에 없는 트리거는 무시
+            if (m_NetAnim != null) m_NetAnim.SetTrigger(hash);
+            else                   m_Anim.SetTrigger(hash);
+        }
 
         // 컨트롤러에 있는 파라미터만 세팅(없으면 경고 → 무시). 지연 캐시.
         private bool Has(int hash)

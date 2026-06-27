@@ -297,7 +297,7 @@ namespace GridSystem
             if (o.def != null && o.def.Prefab != null)
             {
                 go = Instantiate(o.def.Prefab, parent);
-                go.transform.SetPositionAndRotation(pos, rot);
+                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u);   // min-corner + 메시 90° 어긋남 자동 보정
                 foreach (var col in go.GetComponentsInChildren<Collider>()) Destroy(col);
                 if (ghost) MakeTransparent(go, kGhostAlpha);
             }

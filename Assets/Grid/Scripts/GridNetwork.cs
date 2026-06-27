@@ -35,6 +35,15 @@ namespace GridSystem
             return false;
         }
 
+        /// <summary>해당 셀이 '미고정 하중부재'(고정 전)면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)</summary>
+        public bool IsPickupable(Vector3Int cell)
+        {
+            if (!TryGetCell(cell, out int matId, out int completed)) return false;
+            var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
+            if (def == null) return false;
+            return def.MustBeFixed && (completed & (int)ProcessType.Fixed) == 0;
+        }
+
         private GridManager m_Manager;
         private MaterialDropField m_DropField; // 같은 오브젝트(붕괴/철거 재료를 바닥에 떨굼)
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
@@ -50,7 +59,10 @@ namespace GridSystem
         public override void OnNetworkSpawn()
         {
             if (IsServer)
+            {
                 m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+                m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);   // 환경 바닥·스캐폴드도 지지로 인정
+            }
 
             m_VisualRoot = new GameObject("~GridVisuals");
             m_Cells.OnListChanged += OnCellsChanged;
@@ -78,11 +90,16 @@ namespace GridSystem
 
             ulong owner = ++m_OwnerCounter;
             m_ServerGrid.Place(anchor, mat, rot, owner);
+
+            // 망치질이 필요 없는 재료(바닥 등 비-하중부재)는 배치 즉시 '고정'(앵커) → 위에 다른 블록 놓아도 안 무너짐.
+            int initialMask = mat.MustBeFixed ? 0 : (int)ProcessType.Fixed;
+            if (initialMask != 0) m_ServerGrid.TryApplyProcess(anchor, ProcessType.Fixed, mat);
+
             foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
                 m_Cells.Add(new CellEntry
                 {
                     cell = c, materialId = materialId, rotationStep = rot,
-                    completedProcessMask = 0, ownerObjectId = owner
+                    completedProcessMask = initialMask, ownerObjectId = owner
                 });
 
             // 트리거②: 미고정 오브젝트 위에 놓임 → 그 미고정 지지물(+연쇄) 무너짐
@@ -111,6 +128,32 @@ namespace GridSystem
 
             foreach (var co in m_ServerGrid.SettleUnsupported())     // 받침 사라짐 → 위 미고정 블록 연쇄
                 RemoveCollapsed(co);
+        }
+
+        /// <summary>서버: 미고정 블록을 그리드에서 제거(바닥 드롭 없이) + 재료 id 반환. 좌클릭 집기 전용.</summary>
+        public bool ServerPickupBlock(Vector3Int cell, out int materialId)
+        {
+            materialId = -1;
+            if (!IsServer) return false;
+            var cs = m_ServerGrid.GetCell(cell);
+            if (!cs.occupied) return false;
+
+            // 서버 권위 재검증: 미고정 하중부재만(고정 완료 블록은 C로만)
+            var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
+            if (def == null || !def.MustBeFixed || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
+                return false;
+
+            ulong owner = cs.ownerObjectId;
+            materialId = cs.materialId;
+            m_ServerGrid.Remove(cell);                       // 같은 owner 전 셀 제거(멀티셀)
+
+            for (int i = m_Cells.Count - 1; i >= 0; i--)
+                if (m_Cells[i].ownerObjectId == owner) m_Cells.RemoveAt(i);
+
+            foreach (var co in m_ServerGrid.SettleUnsupported())   // 받침 잃은 위 블록은 기존대로 무너져 드롭
+                RemoveCollapsed(co);
+
+            return true;   // 집은 블록 자체는 드롭 X → 손으로
         }
 
         [Rpc(SendTo.Server)]
@@ -202,6 +245,7 @@ namespace GridSystem
         {
             if (!IsServer) return;
             m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+            m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
             if (m_DropField != null) m_DropField.ServerReset();   // 바닥 재료도 정리
@@ -292,18 +336,10 @@ namespace GridSystem
         // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 프리팹 피벗=바닥 → X/Z만 중심, Y는 셀 바닥에 안착.
         private void SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
         {
-            var fp = def.Footprint;
-            var r = Quaternion.Euler(0f, 90f * rot, 0f);
             float u = GridContract.Unit;
-
-            // 프리팹 피벗=바닥 XZ min-corner(로컬 0,0,0 = 점유 칸의 최솟값 모서리).
-            // Autotiles3D InternalPosition = min-corner이므로 추가 오프셋 없이 minCell 월드좌표에 바로 배치.
-            bool swap = (((((rot % 4) + 4) % 4) % 2) == 1);
-            var dims = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z);
-
             var go = Instantiate(def.Prefab, m_VisualRoot.transform);
-            go.transform.rotation = r;
-            go.transform.position = GridCoordinates.CellToWorld(minCell);
+            // 피벗=min-corner 가정 + 메시가 footprint와 90° 다르면 자동 보정.
+            GridFootprint.PlaceRotatedPrefab(go, GridCoordinates.CellToWorld(minCell), def.Footprint, rot, u);
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(~Solid가 막음)
         }
 

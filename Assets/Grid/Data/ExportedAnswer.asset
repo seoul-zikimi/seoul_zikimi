@@ -819,5 +819,5 @@ MonoBehaviour:
     materialId: 6
     rotationStep: 0
   m_StartPilePosition: {x: 0, y: 0, z: 0}
-  m_TimeLimitSeconds: 180
+  m_TimeLimitSeconds: 600
   m_AnswerImage: {fileID: 0}

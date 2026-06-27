@@ -23,6 +23,16 @@ namespace Player
         private float              m_NextDashSfxTime;
         private Coroutine          m_SpawnRoutine;
         private float              m_NextFallRecoveryTime;
+        private bool               m_DbgMoving;   // 진단용(원격 먼지 복제 로그 throttle)
+
+        [Header("비계 (더블탭 Space)")]
+        [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
+        [SerializeField] private Material   m_ScaffoldMaterial;  // 폴백 큐브 색(프리팹 없을 때만)
+        // 서버 권위 상태: 이 플레이어의 비계 셀 목록. 모든 클라가 이 리스트로 로컬 비계(콜라이더+외형) 재구성.
+        private readonly NetworkList<Vector3Int> m_NetScaffolds = new();
+        private readonly List<GameObject> m_Scaffolds = new();   // 로컬 비주얼(모든 클라)
+        private Vector2Int m_ScaffoldColumn;   // owner 판단용(기둥 칸)
+        private bool m_HasScaffolds;            // owner 판단용
 
         [Header("비계 (더블탭 Space)")]
         [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
@@ -38,6 +48,12 @@ namespace Player
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<bool> m_NetSprinting = new(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // 비주얼 모델의 바라보는 yaw 복제 → 원격에서 방향 전환 동기화 (owner가 write, PlayerFacing이 read)
+        private readonly NetworkVariable<float> m_NetFacingYaw = new(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        public float FacingYaw => m_NetFacingYaw.Value;
+        public void ReportFacingYaw(float yaw) { if (IsSpawned && IsOwner) m_NetFacingYaw.Value = yaw; }
 
         public string ProductName { get; set; }
 
@@ -73,6 +89,13 @@ namespace Player
             {
                 var follow = m_CameraArm.gameObject.AddComponent<PlayerCameraFollow>();
                 follow.Init(transform);
+
+                // ── 시야 가림 반투명: 카메라→플레이어 사이 콜라이더를 α=0.2로 ──
+                if (m_CinemachineCamera != null)
+                {
+                    var fader = m_CinemachineCamera.gameObject.AddComponent<CameraObstructionFader>();
+                    fader.Init(m_CameraArm);   // 카메라가 바라보는 지점(허리 높이)
+                }
             }
         }
 
@@ -362,6 +385,12 @@ namespace Player
                 }
             }
             m_DustTrail.Apply(moving, sprinting);
+
+            if (IsSpawned && !IsOwner && moving != m_DbgMoving)   // 진단: 원격에서 먼지 상태 복제 + 파티클 상태 확인
+            {
+                m_DbgMoving = moving;
+                Debug.Log($"[FXSync] remote dust moving={moving} sprint={sprinting} | {m_DustTrail.DebugState()}", this);
+            }
 
             if ((IsOwner || !IsSpawned) && moving && sprinting && Time.time >= m_NextDashSfxTime)
             {
