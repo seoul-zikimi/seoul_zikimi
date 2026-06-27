@@ -31,6 +31,8 @@ namespace Player
         [SerializeField] private float m_ThrowRange = 6f;
         [Tooltip("든 '망치'(고정 도구) 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
         [SerializeField] private GameObject m_HammerModel;
+        [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
+        [SerializeField] private GameObject m_PaintCanModel;
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
 
@@ -627,7 +629,9 @@ namespace Player
             }
             else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
-                var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel : null;
+                var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel
+                          : (tool & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
+                          : null;
                 if (model != null)
                 {
                     m_HeldVisual = new GameObject("~Held");

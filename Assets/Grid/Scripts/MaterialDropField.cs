@@ -14,6 +14,8 @@ namespace GridSystem
     {
         [Tooltip("던져진/버려진 '망치'(고정 도구)의 바닥 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
         [SerializeField] private GameObject m_HammerModel;
+        [Tooltip("던져진/버려진 '페인트통'(페인트 도구)의 바닥 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
+        [SerializeField] private GameObject m_PaintCanModel;
         [Tooltip("도구 픽업 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.5f;
 
@@ -192,7 +194,9 @@ namespace GridSystem
             GameObject go;
             if (p.toolBit != 0)   // 던져진 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구슬
             {
-                var model = (p.toolBit & (int)ProcessType.Fixed) != 0 ? m_HammerModel : null;
+                var model = (p.toolBit & (int)ProcessType.Fixed) != 0 ? m_HammerModel
+                          : (p.toolBit & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
+                          : null;
                 if (model != null)
                 {
                     go = new GameObject($"~PickupTool{p.pickupId}");
