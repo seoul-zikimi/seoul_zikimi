@@ -24,7 +24,8 @@ namespace Player
                 RotateSpeed = m_RotateSpeed, ZoomSpeed = m_ZoomSpeed,
                 PitchMin = m_VertMin, PitchMax = m_VertMax,
                 DistMin  = m_DistMin, DistMax  = m_DistMax,
-                Pitch = 30f, Distance = 10f,   // 30° = 빌드 내려다보면서 하늘도 보이는 절충
+                Pitch = 45f,      // 30° → 45°: 더 위에서 내려다봄
+                Distance = 12f,   // 10f → 12f: 조금 더 멀리
             };
         }
 
@@ -42,7 +43,7 @@ namespace Player
             // ── 피치/줌만 공유 오빗으로(yaw=0으로 적분 → 팔이 담당) ──
             m_Orbit.Integrate(new Vector2(0f, rot.y), zoom);
             transform.localPosition = m_Orbit.LocalOffset();
-            transform.LookAt(m_CameraArm.position);
+            transform.LookAt(m_CameraArm.position + Vector3.up * 1.0f);
         }
     }
 }
