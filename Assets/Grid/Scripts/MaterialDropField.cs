@@ -12,6 +12,11 @@ namespace GridSystem
     [RequireComponent(typeof(GridManager))]
     public class MaterialDropField : NetworkBehaviour
     {
+        [Tooltip("던져진/버려진 '망치'(고정 도구)의 바닥 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
+        [SerializeField] private GameObject m_HammerModel;
+        [Tooltip("도구 픽업 모델 스케일.")]
+        [SerializeField] private float m_ToolModelScale = 0.5f;
+
         private const float kKickDistance = 1.6f;
 
         private readonly NetworkList<PickupEntry> m_Pickups = new();
@@ -185,14 +190,26 @@ namespace GridSystem
         private GameObject MakeVisual(PickupEntry p, bool animate)
         {
             GameObject go;
-            if (p.toolBit != 0)   // 던져진 도구 — 든 도구와 같은 색 구슬(파랑=망치/초록=페인트통)
+            if (p.toolBit != 0)   // 던져진 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구슬
             {
-                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.name = $"~PickupTool{p.pickupId}";
-                go.transform.localScale = Vector3.one * 0.5f;
-                var tc = go.GetComponent<Collider>();
-                if (tc != null) Destroy(tc);
-                SetColor(go, ColorForMask(p.toolBit));
+                var model = (p.toolBit & (int)ProcessType.Fixed) != 0 ? m_HammerModel : null;
+                if (model != null)
+                {
+                    go = new GameObject($"~PickupTool{p.pickupId}");
+                    var vis = Instantiate(model, go.transform);
+                    vis.transform.localPosition = Vector3.zero;
+                    go.transform.localScale = Vector3.one * m_ToolModelScale;
+                    foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+                }
+                else
+                {
+                    go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    go.name = $"~PickupTool{p.pickupId}";
+                    go.transform.localScale = Vector3.one * 0.5f;
+                    var tc = go.GetComponent<Collider>();
+                    if (tc != null) Destroy(tc);
+                    SetColor(go, ColorForMask(p.toolBit));
+                }
                 go.transform.SetParent(m_Root.transform, true);
                 var tbody = go.AddComponent<PickupBody>();
                 tbody.SetIdentity(this, p.pickupId, p.materialId, p.toolBit);

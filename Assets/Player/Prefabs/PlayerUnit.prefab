@@ -343,6 +343,8 @@ MonoBehaviour:
   m_GrabRange: 2.5
   m_ProcessSeconds: 1.2
   m_ThrowRange: 6
+  m_HammerModel: {fileID: 3939406923825996935, guid: 43caca03382ec364ea6d9321d50d92a3, type: 3}
+  m_ToolModelScale: 0.4
 --- !u!114 &5322060586137079395
 MonoBehaviour:
   m_ObjectHideFlags: 0

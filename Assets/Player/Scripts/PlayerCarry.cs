@@ -29,6 +29,10 @@ namespace Player
         [SerializeField] private float m_ProcessSeconds = 1.2f;
         [Tooltip("재료를 던질 수 있는 최대 거리(칸). 조준점이 더 멀면 이 거리까지만 날아간다.")]
         [SerializeField] private float m_ThrowRange = 6f;
+        [Tooltip("든 '망치'(고정 도구) 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
+        [SerializeField] private GameObject m_HammerModel;
+        [Tooltip("든 도구 모델 스케일.")]
+        [SerializeField] private float m_ToolModelScale = 0.4f;
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -620,12 +624,24 @@ namespace Player
                     StripCollider(m_HeldVisual);
                 }
             }
-            else if (tool != 0)   // 든 도구(구) — 망치=파랑(고정) / 페인트통=초록(페인트)
+            else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
-                m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                m_HeldVisual.transform.localScale = Vector3.one * 0.4f;
-                Paint(m_HeldVisual, ColorForMask(tool));
-                StripCollider(m_HeldVisual);
+                var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel : null;
+                if (model != null)
+                {
+                    m_HeldVisual = new GameObject("~Held");
+                    var vis = Instantiate(model, m_HeldVisual.transform);
+                    vis.transform.localPosition = Vector3.zero;
+                    m_HeldVisual.transform.localScale = Vector3.one * m_ToolModelScale;
+                    foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
+                }
+                else
+                {
+                    m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    m_HeldVisual.transform.localScale = Vector3.one * 0.4f;
+                    Paint(m_HeldVisual, ColorForMask(tool));
+                    StripCollider(m_HeldVisual);
+                }
             }
 
             if (m_HeldVisual != null)
