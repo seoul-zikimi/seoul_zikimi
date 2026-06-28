@@ -28,6 +28,7 @@ public class CreateSession : MonoBehaviour
     
     public event Action<bool> CreateSessioinBtnOnClick;
     public event Action<string> CreateSessionFailed;
+    public event Action<ISession> SessionCreated;
     
     public SessionSettings SessionSettings
     {
@@ -218,6 +219,7 @@ public class CreateSession : MonoBehaviour
 
         try
         {
+            SessionCreated?.Invoke(session);
             CreateSessioinBtnOnClick?.Invoke(true);
         }
         catch (Exception ex)

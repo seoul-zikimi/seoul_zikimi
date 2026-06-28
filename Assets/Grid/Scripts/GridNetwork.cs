@@ -229,7 +229,7 @@ namespace GridSystem
             if (IsServer) RecomputeScore();
         }
 
-        private void RecomputeScore()
+        public void RecomputeScore()
         {
             if (m_Manager.Answer == null) return;
             var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);

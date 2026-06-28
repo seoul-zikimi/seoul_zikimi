@@ -103,7 +103,7 @@ namespace Player
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
-            if (m_Preview != null) Destroy(m_Preview);
+            DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
         }
 
@@ -382,6 +382,7 @@ namespace Player
                 m_BuildHeight = Mathf.Clamp(
                     Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
                     0, m_Grid.GridSize.y - 1);
+            GridContract.LocalBuildFloor = m_BuildHeight;   // 정답 고스트가 '내가 선 층'만 보이게(층별 안내)
 
             float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
             var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
@@ -717,8 +718,13 @@ namespace Player
         // ── 인게임 배치 미리보기: 반투명 박스 GameObject (URP 정상 렌더 — GL 즉시모드 폐지) ──────
         private GameObject m_Preview;
         private Material m_PreviewMat;
+        private readonly List<Material> m_PreviewGhostMats = new();   // 프리팹 고스트 머티리얼(정리용)
+        private int m_PreviewKey = int.MinValue;                      // 현재 프리뷰 종류((재료Id<<2)|회전, 박스=-1)
+        private Vector3 m_PreviewOffset;                              // 프리팹 프리뷰 피벗 오프셋(빌드 시 1회 산출)
         private static readonly int s_PvBase = Shader.PropertyToID("_BaseColor");
         private static readonly int s_PvCol  = Shader.PropertyToID("_Color");
+        private static readonly int s_PvBaseMap = Shader.PropertyToID("_BaseMap");
+        private static readonly int s_PvMainTex = Shader.PropertyToID("_MainTex");
 
         // 든 재료를 놓을 자리의 월드 박스 — GridNetwork.SpawnPrefabVisual과 동일 산출(프리뷰=실제 배치 정합).
         private void HeldPlacementBox(out Vector3 center, out Vector3 size)
@@ -743,7 +749,25 @@ namespace Player
                 if (m_Preview != null && m_Preview.activeSelf) m_Preview.SetActive(false);
                 return;
             }
-            if (m_Preview == null) m_Preview = CreatePreview();
+
+            float u = GridContract.Unit;
+
+            // 재료(프리팹 있음) → 실제 블록을 반투명 고스트로: 놓일 모양 그대로(회전·연석 방향까지).
+            if (HasMaterial && m_HeldMaterial.Prefab != null)
+            {
+                int key = (m_HeldMaterial.Id << 2) | (m_Rotation & 3);
+                if (m_Preview == null || m_PreviewKey != key) BuildPrefabPreview(key);   // 재료/회전 바뀔 때만 재빌드
+
+                var cells = GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation);
+                Vector3Int minCell = cells[0];
+                for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
+                m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
+                if (!m_Preview.activeSelf) m_Preview.SetActive(true);
+                return;
+            }
+
+            // 폴백(프리팹 없는 재료 / 도구 공정 대상) → 반투명 박스.
+            if (m_Preview == null || m_PreviewKey != -1) BuildBoxPreview();
 
             Vector3 center, size; Color col;
             if (HasMaterial)
@@ -753,7 +777,6 @@ namespace Player
             }
             else
             {
-                float u = GridContract.Unit;
                 center = GridCoordinates.CellToWorld(m_Target) + Vector3.one * (0.5f * u);
                 size   = Vector3.one * u;
                 col = new Color(1f, 0.95f, 0.25f, 0.32f);   // 노랑: 공정 대상
@@ -765,13 +788,75 @@ namespace Player
             if (!m_Preview.activeSelf) m_Preview.SetActive(true);
         }
 
-        private GameObject CreatePreview()
+        // 실제 블록 프리팹을 반투명 고스트로. 회전/피벗 오프셋은 PlaceRotatedPrefab으로 1회 산출(이후 위치만 갱신).
+        private void BuildPrefabPreview(int key)
         {
+            DestroyPreview();
+            m_Preview = Instantiate(m_HeldMaterial.Prefab);
+            m_Preview.name = "~PlacePreview";
+            foreach (var c in m_Preview.GetComponentsInChildren<Collider>()) Destroy(c);
+            MakePreviewTransparent(m_Preview, 0.45f);
+            // cellWorldMin=0으로 배치 → 결과 position = 순수 피벗 오프셋(이후 CellToWorld(minCell)에 더함). 회전은 여기서 확정.
+            GridFootprint.PlaceRotatedPrefab(m_Preview, Vector3.zero, m_HeldMaterial.Footprint, m_Rotation, GridContract.Unit);
+            m_PreviewOffset = m_Preview.transform.position;
+            m_PreviewKey = key;
+        }
+
+        private void BuildBoxPreview()
+        {
+            DestroyPreview();
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "~PlacePreview";
             var c = go.GetComponent<Collider>(); if (c != null) Destroy(c);
             go.GetComponent<Renderer>().sharedMaterial = PreviewMat();
-            return go;
+            m_Preview = go;
+            m_PreviewKey = -1;
+        }
+
+        private void DestroyPreview()
+        {
+            if (m_Preview != null) { Destroy(m_Preview); m_Preview = null; }
+            for (int i = 0; i < m_PreviewGhostMats.Count; i++)
+                if (m_PreviewGhostMats[i] != null) Destroy(m_PreviewGhostMats[i]);
+            m_PreviewGhostMats.Clear();
+        }
+
+        // 렌더러 머티리얼을 반투명 URP Lit 사본으로 교체(원본 색/텍스처 유지 → 진짜 블록처럼 보이되 고스트). 사본은 정리용 리스트에.
+        private void MakePreviewTransparent(GameObject go, float alpha)
+        {
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh == null) return;
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                var src = r.sharedMaterials;
+                var dst = new Material[src.Length];
+                for (int i = 0; i < src.Length; i++)
+                {
+                    var m = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+                    m.SetOverrideTag("RenderType", "Transparent");
+                    m.SetFloat("_Surface", 1f);
+                    m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    m.SetInt("_ZWrite", 0);
+                    m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+                    Color tint = Color.white;
+                    if (src[i] != null)
+                    {
+                        if      (src[i].HasProperty(s_PvBaseMap) && src[i].GetTexture(s_PvBaseMap) != null) m.SetTexture(s_PvBaseMap, src[i].GetTexture(s_PvBaseMap));
+                        else if (src[i].HasProperty(s_PvMainTex) && src[i].GetTexture(s_PvMainTex) != null) m.SetTexture(s_PvBaseMap, src[i].GetTexture(s_PvMainTex));
+                        if      (src[i].HasProperty(s_PvBase)) tint = src[i].GetColor(s_PvBase);
+                        else if (src[i].HasProperty(s_PvCol))  tint = src[i].GetColor(s_PvCol);
+                    }
+                    tint.a = alpha;
+                    m.SetColor(s_PvBase, tint);
+                    m.SetColor(s_PvCol, tint);
+                    m_PreviewGhostMats.Add(m);
+                    dst[i] = m;
+                }
+                r.sharedMaterials = dst;
+            }
         }
 
         private Material PreviewMat()
