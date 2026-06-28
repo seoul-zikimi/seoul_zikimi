@@ -24,15 +24,7 @@ namespace Player
         private Coroutine          m_SpawnRoutine;
         private float              m_NextFallRecoveryTime;
         private bool               m_DbgMoving;   // 진단용(원격 먼지 복제 로그 throttle)
-
-        [Header("비계 (더블탭 Space)")]
-        [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
-        [SerializeField] private Material   m_ScaffoldMaterial;  // 폴백 큐브 색(프리팹 없을 때만)
-        // 서버 권위 상태: 이 플레이어의 비계 셀 목록. 모든 클라가 이 리스트로 로컬 비계(콜라이더+외형) 재구성.
-        private readonly NetworkList<Vector3Int> m_NetScaffolds = new();
-        private readonly List<GameObject> m_Scaffolds = new();   // 로컬 비주얼(모든 클라)
-        private Vector2Int m_ScaffoldColumn;   // owner 판단용(기둥 칸)
-        private bool m_HasScaffolds;            // owner 판단용
+        
 
         [Header("비계 (더블탭 Space)")]
         [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
