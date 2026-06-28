@@ -24,6 +24,7 @@ namespace GridSystem
         private GameObject m_Root;        // 미리보기 렌더용(멀리 떨어진 미니씬)
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
+        private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
         private GUIStyle m_LabelStyle;
         private bool m_Visible = true;
         private bool m_Built;
@@ -48,6 +49,7 @@ namespace GridSystem
         {
             if (m_Root != null) { Destroy(m_Root); m_Root = null; }
             if (m_GhostRoot != null) { Destroy(m_GhostRoot); m_GhostRoot = null; }
+            m_GhostFloors.Clear();
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
             if (m_RT != null) { m_RT.Release(); m_RT = null; }
@@ -63,6 +65,12 @@ namespace GridSystem
 
             bool show = Show();
             if (m_GhostRoot != null) m_GhostRoot.SetActive(show);
+            if (show)
+            {
+                int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
+                for (int i = 0; i < m_GhostFloors.Count; i++)
+                    if (m_GhostFloors[i].go != null) m_GhostFloors[i].go.SetActive(m_GhostFloors[i].baseY == f);
+            }
             if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
 
             if (!m_MainExcluded && Camera.main != null)   // 메인 뷰에서 미니씬 누출 방지(타이밍 안전)
@@ -86,11 +94,13 @@ namespace GridSystem
 
             // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨
             m_GhostRoot = new GameObject("~AnswerGhost");
+            m_GhostFloors.Clear();
             foreach (var o in objects)
             {
                 Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
-                MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
+                var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
+                m_GhostFloors.Add((go, o.minCell.y));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
             }
 
             // ② 우하단 3D 미리보기 = 진짜 블록 프리팹 솔리드(멀리 떨어진 미니씬 → RenderTexture)

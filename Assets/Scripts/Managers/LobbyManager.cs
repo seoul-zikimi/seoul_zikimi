@@ -22,6 +22,9 @@ public class LobbyManager : MonoBehaviour
     // 💡 CreateSessionHUD 오브젝트 내부에 있는 인풋필드와 버튼을 인펙터에서 연결해 주세요!
     public TMP_InputField joinByCodeInputField; 
     public UnityEngine.UI.Button joinByCodeButton;
+    
+    private ISession m_CurrentSession = null;
+    private string m_LastKnownHostId = "";
 
     // 💡 현재 리스트에서 선택된 비밀방의 ID를 임시 저장하는 변수 (null이면 일반 초대코드 모드)
     private string m_SelectedSessionId = null;
@@ -80,6 +83,19 @@ public class LobbyManager : MonoBehaviour
         {
             joinByCodeButton.onClick.RemoveAllListeners();
             joinByCodeButton.onClick.AddListener(OnJoinByCodeSubmitClicked);
+        }
+
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnNetcodeDisconnected;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnNetcodeDisconnected;
         }
     }
 
@@ -161,6 +177,8 @@ public class LobbyManager : MonoBehaviour
     private void EnterLobbyRoom(ISession session)
     {
         OnActiveStartHUD(false);
+
+        m_CurrentSession = session;
         
         if (NetworkManager.Singleton != null)
         {
@@ -198,6 +216,11 @@ public class LobbyManager : MonoBehaviour
 
         if (LobbyRoomHUD != null)
             LobbyRoomHUD.SetActive(true);
+        
+        SubscribeToSessionEvents(session);
+    
+        // 대기방 UI 초기화 (처음 들어왔을 때 인원수나 방장 표시 그리기)
+        RefreshLobbyRoomUI();
     }
 
     /// <summary>
@@ -286,5 +309,88 @@ public class LobbyManager : MonoBehaviour
         createSessionHUD.SetActive(false);
         joinCodeHUD.SetActive(false);
         joinByCodeHUD.SetActive(false);
+    }
+    
+    // 💡 [추가] 세션 이벤트 구독 함수
+    private void SubscribeToSessionEvents(ISession session)
+    {
+        if (session == null) return;
+
+        session.Changed -= OnSessionChanged;
+        session.Changed += OnSessionChanged;
+
+        session.PlayerLeaving -= OnPlayerLeftFromSession;
+        session.PlayerLeaving += OnPlayerLeftFromSession;
+    }
+    
+    // 👤 누군가 방에서 나갔을 때 (클라이언트 퇴장 -> 인원수 감소)
+    private void OnPlayerLeftFromSession(string leftPlayerId)
+    {
+        Debug.Log($"[LobbyManager] 플레이어 퇴장 감지 {leftPlayerId}");
+        
+        // 유저가 나갔으니 남은 인원수로 대기방 UI(텍스트, 슬롯 등)를 새로고침합니다.
+        RefreshLobbyRoomUI();
+    }
+
+    private void OnSessionChanged()
+    {
+        if (m_CurrentSession == null) return;
+        
+        RefreshLobbyRoomUI();
+    }
+
+    // 💥 4. 방장이 나가서 넷코드 서버가 닫혔을 때 작동하는 함수
+    private async void OnNetcodeDisconnected(ulong clientId)
+    {
+        if (m_CurrentSession != null) return;
+
+        // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인
+        if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsServer)
+        {
+            Debug.Log("[LobbyManager] 서버와의 연결이 끊어졌습니다. 호스트 위임(Migration)을 시작합니다.");
+
+            // 기존에 꼬여있을지 모르는 넷코드 상태를 안전하게 완전히 셧다운
+            NetworkManager.Singleton.Shutdown();
+        
+            // UGS가 다음 방장을 내부적으로 선출하고 세션을 정리할 시간을 잠시 줌 (1초 대기)
+            await System.Threading.Tasks.Task.Delay(1000);
+
+            // 👑 팩트 체크: UGS가 "너가 이제 새 방장이야"라고 지정해 줬는지 확인
+            if (m_CurrentSession.IsHost)
+            {
+                Debug.Log("👑 [호스트 당첨] 내가 새로운 방장으로 선택되었습니다! 서버(Host)를 개설합니다.");
+                if (NetworkManager.Singleton != null)
+                {
+                    NetworkManager.Singleton.StartHost();
+                }
+            }
+            else
+            {
+                Debug.Log("👤 [클라이언트 유지] 다른 사람이 새 방장이 되었습니다. 새 서버로 재접속(Client)합니다.");
+                // 새 방장이 StartHost()를 완료할 때까지 약간 더 대기 후 접속
+                await System.Threading.Tasks.Task.Delay(1500);
+                if (NetworkManager.Singleton != null)
+                {
+                    NetworkManager.Singleton.StartClient();
+                }
+            }
+
+            // 방장 교체 및 인원 변동이 완료되었으니 UI 최종 갱신
+            RefreshLobbyRoomUI();
+        }
+    }
+
+    // 🖥️ 대기방 인원수 및 UI 새로고침 전용 함수 (UI 담당자에게 연결해달라고 할 부분)
+    private void RefreshLobbyRoomUI()
+    {
+        if (m_CurrentSession == null) return;
+    
+        // 예시: 현재 세션의 방장 ID와 내 ID가 같으면 게임 시작 버튼을 보여주고, 다르면 레디 버튼 보여주기
+        bool isHost = m_CurrentSession.IsHost;
+        
+        Debug.Log($"[UI 갱신] 현재 방 인원: {m_CurrentSession.Players.Count}명 / 내가 방장인가? : {isHost}");
+    
+        // TODO: UI 담당자에게 이 타이밍에 session.Players의 개수만큼 슬롯을 채우고,
+        // 방장 여부(isHost)에 따라 스타트/레디 버튼을 껐다 켜달라고 요청하면 됩니다.
     }
 }

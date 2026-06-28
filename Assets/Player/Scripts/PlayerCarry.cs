@@ -382,6 +382,7 @@ namespace Player
                 m_BuildHeight = Mathf.Clamp(
                     Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
                     0, m_Grid.GridSize.y - 1);
+            GridContract.LocalBuildFloor = m_BuildHeight;   // 정답 고스트가 '내가 선 층'만 보이게(층별 안내)
 
             float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
             var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
