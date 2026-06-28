@@ -78,6 +78,7 @@ namespace Player
             {
                 var col = s_Hits[i].collider;
                 if (col == null) continue;
+                if (s_Hits[i].normal.y > 0.5f) continue;   // 위를 보는 면(바닥/지면)은 가림물 아님 — 서 있을 때 바닥 투명화→하늘 비침 버그 방지
                 if (col.transform.IsChildOf(m_Target.parent != null ? m_Target.parent : m_Target))
                     continue;   // 플레이어 자신(타깃과 그 부모 트리) 제외
 

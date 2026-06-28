@@ -46,10 +46,10 @@ public class WindingWaterAuthoring : MonoBehaviour
     Transform m_Gen;
     bool m_Queued;
 
-    void OnEnable()   => RequestRebuild();
-    void OnValidate() => RequestRebuild();
+    void OnEnable()   => RequestRebuild(fromValidate: false);
+    void OnValidate() => RequestRebuild(fromValidate: true);
 
-    void RequestRebuild()
+    void RequestRebuild(bool fromValidate)
     {
 #if UNITY_EDITOR
         if (!Application.isPlaying)
@@ -59,6 +59,7 @@ public class WindingWaterAuthoring : MonoBehaviour
             EditorApplication.delayCall += DelayedRebuild;  // OnValidate 중 파괴/생성 금지 → 다음 틱
             return;
         }
+        if (fromValidate) return;   // 플레이 중 OnValidate 콜스택에선 GameObject 생성 금지(SendMessage 에러). OnEnable이 이미 만듦.
 #endif
         Rebuild();
     }
