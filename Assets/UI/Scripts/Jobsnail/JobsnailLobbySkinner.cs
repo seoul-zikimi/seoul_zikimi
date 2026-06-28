@@ -1050,7 +1050,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         bool isHost = IsLocalSessionHost();
         bool isNetworkServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
         bool hasReadyNet = readyNet != null && readyNet.IsSpawned;
-        int maxPlayers = Mathf.Clamp(m_CurrentRoomMaxPlayers, 1, 4);
+        int maxPlayers = hasReadyNet && readyNet.MaxPlayers > 1
+            ? Mathf.Clamp(readyNet.MaxPlayers, 1, 4)
+            : Mathf.Clamp(m_CurrentRoomMaxPlayers, 1, 4);
         int expectedReadyCount = Mathf.Max(0, maxPlayers - 1);
         int joinedCount = hasReadyNet ? Mathf.Clamp(readyNet.ConnectedCount, 1, maxPlayers) : 1;
         int targetReadyCount = Mathf.Max(expectedReadyCount, hasReadyNet ? readyNet.TargetReadyCount : 0);

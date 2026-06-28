@@ -39,17 +39,26 @@ public class LobbyRoomNet : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+    private NetworkVariable<int> m_MaxPlayers = new NetworkVariable<int>(
+        1,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     public bool IsAllReady => m_IsAllReady.Value;
     public bool IsLocallyReady => m_IsLocallyReady;
     public int ReadyCount => m_ReadyCount.Value;
     public int TargetReadyCount => m_TargetReadyCount.Value;
     public int ConnectedCount => m_ConnectedCount.Value;
+    public int MaxPlayers => m_MaxPlayers.Value;
 
     public override void OnNetworkSpawn()
     {
         m_ReadyClients.Clear();
         m_IsLocallyReady = false;
+
+        if (IsServer)
+            m_MaxPlayers.Value = Mathf.Clamp(RequiredTotalPlayers, 1, 4);
 
         // 네트워크 변수 값이 변경될 때 실행할 이벤트 연결
         m_IsAllReady.OnValueChanged += OnAllReadyStatusChanged;
