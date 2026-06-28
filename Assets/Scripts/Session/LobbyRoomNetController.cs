@@ -48,6 +48,9 @@ public class LobbyRoomNet : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        m_ReadyClients.Clear();
+        m_IsLocallyReady = false;
+
         // 네트워크 변수 값이 변경될 때 실행할 이벤트 연결
         m_IsAllReady.OnValueChanged += OnAllReadyStatusChanged;
         m_ReadyCount.OnValueChanged += OnReadyCountChanged;
@@ -167,7 +170,7 @@ public class LobbyRoomNet : NetworkBehaviour
         }
 
         // 실제로 준비 완료 버튼을 누른 인원수와 목표 인원수가 같으면 true가 됨!
-        m_IsAllReady.Value = m_ReadyClients.Count == targetCount;
+        m_IsAllReady.Value = m_ReadyClients.Count >= targetCount;
     }
 
     private void OnClientConnected(ulong clientId)

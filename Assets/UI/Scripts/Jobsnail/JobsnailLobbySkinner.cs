@@ -90,6 +90,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private void Start()
     {
+        int savedMaxPlayers = LobbyRoomNet.RequiredTotalPlayers;
+        if (savedMaxPlayers > 1)
+            m_CurrentRoomMaxPlayers = Mathf.Clamp(savedMaxPlayers, 1, 4);
+
         var canvas = GetComponent<Canvas>();
         if (canvas != null)
         {
