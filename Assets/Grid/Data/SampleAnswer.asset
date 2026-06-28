@@ -29,3 +29,4 @@ MonoBehaviour:
   m_StartPilePosition: {x: 0, y: 0, z: 0}
   m_TimeLimitSeconds: 180
   m_AnswerImage: {fileID: 0}
+  m_DisplayName: 
