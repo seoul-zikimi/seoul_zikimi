@@ -53,7 +53,7 @@ MonoBehaviour:
     - {fileID: 8300000, guid: 7fb1445db77f64d82b7250d2f05d425e, type: 3}
   bgmEntries:
   - phase: 0
-    clip: {fileID: 8300000, guid: 1fe5c867001a848d1893d0720a0fe2b3, type: 3}
+    clip: {fileID: 8300000, guid: 7fc011adfdae0864e82134e5df56f0b5, type: 3}
   - phase: 1
     clip: {fileID: 8300000, guid: a111d07e9785f4183b292a19f53eaa12, type: 3}
   - phase: 2
