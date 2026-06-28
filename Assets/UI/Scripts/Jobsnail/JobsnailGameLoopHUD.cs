@@ -11,11 +11,11 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private GameLoopManager m_Loop;
     private TextMeshProUGUI m_TimerText;
     private TextMeshProUGUI m_ResultScoreText;
-    private TextMeshProUGUI m_ResultDetailText;
     private TextMeshProUGUI m_ResultNamesText;
     private TextMeshProUGUI m_ResultStructText;
     private TextMeshProUGUI m_ResultTimeText;
     private TextMeshProUGUI m_ResultGradeText;
+    private Image m_ResultGradeImage;
     private RawImage m_ResultImage;
     private AnswerPreview m_AnswerPreview;
     private GameObject m_TopBar;
@@ -242,45 +242,79 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             new Vector2(0.70f, 0.90f),
             Vector2.zero,
             Vector2.zero,
-            new Color(1f, 0.98f, 0.92f, 0.98f)).gameObject;
+            new Color(1f, 1f, 1f, 0.98f)).gameObject;
         m_ResultPanel.SetActive(false);
 
         // ── 상단: 제목 / 명단 / JOBSNAIL 로고 ──
-        JobsnailUiKit.Label("Title", m_ResultPanel.transform, "정산서", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, 375), new Vector2(360, 52));
-        m_ResultNamesText = JobsnailUiKit.Label("Players", m_ResultPanel.transform, "", 15, new Color(0.30f, 0.22f, 0.15f, 1f), TextAlignmentOptions.Left, new Vector2(-235, 378), new Vector2(290, 26));
+        var title = JobsnailUiKit.Label("Title", m_ResultPanel.transform, "정산서", 44, Color.black, TextAlignmentOptions.Center, new Vector2(0, 378), new Vector2(360, 64));
+        title.fontStyle = FontStyles.Bold;
+        m_ResultNamesText = JobsnailUiKit.Label("Players", m_ResultPanel.transform, "", 15, new Color(0.30f, 0.22f, 0.15f, 1f), TextAlignmentOptions.Left, new Vector2(-235, 320), new Vector2(290, 26));
 
-        var logoSprite = JobsnailUiKit.Sprite("UI_pngs/1.main/Logo");
-        var logo = JobsnailUiKit.Box("Logo", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(290, 372), new Vector2(170, 70), logoSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
-        logo.sprite = logoSprite;
-        logo.preserveAspect = true;
+        // JOBSNAIL 워드마크: 전용 PNG 있으면 그걸, 없으면 주황 굵은 텍스트로. 옆에 달팽이 아이콘.
+        var brandSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/JobSnailLogo");
+        if (brandSprite != null)
+        {
+            var logo = JobsnailUiKit.Box("Logo", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(245, 320), new Vector2(180, 50), Color.white);
+            logo.sprite = brandSprite;
+            logo.preserveAspect = true;
+        }
+        else
+        {
+            var brand = JobsnailUiKit.Label("Logo", m_ResultPanel.transform, "JOBSNAIL", 26, new Color(0.95f, 0.42f, 0.12f, 1f), TextAlignmentOptions.Right, new Vector2(215, 320), new Vector2(200, 40));
+            brand.fontStyle = FontStyles.Bold | FontStyles.Italic;
+            if (TMP_Settings.defaultFontAsset != null) brand.font = TMP_Settings.defaultFontAsset;   // 한글 폰트에 영문 글리프 없을 때 □ 방지
+        }
+
+        // JOBSNAIL 옆 달팽이 아이콘
+        var snailSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/Snail_Icon");
+        if (snailSprite != null)
+        {
+            var snail = JobsnailUiKit.Box("LogoSnail", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(356, 320), new Vector2(32, 32), Color.white);
+            snail.sprite = snailSprite;
+            snail.preserveAspect = true;
+        }
 
         // ── 완성 건축물 이미지(AnswerPreview RenderTexture) + 프레임 ──
-        JobsnailUiKit.Box("ImageFrame", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 120), new Vector2(336, 266), new Color(0.85f, 0.55f, 0.30f, 1f));
-        m_ResultImage = MakeRawImage(m_ResultPanel.transform, new Vector2(0, 120), new Vector2(320, 250));
+        JobsnailUiKit.Box("ImageFrame", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 115), new Vector2(340, 270), new Color(0.85f, 0.85f, 0.85f, 1f));
+        m_ResultImage = MakeRawImage(m_ResultPanel.transform, new Vector2(0, 115), new Vector2(324, 254));
 
-        // ── 구조물명 / 소요시간 / 완성도 / 등급 스탬프 / 상세 ──
-        m_ResultStructText = JobsnailUiKit.Label("Structure", m_ResultPanel.transform, "", 22, Color.black, TextAlignmentOptions.Center, new Vector2(0, -30), new Vector2(440, 36));
-        m_ResultTimeText = JobsnailUiKit.Label("Time", m_ResultPanel.transform, "소요시간  0:00", 20, new Color(0.20f, 0.18f, 0.14f, 1f), TextAlignmentOptions.Center, new Vector2(0, -78), new Vector2(440, 34));
-        m_ResultScoreText = JobsnailUiKit.Label("Score", m_ResultPanel.transform, "건축 0% 완료", 28, Color.black, TextAlignmentOptions.Center, new Vector2(0, -135), new Vector2(440, 50));
+        // ── 구조물명 / 소요시간 / 완성도 / 등급 스탬프 ──
+        m_ResultStructText = JobsnailUiKit.Label("Structure", m_ResultPanel.transform, "", 24, Color.black, TextAlignmentOptions.Center, new Vector2(0, -50), new Vector2(440, 38));
+        m_ResultTimeText = JobsnailUiKit.Label("Time", m_ResultPanel.transform, "소요시간     0 : 00", 22, new Color(0.20f, 0.18f, 0.14f, 1f), TextAlignmentOptions.Center, new Vector2(0, -108), new Vector2(440, 36));
+        m_ResultScoreText = JobsnailUiKit.Label("Score", m_ResultPanel.transform, "건축 0 % 완료", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, -172), new Vector2(440, 52));
 
-        m_ResultGradeText = JobsnailUiKit.Label("Grade", m_ResultPanel.transform, "", 32, new Color(0.85f, 0.15f, 0.12f, 1f), TextAlignmentOptions.Center, new Vector2(160, -135), new Vector2(240, 70));
+        // 등급(EXCELLENT/TRY AGAIN 등) 뒤에 깔리는 별 배경 — 등급보다 먼저 생성해 뒤에 그려짐.
+        var starSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/star");
+        var star = JobsnailUiKit.Box("GradeStar", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(160, -172), new Vector2(96, 96), starSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
+        star.sprite = starSprite;
+        star.preserveAspect = true;
+
+        m_ResultGradeText = JobsnailUiKit.Label("Grade", m_ResultPanel.transform, "", 34, new Color(0.85f, 0.15f, 0.12f, 1f), TextAlignmentOptions.Center, new Vector2(175, -172), new Vector2(240, 70));
         m_ResultGradeText.fontStyle = FontStyles.Bold;
         m_ResultGradeText.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -12f);
 
-        m_ResultDetailText = JobsnailUiKit.Label("Detail", m_ResultPanel.transform, "", 15, new Color(0.35f, 0.30f, 0.24f, 1f), TextAlignmentOptions.Center, new Vector2(0, -185), new Vector2(440, 28));
+        // EXCELLENT! 스탬프 아트(있으면 텍스트 대신 사용, PNG가 이미 기울어져 있어 회전 안 함)
+        var stampSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/exellent");
+        m_ResultGradeImage = JobsnailUiKit.Box("GradeStamp", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(150, -172), new Vector2(240, 88), stampSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
+        m_ResultGradeImage.sprite = stampSprite;
+        m_ResultGradeImage.preserveAspect = true;
+        m_ResultGradeImage.gameObject.SetActive(false);
 
-        // ── 방으로 돌아가기(초록) / 나가기 ──
+        // ── 구분선 ──
+        JobsnailUiKit.Box("Divider", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -252), new Vector2(640, 3), new Color(0.80f, 0.80f, 0.80f, 1f));
+
+        // ── 방으로 돌아가기 / 나가기 (둘 다 베이지, 목업과 동일) ──
         var room = JobsnailUiKit.Button("RoomButton", m_ResultPanel.transform, null, new Vector2(0.14f, 0.05f), new Vector2(0.49f, 0.13f), Vector2.zero, Vector2.zero, () =>
         {
             if (m_Loop != null) m_Loop.RequestReturnToRoom();
         }, "방으로 돌아가기");
-        SetButtonColor(room, new Color(0.56f, 0.86f, 0.48f, 1f));
+        SetButtonColor(room, new Color(0.97f, 0.85f, 0.58f, 1f));
 
         var leave = JobsnailUiKit.Button("LeaveButton", m_ResultPanel.transform, null, new Vector2(0.51f, 0.05f), new Vector2(0.86f, 0.13f), Vector2.zero, Vector2.zero, () =>
         {
             if (m_Loop != null) m_Loop.RequestLeaveToLobby();
         }, "나가기");
-        SetButtonColor(leave, new Color(1f, 0.78f, 0.44f, 1f));
+        SetButtonColor(leave, new Color(0.97f, 0.85f, 0.58f, 1f));
     }
 
     private void UpdateResultPanel()
@@ -295,10 +329,8 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             return;
 
         var score = m_Loop.Score;
-        int answerCells = Mathf.Max(0, score.answerCells);
         int pct = Mathf.RoundToInt(score.Percent);
-        m_ResultScoreText.text = $"건축 {pct}% 완료";
-        m_ResultDetailText.text = $"배치 정확 {score.placedCorrect} / {answerCells}    ·    공정 완료 {score.processCorrect} / {answerCells}";
+        m_ResultScoreText.text = $"건축 {pct} % 완료";
 
         if (m_ResultStructText != null)
         {
@@ -309,7 +341,7 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         if (m_ResultTimeText != null)
         {
             int e = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
-            m_ResultTimeText.text = $"소요시간  {e / 60}:{e % 60:00}";
+            m_ResultTimeText.text = $"소요시간     {e / 60} : {e % 60:00}";
         }
 
         if (m_ResultNamesText != null)
@@ -322,6 +354,10 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
         if (m_ResultGradeText != null)
         {
+            bool useStamp = pct >= 90 && m_ResultGradeImage != null && m_ResultGradeImage.sprite != null;
+            if (m_ResultGradeImage != null) m_ResultGradeImage.gameObject.SetActive(useStamp);
+            m_ResultGradeText.gameObject.SetActive(!useStamp);
+
             if (pct >= 90) { m_ResultGradeText.text = "EXCELLENT!"; m_ResultGradeText.color = new Color(0.85f, 0.15f, 0.12f, 1f); }
             else if (pct >= 70) { m_ResultGradeText.text = "GREAT!"; m_ResultGradeText.color = new Color(0.90f, 0.45f, 0.10f, 1f); }
             else if (pct >= 50) { m_ResultGradeText.text = "GOOD!"; m_ResultGradeText.color = new Color(0.30f, 0.55f, 0.85f, 1f); }

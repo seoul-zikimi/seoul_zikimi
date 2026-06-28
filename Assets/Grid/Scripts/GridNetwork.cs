@@ -298,7 +298,7 @@ namespace GridSystem
                     cube.transform.position = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
                     cube.transform.localScale = Vector3.one * (u * 0.95f);
                     var col = cube.GetComponent<Collider>();
-                    if (col != null) Destroy(col);
+                    if (col != null) col.isTrigger = true;   // 물리는 ~Solid가 담당, 트리거는 시야가림 페이드용
                     SetColor(cube, ColorForMask(e.completedProcessMask));
                 }
             }
@@ -341,7 +341,18 @@ namespace GridSystem
             var go = Instantiate(def.Prefab, m_VisualRoot.transform);
             // 피벗=min-corner 가정 + 메시가 footprint와 90° 다르면 자동 보정.
             GridFootprint.PlaceRotatedPrefab(go, GridCoordinates.CellToWorld(minCell), def.Footprint, rot, u);
-            foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);   // 비주얼만(~Solid가 막음)
+            // 물리는 ~Solid가 담당 → 프리팹 콜라이더 제거. 단, 카메라 시야가림 페이드(CameraObstructionFader)가
+            // 잡을 수 있게 렌더러마다 메시 AABB 트리거 콜라이더를 부여(트리거라 충돌·지지·집기 레이엔 안 걸림).
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+            foreach (var mr in go.GetComponentsInChildren<MeshRenderer>())
+            {
+                var mf = mr.GetComponent<MeshFilter>();
+                if (mf == null || mf.sharedMesh == null) continue;
+                var box = mr.gameObject.AddComponent<BoxCollider>();
+                box.center = mf.sharedMesh.bounds.center;
+                box.size = mf.sharedMesh.bounds.size;
+                box.isTrigger = true;
+            }
         }
 
         // 칸 하나를 막는 보이지 않는 BoxCollider(렌더러 없음). 칸 실제 크기 = 중력 플레이어가 위에 정확히 서고 옆을 못 지나감.
