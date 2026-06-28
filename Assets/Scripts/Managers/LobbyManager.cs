@@ -24,10 +24,12 @@ public class LobbyManager : MonoBehaviour
     public UnityEngine.UI.Button joinByCodeButton;
     
     private ISession m_CurrentSession = null;
-    private string m_LastKnownHostId = "";
 
     // 💡 현재 리스트에서 선택된 비밀방의 ID를 임시 저장하는 변수 (null이면 일반 초대코드 모드)
     private string m_SelectedSessionId = null;
+    private ISession m_ActiveSession;
+    private string m_ActiveSessionHostId;
+    private bool m_IsHandlingHostMigration;
     
     async void Start()
     {
@@ -70,6 +72,8 @@ public class LobbyManager : MonoBehaviour
         CreateSession cs = createSessionHUD.GetComponent<CreateSession>();
         cs.CreateSessioinBtnOnClick -= OnActiveJoinCodeHUD;
         cs.CreateSessioinBtnOnClick += OnActiveJoinCodeHUD;
+        cs.SessionCreated -= OnSessionCreated;
+        cs.SessionCreated += OnSessionCreated;
         joinCodeHUD.GetComponent<ShowJoinCode>().OnDisableJoinCode -= cs.DestroyCurrSession;
         joinCodeHUD.GetComponent<ShowJoinCode>().OnDisableJoinCode += cs.DestroyCurrSession;
         
@@ -94,9 +98,13 @@ public class LobbyManager : MonoBehaviour
     private void OnDestroy()
     {
         if (NetworkManager.Singleton != null)
-        {
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnNetcodeDisconnected;
-        }
+
+        var cs = createSessionHUD != null ? createSessionHUD.GetComponent<CreateSession>() : null;
+        if (cs != null)
+            cs.SessionCreated -= OnSessionCreated;
+
+        ClearActiveSession();
     }
 
     /// <summary>
@@ -177,28 +185,12 @@ public class LobbyManager : MonoBehaviour
     private void EnterLobbyRoom(ISession session)
     {
         OnActiveStartHUD(false);
-
         m_CurrentSession = session;
+        SetActiveSession(session);
         
-        if (NetworkManager.Singleton != null)
-        {
-            // 1. 오브젝트에 붙어있는 UnityTransport 컴포넌트를 직접 찾아옵니다.
-            UnityTransport transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        
-            if (transport != null)
-            {
-                // 2. NetworkManager의 무전기 칸에 이 컴포넌트를 강제로 꽂아버립니다.
-                NetworkManager.Singleton.NetworkConfig.NetworkTransport = transport;
-                Debug.Log("[LobbyManager] 코드로 UnityTransport 강제 연결 완료!");
-            }
-            else
-            {
-                // 만약 진짜로 컴포넌트가 없다면 에러를 띄웁니다.
-                Debug.LogError("[LobbyManager] NetworkManager 오브젝트에 UnityTransport 컴포넌트가 아예 없습니다!");
-            }
-        }
+        PrepareNetworkTransport();
 
-        if (session.IsHost)
+        if (IsLocalSessionHost())
         {
             if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
                 NetworkManager.Singleton.StartHost();
@@ -217,10 +209,142 @@ public class LobbyManager : MonoBehaviour
         if (LobbyRoomHUD != null)
             LobbyRoomHUD.SetActive(true);
         
-        SubscribeToSessionEvents(session);
-    
         // 대기방 UI 초기화 (처음 들어왔을 때 인원수나 방장 표시 그리기)
         RefreshLobbyRoomUI();
+    }
+
+    private void OnSessionCreated(ISession session)
+    {
+        SetActiveSession(session);
+    }
+
+    private void SetActiveSession(ISession session)
+    {
+        if (ReferenceEquals(m_ActiveSession, session))
+            return;
+
+        ClearActiveSession();
+        m_CurrentSession = session;
+        m_ActiveSession = session;
+        m_ActiveSessionHostId = session?.Host;
+
+        if (m_ActiveSession == null)
+            return;
+
+        m_ActiveSession.SessionHostChanged += OnSessionHostChanged;
+        m_ActiveSession.Changed += OnSessionChanged;
+        m_ActiveSession.PlayerLeaving += OnPlayerLeftFromSession;
+    }
+
+    private void ClearActiveSession()
+    {
+        if (m_ActiveSession != null)
+        {
+            m_ActiveSession.SessionHostChanged -= OnSessionHostChanged;
+            m_ActiveSession.Changed -= OnSessionChanged;
+            m_ActiveSession.PlayerLeaving -= OnPlayerLeftFromSession;
+        }
+
+        m_CurrentSession = null;
+        m_ActiveSession = null;
+        m_ActiveSessionHostId = null;
+    }
+
+    private void OnSessionChanged()
+    {
+        if (m_ActiveSession != null)
+            m_ActiveSessionHostId = m_ActiveSession.Host;
+
+        RefreshLobbyRoomUI();
+    }
+
+    private void OnSessionHostChanged(string hostId)
+    {
+        m_ActiveSessionHostId = hostId;
+        Debug.Log($"[LobbyManager] 세션 방장 변경 감지: {hostId}");
+
+        if (IsLocalSessionHost())
+            _ = BecomeHostAfterSessionMigrationAsync();
+    }
+
+    private bool IsLocalSessionHost()
+    {
+        if (m_ActiveSession != null)
+        {
+            if (m_ActiveSession.IsHost)
+                return true;
+
+            string localPlayerId = null;
+            if (UnityServices.State == ServicesInitializationState.Initialized && AuthenticationService.Instance.IsSignedIn)
+                localPlayerId = AuthenticationService.Instance.PlayerId;
+
+            string hostId = !string.IsNullOrEmpty(m_ActiveSessionHostId) ? m_ActiveSessionHostId : m_ActiveSession.Host;
+            if (!string.IsNullOrEmpty(localPlayerId) && !string.IsNullOrEmpty(hostId))
+                return localPlayerId == hostId;
+        }
+
+        return NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
+    }
+
+    private async Task BecomeHostAfterSessionMigrationAsync()
+    {
+        if (m_IsHandlingHostMigration)
+            return;
+
+        m_IsHandlingHostMigration = true;
+        try
+        {
+            await Task.Yield();
+
+            if (!IsLocalSessionHost() || NetworkManager.Singleton == null)
+                return;
+
+            if (NetworkManager.Singleton.IsHost && NetworkManager.Singleton.IsListening)
+                return;
+
+            if (NetworkManager.Singleton.IsListening)
+            {
+                NetworkManager.Singleton.Shutdown();
+                var timeout = Time.realtimeSinceStartup + 3f;
+                while (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && Time.realtimeSinceStartup < timeout)
+                    await Task.Yield();
+            }
+
+            PrepareNetworkTransport();
+            if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
+            {
+                bool started = NetworkManager.Singleton.StartHost();
+                Debug.Log(started
+                    ? "[LobbyManager] 새 세션 방장이 로컬 Host를 시작했습니다."
+                    : "[LobbyManager] 새 세션 방장 Host 시작 실패.");
+            }
+
+            if (LobbyRoomHUD != null)
+                LobbyRoomHUD.SetActive(true);
+
+            RefreshLobbyRoomUI();
+        }
+        finally
+        {
+            m_IsHandlingHostMigration = false;
+        }
+    }
+
+    private static void PrepareNetworkTransport()
+    {
+        if (NetworkManager.Singleton == null)
+            return;
+
+        UnityTransport transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        if (transport != null)
+        {
+            NetworkManager.Singleton.NetworkConfig.NetworkTransport = transport;
+            Debug.Log("[LobbyManager] 코드로 UnityTransport 강제 연결 완료!");
+        }
+        else
+        {
+            Debug.LogError("[LobbyManager] NetworkManager 오브젝트에 UnityTransport 컴포넌트가 아예 없습니다!");
+        }
     }
 
     /// <summary>
@@ -311,18 +435,6 @@ public class LobbyManager : MonoBehaviour
         joinByCodeHUD.SetActive(false);
     }
     
-    // 💡 [추가] 세션 이벤트 구독 함수
-    private void SubscribeToSessionEvents(ISession session)
-    {
-        if (session == null) return;
-
-        session.Changed -= OnSessionChanged;
-        session.Changed += OnSessionChanged;
-
-        session.PlayerLeaving -= OnPlayerLeftFromSession;
-        session.PlayerLeaving += OnPlayerLeftFromSession;
-    }
-    
     // 👤 누군가 방에서 나갔을 때 (클라이언트 퇴장 -> 인원수 감소)
     private void OnPlayerLeftFromSession(string leftPlayerId)
     {
@@ -332,20 +444,21 @@ public class LobbyManager : MonoBehaviour
         RefreshLobbyRoomUI();
     }
 
-    private void OnSessionChanged()
-    {
-        if (m_CurrentSession == null) return;
-        
-        RefreshLobbyRoomUI();
-    }
-
     // 💥 4. 방장이 나가서 넷코드 서버가 닫혔을 때 작동하는 함수
     private async void OnNetcodeDisconnected(ulong clientId)
     {
-        if (m_CurrentSession != null) return;
+        if (m_CurrentSession == null || NetworkManager.Singleton == null)
+            return;
+
+        // 내가 서버라면 일반 클라이언트 퇴장 이벤트일 수 있으므로 마이그레이션하지 않는다.
+        if (NetworkManager.Singleton.IsServer)
+        {
+            RefreshLobbyRoomUI();
+            return;
+        }
 
         // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인
-        if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsServer)
+        if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
         {
             Debug.Log("[LobbyManager] 서버와의 연결이 끊어졌습니다. 호스트 위임(Migration)을 시작합니다.");
 
@@ -356,23 +469,22 @@ public class LobbyManager : MonoBehaviour
             await System.Threading.Tasks.Task.Delay(1000);
 
             // 👑 팩트 체크: UGS가 "너가 이제 새 방장이야"라고 지정해 줬는지 확인
-            if (m_CurrentSession.IsHost)
+            m_ActiveSessionHostId = m_CurrentSession.Host;
+            if (IsLocalSessionHost())
             {
                 Debug.Log("👑 [호스트 당첨] 내가 새로운 방장으로 선택되었습니다! 서버(Host)를 개설합니다.");
-                if (NetworkManager.Singleton != null)
-                {
+                PrepareNetworkTransport();
+                if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
                     NetworkManager.Singleton.StartHost();
-                }
             }
             else
             {
                 Debug.Log("👤 [클라이언트 유지] 다른 사람이 새 방장이 되었습니다. 새 서버로 재접속(Client)합니다.");
                 // 새 방장이 StartHost()를 완료할 때까지 약간 더 대기 후 접속
                 await System.Threading.Tasks.Task.Delay(1500);
-                if (NetworkManager.Singleton != null)
-                {
+                PrepareNetworkTransport();
+                if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
                     NetworkManager.Singleton.StartClient();
-                }
             }
 
             // 방장 교체 및 인원 변동이 완료되었으니 UI 최종 갱신

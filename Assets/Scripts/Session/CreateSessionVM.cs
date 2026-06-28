@@ -17,7 +17,7 @@ public class CreateSessionVM : IDisposable
     public bool IsPrivate { get; private set; }
     public string Password { get; private set; } = "";
     
-    public bool HasValidPassword => !IsPrivate || (IsPrivate && !string.IsNullOrWhiteSpace(Password) && Password.Trim().Length >= 8);
+    public bool HasValidPassword => !IsPrivate || !string.IsNullOrWhiteSpace(Password);
     
     public void SetIsPrivate(bool isPrivate)
     {

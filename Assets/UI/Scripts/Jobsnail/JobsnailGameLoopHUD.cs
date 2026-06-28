@@ -4,16 +4,23 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public sealed class JobsnailGameLoopHUD : MonoBehaviour
 {
     private GameLoopManager m_Loop;
     private TextMeshProUGUI m_TimerText;
     private TextMeshProUGUI m_ConsentText;
+    private TextMeshProUGUI m_ResultScoreText;
+    private TextMeshProUGUI m_ResultPlacementText;
+    private TextMeshProUGUI m_ResultProcessText;
+    private TextMeshProUGUI m_ResultConsentText;
     private GameObject m_TopBar;
     private GameObject m_ConsentBar;
     private GameObject m_ResultPanel;
-    private TextMeshProUGUI m_ResultScore;
+    private GameObject m_SettingsPopup;
+    private Button m_SettingsButton;
+    private Button m_ResultRestartButton;
     private bool m_UrgentBgmStarted;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -84,6 +91,8 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
 
+        UpdateResultPanel();
+
         if (m_ConsentText != null)
         {
             string verb = m_Loop.IsBuilding ? "건축 종료" : "재시작";
@@ -91,15 +100,6 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             m_ConsentText.text = $"Enter — {verb} 동의  {m_Loop.ConsentCount}/{m_Loop.PlayerCount}{mine}";
         }
 
-        // 종료 페이즈 → 결과창(점수 + 버튼). 건축 중엔 숨김.
-        bool finished = !m_Loop.IsBuilding;
-        if (m_ResultPanel != null && m_ResultPanel.activeSelf != finished)
-            m_ResultPanel.SetActive(finished);
-        if (finished && m_ResultScore != null)
-        {
-            var sc = m_Loop.Score;
-            m_ResultScore.text = $"점수 {sc.Percent:F0}%\n({sc.score} / {sc.maxScore})";
-        }
     }
 
     private void Rebuild()
@@ -121,14 +121,9 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         m_ConsentBar = cbar.gameObject;
         m_ConsentText = JobsnailUiKit.Label("Consent", cbar.transform, "", 17, Color.white, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
 
-        // 결과창(종료 페이즈): 점수 + [방으로 돌아가기] / [로비로 돌아가기]
-        var rp = JobsnailUiKit.Box("ResultPanel", root, new Vector2(0.36f, 0.30f), new Vector2(0.64f, 0.70f), Vector2.zero, Vector2.zero, new Color(0.10f, 0.11f, 0.14f, 0.93f));
-        m_ResultPanel = rp.gameObject;
-        JobsnailUiKit.Label("ResultTitle", rp.transform, "건축 종료!", 30, Color.white, TextAlignmentOptions.Center, new Vector2(0, 120), new Vector2(420, 50));
-        m_ResultScore = JobsnailUiKit.Label("ResultScore", rp.transform, "", 22, new Color(1f, 0.9f, 0.35f), TextAlignmentOptions.Center, new Vector2(0, 56), new Vector2(420, 80));
-        JobsnailUiKit.Button("BtnRoom",  rp.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -30), new Vector2(240, 46), OnReturnToRoom, "방으로 돌아가기");
-        JobsnailUiKit.Button("BtnLobby", rp.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -86), new Vector2(240, 46), OnLeaveToLobby, "로비로 돌아가기");
-        m_ResultPanel.SetActive(false);
+        BuildSettingsButton(root);
+        BuildSettingsPopup(root);
+        BuildResultPanel(root);
 
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
@@ -140,20 +135,202 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             m_TopBar.SetActive(visible);
         if (m_ConsentBar != null)
             m_ConsentBar.SetActive(visible);
-        if (!visible && m_ResultPanel != null)
-            m_ResultPanel.SetActive(false);
+        if (m_SettingsButton != null)
+            m_SettingsButton.gameObject.SetActive(visible);
+        if (!visible)
+        {
+            if (m_ResultPanel != null)
+                m_ResultPanel.SetActive(false);
+            if (m_SettingsPopup != null)
+                m_SettingsPopup.SetActive(false);
+        }
     }
 
-    // 결과창 버튼 — 방으로(세션 유지, 전원 대기방 복귀) / 로비로(세션 나가기)
-    private void OnReturnToRoom()
+    private void BuildSettingsButton(Transform root)
     {
-        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
-        if (m_Loop != null) m_Loop.RequestReturnToRoom();
+        var sprite = JobsnailUiKit.Sprite("UI_pngs/settingsicon");
+        m_SettingsButton = JobsnailUiKit.Button(
+            "SettingsIconButton",
+            root,
+            sprite,
+            new Vector2(0.955f, 0.925f),
+            new Vector2(0.99f, 0.985f),
+            Vector2.zero,
+            Vector2.zero,
+            ToggleSettingsPopup,
+            sprite == null ? "설정" : null);
+
+        if (m_SettingsButton.targetGraphic is Image image)
+        {
+            image.raycastTarget = true;
+            image.color = Color.white;
+            image.preserveAspect = true;
+        }
     }
 
-    private void OnLeaveToLobby()
+    private void BuildSettingsPopup(Transform root)
     {
-        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
-        if (m_Loop != null) m_Loop.RequestLeaveToLobby();
+        m_SettingsPopup = JobsnailUiKit.Box(
+            "InGameSettingsPopup",
+            root,
+            new Vector2(0.36f, 0.31f),
+            new Vector2(0.64f, 0.72f),
+            Vector2.zero,
+            Vector2.zero,
+            new Color(1f, 0.97f, 0.86f, 0.98f)).gameObject;
+        m_SettingsPopup.SetActive(false);
+
+        JobsnailUiKit.Label("Title", m_SettingsPopup.transform, "설정", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, 138), new Vector2(360, 56));
+        MakeVolumeSlider(m_SettingsPopup.transform, "BGM", new Vector2(0, 56), PlayerPrefs.GetFloat("BGMVolume", 0.8f), value =>
+        {
+            if (SoundManager.Instance != null) SoundManager.Instance.SetBGMVolume(value);
+            else PlayerPrefs.SetFloat("BGMVolume", value);
+        });
+        MakeVolumeSlider(m_SettingsPopup.transform, "SFX", new Vector2(0, -12), PlayerPrefs.GetFloat("SFXVolume", 1f), value =>
+        {
+            if (SoundManager.Instance != null) SoundManager.Instance.SetSFXVolume(value);
+            else PlayerPrefs.SetFloat("SFXVolume", value);
+        });
+
+        var done = JobsnailUiKit.Button("SettingsDoneButton", m_SettingsPopup.transform, null, new Vector2(0.30f, 0.15f), new Vector2(0.70f, 0.27f), Vector2.zero, Vector2.zero, ToggleSettingsPopup, "완료");
+        SetButtonColor(done, new Color(1f, 0.78f, 0.44f, 1f));
+
+        var close = JobsnailUiKit.Button("SettingsCloseButton", m_SettingsPopup.transform, null, new Vector2(0.88f, 0.88f), new Vector2(0.98f, 0.98f), Vector2.zero, Vector2.zero, ToggleSettingsPopup, "×");
+        SetButtonColor(close, new Color(1f, 0.97f, 0.86f, 0f));
+    }
+
+    private void BuildResultPanel(Transform root)
+    {
+        m_ResultPanel = JobsnailUiKit.Box(
+            "ResultPanel",
+            root,
+            new Vector2(0.34f, 0.20f),
+            new Vector2(0.66f, 0.78f),
+            Vector2.zero,
+            Vector2.zero,
+            new Color(1f, 0.98f, 0.92f, 0.98f)).gameObject;
+        m_ResultPanel.SetActive(false);
+
+        JobsnailUiKit.Label("Title", m_ResultPanel.transform, "정산서", 32, Color.black, TextAlignmentOptions.Center, new Vector2(0, 230), new Vector2(420, 60));
+        JobsnailUiKit.Label("Subtitle", m_ResultPanel.transform, "작업 결과", 17, new Color(0.25f, 0.20f, 0.16f, 1f), TextAlignmentOptions.Center, new Vector2(0, 190), new Vector2(420, 36));
+        m_ResultScoreText = JobsnailUiKit.Label("Score", m_ResultPanel.transform, "건축 0% 완료", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, 120), new Vector2(430, 52));
+        m_ResultPlacementText = JobsnailUiKit.Label("Placement", m_ResultPanel.transform, "배치 정확 0 / 0", 22, Color.black, TextAlignmentOptions.Center, new Vector2(0, 62), new Vector2(430, 40));
+        m_ResultProcessText = JobsnailUiKit.Label("Process", m_ResultPanel.transform, "공정 완료 0 / 0", 22, Color.black, TextAlignmentOptions.Center, new Vector2(0, 20), new Vector2(430, 40));
+        m_ResultConsentText = JobsnailUiKit.Label("Consent", m_ResultPanel.transform, "재시작 동의 0 / 0", 18, new Color(0.30f, 0.22f, 0.15f, 1f), TextAlignmentOptions.Center, new Vector2(0, -52), new Vector2(430, 36));
+
+        m_ResultRestartButton = JobsnailUiKit.Button("RestartConsentButton", m_ResultPanel.transform, null, new Vector2(0.18f, 0.08f), new Vector2(0.46f, 0.18f), Vector2.zero, Vector2.zero, () =>
+        {
+            if (m_Loop != null)
+                m_Loop.RequestToggleConsent();
+        }, "재시작 동의");
+        SetButtonColor(m_ResultRestartButton, new Color(1f, 0.78f, 0.44f, 1f));
+
+        var leave = JobsnailUiKit.Button("LeaveButton", m_ResultPanel.transform, null, new Vector2(0.54f, 0.08f), new Vector2(0.82f, 0.18f), Vector2.zero, Vector2.zero, () =>
+        {
+            if (m_Loop != null)
+                m_Loop.RequestLeaveToLobby();
+            else
+                SceneManager.LoadScene(SceneNames.BootstrapScene);
+        }, "나가기");
+        SetButtonColor(leave, new Color(1f, 0.78f, 0.44f, 1f));
+    }
+
+    private void UpdateResultPanel()
+    {
+        if (m_ResultPanel == null || m_Loop == null)
+            return;
+
+        bool show = !m_Loop.IsBuilding;
+        m_ResultPanel.SetActive(show);
+        m_ConsentBar.SetActive(m_Loop.IsBuilding);
+        if (!show)
+            return;
+
+        var score = m_Loop.Score;
+        int answerCells = Mathf.Max(0, score.answerCells);
+        m_ResultScoreText.text = $"건축 {score.Percent:F0}% 완료";
+        m_ResultPlacementText.text = $"배치 정확 {score.placedCorrect} / {answerCells}";
+        m_ResultProcessText.text = $"공정 완료 {score.processCorrect} / {answerCells}";
+        m_ResultConsentText.text = $"재시작 동의 {m_Loop.ConsentCount} / {m_Loop.PlayerCount}";
+
+        if (m_ResultRestartButton != null)
+        {
+            var label = m_ResultRestartButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null)
+                label.text = m_Loop.HasLocalConsent ? "동의 완료" : "재시작 동의";
+            SetButtonColor(m_ResultRestartButton, m_Loop.HasLocalConsent ? new Color(0.56f, 0.86f, 0.48f, 1f) : new Color(1f, 0.78f, 0.44f, 1f));
+        }
+    }
+
+    private void ToggleSettingsPopup()
+    {
+        if (m_SettingsPopup == null)
+            return;
+
+        bool show = !m_SettingsPopup.activeSelf;
+        m_SettingsPopup.SetActive(show);
+        if (!show && SoundManager.Instance != null)
+            SoundManager.Instance.SaveVolumes();
+    }
+
+    private static void MakeVolumeSlider(Transform parent, string label, Vector2 anchored, float value, UnityEngine.Events.UnityAction<float> onChanged)
+    {
+        var row = new GameObject(label + "VolumeRow", typeof(RectTransform));
+        row.transform.SetParent(parent, false);
+        var rowRt = (RectTransform)row.transform;
+        rowRt.anchorMin = new Vector2(0.5f, 0.5f);
+        rowRt.anchorMax = new Vector2(0.5f, 0.5f);
+        rowRt.anchoredPosition = anchored;
+        rowRt.sizeDelta = new Vector2(340, 44);
+
+        JobsnailUiKit.Label(label + "Label", row.transform, label, 18, Color.black, TextAlignmentOptions.Left, new Vector2(-126, 0), new Vector2(70, 36));
+
+        var sliderGo = new GameObject("Slider", typeof(RectTransform), typeof(Slider));
+        sliderGo.transform.SetParent(row.transform, false);
+        var rt = (RectTransform)sliderGo.transform;
+        rt.anchorMin = new Vector2(0.35f, 0.25f);
+        rt.anchorMax = new Vector2(0.95f, 0.75f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var background = JobsnailUiKit.Box("Background", sliderGo.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.82f, 0.82f, 0.82f, 1f));
+        background.raycastTarget = true;
+
+        var fillArea = new GameObject("Fill Area", typeof(RectTransform));
+        fillArea.transform.SetParent(sliderGo.transform, false);
+        var fillAreaRt = (RectTransform)fillArea.transform;
+        fillAreaRt.anchorMin = Vector2.zero;
+        fillAreaRt.anchorMax = Vector2.one;
+        fillAreaRt.offsetMin = new Vector2(4, 4);
+        fillAreaRt.offsetMax = new Vector2(-4, -4);
+
+        var fill = JobsnailUiKit.Box("Fill", fillArea.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(1f, 0.72f, 0.36f, 1f));
+        fill.raycastTarget = true;
+
+        var handleArea = new GameObject("Handle Slide Area", typeof(RectTransform));
+        handleArea.transform.SetParent(sliderGo.transform, false);
+        var handleAreaRt = (RectTransform)handleArea.transform;
+        handleAreaRt.anchorMin = Vector2.zero;
+        handleAreaRt.anchorMax = Vector2.one;
+        handleAreaRt.offsetMin = new Vector2(8, 0);
+        handleAreaRt.offsetMax = new Vector2(-8, 0);
+
+        var handle = JobsnailUiKit.Box("Handle", handleArea.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(20, 30), new Color(0.32f, 0.22f, 0.15f, 1f));
+        handle.raycastTarget = true;
+
+        var slider = sliderGo.GetComponent<Slider>();
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.value = Mathf.Clamp01(value);
+        slider.fillRect = fill.rectTransform;
+        slider.handleRect = handle.rectTransform;
+        slider.targetGraphic = handle;
+        slider.onValueChanged.AddListener(onChanged);
+    }
+
+    private static void SetButtonColor(Button button, Color color)
+    {
+        if (button != null && button.targetGraphic != null)
+            button.targetGraphic.color = color;
     }
 }

@@ -72,6 +72,7 @@ namespace GridSystem
             }
             else if ((GamePhase)next == GamePhase.Finished)
             {
+                GridSoundBridge.SetPhase("Result");
                 GridSoundBridge.PlaySFX("GameOver");
             }
         }
@@ -136,6 +137,8 @@ namespace GridSystem
         private void Finish()
         {
             if (!IsBuilding) return;
+            if (IsServer && m_Net != null)
+                m_Net.RecomputeScore();
             m_Phase.Value = (int)GamePhase.Finished;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);   // 종료 진입 → 동의 초기화(재시작 동의는 새로 받음)
         }
