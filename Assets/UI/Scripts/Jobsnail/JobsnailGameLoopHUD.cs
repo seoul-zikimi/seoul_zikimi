@@ -12,6 +12,8 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private TextMeshProUGUI m_ConsentText;
     private GameObject m_TopBar;
     private GameObject m_ConsentBar;
+    private GameObject m_ResultPanel;
+    private TextMeshProUGUI m_ResultScore;
     private bool m_UrgentBgmStarted;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -88,6 +90,16 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             string mine = m_Loop.HasLocalConsent ? "  ✓동의함" : "";
             m_ConsentText.text = $"Enter — {verb} 동의  {m_Loop.ConsentCount}/{m_Loop.PlayerCount}{mine}";
         }
+
+        // 종료 페이즈 → 결과창(점수 + 버튼). 건축 중엔 숨김.
+        bool finished = !m_Loop.IsBuilding;
+        if (m_ResultPanel != null && m_ResultPanel.activeSelf != finished)
+            m_ResultPanel.SetActive(finished);
+        if (finished && m_ResultScore != null)
+        {
+            var sc = m_Loop.Score;
+            m_ResultScore.text = $"점수 {sc.Percent:F0}%\n({sc.score} / {sc.maxScore})";
+        }
     }
 
     private void Rebuild()
@@ -109,6 +121,15 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         m_ConsentBar = cbar.gameObject;
         m_ConsentText = JobsnailUiKit.Label("Consent", cbar.transform, "", 17, Color.white, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
 
+        // 결과창(종료 페이즈): 점수 + [방으로 돌아가기] / [로비로 돌아가기]
+        var rp = JobsnailUiKit.Box("ResultPanel", root, new Vector2(0.36f, 0.30f), new Vector2(0.64f, 0.70f), Vector2.zero, Vector2.zero, new Color(0.10f, 0.11f, 0.14f, 0.93f));
+        m_ResultPanel = rp.gameObject;
+        JobsnailUiKit.Label("ResultTitle", rp.transform, "건축 종료!", 30, Color.white, TextAlignmentOptions.Center, new Vector2(0, 120), new Vector2(420, 50));
+        m_ResultScore = JobsnailUiKit.Label("ResultScore", rp.transform, "", 22, new Color(1f, 0.9f, 0.35f), TextAlignmentOptions.Center, new Vector2(0, 56), new Vector2(420, 80));
+        JobsnailUiKit.Button("BtnRoom",  rp.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -30), new Vector2(240, 46), OnReturnToRoom, "방으로 돌아가기");
+        JobsnailUiKit.Button("BtnLobby", rp.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -86), new Vector2(240, 46), OnLeaveToLobby, "로비로 돌아가기");
+        m_ResultPanel.SetActive(false);
+
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
     }
@@ -119,5 +140,20 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             m_TopBar.SetActive(visible);
         if (m_ConsentBar != null)
             m_ConsentBar.SetActive(visible);
+        if (!visible && m_ResultPanel != null)
+            m_ResultPanel.SetActive(false);
+    }
+
+    // 결과창 버튼 — 방으로(세션 유지, 전원 대기방 복귀) / 로비로(세션 나가기)
+    private void OnReturnToRoom()
+    {
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
+        if (m_Loop != null) m_Loop.RequestReturnToRoom();
+    }
+
+    private void OnLeaveToLobby()
+    {
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
+        if (m_Loop != null) m_Loop.RequestLeaveToLobby();
     }
 }

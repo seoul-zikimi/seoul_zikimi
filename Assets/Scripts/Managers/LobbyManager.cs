@@ -81,6 +81,13 @@ public class LobbyManager : MonoBehaviour
             joinByCodeButton.onClick.RemoveAllListeners();
             joinByCodeButton.onClick.AddListener(OnJoinByCodeSubmitClicked);
         }
+
+        // 게임에서 '방으로 돌아가기'로 복귀(NGO 연결 유지 상태)면, 메뉴 대신 대기방 HUD를 바로 띄운다.
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            OnActiveStartHUD(false);
+            if (LobbyRoomHUD != null) LobbyRoomHUD.SetActive(true);
+        }
     }
 
     /// <summary>

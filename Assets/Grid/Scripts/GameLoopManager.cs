@@ -191,10 +191,31 @@ namespace GridSystem
                 Finish();
         }
 
+        // 로비로 돌아가기: 세션 나가고(연결 끊고) 로비 씬(메뉴/방목록)으로. 각자 개별 이탈.
         public void RequestLeaveToLobby()
         {
             if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
-            SceneManager.LoadScene(SceneNames.BootstrapScene);
+            SceneManager.LoadScene(SceneNames.Lobby);
+        }
+
+        // 방으로 돌아가기: 세션·연결 유지한 채 전원이 대기방(Lobby 씬)으로 복귀(게임 시작의 역방향, 서버 권위).
+        public void RequestReturnToRoom()
+        {
+            if (!IsSpawned) return;
+            if (IsServer) ServerLoadRoom();
+            else          ReturnToRoomRpc();
+        }
+
+        [Rpc(SendTo.Server)]
+        private void ReturnToRoomRpc() => ServerLoadRoom();
+
+        private void ServerLoadRoom()
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm != null && nm.SceneManager != null && nm.NetworkConfig.EnableSceneManagement)
+                nm.SceneManager.LoadScene(SceneNames.Lobby, LoadSceneMode.Single);   // 전원 함께 방으로
+            else
+                SceneManager.LoadScene(SceneNames.Lobby);
         }
 
         private void OnGUI()
