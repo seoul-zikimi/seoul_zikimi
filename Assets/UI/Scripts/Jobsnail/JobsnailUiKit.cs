@@ -50,7 +50,7 @@ public static class JobsnailUiKit
                 return s_TmpFont;
 
 #if UNITY_EDITOR
-            s_TmpFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Font/서울한강 장체M SDF.asset");
+            s_TmpFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Resources/Fonts/서울한강 장체M SDF.asset");
             if (s_TmpFont != null)
                 return s_TmpFont;
 #endif

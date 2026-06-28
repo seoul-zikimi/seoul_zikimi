@@ -11,6 +11,19 @@ namespace Player
         [SerializeField] float m_DistMin     = 3f;
         [SerializeField] float m_DistMax     = 20f;
 
+        // 마우스 감도(설정 팝업 슬라이더와 공유). PlayerPrefs "MouseSensitivity"(0~1) → 0.25~2.5배 곱.
+        static float s_SensMul = -1f;
+        public static float SensitivityMul
+        {
+            get { if (s_SensMul < 0f) s_SensMul = Mathf.Lerp(0.25f, 2.5f, PlayerPrefs.GetFloat("MouseSensitivity", 0.5f)); return s_SensMul; }
+        }
+        public static void SetSensitivity01(float v)
+        {
+            v = Mathf.Clamp01(v);
+            PlayerPrefs.SetFloat("MouseSensitivity", v);
+            s_SensMul = Mathf.Lerp(0.25f, 2.5f, v);
+        }
+
         Transform          m_CameraArm;
         PlayerInputHandler m_Input;
         CameraOrbit        m_Orbit;   // 피치/줌 공유 로직(정답 패널 카메라와 동일 컴포넌트)
@@ -38,10 +51,11 @@ namespace Player
             float   zoom = m_Input.CameraZoom;
 
             // ── 수평 회전: yaw는 CameraArm에 그대로(이동이 카메라 상대라 보존) ──
-            m_CameraArm.Rotate(Vector3.up, rot.x * m_RotateSpeed, Space.World);
+            float sens = SensitivityMul;
+            m_CameraArm.Rotate(Vector3.up, rot.x * m_RotateSpeed * sens, Space.World);
 
             // ── 피치/줌만 공유 오빗으로(yaw=0으로 적분 → 팔이 담당) ──
-            m_Orbit.Integrate(new Vector2(0f, rot.y), zoom);
+            m_Orbit.Integrate(new Vector2(0f, rot.y * sens), zoom);
             transform.localPosition = m_Orbit.LocalOffset();
             transform.LookAt(m_CameraArm.position + Vector3.up * 1.0f);
         }

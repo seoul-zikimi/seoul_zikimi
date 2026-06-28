@@ -18,11 +18,11 @@ public class AnswerPanelHUD : UIHUD
         if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        const float w = 240f, img = 240f, titleH = 22f, legendH = 24f;
+        const float w = 240f, img = 240f, titleH = 22f, legendH = 60f;
         float h = titleH + img + legendH;
 
-        var panel = NewRect("Panel", transform, new Vector2(1, 0), new Vector2(1, 0),
-                            new Vector2(-14, 14), new Vector2(w, h));
+        var panel = NewRect("Panel", transform, new Vector2(0, 0), new Vector2(0, 0),
+                            new Vector2(14, 14), new Vector2(w, h));   // 좌하단
         var bg = panel.AddComponent<Image>(); bg.color = new Color(0f, 0f, 0f, 0.55f); bg.raycastTarget = false;
 
         MakeText(panel.transform, "정답 (TAB · 우클릭 회전 · 스크롤 줌)",
@@ -32,9 +32,9 @@ public class AnswerPanelHUD : UIHUD
 
         var legend = NewRect("Legend", panel.transform, new Vector2(0, 1), new Vector2(0, 1),
                              new Vector2(4, -(titleH + img)), new Vector2(w - 4, legendH));
-        Swatch(legend.transform, 0,   new Color(0.72f, 0.72f, 0.72f), "배치");
-        Swatch(legend.transform, 78,  new Color(0.35f, 0.60f, 1.00f), "고정");
-        Swatch(legend.transform, 156, new Color(0.30f, 0.85f, 0.40f), "페인트");
+        Swatch(legend.transform, 0, new Color(0.72f, 0.72f, 0.72f), "배치");
+        Swatch(legend.transform, 1, new Color(0.35f, 0.60f, 1.00f), "고정 (망치)");
+        Swatch(legend.transform, 2, new Color(0.30f, 0.85f, 0.40f), "페인트 (페인트통)");
     }
 
     private RawImage MakeRawImage(Transform parent, Vector2 pos, Vector2 size)
@@ -45,11 +45,12 @@ public class AnswerPanelHUD : UIHUD
         return ri;
     }
 
-    private void Swatch(Transform parent, float x, Color c, string label)
+    private void Swatch(Transform parent, int row, Color c, string label)
     {
-        var sw = NewRect("Swatch", parent, new Vector2(0, 1), new Vector2(0, 1), new Vector2(x, -4), new Vector2(14, 14));
+        float y = -(2 + row * 18);
+        var sw = NewRect("Swatch", parent, new Vector2(0, 1), new Vector2(0, 1), new Vector2(2, y), new Vector2(14, 14));
         var img = sw.AddComponent<Image>(); img.color = c; img.raycastTarget = false;
-        MakeText(parent, label, new Vector2(x + 17, 0), new Vector2(58, 20), 12, TextAnchor.MiddleLeft);
+        MakeText(parent, label, new Vector2(22, y), new Vector2(200, 18), 12, TextAnchor.MiddleLeft);
     }
 
     // ── 빌더 헬퍼(OrderHUD와 동일 스타일) ──

@@ -38,8 +38,8 @@ public class OrderHUD : UIHUD
         float h = pad * 2 + titleH + items.Count * rowH;
 
         // ── 콘텐츠 패널 (우상단 고정) ──
-        m_Panel = NewRect("Panel", transform, new Vector2(1, 1), new Vector2(1, 1),
-                          new Vector2(-10, -10), new Vector2(kPanelW, h));
+        m_Panel = NewRect("Panel", transform, new Vector2(1, 0f), new Vector2(1, 0f),
+                          new Vector2(-10, 10), new Vector2(kPanelW, h));   // 우하단 코너에 딱 붙임(위로 자람)
         m_Panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.7f);
 
         MakeText(m_Panel.transform, "재료 주문 (배송 → 좌클릭으로 줍기)",
@@ -56,7 +56,7 @@ public class OrderHUD : UIHUD
         }
 
         // ── 토글 버튼 (항상 표시, 패널 왼쪽 가장자리의 손잡이) ──
-        m_Toggle = NewRect("Toggle", transform, new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, new Vector2(kBtn, kBtn));
+        m_Toggle = NewRect("Toggle", transform, new Vector2(1, 0f), new Vector2(1, 0f), Vector2.zero, new Vector2(kBtn, kBtn));
         var timg = m_Toggle.AddComponent<Image>(); timg.color = new Color(0f, 0f, 0f, 0.85f);
         var tbtn = m_Toggle.AddComponent<Button>(); tbtn.targetGraphic = timg;
         tbtn.onClick.AddListener(Toggle);
@@ -80,7 +80,7 @@ public class OrderHUD : UIHUD
         if (m_Panel != null) m_Panel.SetActive(!m_Collapsed);
         if (m_Toggle != null)   // 펼침이면 패널 왼쪽으로, 접힘이면 코너로
             m_Toggle.GetComponent<RectTransform>().anchoredPosition =
-                m_Collapsed ? new Vector2(-10, -10) : new Vector2(-(10 + kPanelW), -10);
+                m_Collapsed ? new Vector2(-10, 10) : new Vector2(-(10 + kPanelW), 10);
         if (m_Arrow != null) m_Arrow.text = m_Collapsed ? "<" : ">";
     }
 

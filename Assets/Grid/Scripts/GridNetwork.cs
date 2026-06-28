@@ -49,6 +49,7 @@ namespace GridSystem
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
         private ulong m_OwnerCounter;         // 서버 전용 고유 ownerObjectId 발급
         private GameObject m_VisualRoot;      // 클라이언트 로컬 비주얼 부모
+        [SerializeField] private float m_MarkerScale = 0.5f;   // 공정 마커(도구 모델) 크기
 
         private void Awake()
         {
@@ -352,17 +353,34 @@ namespace GridSystem
             go.AddComponent<BoxCollider>().size = Vector3.one * u;                                 // 칸 크기
         }
 
-        // 공정이 더 필요한 블록 위에 띄우는 색 점(다음 필요 공정 색 = 도구·HUD 색과 일치). 충돌 없음.
+        // 공정이 더 필요한 블록 위에 띄우는 도구 모델(고정=망치 / 페인트=페인트통). 모델 없으면 색 점 폴백. 충돌 없음.
         private void SpawnProcessMarker(Vector3 pos, ProcessType next)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var model = next == ProcessType.Painted ? (m_DropField != null ? m_DropField.PaintModel  : null)
+                      : next == ProcessType.Fixed   ? (m_DropField != null ? m_DropField.HammerModel : null)
+                      : null;
+
+            GameObject go;
+            float scale;
+            if (model != null)
+            {
+                go = Instantiate(model);
+                foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+                scale = m_MarkerScale;
+            }
+            else   // 폴백: 색 점
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                var col = go.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+                SetColor(go, ColorForMask((int)next));
+                scale = 0.35f;
+            }
+
             go.name = "~ProcMarker";
-            go.transform.SetParent(m_VisualRoot.transform, true);
+            go.transform.SetParent(m_VisualRoot.transform, false);
+            go.transform.localScale = Vector3.one * scale;
             go.transform.position = pos;
-            go.transform.localScale = Vector3.one * 0.35f;
-            var col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-            SetColor(go, ColorForMask((int)next));
         }
 
         // 고정 → 페인트 순서로 첫 미완료 필수 공정(없으면 None).

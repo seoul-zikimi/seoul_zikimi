@@ -68,10 +68,17 @@ namespace GridSystem
             m_Drop.ServerDrop(materialId, pos);
         }
 
+        private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)
         private static void SetColor(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
             if (r == null) return;
+            if (s_RuntimeMat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Lit");
+                if (sh != null) s_RuntimeMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            }
+            if (s_RuntimeMat != null) r.sharedMaterial = s_RuntimeMat;
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
             mpb.SetColor(Shader.PropertyToID("_BaseColor"), c);

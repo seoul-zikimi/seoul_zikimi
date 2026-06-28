@@ -176,17 +176,7 @@ namespace GridSystem
             if (m_LabelStyle == null)
                 m_LabelStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
 
-            // ③ 2D 정답 이미지(있으면) — 좌상단
-            var img = m_Manager.Answer != null ? m_Manager.Answer.AnswerImage : null;
-            if (img != null && img.texture != null)
-            {
-                var ir = new Rect(12, 12, 180, 180);
-                Box(new Rect(ir.x - 5, ir.y - 24, ir.width + 10, ir.height + 29), 0.6f);
-                GUI.Label(new Rect(ir.x, ir.y - 22, ir.width, 20), "정답 이미지", m_LabelStyle);
-                GUI.DrawTexture(ir, img.texture, ScaleMode.ScaleToFit, true);
-            }
-
-            // ④ 3D 미리보기·범례는 AnswerPanelHUD(uGUI)로 이전됨.
+            // ③ 2D 정답 이미지 제거됨(요청). 3D 미니맵(좌하단 AnswerPanelHUD)만 사용.
         }
 
         private static void Box(Rect r, float a)

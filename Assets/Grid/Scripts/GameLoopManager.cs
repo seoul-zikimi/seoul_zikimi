@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -25,6 +26,7 @@ namespace GridSystem
         private readonly NetworkVariable<int> m_AnswerIndex =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkList<ulong> m_Consents = new();   // 동의한 clientId (건축중=종료동의 / 종료중=재시작동의, 서버 관리)
+        private readonly NetworkList<NameEntry> m_Names = new();   // 접속 플레이어 표시 이름(서버 관리, 정산서 명단용)
 
         private GridManager m_Grid;
         private GridNetwork m_Net;
@@ -38,6 +40,13 @@ namespace GridSystem
         public int PlayerCount => m_PlayerCount.Value;
         public int ConsentCount => m_Consents.Count;
         public ScoreSnapshot Score => m_Net != null ? m_Net.Score : default;
+
+        // 정산서용: 접속 플레이어 이름(서버가 NetworkList로 복제) / 소요시간 / 구조물 이름
+        public int NameCount => m_Names.Count;
+        public string GetName(int i) => (i >= 0 && i < m_Names.Count) ? m_Names[i].Name.ToString() : "";
+        public float TimeLimit => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 0f;
+        public float Elapsed => Mathf.Max(0f, TimeLimit - TimeLeft);
+        public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";
 
         private void Awake()
         {
@@ -53,6 +62,7 @@ namespace GridSystem
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
             OnPhaseChanged((int)Phase, (int)Phase);
+            SubmitName();                              // 내 표시 이름 서버 등록(정산서 명단)
         }
 
         public override void OnNetworkDespawn()
@@ -114,6 +124,8 @@ namespace GridSystem
             m_PlayerCount.Value = ids.Count;
             for (int i = m_Consents.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Consents[i])) m_Consents.RemoveAt(i);
+            for (int i = m_Names.Count - 1; i >= 0; i--)
+                if (!Contains(ids, m_Names[i].Id)) m_Names.RemoveAt(i);
             if (ids.Count > 0 && m_Consents.Count >= ids.Count)
             {
                 if (IsBuilding) Finish();   // 건축 전원동의 → 종료
@@ -151,6 +163,39 @@ namespace GridSystem
             for (int i = 0; i < m_Consents.Count; i++)
                 if (m_Consents[i] == sender) { m_Consents.RemoveAt(i); return; }
             m_Consents.Add(sender);
+        }
+
+        // 각 클라가 스폰 시 자기 표시 이름(PlayerPrefs 닉네임)을 서버로 제출 → NetworkList로 전원 복제.
+        private void SubmitName()
+        {
+            string nick = PlayerPrefs.GetString("PlayerNickname", "");
+            if (string.IsNullOrEmpty(nick))
+                nick = $"플레이어{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}";
+            if (nick.Length > 12) nick = nick.Substring(0, 12);                              // UI 길이 제한
+            while (System.Text.Encoding.UTF8.GetByteCount(nick) > 28 && nick.Length > 0)     // FixedString32Bytes(≤29byte) 오버플로 방지(이모지 등)
+                nick = nick.Substring(0, nick.Length - 1);
+            SubmitNameRpc(nick);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void SubmitNameRpc(FixedString32Bytes name, RpcParams rpc = default)
+        {
+            ulong sender = rpc.Receive.SenderClientId;
+            for (int i = 0; i < m_Names.Count; i++)
+                if (m_Names[i].Id == sender) { var e = m_Names[i]; e.Name = name; m_Names[i] = e; return; }
+            m_Names.Add(new NameEntry { Id = sender, Name = name });
+        }
+
+        private struct NameEntry : INetworkSerializable, System.IEquatable<NameEntry>
+        {
+            public ulong Id;
+            public FixedString32Bytes Name;
+            public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+            {
+                serializer.SerializeValue(ref Id);
+                serializer.SerializeValue(ref Name);
+            }
+            public bool Equals(NameEntry other) => Id == other.Id && Name.Equals(other.Name);
         }
 
         // 종료 화면에서 접속 전원이 재시작 동의 → 새 랜덤 정답으로 다음 라운드(서버 전용, 전원동의 검사에서만 호출).

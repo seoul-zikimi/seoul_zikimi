@@ -19,6 +19,9 @@ namespace GridSystem
         [Tooltip("도구 픽업 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.5f;
 
+        public GameObject HammerModel => m_HammerModel;   // 공정 마커 재사용(미공정 블록 위 망치)
+        public GameObject PaintModel  => m_PaintCanModel; // 공정 마커 재사용(미공정 블록 위 페인트통)
+
         private const float kKickDistance = 1.6f;
 
         private readonly NetworkList<PickupEntry> m_Pickups = new();
@@ -260,10 +263,17 @@ namespace GridSystem
             return new Color(0.72f, 0.72f, 0.72f);
         }
 
+        private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)
         private static void SetColor(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
             if (r == null) return;
+            if (s_RuntimeMat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Lit");
+                if (sh != null) s_RuntimeMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            }
+            if (s_RuntimeMat != null) r.sharedMaterial = s_RuntimeMat;
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
             mpb.SetColor(Shader.PropertyToID("_BaseColor"), c);

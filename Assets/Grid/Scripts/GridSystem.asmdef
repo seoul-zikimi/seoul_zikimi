@@ -4,6 +4,7 @@
     "references": [
         "Unity.InputSystem",
         "Unity.Netcode.Runtime",
+        "Unity.Collections",
         "Core"
     ],
     "includePlatforms": [],
