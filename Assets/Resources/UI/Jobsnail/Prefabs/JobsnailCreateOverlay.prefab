@@ -596,6 +596,9 @@ MonoBehaviour:
   m_PublicRoomButtonImage: {fileID: 5531742535849182867}
   m_PasswordLabel: {fileID: 7278216211257280257}
   m_PasswordHint: {fileID: 8710182571245447325}
+  m_LobbySubtitle: {fileID: 0}
+  m_LobbyStatusBadgeText: {fileID: 0}
+  m_LobbyStatusBadgeImage: {fileID: 0}
   m_LobbyStartButton: {fileID: 0}
   m_LobbyReadyButton: {fileID: 0}
   m_LobbyStartHint: {fileID: 0}
@@ -3053,7 +3056,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -103}
+  m_AnchoredPosition: {x: 0, y: -93.9}
   m_SizeDelta: {x: 330, y: 22}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6977630698262726915
