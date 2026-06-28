@@ -1,5 +1,6 @@
 using GridSystem;
 using TMPro;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -222,10 +223,9 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             value => Player.PlayerCameraController.SetSensitivity01(value));
 
         // 게임 나가기 (세션 이탈 → 로비)
-        var exit = JobsnailUiKit.Button("ExitGameButton", m_SettingsPopup.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -95), new Vector2(320, 52), () =>
+        var exit = JobsnailUiKit.Button("ExitGameButton", m_SettingsPopup.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -95), new Vector2(320, 52), async () =>
         {
-            if (m_Loop != null) m_Loop.RequestLeaveToLobby();
-            else SceneManager.LoadScene(SceneNames.Lobby);
+            await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
         }, "게임 나가기");
         SetButtonColor(exit, new Color(1f, 0.62f, 0.62f, 1f));   // 분홍(주의)
 
@@ -310,9 +310,9 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         }, "방으로 돌아가기");
         SetButtonColor(room, new Color(0.97f, 0.85f, 0.58f, 1f));
 
-        var leave = JobsnailUiKit.Button("LeaveButton", m_ResultPanel.transform, null, new Vector2(0.51f, 0.05f), new Vector2(0.86f, 0.13f), Vector2.zero, Vector2.zero, () =>
+        var leave = JobsnailUiKit.Button("LeaveButton", m_ResultPanel.transform, null, new Vector2(0.51f, 0.05f), new Vector2(0.86f, 0.13f), Vector2.zero, Vector2.zero, async () =>
         {
-            if (m_Loop != null) m_Loop.RequestLeaveToLobby();
+            await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
         }, "나가기");
         SetButtonColor(leave, new Color(0.97f, 0.85f, 0.58f, 1f));
     }

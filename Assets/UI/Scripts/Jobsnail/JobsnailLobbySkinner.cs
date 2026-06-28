@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
@@ -144,7 +145,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             m_CreateSession.CreateSessionFailed -= OnCreateSessionFailed;
             m_CreateSession.SessionCreated -= OnSessionCreated;
         }
-
+        
         ClearActiveSession();
     }
 
@@ -787,6 +788,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         ClearActiveSession();
         m_ActiveSession = session;
+        JobsnailSessionManager.Instance.RegisterActiveSession(m_ActiveSession);
         m_ActiveSessionHostId = session?.Host;
 
         if (m_ActiveSession == null)
@@ -812,23 +814,22 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     {
         if (m_ActiveSession != null)
         {
+            // 여기서는 안전하게 원래 세션의 Host 프로퍼티를 사용합니다.
             m_ActiveSessionHostId = m_ActiveSession.Host;
             if (!string.IsNullOrWhiteSpace(m_ActiveSession.Name))
                 m_CurrentRoomName = m_ActiveSession.Name;
+            
+            UpdateCustomLobbyRoomOverlay();
+            JobsnailSessionManager.Instance.RegisterActiveSession(m_ActiveSession);
         }
-
-        UpdateCustomLobbyRoomOverlay();
     }
 
-    private void OnActiveSessionHostChanged(string newHostId)
+    private async void OnActiveSessionHostChanged(string newHostId)
     {
         m_ActiveSessionHostId = newHostId;
-        Debug.Log($"[JobsnailLobbySkinner] 세션 방장 변경 감지: {newHostId}");
+        Debug.Log($"[JobsnailLobbySkinner] 세션 방장 변경 감지됨 (새 방장: {newHostId}) ➡️ 안전하게 퇴장 및 폭파를 시작합니다.");
 
-        if (IsLocalSessionHost())
-            StartCoroutine(EnsureLocalHostAfterSessionMigration());
-
-        UpdateCustomLobbyRoomOverlay();
+        await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
     }
 
     private bool IsLocalSessionHost()
@@ -850,52 +851,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         return NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
     }
 
-    private System.Collections.IEnumerator EnsureLocalHostAfterSessionMigration()
-    {
-        if (m_IsHandlingHostMigration)
-            yield break;
-
-        m_IsHandlingHostMigration = true;
-
-        yield return null;
-
-        try
-        {
-            if (!IsLocalSessionHost())
-                yield break;
-
-            var networkManager = NetworkManager.Singleton;
-            if (networkManager == null)
-                yield break;
-
-            if (networkManager.IsHost && networkManager.IsListening)
-                yield break;
-
-            if (networkManager.IsListening)
-            {
-                networkManager.Shutdown();
-                float timeout = Time.unscaledTime + 3f;
-                while (networkManager != null && networkManager.IsListening && Time.unscaledTime < timeout)
-                    yield return null;
-            }
-
-            PrepareNetworkTransport();
-            LobbyRoomNet.RequiredTotalPlayers = Mathf.Clamp(m_CurrentRoomMaxPlayers, 1, 4);
-
-            if (networkManager != null && !networkManager.IsListening)
-            {
-                bool started = networkManager.StartHost();
-                Debug.Log(started
-                    ? "[JobsnailLobbySkinner] 새 세션 방장이 로컬 Host를 시작했습니다."
-                    : "[JobsnailLobbySkinner] 새 세션 방장 Host 시작 실패.");
-            }
-        }
-        finally
-        {
-            m_IsHandlingHostMigration = false;
-            ShowCustomLobbyRoomOverlay();
-        }
-    }
+    
 
     private System.Collections.IEnumerator StartSinglePlayerGameAfterHostReady()
     {
@@ -1003,11 +959,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             m_CustomLobbySlotStatuses.Add(slotStatus3);
 
             MakeText(pcRoot, "현재 선택된\n맵 이미지", 16, Color.black, new Vector2(312, 8), new Vector2(130, 130), TextAnchor.MiddleCenter, new Color(0.82f, 0.82f, 0.82f, 1f));
-            MakeFixedButton(pcRoot, "나가기", new Vector2(-340, -205), new Vector2(105, 42), () =>
+            MakeFixedButton(pcRoot, "나가기", new Vector2(-340, -205), new Vector2(105, 42), async () =>
             {
-                if (NetworkManager.Singleton != null)
-                    NetworkManager.Singleton.Shutdown();
-                SceneManager.LoadScene(SceneNames.BootstrapScene);
+                await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
             }, 18, Color.white);
 
             m_CustomLobbyStartButton = MakeFixedButton(pcRoot, "게임 시작", new Vector2(305, -104), new Vector2(145, 48), TryStartCustomLobbyGame, 20, new Color(1f, 0.78f, 0.44f, 1f));
@@ -1170,13 +1124,6 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private void TryStartCustomLobbyGame()
     {
         var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
-        if (IsLocalSessionHost() && (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer))
-        {
-            StartCoroutine(EnsureLocalHostAfterSessionMigration());
-            if (m_CustomLobbyStartHint != null)
-                m_CustomLobbyStartHint.text = "방장 권한 복구 중...";
-            return;
-        }
 
         if (readyNet != null && readyNet.IsSpawned)
         {
@@ -1569,12 +1516,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         SetRoomType(isPrivate);
     }
 
-    internal void PrefabLeaveLobbyRoom()
+    internal async void PrefabLeaveLobbyRoom()
     {
         PlayUIClick();
-        if (NetworkManager.Singleton != null)
-            NetworkManager.Singleton.Shutdown();
-        SceneManager.LoadScene(SceneNames.BootstrapScene);
+        await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
     }
 
     internal void PrefabStartLobbyGame()
@@ -1978,4 +1923,5 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         return null;
     }
+    
 }
