@@ -256,6 +256,9 @@ namespace GridSystem
 
             foreach (var ans in answer.Cells)
             {
+                // 기본 제공(preset) 블럭은 플레이어가 지을 필요가 없으므로 채점 제외.
+                if (answer.IsPreset(ans.cell)) continue;
+
                 result.answerCellCount++;
                 result.maxScore += 300; // 배치 200 + 공정 100
 
