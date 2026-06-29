@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using Autotiles3D;
 using GridSystem;
+using System.Linq;
 
 /// <summary>
 /// 정답 맵 익스포터 / 정합성 검증 (에디터 전용).
@@ -170,6 +171,70 @@ public static class MapExporter
 
         Debug.Log($"[Grid] ✅ 정답 익스포트 — 블록 {blocks}개 / {cells.Count}칸 → {path}\n" +
                   "GridManager의 Answers 리스트에 이 에셋이 있으면 다음 플레이부터 정답으로 채점됩니다.");
+    }
+
+    /// <summary>
+    /// 기본 제공(preset) 블럭 좌표를 ExportedAnswer.asset의 m_PresetCells에 기록.
+    /// 사용법: Autotiles3D에서 레이어 이름을 "Preset"(대소문자 무관)으로 만들고 기본 제공 블럭만 칠한 뒤 실행.
+    /// → 채점 시 해당 셀들은 maxScore에서 제외되므로, 나머지 부분만 100% 완성 가능.
+    /// Preset 레이어가 없으면 ExportedAnswer.asset Inspector에서 m_PresetCells를 직접 입력.
+    /// </summary>
+    [MenuItem("Grid Setup/Export Preset Cells from Autotiles3D")]
+    static void ExportPresetCells()
+    {
+        var grid = Object.FindFirstObjectByType<Autotiles3D_Grid>();
+        if (grid == null) { Debug.LogError("[Grid] 씬에 Autotiles3D_Grid가 없습니다."); return; }
+
+        var mgr = Object.FindFirstObjectByType<GridManager>();
+        var catalog = mgr != null ? mgr.Catalog : null;
+        if (catalog == null) { Debug.LogError("[Grid] GridManager + MaterialCatalog가 필요합니다."); return; }
+
+        Vector3Int size = mgr.GridSize;
+        var presetCells = new HashSet<Vector3Int>();
+
+        foreach (var layer in grid.TileLayers)
+        {
+            if (layer == null) continue;
+            if (!layer.name.Equals("Preset", System.StringComparison.OrdinalIgnoreCase)) continue;
+
+            foreach (var node in layer.GetAllInternalNodes())
+            {
+                int matId = ResolveMaterialId(catalog, node.TileID, node.TileName);
+                if (matId == MaterialCatalog.NoMaterial) continue;
+                var def = catalog.GetById(matId);
+                var footprint = def != null ? def.Footprint : Vector3Int.one;
+                int rot = QuatToStep(node.LocalRotation);
+                foreach (var fc in GridFootprint.EnumerateFootprintCells(node.InternalPosition, footprint, rot))
+                {
+                    if (fc.x < 0 || fc.x >= size.x || fc.y < 0 || fc.y >= size.y || fc.z < 0 || fc.z >= size.z) continue;
+                    presetCells.Add(fc);
+                }
+            }
+        }
+
+        if (presetCells.Count == 0)
+        {
+            Debug.LogWarning("[Grid] Preset 셀이 0개입니다. 'Preset'이라는 이름의 Autotiles3D 레이어에 기본 제공 블럭을 칠해두세요.\n" +
+                             "또는 ExportedAnswer.asset을 Inspector에서 열어 m_PresetCells를 직접 입력하세요.");
+            return;
+        }
+
+        const string path = "Assets/Grid/Data/ExportedAnswer.asset";
+        var asset = AssetDatabase.LoadAssetAtPath<MapAnswerData>(path);
+        if (asset == null) { Debug.LogError($"[Grid] {path} 가 없습니다. 먼저 'Export Answer from Autotiles3D'를 실행하세요."); return; }
+
+        var so = new SerializedObject(asset);
+        var arr = so.FindProperty("m_PresetCells");
+        var cellList = new List<Vector3Int>(presetCells);
+        arr.arraySize = cellList.Count;
+        for (int i = 0; i < cellList.Count; i++)
+            arr.GetArrayElementAtIndex(i).vector3IntValue = cellList[i];
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(asset);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[Grid] ✅ Preset 셀 {presetCells.Count}개 익스포트 완료 → {path}\n" +
+                  "이 셀들은 채점에서 제외됩니다(maxScore에 포함 안 됨).");
     }
 
     /// <summary>씬에 칠해진 Autotiles3D 타일들의 (그룹/이름/TileID)를 콘솔에 출력 — 카탈로그 매핑 채울 때 사용.</summary>
