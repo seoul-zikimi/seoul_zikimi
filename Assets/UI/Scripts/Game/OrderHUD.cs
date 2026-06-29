@@ -16,14 +16,15 @@ public class OrderHUD : UIHUD
         public Entry(int id, string name, GameObject prefab) { Id = id; Name = name; Prefab = prefab; }
     }
 
-    private const float kPanelW = 240f;   // 콘텐츠 패널 너비(접힘 계산에 사용)
-    private const float kBtn    = 34f;    // 토글 버튼 한 변
+    private const float kPanelW = 360f;   // 콘텐츠 패널 너비(접힘 계산에 사용)
+    private const float kBtn    = 48f;    // 토글 버튼 한 변
 
     private static Font s_Font;
     private GameObject m_Panel;     // 접히는 콘텐츠
     private GameObject m_Toggle;    // 항상 보이는 토글 버튼
     private Text       m_Arrow;     // < (접힘=열기) / > (펼침=닫기)
     private bool       m_Collapsed;
+    private float      m_PanelH;   // 패널 높이 (Apply에서 토글 Y 위치 계산용)
 
     public override void Init() { }   // 내용은 Build()에서(재료 데이터 필요)
 
@@ -34,25 +35,26 @@ public class OrderHUD : UIHUD
         if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        const float rowH = 30f, pad = 8f, titleH = 24f;
+        const float rowH = 44f, pad = 12f, titleH = 32f;
         float h = pad * 2 + titleH + items.Count * rowH;
 
-        // ── 콘텐츠 패널 (우상단 고정) ──
+        m_PanelH = h;
+        // ── 콘텐츠 패널 (우하단 고정, Y 오프셋으로 잘림 방지) ──
         m_Panel = NewRect("Panel", transform, new Vector2(1, 0f), new Vector2(1, 0f),
-                          new Vector2(-10, 10), new Vector2(kPanelW, h));   // 우하단 코너에 딱 붙임(위로 자람)
+                          new Vector2(-10, 80), new Vector2(kPanelW, h));   // 우하단 기준, 80px 위부터 시작
         m_Panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.7f);
 
         MakeText(m_Panel.transform, "재료 주문 (배송 → 좌클릭으로 줍기)",
-                 new Vector2(8, -6), new Vector2(kPanelW - 16, titleH), 14, TextAnchor.MiddleLeft);
+                 new Vector2(8, -6), new Vector2(kPanelW - 16, titleH), 17, TextAnchor.MiddleLeft);
 
         for (int i = 0; i < items.Count; i++)
         {
             float y = -(pad + titleH + i * rowH);
             var e = items[i];
-            MakeThumb(m_Panel.transform, e.Prefab, new Vector2(8, y - 1), 26f);   // 무슨 블록인지 미리보기
-            MakeText(m_Panel.transform, e.Name, new Vector2(40, y), new Vector2(kPanelW - 124, 24), 14, TextAnchor.MiddleLeft);
+            MakeThumb(m_Panel.transform, e.Prefab, new Vector2(8, y - 2), 34f);   // 무슨 블록인지 미리보기
+            MakeText(m_Panel.transform, e.Name, new Vector2(50, y), new Vector2(kPanelW - 154, 30), 17, TextAnchor.MiddleLeft);
             int id = e.Id;   // 클로저 캡처 고정
-            MakeButton(m_Panel.transform, "주문", new Vector2(kPanelW - 80, y), new Vector2(72, 24), () => onOrder(id));
+            MakeButton(m_Panel.transform, "주문", new Vector2(kPanelW - 100, y), new Vector2(90, 30), () => onOrder(id));
         }
 
         // ── 토글 버튼 (항상 표시, 패널 왼쪽 가장자리의 손잡이) ──
@@ -65,7 +67,7 @@ public class OrderHUD : UIHUD
         var art = arrow.GetComponent<RectTransform>();
         art.pivot = new Vector2(0.5f, 0.5f); art.offsetMin = art.offsetMax = Vector2.zero;
         m_Arrow = arrow.AddComponent<Text>();
-        m_Arrow.font = s_Font; m_Arrow.fontSize = 22; m_Arrow.fontStyle = FontStyle.Bold;
+        m_Arrow.font = s_Font; m_Arrow.fontSize = 28; m_Arrow.fontStyle = FontStyle.Bold;
         m_Arrow.color = Color.white; m_Arrow.alignment = TextAnchor.MiddleCenter;
 
         m_Collapsed = false;   // 기본 펼침(주문 목록 보이게). 접힘으로 시작하려면 true.
@@ -80,7 +82,7 @@ public class OrderHUD : UIHUD
         if (m_Panel != null) m_Panel.SetActive(!m_Collapsed);
         if (m_Toggle != null)   // 펼침이면 패널 왼쪽으로, 접힘이면 코너로
             m_Toggle.GetComponent<RectTransform>().anchoredPosition =
-                m_Collapsed ? new Vector2(-10, 10) : new Vector2(-(10 + kPanelW), 10);
+                m_Collapsed ? new Vector2(-10, 80) : new Vector2(-(10 + kPanelW), 80);
         if (m_Arrow != null) m_Arrow.text = m_Collapsed ? "<" : ">";
     }
 
@@ -125,6 +127,6 @@ public class OrderHUD : UIHUD
         var lrt = lbl.GetComponent<RectTransform>();
         lrt.pivot = new Vector2(0.5f, 0.5f); lrt.offsetMin = lrt.offsetMax = Vector2.zero;
         var lt = lbl.AddComponent<Text>();
-        lt.font = s_Font; lt.fontSize = 14; lt.color = Color.white; lt.text = s; lt.alignment = TextAnchor.MiddleCenter;
+        lt.font = s_Font; lt.fontSize = 17; lt.color = Color.white; lt.text = s; lt.alignment = TextAnchor.MiddleCenter;
     }
 }

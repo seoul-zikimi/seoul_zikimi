@@ -18,7 +18,7 @@ public class AnswerPanelHUD : UIHUD
         if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        const float w = 240f, img = 240f, titleH = 22f, legendH = 60f;
+        const float w = 400f, img = 400f, titleH = 28f, legendH = 90f;
         float h = titleH + img + legendH;
 
         var panel = NewRect("Panel", transform, new Vector2(0, 0), new Vector2(0, 0),
@@ -26,7 +26,7 @@ public class AnswerPanelHUD : UIHUD
         var bg = panel.AddComponent<Image>(); bg.color = new Color(0f, 0f, 0f, 0.55f); bg.raycastTarget = false;
 
         MakeText(panel.transform, "정답 (TAB · 우클릭 회전 · 스크롤 줌)",
-                 new Vector2(2, 0), new Vector2(w - 4, titleH), 13, TextAnchor.MiddleLeft);
+                 new Vector2(2, 0), new Vector2(w - 4, titleH), 16, TextAnchor.MiddleLeft);
 
         m_Surface = MakeRawImage(panel.transform, new Vector2(0, -titleH), new Vector2(w, img));
 
@@ -47,10 +47,10 @@ public class AnswerPanelHUD : UIHUD
 
     private void Swatch(Transform parent, int row, Color c, string label)
     {
-        float y = -(2 + row * 18);
-        var sw = NewRect("Swatch", parent, new Vector2(0, 1), new Vector2(0, 1), new Vector2(2, y), new Vector2(14, 14));
+        float y = -(2 + row * 28);
+        var sw = NewRect("Swatch", parent, new Vector2(0, 1), new Vector2(0, 1), new Vector2(4, y), new Vector2(20, 20));
         var img = sw.AddComponent<Image>(); img.color = c; img.raycastTarget = false;
-        MakeText(parent, label, new Vector2(22, y), new Vector2(200, 18), 12, TextAnchor.MiddleLeft);
+        MakeText(parent, label, new Vector2(30, y), new Vector2(320, 24), 16, TextAnchor.MiddleLeft);
     }
 
     // ── 빌더 헬퍼(OrderHUD와 동일 스타일) ──
