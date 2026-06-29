@@ -3,10 +3,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class LobbyRoomNet : NetworkBehaviour
 {
-    private const float StartDelaySeconds = 3f;
     public static int RequiredTotalPlayers { get; set; } = 1;
 
     [Header("UI 연결")]
@@ -24,7 +24,6 @@ public class LobbyRoomNet : NetworkBehaviour
     // 서버(호스트)의 메모리에서만 관리할 '준비 완료된 클라이언트 ID' 목록
     private HashSet<ulong> m_ReadyClients = new HashSet<ulong>();
     private bool m_IsLocallyReady = false;
-    private bool m_IsStartingGame = false;
     private NetworkVariable<int> m_ReadyCount = new NetworkVariable<int>(
         0,
         NetworkVariableReadPermission.Everyone,
@@ -52,7 +51,6 @@ public class LobbyRoomNet : NetworkBehaviour
     public int TargetReadyCount => m_TargetReadyCount.Value;
     public int ConnectedCount => m_ConnectedCount.Value;
     public int MaxPlayers => m_MaxPlayers.Value;
-    public bool IsStartingGame => m_IsStartingGame;
 
     public override void OnNetworkSpawn()
     {
@@ -176,7 +174,7 @@ public class LobbyRoomNet : NetworkBehaviour
 
         if (targetCount <= 0)
         {
-            m_IsAllReady.Value = true;
+            m_IsAllReady.Value = false; // 혼자 있을 때는 시작 불가
             return;
         }
 
@@ -217,7 +215,7 @@ public class LobbyRoomNet : NetworkBehaviour
         // 호스트라면: 모든 클라이언트가 준비되었을 때만 시작 버튼을 활성화
         if (IsHost && startButton != null)
         {
-            startButton.interactable = isAllReady && !m_IsStartingGame;
+            startButton.interactable = isAllReady;
         }
 
         // 상태 안내 텍스트 변경 (선택 사항)
@@ -225,10 +223,8 @@ public class LobbyRoomNet : NetworkBehaviour
         {
             if (JobsnailUiKit.TmpFont != null)
                 readyStatusText.font = JobsnailUiKit.TmpFont;
-            readyStatusText.text = m_IsStartingGame
-                ? "3초 뒤 게임이 시작됩니다."
-                : isAllReady
-                ? "모든 플레이어가 준비되었습니다! 시작 가능."
+            readyStatusText.text = isAllReady 
+                ? "모든 플레이어가 준비되었습니다! 시작 가능." 
                 : $"다른 플레이어의 준비를 기다리는 중... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})";
         }
     }
@@ -238,26 +234,18 @@ public class LobbyRoomNet : NetworkBehaviour
     /// </summary>
     public void OnStartGameButtonClicked()
     {
-        if (!IsHost || !m_IsAllReady.Value || m_IsStartingGame) return;
+        if (!IsHost || !m_IsAllReady.Value) return;
 
-        StartCoroutine(StartGameAfterDelay());
-    }
-
-    private System.Collections.IEnumerator StartGameAfterDelay()
-    {
-        m_IsStartingGame = true;
-        UpdateUI(m_IsAllReady.Value);
-
-        Debug.Log("게임 시작 요청! 3초 뒤 인게임 씬으로 다 함께 이동합니다.");
-        yield return new WaitForSeconds(StartDelaySeconds);
-
-        if (!IsHost || !m_IsAllReady.Value)
+        Debug.Log("게임 시작! 인게임 씬으로 다 함께 이동합니다.");
+        // 💡 넷코드 환경에서 다 함께 씬을 이동할 때는 NetworkSceneManager를 사용해야 해!
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.SceneManager != null &&
+            NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
         {
-            m_IsStartingGame = false;
-            UpdateUI(m_IsAllReady.Value);
-            yield break;
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+            return;
         }
 
-        JobsnailMainMenu.StartGameThroughBootstrap();
+        SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
     }
 }
