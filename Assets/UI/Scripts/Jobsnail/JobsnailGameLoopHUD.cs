@@ -25,22 +25,9 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private GameObject m_SettingsPopup;
     private Button m_SettingsButton;
     private Button m_EndRequestButton;
-    private TextMeshProUGUI m_EndRequestButtonLabel;
     private Image[] m_PeopleIcons;
     private bool m_ResultDismissed;
     private bool m_UrgentBgmStarted;
-    private bool m_LastVisible;
-    private int m_LastTimerSeconds = int.MinValue;
-    private bool m_LastTimerBuilding;
-    private bool m_LastLocalConsent;
-    private bool m_LastEndButtonBuilding;
-    private int m_LastPlayerCount = int.MinValue;
-    private int m_LastConsentCount = int.MinValue;
-    private bool m_LastResultShowing;
-    private int m_LastResultPercent = int.MinValue;
-    private int m_LastElapsedSeconds = int.MinValue;
-    private int m_LastNameCount = int.MinValue;
-    private string m_LastAnswerName;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -108,39 +95,25 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         }
 
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
-        if (secs != m_LastTimerSeconds || m_Loop.IsBuilding != m_LastTimerBuilding)
-        {
-            m_LastTimerSeconds = secs;
-            m_LastTimerBuilding = m_Loop.IsBuilding;
-            SetTextIfChanged(m_TimerText, m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료");
-        }
+        m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
 
         UpdateResultPanel();
 
         if (m_EndRequestButton != null)
         {
-            bool localConsent = m_Loop.HasLocalConsent;
-            if (localConsent != m_LastLocalConsent || m_Loop.IsBuilding != m_LastEndButtonBuilding)
-            {
-                m_LastLocalConsent = localConsent;
-                m_LastEndButtonBuilding = m_Loop.IsBuilding;
-                string verb = m_Loop.IsBuilding ? "종료 요청" : "재시작";
-                SetTextIfChanged(m_EndRequestButtonLabel, (localConsent ? "동의 취소" : verb) + " (Enter)");
-                SetButtonColor(m_EndRequestButton, localConsent ? new Color(0.56f, 0.86f, 0.48f, 1f) : new Color(1f, 0.78f, 0.44f, 1f));
-            }
+            string verb = m_Loop.IsBuilding ? "종료 요청" : "재시작";
+            var lbl = m_EndRequestButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (lbl != null) lbl.text = (m_Loop.HasLocalConsent ? "동의 취소" : verb) + " (Enter)";
+            SetButtonColor(m_EndRequestButton, m_Loop.HasLocalConsent ? new Color(0.56f, 0.86f, 0.48f, 1f) : new Color(1f, 0.78f, 0.44f, 1f));
         }
-        if (m_PeopleIcons != null && (m_Loop.PlayerCount != m_LastPlayerCount || m_Loop.ConsentCount != m_LastConsentCount))
-        {
-            m_LastPlayerCount = m_Loop.PlayerCount;
-            m_LastConsentCount = m_Loop.ConsentCount;
+        if (m_PeopleIcons != null)
             for (int i = 0; i < m_PeopleIcons.Length; i++)
             {
                 bool connected = i < m_Loop.PlayerCount;
-                SetActiveIfChanged(m_PeopleIcons[i].gameObject, connected);
+                m_PeopleIcons[i].gameObject.SetActive(connected);
                 if (connected)   // 동의=검정(채움) / 미동의=흐린(빈칸)
-                    SetImageColorIfChanged(m_PeopleIcons[i], i < m_Loop.ConsentCount ? Color.black : new Color(0f, 0f, 0f, 0.28f));
+                    m_PeopleIcons[i].color = i < m_Loop.ConsentCount ? Color.black : new Color(0f, 0f, 0f, 0.28f);
             }
-        }
 
     }
 
@@ -153,7 +126,6 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
         m_Loop = null;
         m_UrgentBgmStarted = false;
-        ResetCachedUiState();
 
         var top = JobsnailUiKit.Box("TopBar", root, new Vector2(0.42f, 0.92f), new Vector2(0.58f, 0.99f), Vector2.zero, Vector2.zero, new Color(0.84f, 0.82f, 0.70f, 0.92f));
         m_TopBar = top.gameObject;
@@ -171,7 +143,6 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             m_PeopleIcons[i].preserveAspect = true;
         }
         m_EndRequestButton = JobsnailUiKit.Button("EndRequestButton", cbar.transform, null, new Vector2(0.46f, 0.12f), new Vector2(1f, 0.88f), Vector2.zero, Vector2.zero, OnEndRequest, "종료 요청");
-        m_EndRequestButtonLabel = m_EndRequestButton != null ? m_EndRequestButton.GetComponentInChildren<TextMeshProUGUI>() : null;
         SetButtonColor(m_EndRequestButton, new Color(1f, 0.78f, 0.44f, 1f));
 
         BuildSettingsButton(root);
@@ -184,64 +155,19 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
     private void SetVisible(bool visible)
     {
-        if (m_LastVisible == visible)
-            return;
-
-        m_LastVisible = visible;
         if (m_TopBar != null)
-            SetActiveIfChanged(m_TopBar, visible);
+            m_TopBar.SetActive(visible);
         if (m_ConsentBar != null)
-            SetActiveIfChanged(m_ConsentBar, visible);
+            m_ConsentBar.SetActive(visible);
         if (m_SettingsButton != null)
-            SetActiveIfChanged(m_SettingsButton.gameObject, visible);
+            m_SettingsButton.gameObject.SetActive(visible);
         if (!visible)
         {
             if (m_ResultPanel != null)
-                SetActiveIfChanged(m_ResultPanel, false);
+                m_ResultPanel.SetActive(false);
             if (m_SettingsPopup != null)
-                SetActiveIfChanged(m_SettingsPopup, false);
+                m_SettingsPopup.SetActive(false);
         }
-    }
-
-    private void ResetCachedUiState()
-    {
-        m_LastVisible = true;
-        m_LastTimerSeconds = int.MinValue;
-        m_LastTimerBuilding = false;
-        m_LastLocalConsent = false;
-        m_LastEndButtonBuilding = false;
-        m_LastPlayerCount = int.MinValue;
-        m_LastConsentCount = int.MinValue;
-        m_LastResultShowing = false;
-        m_LastResultPercent = int.MinValue;
-        m_LastElapsedSeconds = int.MinValue;
-        m_LastNameCount = int.MinValue;
-        m_LastAnswerName = null;
-    }
-
-    private static void SetActiveIfChanged(GameObject go, bool active)
-    {
-        if (go != null && go.activeSelf != active)
-            go.SetActive(active);
-    }
-
-    private static void SetTextIfChanged(TMP_Text text, string value)
-    {
-        value ??= string.Empty;
-        if (text != null && text.text != value)
-            text.text = value;
-    }
-
-    private static void SetImageColorIfChanged(Image image, Color color)
-    {
-        if (image != null && image.color != color)
-            image.color = color;
-    }
-
-    private static void SetTextColorIfChanged(TMP_Text text, Color color)
-    {
-        if (text != null && text.color != color)
-            text.color = color;
     }
 
     private void BuildSettingsButton(Transform root)
@@ -398,57 +324,44 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
 
         if (m_Loop.IsBuilding) m_ResultDismissed = false;   // 새 라운드 → 다음 종료 때 결과창 다시 표시
         bool show = !m_Loop.IsBuilding && !m_ResultDismissed;
-        if (show != m_LastResultShowing)
-        {
-            m_LastResultShowing = show;
-            SetActiveIfChanged(m_ResultPanel, show);
-            if (show)
-            {
-                m_LastResultPercent = int.MinValue;
-                m_LastElapsedSeconds = int.MinValue;
-                m_LastNameCount = int.MinValue;
-                m_LastAnswerName = null;
-            }
-        }
+        m_ResultPanel.SetActive(show);
         if (!show)
             return;
 
         var score = m_Loop.Score;
         int pct = Mathf.RoundToInt(score.Percent);
-        if (pct != m_LastResultPercent)
-        {
-            m_LastResultPercent = pct;
-            SetTextIfChanged(m_ResultScoreText, $"건축 {pct} % 완료");
-            UpdateGrade(pct);
-        }
+        m_ResultScoreText.text = $"건축 {pct} % 완료";
 
         if (m_ResultStructText != null)
         {
             string nm = m_Loop.AnswerName;
-            if (nm != m_LastAnswerName)
-            {
-                m_LastAnswerName = nm;
-                SetTextIfChanged(m_ResultStructText, string.IsNullOrEmpty(nm) ? "" : nm);
-            }
+            m_ResultStructText.text = string.IsNullOrEmpty(nm) ? "" : nm;
         }
 
         if (m_ResultTimeText != null)
         {
             int e = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
-            if (e != m_LastElapsedSeconds)
-            {
-                m_LastElapsedSeconds = e;
-                SetTextIfChanged(m_ResultTimeText, $"소요시간     {e / 60} : {e % 60:00}");
-            }
+            m_ResultTimeText.text = $"소요시간     {e / 60} : {e % 60:00}";
         }
 
-        if (m_ResultNamesText != null && m_Loop.NameCount != m_LastNameCount)
+        if (m_ResultNamesText != null)
         {
-            m_LastNameCount = m_Loop.NameCount;
             string names = "";
             for (int i = 0; i < m_Loop.NameCount; i++)
                 names += (i > 0 ? ", " : "") + m_Loop.GetName(i);
-            SetTextIfChanged(m_ResultNamesText, names);
+            m_ResultNamesText.text = names;
+        }
+
+        if (m_ResultGradeText != null)
+        {
+            bool useStamp = pct >= 90 && m_ResultGradeImage != null && m_ResultGradeImage.sprite != null;
+            if (m_ResultGradeImage != null) m_ResultGradeImage.gameObject.SetActive(useStamp);
+            m_ResultGradeText.gameObject.SetActive(!useStamp);
+
+            if (pct >= 90) { m_ResultGradeText.text = "EXCELLENT!"; m_ResultGradeText.color = new Color(0.85f, 0.15f, 0.12f, 1f); }
+            else if (pct >= 70) { m_ResultGradeText.text = "GREAT!"; m_ResultGradeText.color = new Color(0.90f, 0.45f, 0.10f, 1f); }
+            else if (pct >= 50) { m_ResultGradeText.text = "GOOD!"; m_ResultGradeText.color = new Color(0.30f, 0.55f, 0.85f, 1f); }
+            else { m_ResultGradeText.text = "TRY AGAIN"; m_ResultGradeText.color = new Color(0.45f, 0.40f, 0.35f, 1f); }
         }
 
         if (m_ResultImage != null)
@@ -456,37 +369,6 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             if (m_AnswerPreview == null) m_AnswerPreview = FindFirstObjectByType<AnswerPreview>();
             if (m_AnswerPreview != null && m_AnswerPreview.RT != null && m_ResultImage.texture != m_AnswerPreview.RT)
                 m_ResultImage.texture = m_AnswerPreview.RT;
-        }
-    }
-
-    private void UpdateGrade(int pct)
-    {
-        if (m_ResultGradeText == null)
-            return;
-
-        bool useStamp = pct >= 90 && m_ResultGradeImage != null && m_ResultGradeImage.sprite != null;
-        if (m_ResultGradeImage != null) SetActiveIfChanged(m_ResultGradeImage.gameObject, useStamp);
-        SetActiveIfChanged(m_ResultGradeText.gameObject, !useStamp);
-
-        if (pct >= 90)
-        {
-            SetTextIfChanged(m_ResultGradeText, "EXCELLENT!");
-            SetTextColorIfChanged(m_ResultGradeText, new Color(0.85f, 0.15f, 0.12f, 1f));
-        }
-        else if (pct >= 70)
-        {
-            SetTextIfChanged(m_ResultGradeText, "GREAT!");
-            SetTextColorIfChanged(m_ResultGradeText, new Color(0.90f, 0.45f, 0.10f, 1f));
-        }
-        else if (pct >= 50)
-        {
-            SetTextIfChanged(m_ResultGradeText, "GOOD!");
-            SetTextColorIfChanged(m_ResultGradeText, new Color(0.30f, 0.55f, 0.85f, 1f));
-        }
-        else
-        {
-            SetTextIfChanged(m_ResultGradeText, "TRY AGAIN");
-            SetTextColorIfChanged(m_ResultGradeText, new Color(0.45f, 0.40f, 0.35f, 1f));
         }
     }
 

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -16,7 +15,6 @@ public static class JobsnailUiKit
 
     private static Font s_LegacyFont;
     private static TMP_FontAsset s_TmpFont;
-    private static readonly Dictionary<string, Sprite> s_SpriteCache = new();
 
     public static Font LegacyFont
     {
@@ -64,19 +62,7 @@ public static class JobsnailUiKit
         }
     }
 
-    public static Sprite Sprite(string resourcesPath)
-    {
-        if (string.IsNullOrEmpty(resourcesPath))
-            return null;
-
-        if (!s_SpriteCache.TryGetValue(resourcesPath, out var sprite))
-        {
-            sprite = Resources.Load<Sprite>(resourcesPath);
-            s_SpriteCache[resourcesPath] = sprite;
-        }
-
-        return sprite;
-    }
+    public static Sprite Sprite(string resourcesPath) => Resources.Load<Sprite>(resourcesPath);
 
     public static RectTransform Rect(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size)
     {
