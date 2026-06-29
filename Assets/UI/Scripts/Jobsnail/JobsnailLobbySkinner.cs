@@ -1012,7 +1012,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         int targetReadyCount = Mathf.Max(expectedReadyCount, hasReadyNet ? readyNet.TargetReadyCount : 0);
         int readyCount = hasReadyNet ? readyNet.ReadyCount : 0;
         bool roomIsFullEnough = joinedCount >= maxPlayers;
-        bool allReady = hasReadyNet && readyNet.IsAllReady && roomIsFullEnough;
+        bool singlePlayerRoom = maxPlayers <= 1;
+        bool allReady = hasReadyNet && roomIsFullEnough && (singlePlayerRoom || readyNet.IsAllReady);
 
         if (m_CustomLobbyRoomNameText != null)
             m_CustomLobbyRoomNameText.text = string.IsNullOrWhiteSpace(m_CurrentRoomName) ? "이름 없는 방" : m_CurrentRoomName;
@@ -1057,7 +1058,11 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             else if (isHost && !isNetworkServer)
                 m_CustomLobbyStartHint.text = "방장 권한 복구 중...";
             else if (isHost)
-                m_CustomLobbyStartHint.text = allReady ? "모든 팀원 준비 완료!" : $"팀원을 기다리는 중 ({joinedCount}/{maxPlayers})";
+                m_CustomLobbyStartHint.text = singlePlayerRoom
+                    ? "혼자 플레이 시작 가능!"
+                    : allReady
+                        ? "모든 팀원 준비 완료!"
+                        : $"팀원을 기다리는 중 ({joinedCount}/{maxPlayers})";
             else
                 m_CustomLobbyStartHint.text = readyNet.IsLocallyReady ? "방장이 시작하기를 기다리는 중" : "준비 완료를 눌러줘";
         }
@@ -1066,8 +1071,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         {
             if (!hasReadyNet)
                 m_CustomLobbyReadyStatus.text = "준비 상태를 불러오는 중...";
-            else if (targetReadyCount <= 0)
-                m_CustomLobbyReadyStatus.text = "혼자 플레이는 바로 시작돼요.";
+            else if (singlePlayerRoom || targetReadyCount <= 0)
+                m_CustomLobbyReadyStatus.text = "입장 1/1 · 시작 가능";
             else
                 m_CustomLobbyReadyStatus.text = $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{expectedReadyCount}";
         }

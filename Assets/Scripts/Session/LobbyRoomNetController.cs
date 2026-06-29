@@ -162,15 +162,26 @@ public class LobbyRoomNet : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        int requiredTotal = Mathf.Clamp(RequiredTotalPlayers, 1, 4);
+
         // 현재 서버에 접속한 총 인원수 (호스트 포함)
-        int totalConnected = NetworkManager.Singleton.ConnectedClients.Count;
-        m_ConnectedCount.Value = Mathf.Clamp(totalConnected, 1, Mathf.Clamp(RequiredTotalPlayers, 1, 4));
+        int totalConnected = NetworkManager.Singleton != null ? NetworkManager.Singleton.ConnectedClients.Count : 1;
+        m_ConnectedCount.Value = Mathf.Clamp(totalConnected, 1, requiredTotal);
         
         // 목표 준비 인원은 "현재 접속한 팀원"이 아니라 방 생성 시 정한 최대 인원 기준.
         // 4인방에 방장 혼자 있으면 target=3이어야 하므로, 사람이 덜 찬 상태에서는 시작 불가.
-        int targetCount = Mathf.Max(totalConnected - 1, Mathf.Clamp(RequiredTotalPlayers, 1, 4) - 1);
+        int targetCount = Mathf.Max(totalConnected - 1, requiredTotal - 1);
         m_TargetReadyCount.Value = Mathf.Max(0, targetCount);
-        m_ReadyCount.Value = m_ReadyClients.Count;
+        m_ReadyCount.Value = Mathf.Min(m_ReadyClients.Count, m_TargetReadyCount.Value);
+
+        // 1인 방은 준비할 팀원이 없으므로, 호스트가 바로 다시 시작할 수 있어야 한다.
+        // 첫 판 생성 직후에는 자동 시작 루틴이 처리하지만, 한 판 종료 후 로비로 돌아왔을 때는
+        // 이 ready 상태가 true여야 [게임 시작] 버튼이 다시 활성화된다.
+        if (requiredTotal <= 1)
+        {
+            m_IsAllReady.Value = true;
+            return;
+        }
 
         if (targetCount <= 0)
         {
@@ -223,9 +234,13 @@ public class LobbyRoomNet : NetworkBehaviour
         {
             if (JobsnailUiKit.TmpFont != null)
                 readyStatusText.font = JobsnailUiKit.TmpFont;
-            readyStatusText.text = isAllReady 
-                ? "모든 플레이어가 준비되었습니다! 시작 가능." 
-                : $"다른 플레이어의 준비를 기다리는 중... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})";
+            bool singlePlayerRoom = Mathf.Clamp(RequiredTotalPlayers, 1, 4) <= 1;
+            if (singlePlayerRoom)
+                readyStatusText.text = "혼자 플레이 준비 완료. 시작 가능.";
+            else if (isAllReady)
+                readyStatusText.text = "모든 플레이어가 준비되었습니다! 시작 가능.";
+            else
+                readyStatusText.text = $"다른 플레이어의 준비를 기다리는 중... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})";
         }
     }
 
