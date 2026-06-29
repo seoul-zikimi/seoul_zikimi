@@ -1013,6 +1013,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         int readyCount = hasReadyNet ? readyNet.ReadyCount : 0;
         bool roomIsFullEnough = joinedCount >= maxPlayers;
         bool allReady = hasReadyNet && readyNet.IsAllReady && roomIsFullEnough;
+        bool isStartingGame = hasReadyNet && readyNet.IsStartingGame;
 
         if (m_CustomLobbyRoomNameText != null)
             m_CustomLobbyRoomNameText.text = string.IsNullOrWhiteSpace(m_CurrentRoomName) ? "이름 없는 방" : m_CurrentRoomName;
@@ -1028,8 +1029,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (m_CustomLobbyStartButton != null)
         {
             m_CustomLobbyStartButton.gameObject.SetActive(isHost);
-            m_CustomLobbyStartButton.interactable = hasReadyNet && allReady && isNetworkServer;
-            SetButtonLabel(m_CustomLobbyStartButton, "게임 시작");
+            m_CustomLobbyStartButton.interactable = hasReadyNet && allReady && isNetworkServer && !isStartingGame;
+            SetButtonLabel(m_CustomLobbyStartButton, isStartingGame ? "시작 대기" : "게임 시작");
             SetButtonColor(m_CustomLobbyStartButton, allReady ? new Color(1f, 0.78f, 0.44f, 1f) : new Color(0.78f, 0.78f, 0.78f, 1f));
         }
 
@@ -1052,7 +1053,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (m_CustomLobbyStartHint != null)
         {
-            if (!hasReadyNet)
+            if (isStartingGame)
+                m_CustomLobbyStartHint.text = "3초 뒤 시작합니다.";
+            else if (!hasReadyNet)
                 m_CustomLobbyStartHint.text = "레디 시스템 연결 중...";
             else if (isHost && !isNetworkServer)
                 m_CustomLobbyStartHint.text = "방장 권한 복구 중...";
@@ -1064,10 +1067,12 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (m_CustomLobbyReadyStatus != null)
         {
-            if (!hasReadyNet)
+            if (isStartingGame)
+                m_CustomLobbyReadyStatus.text = "게임 시작 준비 중...";
+            else if (!hasReadyNet)
                 m_CustomLobbyReadyStatus.text = "준비 상태를 불러오는 중...";
             else if (targetReadyCount <= 0)
-                m_CustomLobbyReadyStatus.text = "혼자 플레이는 바로 시작돼요.";
+                m_CustomLobbyReadyStatus.text = "시작하기를 누르면 3초 뒤 시작돼요.";
             else
                 m_CustomLobbyReadyStatus.text = $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{expectedReadyCount}";
         }
@@ -1146,13 +1151,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (SoundManager.Instance != null)
             SoundManager.Instance.PlaySFX(SFXType.UIClick);
 
-        if (NetworkManager.Singleton.SceneManager != null && NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
-        {
-            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
-            return;
-        }
-
-        SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+        JobsnailMainMenu.StartGameThroughBootstrap();
     }
 
     private void OnCreateSessionFailed(string message)

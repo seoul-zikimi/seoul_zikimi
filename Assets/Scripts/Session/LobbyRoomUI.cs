@@ -5,12 +5,15 @@ using UnityEngine.UI;
 // 💡 NetworkBehaviour 대신 MonoBehaviour를 사용해 스폰 의존성을 없앱니다.
 public class LobbyRoomUI : MonoBehaviour
 {
+    private const float StartDelaySeconds = 3f;
+
     [Header("UI Panels")]
     public GameObject hostPanel;    
     public GameObject clientPanel;  
 
     [Header("Host Controls")]
     public Button startGameButton; 
+    private bool m_IsStartingGame;
 
     // 💡 오브젝트가 SetActive(true) 되는 순간 무조건 실행됩니다.
     private void OnEnable()
@@ -61,7 +64,19 @@ public class LobbyRoomUI : MonoBehaviour
         if (startGameButton != null) 
             startGameButton.interactable = false;
 
-        Debug.Log("[LobbyRoom] 게임 시작! 인게임 씬으로 이동합니다.");
-        NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, UnityEngine.SceneManagement.LoadSceneMode.Single);
+        if (m_IsStartingGame)
+            return;
+
+        StartCoroutine(StartGameAfterDelay());
+    }
+
+    private System.Collections.IEnumerator StartGameAfterDelay()
+    {
+        m_IsStartingGame = true;
+
+        Debug.Log("[LobbyRoom] 게임 시작 요청! 3초 뒤 Bootstrap 씬을 거쳐 인게임 씬으로 이동합니다.");
+        yield return new WaitForSeconds(StartDelaySeconds);
+
+        JobsnailMainMenu.StartGameThroughBootstrap();
     }
 }

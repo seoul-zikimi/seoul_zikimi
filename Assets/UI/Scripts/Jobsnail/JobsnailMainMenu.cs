@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using Unity.Netcode;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -9,6 +10,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
     private InputField m_NicknameInput;
     private GameObject m_SettingsPopup;
     private static Font s_DefaultFont;
+    private static bool s_StartGameWhenBootstrapLoads;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -23,7 +25,36 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         if (scene.name != SceneNames.BootstrapScene)
             return;
 
+        if (s_StartGameWhenBootstrapLoads && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        {
+            s_StartGameWhenBootstrapLoads = false;
+            if (NetworkManager.Singleton.SceneManager != null && NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
+                NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+            else
+                SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+            return;
+        }
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            return;
+
         Show();
+    }
+
+    public static void StartGameThroughBootstrap()
+    {
+        s_StartGameWhenBootstrapLoads = true;
+
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsServer &&
+            NetworkManager.Singleton.SceneManager != null &&
+            NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
+        {
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.BootstrapScene, LoadSceneMode.Single);
+            return;
+        }
+
+        SceneManager.LoadScene(SceneNames.BootstrapScene, LoadSceneMode.Single);
     }
 
     public static void Show()
