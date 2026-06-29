@@ -60,7 +60,6 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private readonly List<Text> m_CustomLobbySlotStatuses = new();
     private ISession m_ActiveSession;
     private string m_ActiveSessionHostId;
-    private bool m_IsHandlingHostMigration;
     private int m_CurrentRoomMaxPlayers = 1;
     private string m_CurrentRoomName = "신체 건강한 달팽이 구합니다";
 
@@ -827,9 +826,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private async void OnActiveSessionHostChanged(string newHostId)
     {
         m_ActiveSessionHostId = newHostId;
-        Debug.Log($"[JobsnailLobbySkinner] 세션 방장 변경 감지됨 (새 방장: {newHostId}) ➡️ 안전하게 퇴장 및 폭파를 시작합니다.");
+        Debug.LogWarning($"[JobsnailLobbySkinner] 세션 방장 변경 감지됨 (새 방장: {newHostId}) ➡️ 세션을 종료합니다.");
 
-        await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
+        await JobsnailSessionManager.Instance.EndSessionBecauseHostLeftAsync($"JobsnailLobbySkinner 방장 변경 감지: {newHostId}");
     }
 
     private bool IsLocalSessionHost()

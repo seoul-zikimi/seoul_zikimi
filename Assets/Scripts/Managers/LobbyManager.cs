@@ -29,7 +29,6 @@ public class LobbyManager : MonoBehaviour
     private string m_SelectedSessionId = null;
     private ISession m_ActiveSession;
     private string m_ActiveSessionHostId;
-    private bool m_IsHandlingHostMigration;
     
     async void Start()
     {
@@ -261,10 +260,8 @@ public class LobbyManager : MonoBehaviour
     private void OnSessionHostChanged(string hostId)
     {
         m_ActiveSessionHostId = hostId;
-        Debug.Log($"[LobbyManager] 세션 방장 변경 감지: {hostId}");
-
-        if (IsLocalSessionHost())
-            _ = BecomeHostAfterSessionMigrationAsync();
+        Debug.LogWarning($"[LobbyManager] 세션 방장 변경 감지: {hostId}. 요구사항에 따라 세션을 종료합니다.");
+        _ = JobsnailSessionManager.Instance.EndSessionBecauseHostLeftAsync($"LobbyManager 방장 변경 감지: {hostId}");
     }
 
     private bool IsLocalSessionHost()
@@ -284,50 +281,6 @@ public class LobbyManager : MonoBehaviour
         }
 
         return NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
-    }
-
-    private async Task BecomeHostAfterSessionMigrationAsync()
-    {
-        if (m_IsHandlingHostMigration)
-            return;
-
-        m_IsHandlingHostMigration = true;
-        try
-        {
-            await Task.Yield();
-
-            if (!IsLocalSessionHost() || NetworkManager.Singleton == null)
-                return;
-
-            if (NetworkManager.Singleton.IsHost && NetworkManager.Singleton.IsListening)
-                return;
-
-            if (NetworkManager.Singleton.IsListening)
-            {
-                NetworkManager.Singleton.Shutdown();
-                var timeout = Time.realtimeSinceStartup + 3f;
-                while (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && Time.realtimeSinceStartup < timeout)
-                    await Task.Yield();
-            }
-
-            PrepareNetworkTransport();
-            if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
-            {
-                bool started = NetworkManager.Singleton.StartHost();
-                Debug.Log(started
-                    ? "[LobbyManager] 새 세션 방장이 로컬 Host를 시작했습니다."
-                    : "[LobbyManager] 새 세션 방장 Host 시작 실패.");
-            }
-
-            if (LobbyRoomHUD != null)
-                LobbyRoomHUD.SetActive(true);
-
-            RefreshLobbyRoomUI();
-        }
-        finally
-        {
-            m_IsHandlingHostMigration = false;
-        }
     }
 
     private static void PrepareNetworkTransport()
@@ -460,35 +413,7 @@ public class LobbyManager : MonoBehaviour
         // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인
         if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
         {
-            Debug.Log("[LobbyManager] 서버와의 연결이 끊어졌습니다. 호스트 위임(Migration)을 시작합니다.");
-
-            // 기존에 꼬여있을지 모르는 넷코드 상태를 안전하게 완전히 셧다운
-            NetworkManager.Singleton.Shutdown();
-        
-            // UGS가 다음 방장을 내부적으로 선출하고 세션을 정리할 시간을 잠시 줌 (1초 대기)
-            await System.Threading.Tasks.Task.Delay(1000);
-
-            // 👑 팩트 체크: UGS가 "너가 이제 새 방장이야"라고 지정해 줬는지 확인
-            m_ActiveSessionHostId = m_CurrentSession.Host;
-            if (IsLocalSessionHost())
-            {
-                Debug.Log("👑 [호스트 당첨] 내가 새로운 방장으로 선택되었습니다! 서버(Host)를 개설합니다.");
-                PrepareNetworkTransport();
-                if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
-                    NetworkManager.Singleton.StartHost();
-            }
-            else
-            {
-                Debug.Log("👤 [클라이언트 유지] 다른 사람이 새 방장이 되었습니다. 새 서버로 재접속(Client)합니다.");
-                // 새 방장이 StartHost()를 완료할 때까지 약간 더 대기 후 접속
-                await System.Threading.Tasks.Task.Delay(1500);
-                PrepareNetworkTransport();
-                if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
-                    NetworkManager.Singleton.StartClient();
-            }
-
-            // 방장 교체 및 인원 변동이 완료되었으니 UI 최종 갱신
-            RefreshLobbyRoomUI();
+            await JobsnailSessionManager.Instance.EndSessionBecauseHostLeftAsync($"LobbyManager 넷코드 서버 연결 끊김(clientId={clientId})");
         }
     }
 
