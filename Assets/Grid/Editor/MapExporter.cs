@@ -195,7 +195,7 @@ public static class MapExporter
         foreach (var layer in grid.TileLayers)
         {
             if (layer == null) continue;
-            if (!layer.name.Equals("Preset", System.StringComparison.OrdinalIgnoreCase)) continue;
+            if (!layer.LayerName.Equals("Preset", System.StringComparison.OrdinalIgnoreCase)) continue;
 
             foreach (var node in layer.GetAllInternalNodes())
             {
