@@ -19,10 +19,17 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     internal static JobsnailLobbySkinner ActiveInstance { get; private set; }
 
     private static Font s_DefaultFont;
+    private const float EntryRefreshInterval = 0.2f;
     private const string SessionOverlayPrefabPath = "UI/Jobsnail/Prefabs/JobsnailSessionOverlay";
     private const string CreateOverlayPrefabPath = "UI/Jobsnail/Prefabs/JobsnailCreateOverlay";
     private const string LobbyRoomOverlayPrefabPath = "UI/Jobsnail/Prefabs/JobsnailLobbyRoomOverlay";
 
+    private GameObject m_StartHUD;
+    private GameObject m_CreateSessionHUD;
+    private GameObject m_SessionListHUD;
+    private GameObject m_JoinCodeHUD;
+    private GameObject m_JoinByCodeHUD;
+    private GameObject m_OriginalLobbyRoomHUD;
     private GameObject m_EntryOverlay;
     private GameObject m_SessionOverlay;
     private GameObject m_CreateOverlay;
@@ -63,6 +70,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private bool m_IsHandlingHostMigration;
     private int m_CurrentRoomMaxPlayers = 1;
     private string m_CurrentRoomName = "신체 건강한 달팽이 구합니다";
+    private LobbyRoomNet m_CachedReadyNet;
+    private float m_NextEntryRefreshTime;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -114,6 +123,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         SkinButtons(transform);
         SkinTexts(transform);
         SkinPanels(transform);
+        CacheOriginalHudRefs();
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Lobby);
         m_StartUi = FindFirstObjectByType<StartUGUI>(FindObjectsInactive.Include);
@@ -151,7 +161,21 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private void Update()
     {
+        if (Time.unscaledTime < m_NextEntryRefreshTime)
+            return;
+
+        m_NextEntryRefreshTime = Time.unscaledTime + EntryRefreshInterval;
         RefreshEntryOverlay();
+    }
+
+    private void CacheOriginalHudRefs()
+    {
+        m_StartHUD = FindGameObject(transform, "StartHUD");
+        m_CreateSessionHUD = FindGameObject(transform, "CreateSessionHUD");
+        m_SessionListHUD = FindGameObject(transform, "SessionListHUD");
+        m_JoinCodeHUD = FindGameObject(transform, "JoinCodeHUD");
+        m_JoinByCodeHUD = FindGameObject(transform, "JoinByCodeHUD");
+        m_OriginalLobbyRoomHUD = FindGameObject(transform, "LobbyRoomHUD");
     }
 
     private void AddBackground()
@@ -293,6 +317,42 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             child.gameObject.SetActive(active);
     }
 
+    private void SetOriginalHudActive(string name, bool active)
+    {
+        var go = GetOriginalHud(name);
+        if (go != null)
+        {
+            SetActiveIfChanged(go, active);
+            return;
+        }
+
+        SetActive(transform, name, active);
+    }
+
+    private bool IsOriginalHudActive(string name)
+    {
+        var go = GetOriginalHud(name);
+        if (go != null)
+            return go.activeInHierarchy;
+
+        var child = FindDeep(transform, name);
+        return child != null && child.gameObject.activeInHierarchy;
+    }
+
+    private GameObject GetOriginalHud(string name)
+    {
+        return name switch
+        {
+            "StartHUD" => m_StartHUD,
+            "CreateSessionHUD" => m_CreateSessionHUD,
+            "SessionListHUD" => m_SessionListHUD,
+            "JoinCodeHUD" => m_JoinCodeHUD,
+            "JoinByCodeHUD" => m_JoinByCodeHUD,
+            "LobbyRoomHUD" => m_OriginalLobbyRoomHUD,
+            _ => null
+        };
+    }
+
     private void AddEntryOverlay(Transform root)
     {
         var oldOverlay = root.Find("@JobsnailEntryOverlay");
@@ -345,27 +405,27 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                 HideCustomLobbyRoomOverlay();
                 return;
             }
-            SetActive(transform, "StartHUD", false);
-            SetActive(transform, "CreateSessionHUD", false);
-            SetActive(transform, "SessionListHUD", false);
-            SetActive(transform, "JoinCodeHUD", false);
-            SetActive(transform, "JoinByCodeHUD", false);
-            SetActive(transform, "LobbyRoomHUD", false);
+            SetOriginalHudActive("StartHUD", false);
+            SetOriginalHudActive("CreateSessionHUD", false);
+            SetOriginalHudActive("SessionListHUD", false);
+            SetOriginalHudActive("JoinCodeHUD", false);
+            SetOriginalHudActive("JoinByCodeHUD", false);
+            SetOriginalHudActive("LobbyRoomHUD", false);
             ShowCustomLobbyRoomOverlay();
             return;
         }
 
         HideCustomLobbyRoomOverlay();
-        SetActive(transform, "LobbyRoomHUD", false);
+        SetOriginalHudActive("LobbyRoomHUD", false);
 
         bool secondaryScreenOpen =
             IsCustomScreenOpen() ||
-            IsActive("CreateSessionHUD") ||
-            IsActive("SessionListHUD") ||
-            IsActive("JoinCodeHUD") ||
-            IsActive("JoinByCodeHUD");
+            IsOriginalHudActive("CreateSessionHUD") ||
+            IsOriginalHudActive("SessionListHUD") ||
+            IsOriginalHudActive("JoinCodeHUD") ||
+            IsOriginalHudActive("JoinByCodeHUD");
 
-        SetActive(transform, "StartHUD", !secondaryScreenOpen);
+        SetOriginalHudActive("StartHUD", !secondaryScreenOpen);
 
         if (m_EntryOverlay != null)
         {
@@ -374,16 +434,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
     }
 
-    private bool IsActive(string name)
-    {
-        var child = FindDeep(transform, name);
-        return child != null && child.gameObject.activeInHierarchy;
-    }
-
     private void HideEntryOverlay()
     {
         if (m_EntryOverlay != null)
-            m_EntryOverlay.SetActive(false);
+            SetActiveIfChanged(m_EntryOverlay, false);
     }
 
     private void ShowCreateSession()
@@ -413,12 +467,12 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private void HideOriginalLobbyHuds()
     {
-        SetActive(transform, "StartHUD", false);
-        SetActive(transform, "CreateSessionHUD", false);
-        SetActive(transform, "SessionListHUD", false);
-        SetActive(transform, "JoinCodeHUD", false);
-        SetActive(transform, "JoinByCodeHUD", false);
-        SetActive(transform, "LobbyRoomHUD", false);
+        SetOriginalHudActive("StartHUD", false);
+        SetOriginalHudActive("CreateSessionHUD", false);
+        SetOriginalHudActive("SessionListHUD", false);
+        SetOriginalHudActive("JoinCodeHUD", false);
+        SetOriginalHudActive("JoinByCodeHUD", false);
+        SetOriginalHudActive("LobbyRoomHUD", false);
         HideOriginalHudGraphics("CreateSessionHUD");
         HideOriginalHudGraphics("SessionListHUD");
     }
@@ -752,11 +806,11 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         HideCustomCreateOverlay();
         HideCustomSessionOverlay();
-        SetActive(transform, "CreateSessionHUD", false);
-        SetActive(transform, "SessionListHUD", false);
-        SetActive(transform, "StartHUD", false);
-        SetActive(transform, "JoinCodeHUD", false);
-        SetActive(transform, "JoinByCodeHUD", false);
+        SetOriginalHudActive("CreateSessionHUD", false);
+        SetOriginalHudActive("SessionListHUD", false);
+        SetOriginalHudActive("StartHUD", false);
+        SetOriginalHudActive("JoinCodeHUD", false);
+        SetOriginalHudActive("JoinByCodeHUD", false);
         m_CurrentRoomMaxPlayers = Mathf.Clamp(m_SelectedMaxPlayers, 1, 4);
         if (m_CustomRoomNameInput != null && !string.IsNullOrWhiteSpace(m_CustomRoomNameInput.text))
             m_CurrentRoomName = m_CustomRoomNameInput.text.Trim();
@@ -767,12 +821,12 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         {
             m_IsStartingGame = true;
             HideCustomLobbyRoomOverlay();
-            SetActive(transform, "LobbyRoomHUD", false);
+            SetOriginalHudActive("LobbyRoomHUD", false);
             StartCoroutine(StartSinglePlayerGameAfterHostReady());
             return;
         }
 
-        SetActive(transform, "LobbyRoomHUD", false);
+        SetOriginalHudActive("LobbyRoomHUD", false);
         ShowCustomLobbyRoomOverlay();
     }
 
@@ -855,7 +909,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private System.Collections.IEnumerator StartSinglePlayerGameAfterHostReady()
     {
-        SetActive(transform, "LobbyRoomHUD", false);
+        SetOriginalHudActive("LobbyRoomHUD", false);
         HideCustomLobbyRoomOverlay();
 
         float timeout = Time.unscaledTime + 6f;
@@ -998,9 +1052,43 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         statusText = MakeText(slot.transform, status, 17, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(45, -21), new Vector2(165, 30), TextAnchor.MiddleRight);
     }
 
+    private LobbyRoomNet GetReadyNet()
+    {
+        if (m_CachedReadyNet != null)
+            return m_CachedReadyNet;
+
+        m_CachedReadyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        return m_CachedReadyNet;
+    }
+
+    private static void SetActiveIfChanged(GameObject go, bool active)
+    {
+        if (go != null && go.activeSelf != active)
+            go.SetActive(active);
+    }
+
+    private static void SetInteractableIfChanged(Selectable selectable, bool interactable)
+    {
+        if (selectable != null && selectable.interactable != interactable)
+            selectable.interactable = interactable;
+    }
+
+    private static void SetTextIfChanged(Text text, string value)
+    {
+        value ??= string.Empty;
+        if (text != null && text.text != value)
+            text.text = value;
+    }
+
+    private static void SetImageColorIfChanged(Image image, Color color)
+    {
+        if (image != null && image.color != color)
+            image.color = color;
+    }
+
     private void UpdateCustomLobbyRoomOverlay()
     {
-        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        var readyNet = GetReadyNet();
         bool isHost = IsLocalSessionHost();
         bool isNetworkServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
         bool hasReadyNet = readyNet != null && readyNet.IsSpawned;
@@ -1016,20 +1104,20 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         bool isStartingGame = hasReadyNet && readyNet.IsStartingGame;
 
         if (m_CustomLobbyRoomNameText != null)
-            m_CustomLobbyRoomNameText.text = string.IsNullOrWhiteSpace(m_CurrentRoomName) ? "이름 없는 방" : m_CurrentRoomName;
+            SetTextIfChanged(m_CustomLobbyRoomNameText, string.IsNullOrWhiteSpace(m_CurrentRoomName) ? "이름 없는 방" : m_CurrentRoomName);
 
         if (m_CustomLobbyStatusBadgeText != null)
-            m_CustomLobbyStatusBadgeText.text = roomIsFullEnough ? "모집 완료" : "모집중";
+            SetTextIfChanged(m_CustomLobbyStatusBadgeText, roomIsFullEnough ? "모집 완료" : "모집중");
 
         if (m_CustomLobbyStatusBadgeImage != null)
-            m_CustomLobbyStatusBadgeImage.color = roomIsFullEnough
+            SetImageColorIfChanged(m_CustomLobbyStatusBadgeImage, roomIsFullEnough
                 ? new Color(0.45f, 0.84f, 0.38f, 1f)
-                : new Color(1f, 0.78f, 0.44f, 1f);
+                : new Color(1f, 0.78f, 0.44f, 1f));
 
         if (m_CustomLobbyStartButton != null)
         {
-            m_CustomLobbyStartButton.gameObject.SetActive(isHost);
-            m_CustomLobbyStartButton.interactable = hasReadyNet && allReady && isNetworkServer && !isStartingGame;
+            SetActiveIfChanged(m_CustomLobbyStartButton.gameObject, isHost);
+            SetInteractableIfChanged(m_CustomLobbyStartButton, hasReadyNet && allReady && isNetworkServer && !isStartingGame);
             SetButtonLabel(m_CustomLobbyStartButton, isStartingGame ? "시작 대기" : "게임 시작");
             SetButtonColor(m_CustomLobbyStartButton, allReady ? new Color(1f, 0.78f, 0.44f, 1f) : new Color(0.78f, 0.78f, 0.78f, 1f));
         }
@@ -1037,8 +1125,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (m_CustomLobbyReadyButton != null)
         {
             bool showReady = !isHost;
-            m_CustomLobbyReadyButton.gameObject.SetActive(showReady);
-            m_CustomLobbyReadyButton.interactable = hasReadyNet;
+            SetActiveIfChanged(m_CustomLobbyReadyButton.gameObject, showReady);
+            SetInteractableIfChanged(m_CustomLobbyReadyButton, hasReadyNet);
             if (!hasReadyNet)
             {
                 SetButtonLabel(m_CustomLobbyReadyButton, "준비");
@@ -1054,27 +1142,27 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (m_CustomLobbyStartHint != null)
         {
             if (isStartingGame)
-                m_CustomLobbyStartHint.text = "3초 뒤 시작합니다.";
+                SetTextIfChanged(m_CustomLobbyStartHint, "3초 뒤 시작합니다.");
             else if (!hasReadyNet)
-                m_CustomLobbyStartHint.text = "레디 시스템 연결 중...";
+                SetTextIfChanged(m_CustomLobbyStartHint, "레디 시스템 연결 중...");
             else if (isHost && !isNetworkServer)
-                m_CustomLobbyStartHint.text = "방장 권한 복구 중...";
+                SetTextIfChanged(m_CustomLobbyStartHint, "방장 권한 복구 중...");
             else if (isHost)
-                m_CustomLobbyStartHint.text = allReady ? "모든 팀원 준비 완료!" : $"팀원을 기다리는 중 ({joinedCount}/{maxPlayers})";
+                SetTextIfChanged(m_CustomLobbyStartHint, allReady ? "모든 팀원 준비 완료!" : $"팀원을 기다리는 중 ({joinedCount}/{maxPlayers})");
             else
-                m_CustomLobbyStartHint.text = readyNet.IsLocallyReady ? "방장이 시작하기를 기다리는 중" : "준비 완료를 눌러줘";
+                SetTextIfChanged(m_CustomLobbyStartHint, readyNet.IsLocallyReady ? "방장이 시작하기를 기다리는 중" : "준비 완료를 눌러줘");
         }
 
         if (m_CustomLobbyReadyStatus != null)
         {
             if (isStartingGame)
-                m_CustomLobbyReadyStatus.text = "게임 시작 준비 중...";
+                SetTextIfChanged(m_CustomLobbyReadyStatus, "게임 시작 준비 중...");
             else if (!hasReadyNet)
-                m_CustomLobbyReadyStatus.text = "준비 상태를 불러오는 중...";
+                SetTextIfChanged(m_CustomLobbyReadyStatus, "준비 상태를 불러오는 중...");
             else if (targetReadyCount <= 0)
-                m_CustomLobbyReadyStatus.text = "시작하기를 누르면 3초 뒤 시작돼요.";
+                SetTextIfChanged(m_CustomLobbyReadyStatus, "시작하기를 누르면 3초 뒤 시작돼요.");
             else
-                m_CustomLobbyReadyStatus.text = $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{expectedReadyCount}";
+                SetTextIfChanged(m_CustomLobbyReadyStatus, $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{expectedReadyCount}");
         }
 
         UpdateLobbySlots(joinedCount, readyCount, maxPlayers, allReady);
@@ -1085,7 +1173,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         for (int i = 0; i < m_CustomLobbySlotNames.Count && i < m_CustomLobbySlotStatuses.Count; i++)
         {
             if (i < m_CustomLobbySlotRoots.Count && m_CustomLobbySlotRoots[i] != null)
-                m_CustomLobbySlotRoots[i].SetActive(i < maxPlayers);
+                SetActiveIfChanged(m_CustomLobbySlotRoots[i], i < maxPlayers);
 
             if (i >= maxPlayers)
                 continue;
@@ -1097,28 +1185,28 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
             if (i == 0)
             {
-                name.text = "방장";
-                status.text = allReady ? "시작 가능" : "방장 / 준비 완료";
+                SetTextIfChanged(name, "방장");
+                SetTextIfChanged(status, allReady ? "시작 가능" : "방장 / 준비 완료");
                 continue;
             }
 
             int memberIndex = i;
             if (memberIndex < joinedCount)
             {
-                name.text = $"팀원 {memberIndex}";
-                status.text = memberIndex <= readyCount ? "준비 완료" : "대기중...";
+                SetTextIfChanged(name, $"팀원 {memberIndex}");
+                SetTextIfChanged(status, memberIndex <= readyCount ? "준비 완료" : "대기중...");
             }
             else
             {
-                name.text = "빈 자리";
-                status.text = "";
+                SetTextIfChanged(name, "빈 자리");
+                SetTextIfChanged(status, "");
             }
         }
     }
 
     private void ToggleCustomReadyState()
     {
-        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        var readyNet = GetReadyNet();
         if (readyNet == null || !readyNet.IsSpawned)
             return;
 
@@ -1128,7 +1216,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     private void TryStartCustomLobbyGame()
     {
-        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        var readyNet = GetReadyNet();
 
         if (readyNet != null && readyNet.IsSpawned)
         {
@@ -1137,7 +1225,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
 
         if (m_CustomLobbyStartHint != null)
-            m_CustomLobbyStartHint.text = "레디 시스템 연결 후 시작할 수 있어요.";
+            SetTextIfChanged(m_CustomLobbyStartHint, "레디 시스템 연결 후 시작할 수 있어요.");
     }
 
     private static void StartGameFromLobby()
@@ -1184,7 +1272,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         MakeFixedButton(m_CreateOverlay.transform, "×", new Vector2(205, 127), new Vector2(28, 28), () =>
         {
             HideCustomCreateOverlay();
-            SetActive(transform, "CreateSessionHUD", false);
+            SetOriginalHudActive("CreateSessionHUD", false);
         }, 18, new Color(0f, 0f, 0f, 0f));
 
         MakeText(m_CreateOverlay.transform, "방 이름", 18, Color.black, new Vector2(-115, 76), new Vector2(90, 28), TextAnchor.MiddleRight);
@@ -1484,7 +1572,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     {
         PlayUIClick();
         HideCustomCreateOverlay();
-        SetActive(transform, "CreateSessionHUD", false);
+        SetOriginalHudActive("CreateSessionHUD", false);
     }
 
     internal void PrefabSubmitCreateSession()
@@ -1647,8 +1735,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return;
 
         var image = button.GetComponent<Image>();
-        if (image != null)
-            image.color = color;
+        SetImageColorIfChanged(image, color);
     }
 
     private static void SetButtonLabel(Button button, string label)
@@ -1657,8 +1744,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return;
 
         var text = button.GetComponentInChildren<Text>(true);
-        if (text != null)
-            text.text = label;
+        SetTextIfChanged(text, label);
     }
 
     private static InputField MakeLegacyInput(Transform parent, string value, Vector2 anchored, Vector2 size)
