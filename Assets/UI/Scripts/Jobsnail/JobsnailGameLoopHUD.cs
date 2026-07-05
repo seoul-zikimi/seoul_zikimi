@@ -1,3 +1,4 @@
+using System.Collections;
 using GridSystem;
 using TMPro;
 using Unity.Netcode;
@@ -17,6 +18,7 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private TextMeshProUGUI m_ResultTimeText;
     private TextMeshProUGUI m_ResultGradeText;
     private Image m_ResultGradeImage;
+    private Image m_ResultStar;
     private RawImage m_ResultImage;
     private AnswerPreview m_AnswerPreview;
     private GameObject m_TopBar;
@@ -27,6 +29,8 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private Button m_EndRequestButton;
     private Image[] m_PeopleIcons;
     private bool m_ResultDismissed;
+    private bool m_ResultWasShown;
+    private bool m_ResultIntroPlaying;
     private bool m_UrgentBgmStarted;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -288,6 +292,7 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         var star = JobsnailUiKit.Box("GradeStar", m_ResultPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(160, -172), new Vector2(96, 96), starSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
         star.sprite = starSprite;
         star.preserveAspect = true;
+        m_ResultStar = star;
 
         m_ResultGradeText = JobsnailUiKit.Label("Grade", m_ResultPanel.transform, "", 34, new Color(0.85f, 0.15f, 0.12f, 1f), TextAlignmentOptions.Center, new Vector2(175, -172), new Vector2(240, 70));
         m_ResultGradeText.fontStyle = FontStyles.Bold;
@@ -326,11 +331,18 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         bool show = !m_Loop.IsBuilding && !m_ResultDismissed;
         m_ResultPanel.SetActive(show);
         if (!show)
+        {
+            m_ResultWasShown = false;   // 다시 숨김 → 다음 표시 때 인트로 연출 재생
             return;
+        }
 
         var score = m_Loop.Score;
         int pct = Mathf.RoundToInt(score.Percent);
-        m_ResultScoreText.text = $"건축 {pct} % 완료";
+
+        bool firstShow = !m_ResultWasShown;
+        m_ResultWasShown = true;
+        if (firstShow) { m_ResultIntroPlaying = true; StartCoroutine(ResultIntro(pct)); }
+        if (!m_ResultIntroPlaying) m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
 
         if (m_ResultStructText != null)
         {
@@ -370,6 +382,53 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
             if (m_AnswerPreview != null && m_AnswerPreview.RT != null && m_ResultImage.texture != m_AnswerPreview.RT)
                 m_ResultImage.texture = m_AnswerPreview.RT;
         }
+    }
+
+    // 결과창 등장 연출: 완성도 숫자 롤업 + 별 팝 + 등급 슬램. 시간정지와 무관하게 unscaled로.
+    private IEnumerator ResultIntro(int pct)
+    {
+        var star  = m_ResultStar != null ? m_ResultStar.rectTransform : null;
+        var grade = m_ResultGradeText != null ? m_ResultGradeText.rectTransform : null;
+        var stamp = m_ResultGradeImage != null ? m_ResultGradeImage.rectTransform : null;
+        if (star  != null) star.localScale  = Vector3.zero;
+        if (grade != null) grade.localScale = Vector3.zero;
+        if (stamp != null) stamp.localScale = Vector3.zero;
+        if (m_ResultScoreText != null) m_ResultScoreText.text = "건축 0 % 완료";
+
+        float t = 0f; const float dur = 0.55f;
+        while (t < dur)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            int cur = Mathf.RoundToInt(Mathf.Lerp(0f, pct, 1f - (1f - k) * (1f - k)));   // ease-out
+            if (m_ResultScoreText != null) m_ResultScoreText.text = $"건축 {cur} % 완료";
+            if (star != null) star.localScale = Vector3.one * EaseOutBack(k);            // 별 팝
+            yield return null;
+        }
+        if (m_ResultScoreText != null) m_ResultScoreText.text = $"건축 {pct} % 완료";
+        if (star != null) star.localScale = Vector3.one;
+
+        if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+        float t2 = 0f; const float dur2 = 0.28f;
+        while (t2 < dur2)   // 등급/스탬프 쾅
+        {
+            t2 += Time.unscaledDeltaTime;
+            float s = EaseOutBack(Mathf.Clamp01(t2 / dur2));
+            if (grade != null) grade.localScale = Vector3.one * s;
+            if (stamp != null) stamp.localScale = Vector3.one * s;
+            yield return null;
+        }
+        if (grade != null) grade.localScale = Vector3.one;
+        if (stamp != null) stamp.localScale = Vector3.one;
+        m_ResultIntroPlaying = false;
+    }
+
+    // 오버슛 이징(0→1.1→1) — 팝/슬램용.
+    private static float EaseOutBack(float k)
+    {
+        const float c1 = 1.70158f, c3 = c1 + 1f;
+        float p = k - 1f;
+        return 1f + c3 * p * p * p + c1 * p * p;
     }
 
     private void ToggleSettingsPopup()

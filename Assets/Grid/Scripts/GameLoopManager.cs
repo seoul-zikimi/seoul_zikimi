@@ -30,8 +30,6 @@ namespace GridSystem
 
         private GridManager m_Grid;
         private GridNetwork m_Net;
-        private GUIStyle m_Big, m_Mid, m_Small;
-        [SerializeField] private bool m_UseLegacyOnGUI;
         private bool m_UrgentBgmStarted;
 
         public GamePhase Phase => (GamePhase)m_Phase.Value;
@@ -266,59 +264,5 @@ namespace GridSystem
                 SceneManager.LoadScene(SceneNames.Lobby);
         }
 
-        private void OnGUI()
-        {
-            if (!m_UseLegacyOnGUI) return;
-            if (!Application.isPlaying || !IsSpawned) return;
-            if (m_Big == null)
-            {
-                m_Big   = new GUIStyle(GUI.skin.label) { fontSize = 38, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-                m_Mid   = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-                m_Small = new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            }
-
-            int secs = Mathf.CeilToInt(TimeLeft);
-            string timer = $"{secs / 60}:{secs % 60:00}";
-
-            var tRect = new Rect(Screen.width / 2f - 110f, 8f, 220f, 48f);
-            DrawBox(tRect, 0.55f);
-            GUI.Label(tRect, IsBuilding ? timer : "종료", m_Big);
-
-            if (IsBuilding)
-            {
-                string consent = $"건축종료 동의 {m_Consents.Count}/{m_PlayerCount.Value}";
-                string hint = LocalConsented() ? "Enter = 동의 취소" : "Enter = 건축 종료 동의";
-                GUI.Label(new Rect(Screen.width / 2f - 140f, 56f, 280f, 22f), consent, m_Mid);
-                GUI.Label(new Rect(Screen.width / 2f - 140f, 78f, 280f, 20f), hint, m_Small);
-            }
-            else
-            {
-                var sc = m_Net != null ? m_Net.Score : default;
-                var box = new Rect(Screen.width / 2f - 220f, Screen.height / 2f - 110f, 440f, 220f);
-                DrawBox(box, 0.82f);
-                GUI.Label(new Rect(box.x, box.y + 20f, box.width, 48f), "건축 종료!", m_Big);
-                GUI.Label(new Rect(box.x, box.y + 78f, box.width, 30f), $"점수 {sc.Percent:F0}%  ({sc.score}/{sc.maxScore})", m_Mid);
-                GUI.Label(new Rect(box.x, box.y + 112f, box.width, 24f), $"배치 정확 {sc.placedCorrect}/{sc.answerCells}", m_Small);
-                GUI.Label(new Rect(box.x, box.y + 134f, box.width, 24f), $"공정 완료 {sc.processCorrect}/{sc.answerCells}", m_Small);
-                GUI.Label(new Rect(box.x, box.y + 166f, box.width, 26f), $"재시작 동의 {m_Consents.Count}/{m_PlayerCount.Value}", m_Mid);
-                GUI.Label(new Rect(box.x, box.y + 192f, box.width, 22f), LocalConsented() ? "Enter = 동의 취소" : "Enter = 재시작 동의", m_Small);
-            }
-
-            // 나가기(채점 없이 세션 이탈) → 연결 끊고 Bootstrap(메뉴)으로 복귀.
-            // 좌하단(빈 공간)에 둠 — 우하단은 정답 미리보기 박스와 겹침.
-            if (GUI.Button(new Rect(12f, Screen.height - 46f, 100f, 34f), "나가기"))
-            {
-                if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
-                SceneManager.LoadScene(SceneNames.BootstrapScene);   // 메뉴로 복귀(다시 Host/Client)
-            }
-        }
-
-        private static void DrawBox(Rect r, float a)
-        {
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, a);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
-        }
     }
 }

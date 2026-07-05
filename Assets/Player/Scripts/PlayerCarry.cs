@@ -57,7 +57,8 @@ namespace Player
         private PlayerMovement m_Movement;
         private Vector3Int m_Target;
         private bool m_HasTarget;
-        private GUIStyle m_HudStyle, m_BarLabel;
+        private CarryHudUI m_Hud;   // 프리팹 HUD(UIManager 관리) — 구 OnGUI 대체
+        private bool m_HudMissing;  // 프리팹 미생성 경고 1회용
         private static readonly Vector3Int s_NoCell = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
         private Vector3Int m_LastShockCell = s_NoCell;   // 같은 셀 안에 있는 동안 충격 중복 전송 방지
 
@@ -105,6 +106,7 @@ namespace Player
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
             DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
+            if (m_Hud != null) m_Hud.gameObject.SetActive(false);   // HUD는 UIManager 캐시 → 숨기기만
         }
 
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
@@ -169,6 +171,7 @@ namespace Player
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
 
             UpdatePreview();     // 배치 미리보기(반투명 박스 GameObject — GL 폐지)
+            UpdateHud();         // 프리팹 HUD 갱신(조작법·공정바·공정힌트)
         }
         
         private void TryFreeDrop()
@@ -567,6 +570,7 @@ namespace Player
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
             PlaySFX(SFXType.LandObject);
+            GridSystem.GridJuice.FovPunch(m_Cam, -1.5f);   // 놓는 순간 카메라 살짝 쿵(owner 즉각 반응)
             ClearHeld();   // 놓으면 손이 빔 → 재고서 다시 집어야(리썰컴퍼니식)
             OnPlace?.Invoke();
         }
@@ -876,13 +880,34 @@ namespace Player
             return m_PreviewMat;
         }
 
-        private void OnGUI()
+        // ── 프리팹 HUD 구동(구 OnGUI 대체 · 비주얼은 Resources/UI/HUD/CarryHudUI 프리팹) ──
+        private void UpdateHud()
         {
-            if (!IsOwner || !Application.isPlaying) return;
-            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene) return;   // 조작법 HUD는 GameScene만
-            if (m_HudStyle == null)
-                m_HudStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, normal = { textColor = Color.white } };
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene)   // 조작법 HUD는 GameScene만
+            {
+                if (m_Hud != null) m_Hud.gameObject.SetActive(false);
+                return;
+            }
+            if (m_Hud == null)
+            {
+                if (m_HudMissing || UIManager.Instance == null) return;
+                if (Resources.Load<GameObject>("UI/HUD/CarryHudUI") == null)
+                {
+                    m_HudMissing = true;   // 프리팹 없음 → 예외 스팸 방지(1회 경고)
+                    Debug.LogWarning("[PlayerCarry] CarryHudUI 프리팹 없음 — 메뉴 Jobsnail ▸ UI ▸ Generate CarryHud Prefab 실행하세요.");
+                    return;
+                }
+                m_Hud = UIManager.Instance.ShowHUDUI<CarryHudUI>();
+                if (m_Hud == null) return;
+            }
+            if (!m_Hud.gameObject.activeSelf) m_Hud.gameObject.SetActive(true);
 
+            m_Hud.SetHint(BuildHintText());
+            UpdateHudBars();
+        }
+
+        private string BuildHintText()
+        {
             // [기존 개발용 문구 — 유지]
             // string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
             //             : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
@@ -913,79 +938,43 @@ namespace Player
                 heldStr = "오른쪽 하단에서 재료를 주문하세요! ";
 
             string score = m_Net != null ? $"  |  완성도 {m_Net.ScorePercent:F0}%" : "";
-            string text =
+            return
                 $"{heldStr}{score}\n" +
                 $"[좌클릭] 집기/배치    [C] 설치한 블록 철거    [Q] 블록 버리기    [G] 던지기\n" +
                 $"[Space] 점프    [Space 연타] 비계 발밑에 설치(1칸 올라가기)\n" +
                 $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    현재 층: {m_BuildHeight}";
-
-            var box = new Rect(10, 10, 960, 150);
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
-            GUI.DrawTexture(box, Texture2D.whiteTexture);
-            GUI.color = prev;
-            GUI.Label(new Rect(box.x + 8, box.y + 6, box.width - 16, box.height - 12), text, m_HudStyle);
-
-            DrawProcessBar();
-            DrawProcessHint();
         }
 
-        // 도구 들고 조준 중일 때(바가 안 차는 동안) 대상 블록 위에 공정 안내를 띄운다.
-        private void DrawProcessHint()
+        // E 공정 / Z 되돌리기 로딩바 + 공정 안내(대상 블록 위 · 월드→스크린 좌표는 여기서 계산).
+        private void UpdateHudBars()
         {
-            if (m_ProcessHold > 0f || string.IsNullOrEmpty(m_ProcessHint) || m_Cam == null || !m_HasTarget) return;
-            Vector3 world = GridCoordinates.CellToWorld(m_Target) + new Vector3(0.5f, 1.3f, 0.5f);
+            Vector2 sp = default;
+
+            bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
+                        && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
+            m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / m_ProcessSeconds),
+                m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
+                m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+
+            bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell
+                       && WorldToScreen(GridCoordinates.CellToWorld(m_RevertCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
+            m_Hud.SetRevertBar(rev, sp, Mathf.Clamp01(m_RevertHold / m_ProcessSeconds),
+                new Color(0.90f, 0.45f, 0.30f), "되돌리는 중…");
+
+            // 도구 들고 조준 중일 때(바가 안 차는 동안) 공정 안내
+            bool hint = m_ProcessHold <= 0f && !string.IsNullOrEmpty(m_ProcessHint) && m_HasTarget
+                        && WorldToScreen(GridCoordinates.CellToWorld(m_Target) + new Vector3(0.5f, 1.3f, 0.5f), out sp);
+            m_Hud.SetProcessHint(hint, sp, m_ProcessHint);
+        }
+
+        private bool WorldToScreen(Vector3 world, out Vector2 screen)
+        {
+            screen = default;
+            if (m_Cam == null) return false;
             Vector3 sp = m_Cam.WorldToScreenPoint(world);
-            if (sp.z <= 0f) return;
-
-            if (m_BarLabel == null)
-                m_BarLabel = new GUIStyle(GUI.skin.label)
-                    { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-
-            const float w = 280f, h = 20f;
-            var r = new Rect(sp.x - w / 2f, Screen.height - sp.y - h, w, h);
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
-            GUI.Label(r, m_ProcessHint, m_BarLabel);
-        }
-
-        // E 공정 / C 되돌리기 로딩바(대상 블록 위).
-        private void DrawProcessBar()
-        {
-            if (m_ProcessHold > 0f && m_ProcessCell != s_NoCell)
-                DrawHoldBar(m_ProcessCell, m_ProcessHold,
-                    m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
-                    m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
-            if (m_RevertHold > 0f && m_RevertCell != s_NoCell)
-                DrawHoldBar(m_RevertCell, m_RevertHold, new Color(0.90f, 0.45f, 0.30f), "되돌리는 중…");
-        }
-
-        private void DrawHoldBar(Vector3Int cell, float hold, Color fill, string label)
-        {
-            if (m_Cam == null) return;
-            Vector3 world = GridCoordinates.CellToWorld(cell) + new Vector3(0.5f, 1.1f, 0.5f);
-            Vector3 sp = m_Cam.WorldToScreenPoint(world);
-            if (sp.z <= 0f) return;
-
-            const float bw = 96f, bh = 12f;
-            float x = sp.x - bw / 2f;
-            float y = Screen.height - sp.y - bh;   // GUI y는 위에서부터
-            var prev = GUI.color;
-
-            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-            GUI.DrawTexture(new Rect(x - 2f, y - 2f, bw + 4f, bh + 4f), Texture2D.whiteTexture);
-
-            float t = Mathf.Clamp01(hold / m_ProcessSeconds);
-            GUI.color = fill;
-            GUI.DrawTexture(new Rect(x, y, bw * t, bh), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            if (m_BarLabel == null)
-                m_BarLabel = new GUIStyle(GUI.skin.label)
-                    { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x - 30f, y - 20f, bw + 60f, 18f), label, m_BarLabel);
+            if (sp.z <= 0f) return false;   // 카메라 뒤 → 표시 안 함
+            screen = new Vector2(sp.x, sp.y);
+            return true;
         }
     }
 }

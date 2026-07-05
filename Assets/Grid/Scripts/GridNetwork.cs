@@ -103,6 +103,8 @@ namespace GridSystem
                     completedProcessMask = initialMask, ownerObjectId = owner
                 });
 
+            PlacedFxRpc(CellWorld(anchor));   // 놓기 먼지(모든 클라)
+
             // 트리거②: 미고정 오브젝트 위에 놓임 → 그 미고정 지지물(+연쇄) 무너짐
             foreach (var t in m_ServerGrid.FindUnfixedSupportsUnder(owner))
                 foreach (var co in m_ServerGrid.Collapse(t))
@@ -178,10 +180,22 @@ namespace GridSystem
                     m_Cells.RemoveAt(i);
                 }
             if (have && m_DropField != null) m_DropField.ServerDrop(co.materialId, from);
+            if (have) CollapsedFxRpc(from);   // 붕괴 잔해·먼지·카메라 흔들림(모든 클라)
         }
 
         private static Vector3 CellWorld(Vector3Int cell)
             => GridCoordinates.CellToWorld(cell) + Vector3.one * 0.5f * GridContract.Unit;
+
+        // ── 게임필 FX(서버 발화 → 모든 클라 동기화). 실제 블록 비주얼과 분리(RebuildVisuals 재생성에 안 흔들림). ──
+        [Rpc(SendTo.Everyone)]
+        private void PlacedFxRpc(Vector3 baseCenter) => GridJuice.PlacePuff(baseCenter, GridContract.Unit);
+
+        [Rpc(SendTo.Everyone)]
+        private void CollapsedFxRpc(Vector3 center)
+        {
+            GridJuice.CollapseBurst(center, GridContract.Unit);
+            GridJuice.FovPunch(Camera.main, -5f);   // 우르릉 — 화면 살짝 당김
+        }
 
         [Rpc(SendTo.Server)]
         private void ProcessRpc(Vector3Int cell, int processBit, bool apply)

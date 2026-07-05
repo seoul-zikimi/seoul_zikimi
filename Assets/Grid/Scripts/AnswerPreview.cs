@@ -25,7 +25,6 @@ namespace GridSystem
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
         private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
-        private GUIStyle m_LabelStyle;
         private bool m_Visible = true;
         private bool m_Built;
         private bool m_LastShow;          // Show() 변화 감지 → VisibilityChanged 1회 발화
@@ -168,23 +167,6 @@ namespace GridSystem
         private static void SetLayerRecursive(GameObject go, int layer)
         {
             foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
-        }
-
-        private void OnGUI()
-        {
-            if (!Application.isPlaying || !Show()) return;
-            if (m_LabelStyle == null)
-                m_LabelStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
-
-            // ③ 2D 정답 이미지 제거됨(요청). 3D 미니맵(좌하단 AnswerPanelHUD)만 사용.
-        }
-
-        private static void Box(Rect r, float a)
-        {
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, a);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
         }
 
         // 에디터 Scene 뷰용(플레이 중엔 위 ① 고스트가 대체)
