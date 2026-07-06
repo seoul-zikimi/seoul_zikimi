@@ -127,9 +127,14 @@ namespace GridSystem
             s.Play(amount);
         }
 
+        /// <summary>시네머신 등 외부 카메라 리그가 설치하는 FOV 펀치 핸들러(설치되면 이쪽 우선).
+        /// CinemachineBrain이 Camera.main fov를 매 프레임 덮어써서 직접 펀치가 무효라 vcam 쪽에 위임.</summary>
+        public static System.Action<float> FovPunchHandler;
+
         // 카메라 FOV 펀치(팔로우/오빗이 FOV는 안 건드림 → 트랜스폼 흔들기보다 안전). 카메라에 1회 부착.
         public static void FovPunch(Camera cam, float amount)
         {
+            if (FovPunchHandler != null) { FovPunchHandler(amount); return; }   // 시네머신 리그 우선
             if (cam == null) return;
             var p = cam.GetComponent<CameraFovPunch>();
             if (p == null) p = cam.gameObject.AddComponent<CameraFovPunch>();

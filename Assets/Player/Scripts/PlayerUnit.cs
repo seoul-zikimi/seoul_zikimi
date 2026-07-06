@@ -89,6 +89,11 @@ namespace Player
                 {
                     var fader = m_CinemachineCamera.gameObject.AddComponent<CameraObstructionFader>();
                     fader.Init(m_CameraArm);   // 카메라가 바라보는 지점(허리 높이)
+
+                    // FOV 펀치를 vcam 렌즈로 라우팅 — CinemachineBrain이 Camera.main fov를 덮어써서
+                    // 기존 CameraFovPunch(메인캠 직접 수정)는 화면에 안 나왔음.
+                    var punch = m_CinemachineCamera.gameObject.AddComponent<CinemachineFovPunch>();
+                    GridSystem.GridJuice.FovPunchHandler = punch.Add;
                 }
             }
         }
@@ -96,7 +101,10 @@ namespace Player
         public override void OnNetworkDespawn()
         {
             if (IsOwner)
+            {
                 SceneManager.sceneLoaded -= OnSceneLoaded;
+                GridSystem.GridJuice.FovPunchHandler = null;   // vcam 펀치 핸들러 해제(파괴된 컴포넌트 참조 방지)
+            }
             m_NetScaffolds.OnListChanged -= OnScaffoldsChanged;
             ClearScaffoldVisuals();
             base.OnNetworkDespawn();

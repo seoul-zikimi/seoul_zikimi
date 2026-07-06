@@ -36,7 +36,7 @@ namespace Player
                     GridSystem.GridJuice.GroundHit(transform.position, 0.55f);
                     SquishLandedOn();
                     if (!m_Rb.isKinematic)   // 원격(kinematic)은 남의 착지 — 내 카메라는 내 착지에만 반응
-                        GridSystem.GridJuice.FovPunch(Camera.main, -Mathf.Min(m_FallSpeed * 0.35f, 3.5f));
+                        GridSystem.GridJuice.FovPunch(Camera.main, -Mathf.Min(1.5f + m_FallSpeed * 0.45f, 6f));
                 }
                 m_FallSpeed = 0f;
             }
