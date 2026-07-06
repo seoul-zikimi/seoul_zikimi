@@ -60,6 +60,18 @@ public static class GameLoopHudPrefabGenerator
         banner.gameObject.AddComponent<UiPopIn>();
         banner.gameObject.SetActive(false);
 
+        // ── 정산서 ↔ 크레인샷 토글 버튼(하단 중앙, 숨김) — 정산 중에만 표시 ──
+        var crane = JobsnailUiKit.Button("CraneToggleButton", rootT, null,
+            new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), Vector2.zero, new Vector2(230, 52), null, "건축물 둘러보기");
+        SetColor(crane, new Color(0.60f, 0.82f, 0.95f, 1f));
+        crane.gameObject.SetActive(false);
+
+        // ── 이벤트 토스트(좌측 위, 숨김) — 완성도 돌파 알림 ──
+        var toast = JobsnailUiKit.Label("EventToast", rootT, "", 26, new Color(0.25f, 0.16f, 0.08f, 1f), TextAlignmentOptions.Center, Vector2.zero, new Vector2(340, 52));
+        toast.rectTransform.anchorMin = toast.rectTransform.anchorMax = new Vector2(0.13f, 0.72f);
+        toast.gameObject.AddComponent<UiPopIn>();
+        toast.gameObject.SetActive(false);
+
         SavePrefab(root, kPath);
         Debug.Log($"[GameLoopHudPrefabGenerator] 생성 완료 → {kPath}");
     }

@@ -23,6 +23,11 @@ public static class JobsnailUiKit
             if (s_LegacyFont != null)
                 return s_LegacyFont;
 
+            // 폰트 통일: Resources의 서울한강 장체M을 최우선(에디터·빌드 동일 — OS 폰트 편차 제거)
+            s_LegacyFont = Resources.Load<Font>("Fonts/서울한강 장체M");
+            if (s_LegacyFont != null)
+                return s_LegacyFont;
+
 #if UNITY_EDITOR
             s_LegacyFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Font/서울한강 장체M.ttf");
             if (s_LegacyFont != null)

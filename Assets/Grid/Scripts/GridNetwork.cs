@@ -74,6 +74,51 @@ namespace GridSystem
         {
             m_Cells.OnListChanged -= OnCellsChanged;
             if (m_VisualRoot != null) Destroy(m_VisualRoot);
+            if (m_ResultCam != null) Destroy(m_ResultCam.gameObject);
+            if (m_ResultRT != null) { m_ResultRT.Release(); m_ResultRT = null; }
+        }
+
+        // ── 정산서 썸네일: 실제 월드를 그 자리에서 한 컷 촬영 ──
+        // 내가 지은 블록 + 미리 있던 주변 건축물/지형/하늘까지 전경으로 담긴다(스카이박스 배경).
+        private const int kAnswerPreviewLayer = 30;   // AnswerPreview 미니씬 레이어(사진에서 제외)
+        private Camera m_ResultCam;
+        private RenderTexture m_ResultRT;
+
+        public RenderTexture BuildResultPreview()
+        {
+            if (m_VisualRoot == null) return null;
+
+            // 구도 = 그리드 전체 볼륨(건설 현장 통째) — 몇 개만 지어도 항상 전경이 다 보이게.
+            float gu = GridContract.Unit;
+            var volume = (Vector3)m_Manager.GridSize * gu;
+            var b = new Bounds(GridContract.Origin + volume * 0.5f, volume);
+
+            if (m_ResultRT == null) m_ResultRT = new RenderTexture(512, 512, 16);
+            if (m_ResultCam == null)
+            {
+                var camGO = new GameObject("~ResultPreviewCam");
+                m_ResultCam = camGO.AddComponent<Camera>();
+                m_ResultCam.clearFlags = CameraClearFlags.Skybox;   // 하늘 배경 전경샷
+                m_ResultCam.fieldOfView = 42f;
+                m_ResultCam.cullingMask = ~(1 << kAnswerPreviewLayer);   // 정답 미니씬만 제외, 월드 전부 포함
+                m_ResultCam.targetTexture = m_ResultRT;
+                m_ResultCam.depth = -10f;   // 메인 카메라보다 먼저(화면 출력엔 영향 없음 — RT 전용)
+            }
+
+            // 쿼터뷰 + 살짝 물러나서 주변 전경이 프레임에 들어오게
+            float radius = Mathf.Max(4f, b.extents.magnitude);
+            var dir = new Vector3(0.8f, 0.55f, -0.8f).normalized;
+            m_ResultCam.transform.position = b.center + dir * (radius * 2.4f);
+            m_ResultCam.transform.LookAt(b.center);
+
+            m_ResultCam.enabled = true;   // URP는 수동 Render() 비신뢰 → 정산 동안 라이브 렌더(512² 저부담)
+            return m_ResultRT;
+        }
+
+        /// <summary>정산 종료(재시작 등) 시 썸네일 카메라 끄기 — GameLoopHUD가 호출.</summary>
+        public void EndResultPreview()
+        {
+            if (m_ResultCam != null) m_ResultCam.enabled = false;
         }
 
         // ── 입력 진입점 (클라가 호출 → 서버로) ──────────────────────────────
@@ -105,10 +150,27 @@ namespace GridSystem
 
             PlacedFxRpc(CellWorld(anchor));   // 놓기 먼지(모든 클라)
 
+            // 점수 팝업: 정답 칸과 일치한 셀 수 × 200 (틀린 자리는 +0 회색 — 즉각 피드백)
+            int gained = 0;
+            var ans = m_Manager.Answer;
+            if (ans != null)
+                foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
+                    if (ans.TryGet(c, out var ac) && ac.materialId == materialId) gained += 200;
+            ScorePopRpc(CellWorld(anchor) + Vector3.up * (GridContract.Unit * 1.2f), gained, 0);
+
             // 트리거②: 미고정 오브젝트 위에 놓임 → 그 미고정 지지물(+연쇄) 무너짐
             foreach (var t in m_ServerGrid.FindUnfixedSupportsUnder(owner))
                 foreach (var co in m_ServerGrid.Collapse(t))
                     RemoveCollapsed(co);
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void ScorePopRpc(Vector3 pos, int amount, byte kind)
+        {
+            Color c = amount <= 0 ? new Color(0.62f, 0.62f, 0.62f, 1f)          // 회색 = 자리 틀림
+                    : kind == 1   ? new Color(0.35f, 0.60f, 1.00f, 1f)           // 파랑 = 공정 점수
+                                  : new Color(0.25f, 0.80f, 0.35f, 1f);          // 초록 = 배치 점수
+            GridJuice.ScorePop(pos, amount, c);
         }
 
         [Rpc(SendTo.Server)]
@@ -201,6 +263,8 @@ namespace GridSystem
             GridJuice.GroundHit(center, 1.3f);      // 바닥 흙폭발
             GridJuice.FovPunch(Camera.main, -5f);   // 우르릉 — 화면 살짝 당김
             GridSoundBridge.PlaySFXAt("LandObject", center);   // 무너지는 소리(돌 낙하음)
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f),   // 무너진 블록 바로 위에
+                "앗! 무너졌어요!", new Color(0.90f, 0.25f, 0.20f));
 
             // 젤리 파동: 출렁임이 중심에서 주변 블록으로 번져나감
             if (m_VisualRoot != null)
@@ -252,6 +316,21 @@ namespace GridSystem
                     e.completedProcessMask = newMask;
                     m_Cells[i] = e;   // 값 변경 → 복제
                 }
+
+            // 공정 점수 팝업: 요구 공정이 '방금 완성'됐고 정답 자리에 있는 셀 수 × 100
+            int req = mat != null ? mat.RequiredMask : 0;
+            if (apply && req != 0 && (newMask & req) == req)
+            {
+                int gained = 0;
+                var ans = m_Manager.Answer;
+                if (ans != null)
+                    for (int i = 0; i < m_Cells.Count; i++)
+                        if (m_Cells[i].ownerObjectId == owner
+                            && ans.TryGet(m_Cells[i].cell, out var ac) && ac.materialId == cs.materialId)
+                            gained += 100;
+                if (gained > 0)
+                    ScorePopRpc(CellWorld(cell) + Vector3.up * (GridContract.Unit * 1.4f), gained, 1);
+            }
         }
 
         // ── 비주얼 (모든 클라이언트가 리스트로 재구성) ───────────────────────

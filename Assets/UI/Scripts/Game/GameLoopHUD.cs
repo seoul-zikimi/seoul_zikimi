@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -16,10 +17,10 @@ using UnityEngine.UI;
 public sealed class GameLoopHUD : UIHUD
 {
     private enum GOs { TopBar, EndRequestCluster, InGameSettingsPopup, ResultPanel, StartBanner }
-    private enum Texts { Timer, Players, Structure, Time, Score, Grade }
+    private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast }
     private enum Imgs { P0, P1, P2, P3, GradeStar, GradeStamp }
     private enum Raws { ResultImage }
-    private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton }
+    private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
     private enum Slds { BGMSlider, SFXSlider, SensSlider }
 
     private GameLoopManager m_Loop;
@@ -33,6 +34,9 @@ public sealed class GameLoopHUD : UIHUD
     private bool m_ResultDismissed, m_ResultWasShown, m_ResultIntroPlaying, m_UrgentBgmStarted;
     private GridSystem.GamePhase m_PrevPhase = (GridSystem.GamePhase)(-1);
     private Coroutine m_BannerCo, m_StarBobCo;
+    private GridNetwork m_Net;
+    private bool m_CraneViewing;      // true = 정산서 숨기고 크레인샷 보는 중
+    private Button m_CraneToggleBtn;  // 정산서↔크레인샷 토글(프리팹 바인딩, 정산 중에만 표시)
 
     // ── 부트스트랩: GameScene 진입 시 프리팹 HUD 표시 ──
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -93,6 +97,11 @@ public sealed class GameLoopHUD : UIHUD
 
         m_EndRequestButton = Get<Button>((int)Btns.EndRequestButton);
         m_SettingsButton = Get<Button>((int)Btns.SettingsIconButton);
+        m_CraneToggleBtn = Get<Button>((int)Btns.CraneToggleButton);
+        m_ToastText = Get<TextMeshProUGUI>((int)Texts.EventToast);
+        m_Toast = m_ToastText != null ? m_ToastText.gameObject : null;
+        if (m_Toast != null) m_Toast.SetActive(false);
+        if (m_CraneToggleBtn != null) m_CraneToggleBtn.gameObject.SetActive(false);
 
         // 프리팹엔 onClick이 저장 안 되므로 여기서 전부 배선(클릭음 포함).
         Wire(Btns.EndRequestButton, OnEndRequest);
@@ -101,6 +110,7 @@ public sealed class GameLoopHUD : UIHUD
         Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
         Wire(Btns.RoomButton, () => { if (m_Loop != null) m_Loop.RequestReturnToRoom(); });
         Wire(Btns.LeaveButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
+        Wire(Btns.CraneToggleButton, () => m_CraneViewing = !m_CraneViewing);
 
         WireSlider(Slds.BGMSlider, PlayerPrefs.GetFloat("BGMVolume", 0.8f), v =>
         {
@@ -158,7 +168,7 @@ public sealed class GameLoopHUD : UIHUD
         var phase = m_Loop.Phase;   // 빌딩 페이즈 진입 순간 "공사 시작!" 배너 슬램
         if (phase != m_PrevPhase)
         {
-            if (phase == GridSystem.GamePhase.Building) ShowStartBanner();
+            if (phase == GridSystem.GamePhase.Building) { ShowStartBanner(); m_LastMilestone = 0; }
             m_PrevPhase = phase;
         }
 
@@ -186,19 +196,25 @@ public sealed class GameLoopHUD : UIHUD
         {
             m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
 
-            // 막판 30초: 타이머 빨갛게 + 두근두근 펄스
+            // 막판 30초: 타이머 빨갛게 + 두근두근 펄스 + 화면 가장자리 빨간 비네트
             if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
             {
                 float beat = Mathf.Abs(Mathf.Sin(Time.unscaledTime * 5f));
                 m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.14f * beat);
                 m_TimerText.color = Color.Lerp(new Color(0.80f, 0.10f, 0.10f, 1f), Color.black, beat * 0.5f);
+                EnsureVignette();
+                if (m_Vignette != null) m_Vignette.intensity.Override(0.16f + 0.14f * beat);
             }
             else
             {
                 m_TimerText.rectTransform.localScale = Vector3.one;
                 m_TimerText.color = Color.black;
+                if (m_Vignette != null) m_Vignette.intensity.Override(0f);
             }
         }
+
+        SetCrane(!m_Loop.IsBuilding);       // 정산 중 = 건축물 한 바퀴 크레인샷
+        UpdateMilestoneToast();             // 완성도 25/50/75/90% 돌파 토스트
 
         UpdateResultPanel();
 
@@ -229,6 +245,8 @@ public sealed class GameLoopHUD : UIHUD
         {
             if (m_ResultPanel != null) m_ResultPanel.SetActive(false);
             if (m_SettingsPopup != null) m_SettingsPopup.SetActive(false);
+            if (m_CraneToggleBtn != null) m_CraneToggleBtn.gameObject.SetActive(false);
+            if (m_Toast != null) m_Toast.SetActive(false);
         }
     }
 
@@ -263,20 +281,39 @@ public sealed class GameLoopHUD : UIHUD
             return;
 
         if (m_Loop.IsBuilding) m_ResultDismissed = false;   // 새 라운드 → 다음 종료 때 결과창 다시 표시
-        bool show = !m_Loop.IsBuilding && !m_ResultDismissed;
+        bool resultPhase = !m_Loop.IsBuilding && !m_ResultDismissed;
+        UpdateCraneToggle(resultPhase);                     // 정산 중에만 "크레인샷 보기" 버튼 표시
+        bool show = resultPhase && !m_CraneViewing;         // 크레인샷 보는 중엔 정산서 숨김
         m_ResultPanel.SetActive(show);
-        if (!show)
+        if (!resultPhase)
         {
+            if (m_ResultWasShown && m_Net != null) m_Net.EndResultPreview();   // 썸네일 라이브 카메라 끄기
             m_ResultWasShown = false;   // 다시 숨김 → 다음 표시 때 인트로 연출 재생
-            return;
+            m_CraneViewing = false;
         }
+        if (!show)
+            return;
 
         var score = m_Loop.Score;
         int pct = Mathf.RoundToInt(score.Percent);
 
         bool firstShow = !m_ResultWasShown;
         m_ResultWasShown = true;
-        if (firstShow) { m_ResultIntroPlaying = true; StartCoroutine(ResultIntro(pct)); }
+        if (firstShow)
+        {
+            m_ResultIntroPlaying = true;
+            StartCoroutine(ResultIntro(pct));
+
+            // 정산서 이미지 = 내가 실제로 지은 구조물(미니씬 렌더). 실패 시 정답 미리보기로 폴백.
+            if (m_ResultImage != null)
+            {
+                if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+                var rt = m_Net != null ? m_Net.BuildResultPreview() : null;
+                if (rt == null && m_AnswerPreview == null) m_AnswerPreview = FindFirstObjectByType<AnswerPreview>();
+                if (rt == null && m_AnswerPreview != null) rt = m_AnswerPreview.RT;
+                if (rt != null) m_ResultImage.texture = rt;
+            }
+        }
         if (!m_ResultIntroPlaying) m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
 
         if (m_ResultStructText != null)
@@ -311,12 +348,6 @@ public sealed class GameLoopHUD : UIHUD
             else { m_ResultGradeText.text = "TRY AGAIN"; m_ResultGradeText.color = new Color(0.45f, 0.40f, 0.35f, 1f); }
         }
 
-        if (m_ResultImage != null)
-        {
-            if (m_AnswerPreview == null) m_AnswerPreview = FindFirstObjectByType<AnswerPreview>();
-            if (m_AnswerPreview != null && m_AnswerPreview.RT != null && m_ResultImage.texture != m_AnswerPreview.RT)
-                m_ResultImage.texture = m_AnswerPreview.RT;
-        }
     }
 
     // 결과창 등장 연출: 완성도 숫자 롤업 + 별 팝 + 등급 슬램. 시간정지와 무관하게 unscaled로.
@@ -408,6 +439,90 @@ public sealed class GameLoopHUD : UIHUD
         return 1f + c3 * p * p * p + c1 * p * p;
     }
 
+    // ── 막판 비네트(화면 가장자리 빨간 두근두근) ──
+    private Volume m_UrgentVolume;
+    private UnityEngine.Rendering.Universal.Vignette m_Vignette;
+
+    private void EnsureVignette()
+    {
+        if (m_UrgentVolume != null) return;
+        var go = new GameObject("~UrgentVignette");
+        go.transform.SetParent(transform, false);
+        m_UrgentVolume = go.AddComponent<Volume>();
+        m_UrgentVolume.isGlobal = true;
+        m_UrgentVolume.priority = 100f;
+        var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+        m_Vignette = profile.Add<UnityEngine.Rendering.Universal.Vignette>(true);
+        m_Vignette.color.Override(new Color(0.55f, 0.04f, 0.04f));
+        m_Vignette.smoothness.Override(0.6f);
+        m_Vignette.intensity.Override(0f);
+        m_UrgentVolume.profile = profile;
+    }
+
+    // ── 정산 크레인샷: 결과창 동안 완성 건축물을 천천히 한 바퀴 ──
+    private GameObject m_CraneGo;
+
+    private void SetCrane(bool on)
+    {
+        if (on == (m_CraneGo != null)) return;
+        if (!on) { Destroy(m_CraneGo); m_CraneGo = null; return; }
+
+        var gm = FindFirstObjectByType<GridManager>();
+        if (gm == null) return;
+        float u = GridContract.Unit;
+        Vector3 center = GridContract.Origin + new Vector3(gm.GridSize.x, gm.GridSize.y * 0.8f, gm.GridSize.z) * (0.5f * u);
+
+        m_CraneGo = new GameObject("~ResultCraneCam");
+        var vcam = m_CraneGo.AddComponent<Unity.Cinemachine.CinemachineCamera>();
+        vcam.Priority = 50;   // 플레이어 vcam보다 높음 → 브레인이 자동 블렌드
+        m_CraneGo.AddComponent<CraneOrbit>().Init(center, gm.GridSize.x * u * 0.95f, gm.GridSize.y * u * 0.55f);
+    }
+
+    // ── 정산서 ↔ 크레인샷 토글 버튼(프리팹 바인딩, 정산 중에만 표시) ──
+    private void UpdateCraneToggle(bool resultPhase)
+    {
+        if (m_CraneToggleBtn == null) return;
+        m_CraneToggleBtn.gameObject.SetActive(resultPhase);
+        if (!resultPhase) return;
+        var lbl = m_CraneToggleBtn.GetComponentInChildren<TextMeshProUGUI>();
+        if (lbl != null) lbl.text = m_CraneViewing ? "정산서 보기" : "건축물 둘러보기";
+    }
+
+    // ── 이벤트 토스트(좌측 슬쩍): 완성도 돌파 알림 ──
+    private int m_LastMilestone;
+    private GameObject m_Toast;
+    private TextMeshProUGUI m_ToastText;
+    private Coroutine m_ToastCo;
+
+    private void UpdateMilestoneToast()
+    {
+        if (m_Loop == null || !m_Loop.IsBuilding) return;
+        int pct = Mathf.RoundToInt(m_Loop.Score.Percent);
+        int milestone = pct >= 90 ? 90 : pct >= 75 ? 75 : pct >= 50 ? 50 : pct >= 25 ? 25 : 0;
+        if (milestone > m_LastMilestone)
+        {
+            m_LastMilestone = milestone;
+            ShowToast($"완성도 {milestone}% 돌파!");
+        }
+    }
+
+    private void ShowToast(string msg)
+    {
+        if (m_Toast == null || m_ToastText == null) return;   // 프리팹 바인딩(EventToast)
+        m_ToastText.text = msg;
+        if (m_ToastCo != null) StopCoroutine(m_ToastCo);
+        m_ToastCo = StartCoroutine(ToastCo());
+    }
+
+    private IEnumerator ToastCo()
+    {
+        m_Toast.SetActive(false);   // UiPopIn 재발동
+        m_Toast.SetActive(true);
+        yield return new WaitForSecondsRealtime(2.0f);
+        m_Toast.SetActive(false);
+        m_ToastCo = null;
+    }
+
     private void ToggleSettingsPopup()
     {
         if (m_SettingsPopup == null)
@@ -429,5 +544,36 @@ public sealed class GameLoopHUD : UIHUD
     {
         if (button != null && button.targetGraphic != null)
             button.targetGraphic.color = color;
+    }
+}
+
+/// <summary>정산 크레인샷: 중심을 바라보며 천천히 원 궤도 회전. GameLoopHUD.SetCrane이 vcam에 부착.</summary>
+public class CraneOrbit : MonoBehaviour
+{
+    const float kYawSpeed = 14f;   // 초당 회전 각도
+
+    Vector3 m_Center;
+    float m_Radius, m_Height, m_Yaw;
+
+    public void Init(Vector3 center, float radius, float height)
+    {
+        m_Center = center;
+        m_Radius = Mathf.Max(4f, radius);
+        m_Height = Mathf.Max(2f, height);
+        m_Yaw = 0f;
+        Apply();
+    }
+
+    void LateUpdate()
+    {
+        m_Yaw += kYawSpeed * Time.unscaledDeltaTime;   // 결과창 = 시간 흐름 무관
+        Apply();
+    }
+
+    void Apply()
+    {
+        float rad = m_Yaw * Mathf.Deg2Rad;
+        transform.position = m_Center + new Vector3(Mathf.Cos(rad) * m_Radius, m_Height, Mathf.Sin(rad) * m_Radius);
+        transform.LookAt(m_Center);
     }
 }

@@ -387,6 +387,21 @@ namespace Player
             m_PrevTrailPos = transform.position;
         }
 
+        // 스프린트 윈드 트레일(루프 파티클 — 스프린트 중에만 켬)
+        private GameObject m_WindTrail;
+        private void UpdateWindTrail(bool on)
+        {
+            if (on && m_WindTrail == null)
+            {
+                var prefab = Resources.Load<GameObject>("Fx/WindTrails");
+                if (prefab == null) return;
+                m_WindTrail = Instantiate(prefab, transform);
+                m_WindTrail.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+            }
+            if (m_WindTrail != null && m_WindTrail.activeSelf != on)
+                m_WindTrail.SetActive(on);
+        }
+
         private int m_PrevScaffoldCount;   // 새로 추가된 비계만 팝(재구성 시 전체 재생 방지)
 
         private void RebuildScaffoldVisuals()
@@ -469,6 +484,7 @@ namespace Player
                 }
             }
             m_DustTrail.Apply(moving, sprinting);
+            UpdateWindTrail(moving && sprinting);   // 스프린트 = 바람 줄기(CFXR4 Wind Trails)
 
             if (IsSpawned && !IsOwner && moving != m_DbgMoving)   // 진단: 원격에서 먼지 상태 복제 + 파티클 상태 확인
             {

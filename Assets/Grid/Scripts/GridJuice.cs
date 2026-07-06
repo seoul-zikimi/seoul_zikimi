@@ -98,6 +98,35 @@ namespace GridSystem
             }
         }
 
+        // 점수 팝업(+200 등): 월드 텍스트가 떠오르며 사라짐. TextMesh(내장)라 TMP 의존 없음.
+        public static void ScorePop(Vector3 pos, int amount, Color color)
+            => WorldText(pos, amount > 0 ? $"+{amount}" : "+0", color, 48, 0.9f, 1.2f);
+
+        // 월드 토스트("앗! 무너졌어요!" 등): 대상 위치 바로 위에 떠오르는 안내 텍스트.
+        public static void WorldToast(Vector3 pos, string text, Color color)
+            => WorldText(pos, text, color, 40, 1.5f, 0.8f);
+
+        static Font s_WorldFont;
+        static void WorldText(Vector3 pos, string text, Color color, int fontSize, float life, float rise)
+        {
+            if (s_WorldFont == null)   // 폰트 통일: UI와 같은 서울한강 장체M(없으면 내장 폴백)
+            {
+                s_WorldFont = Resources.Load<Font>("Fonts/서울한강 장체M");
+                if (s_WorldFont == null) s_WorldFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            }
+            var go = new GameObject("~WorldText");
+            go.transform.position = pos;
+            var tm = go.AddComponent<TextMesh>();
+            tm.text = text;
+            tm.fontSize = fontSize;
+            tm.characterSize = 0.05f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.color = color;
+            tm.font = s_WorldFont;
+            go.GetComponent<MeshRenderer>().material = s_WorldFont.material;   // 폰트 아틀라스 머티리얼 필수
+            go.AddComponent<JuiceFloatText>().Init(life, rise);
+        }
+
         // 흙 팡(배송 착지·붕괴·플레이어 착지 등). Resources/Fx/GroundHit = CFXR2 Ground Hit 사본.
         static GameObject s_GroundHit;
         static bool s_GroundHitTried;
@@ -223,6 +252,39 @@ namespace GridSystem
                 if (Mathf.Abs(m_Punch) < 0.02f) m_Punch = 0f;
             }
             m_Cam.fieldOfView = m_Base + m_Punch;
+        }
+    }
+
+    /// <summary>월드 텍스트: 뿅 커지며 떠오르다 페이드. 카메라 빌보드. 수명 후 자멸.</summary>
+    public class JuiceFloatText : MonoBehaviour
+    {
+        float m_Life = 0.9f, m_Rise = 1.2f, m_T;
+        TextMesh m_Tm;
+        Color m_Base;
+
+        public void Init(float life, float rise) { m_Life = life; m_Rise = rise; }
+
+        void Start() { m_Tm = GetComponent<TextMesh>(); if (m_Tm != null) m_Base = m_Tm.color; }
+
+        void LateUpdate()
+        {
+            m_T += Time.deltaTime;
+            if (m_T >= m_Life) { Destroy(gameObject); return; }
+            float n = m_T / m_Life;
+
+            transform.position += Vector3.up * (m_Rise * Time.deltaTime * (1.4f - n));   // 점점 느리게 상승
+            if (Camera.main != null) transform.rotation = Camera.main.transform.rotation;
+
+            float s = n < 0.15f ? Mathf.Lerp(0.4f, 1.2f, n / 0.15f)                     // 뿅 팝인
+                    : Mathf.Lerp(1.2f, 1f, Mathf.Clamp01((n - 0.15f) / 0.25f));
+            transform.localScale = Vector3.one * s;
+
+            if (m_Tm != null)   // 끝 40% 페이드
+            {
+                var c = m_Base;
+                c.a = n > 0.6f ? 1f - (n - 0.6f) / 0.4f : 1f;
+                m_Tm.color = c;
+            }
         }
     }
 

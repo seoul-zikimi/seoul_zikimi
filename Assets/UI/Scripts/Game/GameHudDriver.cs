@@ -48,6 +48,17 @@ public class GameHudDriver : MonoBehaviour
     private float m_JuicySweep;
     private void Update()
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // [개발자 치트] 0 = 10배속 토글(타이머 빨리감기 등 테스트용). 릴리즈 빌드엔 미포함.
+        // 주의: 멀티에선 호스트에서 눌러야 서버 타이머도 빨라짐(클라는 로컬 물리만 가속).
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.digit0Key.wasPressedThisFrame)
+        {
+            Time.timeScale = Time.timeScale >= 10f ? 1f : 10f;
+            Debug.Log($"[DevCheat] timeScale = {Time.timeScale}x");
+        }
+#endif
+
         m_JuicySweep -= Time.unscaledDeltaTime;
         if (m_JuicySweep > 0f) return;
         m_JuicySweep = 1f;
