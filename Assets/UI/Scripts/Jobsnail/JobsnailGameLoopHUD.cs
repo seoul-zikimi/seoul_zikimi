@@ -101,6 +101,19 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
 
+        // 막판 30초: 타이머 빨갛게 + 두근두근 펄스
+        if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
+        {
+            float beat = Mathf.Abs(Mathf.Sin(Time.unscaledTime * 5f));
+            m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.14f * beat);
+            m_TimerText.color = Color.Lerp(new Color(0.80f, 0.10f, 0.10f, 1f), Color.black, beat * 0.5f);
+        }
+        else
+        {
+            m_TimerText.rectTransform.localScale = Vector3.one;
+            m_TimerText.color = Color.black;
+        }
+
         UpdateResultPanel();
 
         if (m_EndRequestButton != null)

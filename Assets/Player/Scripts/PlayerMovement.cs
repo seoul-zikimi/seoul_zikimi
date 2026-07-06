@@ -20,6 +20,24 @@ namespace Player
             m_Config = config; m_Rb = GetComponent<Rigidbody>();
         }
 
+        // ── 착지 먼지(쫀득): 낙하 후 접지 순간 발밑 먼지 퍼프 ──
+        private bool m_WasGrounded = true;
+        private float m_FallSpeed;   // 공중에서의 최대 낙하 속도
+
+        private void Update()
+        {
+            if (m_Rb == null) return;
+            bool g = IsGrounded();
+            if (!g) m_FallSpeed = Mathf.Max(m_FallSpeed, -m_Rb.linearVelocity.y);
+            else
+            {
+                if (!m_WasGrounded && m_FallSpeed > 4f)   // 어느 정도 떨어졌을 때만(계단 오르내림 제외)
+                    GridSystem.GridJuice.PlacePuff(transform.position, 1f);
+                m_FallSpeed = 0f;
+            }
+            m_WasGrounded = g;
+        }
+
         // 카메라 forward 기준 이동 (FixedUpdate에서 호출)
         public void Move(Vector2 input, Transform cameraArm, bool isSprinting = false)
         {

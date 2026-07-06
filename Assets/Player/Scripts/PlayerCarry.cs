@@ -250,9 +250,11 @@ namespace Player
             m_ProcessKind = m_HeldTool;
             m_ProcessHold += Time.deltaTime;
 
-            // 망치질 이펙트(CFXR) 0.5초 간격 — 로컬 즉시 + 원격 복제
+            // 망치질 이펙트(CFXR) 0.5초 간격 — 로컬 즉시 + 원격 복제.
+            // 완료타와 겹치면 같은 소리가 메아리처럼 중복되므로, 완료 직전 틱은 건너뜀.
             m_HitFxTimer -= Time.deltaTime;
-            if (m_ProcessKind == ProcessType.Fixed && m_HitFxTimer <= 0f)
+            if (m_ProcessKind == ProcessType.Fixed && m_HitFxTimer <= 0f
+                && m_ProcessHold + 0.45f < m_ProcessSeconds)
             {
                 m_HitFxTimer = 0.5f;
                 Vector3 hit = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
@@ -263,15 +265,15 @@ namespace Player
             if (m_ProcessHold >= m_ProcessSeconds)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
-                PlayProcessSfx(m_HeldTool == ProcessType.Painted);             // 로컬 + 원격 복제(옆 플레이어도 들림)
 
-                if (m_HeldTool == ProcessType.Fixed)   // 고정 완료 — 챙! (별 타격 + 큰 스퀴시 + 화면 살짝)
+                if (m_HeldTool == ProcessType.Fixed)   // 고정 완료 — 스윙 착점에 챙!(소리·별·스퀴시·카메라 전부 싱크)
                 {
                     Vector3 done = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
                     SpawnFixDoneFx(done);
                     if (IsSpawned) RequestFixDoneFxRpc(done);
-                    GridJuice.FovPunch(m_Cam, -2.5f);   // 로컬 카메라만
                 }
+                else
+                    PlayProcessSfx(true);   // 페인트는 스윙이 없어 즉시(로컬+원격)
 
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
@@ -591,7 +593,10 @@ namespace Player
                 return;
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
-            PlaySFX(SFXType.LandObject);
+            if (SoundManager.Instance != null)   // 놓는 자리서 3D + 피치 랜덤(단조로움 방지)
+                SoundManager.Instance.PlaySFXAt(SFXType.LandObject,
+                    GridCoordinates.CellToWorld(m_Target) + Vector3.one * (0.5f * GridContract.Unit),
+                    Random.Range(0.92f, 1.08f));
             GridSystem.GridJuice.FovPunch(m_Cam, -1.5f);   // 놓는 순간 카메라 살짝 쿵(owner 즉각 반응)
             ClearHeld();   // 놓으면 손이 빔 → 재고서 다시 집어야(리썰컴퍼니식)
             OnPlace?.Invoke();
@@ -617,50 +622,61 @@ namespace Player
         private void ProcessSfxRpc(bool painted)
             => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
 
-        // 망치질 이펙트: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 보이게).
-        // 타격 1세트 = CFXR 스파크(축소·가속 변형) + 블록 스퀴시 + 망치 스윙 + 피치 랜덤 타격음.
+        // 망치질 연출(모든 클라): 스윙부터 시작하고, 망치가 '내려찍히는 순간'(kSwingDown)에
+        // 타격 세트(스파크·스퀴시·타격음·카메라펀치)를 재생 → 소리/이펙트가 애니메이션과 싱크.
+        private const float kSwingDown = 0.09f;   // 내려찍기 시간 = 타격 싱크 기준
+        private const float kSwingBack = 0.16f;   // 복귀 시간
+
         private void SpawnHammerFx(Vector3 pos)
         {
-            if (m_HammerFx != null)
-            {
-                var go = Instantiate(m_HammerFx, pos, Quaternion.identity);
-                go.transform.localScale *= 0.65f;                                  // 블록 스케일에 맞게 축소
-                foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
-                { var main = ps.main; main.simulationSpeed = 1.5f; }               // 더 빠르게 탁! 튀고 사라짐
-                Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
-            }
-
-            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();   // 원격 인스턴스는 m_Net 미탐색
-            if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), 0.08f);
-            SwingHeldTool();
-            if (SoundManager.Instance != null)
-                SoundManager.Instance.PlaySFXAt(SFXType.Hammering, pos, Random.Range(0.9f, 1.1f));
+            SwingHeldTool();                                              // ① 스윙 시작
+            if (isActiveAndEnabled) StartCoroutine(HammerImpactCo(pos, big: false));   // ② 착점에 타격
         }
 
         [Rpc(SendTo.Server)]
         private void RequestHammerFxRpc(Vector3 pos) => HammerFxRpc(pos);
 
         [Rpc(SendTo.NotOwner)]
-        private void HammerFxRpc(Vector3 pos) => SpawnHammerFx(pos);
+        private void HammerFxRpc(Vector3 pos) { if (!IsOwner) SpawnHammerFx(pos); }   // 오너는 이미 로컬 재생(이중 방지)
 
-        // 고정 완료 이펙트: 별 타격 + 큰 스퀴시. owner 로컬 즉시 + 다른 클라에도.
+        // 고정 완료: 같은 싱크로 별 타격 + 큰 스퀴시 + (owner만) 카메라 펀치.
         private void SpawnFixDoneFx(Vector3 pos)
         {
-            if (m_FixDoneFx != null)
-            {
-                var go = Instantiate(m_FixDoneFx, pos, Quaternion.identity);
-                Destroy(go, 5f);
-            }
-            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
-            if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), 0.14f);
             SwingHeldTool();
+            if (isActiveAndEnabled) StartCoroutine(HammerImpactCo(pos, big: true));
+        }
+
+        // 망치가 닿는 순간의 타격 세트. big = 고정 완료(별·큰 스퀴시·카메라).
+        private System.Collections.IEnumerator HammerImpactCo(Vector3 pos, bool big)
+        {
+            yield return new WaitForSeconds(kSwingDown);   // 내려찍히는 순간에 맞춤
+
+            var prefab = big ? m_FixDoneFx : m_HammerFx;
+            if (prefab != null)
+            {
+                var go = Instantiate(prefab, pos, Quaternion.identity);
+                if (!big)
+                {
+                    go.transform.localScale *= 0.65f;                                  // 블록 스케일에 맞게 축소
+                    foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+                    { var main = ps.main; main.simulationSpeed = 1.5f; }               // 더 빠르게 탁! 튀고 사라짐
+                }
+                Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
+            }
+
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();   // 원격 인스턴스는 m_Net 미탐색
+            if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), big ? 0.14f : 0.08f);
+            if (SoundManager.Instance != null)   // 단타 클립(SFX_Hammering.wav) + 연타 전용 채널
+                SoundManager.Instance.PlayTapAt(SFXType.Hammering, pos,
+                    big ? Random.Range(0.72f, 0.80f) : Random.Range(0.9f, 1.1f));
+            if (big) GridJuice.FovPunch(m_Cam, -2.5f);   // 원격 인스턴스는 m_Cam null → 무시됨
         }
 
         [Rpc(SendTo.Server)]
         private void RequestFixDoneFxRpc(Vector3 pos) => FixDoneFxRpc(pos);
 
         [Rpc(SendTo.NotOwner)]
-        private void FixDoneFxRpc(Vector3 pos) => SpawnFixDoneFx(pos);
+        private void FixDoneFxRpc(Vector3 pos) { if (!IsOwner) SpawnFixDoneFx(pos); }   // 오너는 이미 로컬 재생(이중 방지)
 
         // 든 도구 내려찍기 스윙(플레이어가 보는 방향 기준). 모든 클라에서 재생.
         private Coroutine m_SwingCo;
@@ -674,7 +690,7 @@ namespace Player
         private System.Collections.IEnumerator SwingCo()
         {
             var t = m_HeldVisual.transform;
-            const float down = 0.06f, back = 0.16f;
+            const float down = kSwingDown, back = kSwingBack;
             for (float e = 0f; e < down && t != null; e += Time.deltaTime)   // 휙 내려찍기
             {
                 t.rotation = transform.rotation * Quaternion.Euler(Mathf.Lerp(0f, -70f, e / down), 0f, 0f);
@@ -750,7 +766,10 @@ namespace Player
             }
 
             if (m_HeldVisual != null)
+            {
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
+                GridJuice.Squish(m_HeldVisual, 0.22f);   // 집는 순간 뽁 — 손맛
+            }
 
             Debug.Log($"[FXSync] RebuildHeld {(IsOwner ? "owner" : "remote")} mat={matId} tool={tool} visual={(m_HeldVisual != null)}", this);
         }

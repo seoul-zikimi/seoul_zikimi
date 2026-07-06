@@ -117,6 +117,31 @@ public class SoundManager : Singleton<SoundManager>
         _bgmSource.outputAudioMixerGroup = _mixer.FindMatchingGroups("BGM")[0];
         _bgmSource.loop        = true;
         _bgmSource.playOnAwake = false;
+
+        // 연타 전용 3D 채널: 새 타격이 직전 타격의 잔향을 '끊고' 재생 → 겹침/메아리 원천 차단.
+        var tapGo = new GameObject("SFX3D_Tap");
+        tapGo.transform.SetParent(transform);
+        _tapSrc = tapGo.AddComponent<AudioSource>();
+        _tapSrc.outputAudioMixerGroup = sfxGroup;
+        _tapSrc.spatialBlend = 1f;
+        _tapSrc.playOnAwake  = false;
+    }
+
+    AudioSource _tapSrc;
+
+    /// <summary>연타 효과음(망치질 등): 단일 채널(직전 소리 컷) + maxSeconds로 재생길이 제한.
+    /// SFX_Hammering.mp3처럼 한 클립에 여러 타격이 녹음된 샘플에서 '첫 타격만' 잘라 쓰기 위함(메아리 방지).</summary>
+    public void PlayTapAt(SFXType type, Vector3 worldPos, float pitch, float maxSeconds = 0f)
+    {
+        var clip = PickClip(type);
+        if (clip == null || _tapSrc == null) return;
+        _tapSrc.Stop();
+        _tapSrc.transform.position = worldPos;
+        _tapSrc.pitch = pitch;
+        _tapSrc.clip = clip;
+        _tapSrc.Play();
+        if (maxSeconds > 0f)
+            _tapSrc.SetScheduledEndTime(AudioSettings.dspTime + maxSeconds);   // 첫 타격 이후 컷
     }
 
     void LoadVolumes()

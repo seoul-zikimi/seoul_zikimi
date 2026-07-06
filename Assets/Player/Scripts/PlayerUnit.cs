@@ -308,6 +308,8 @@ namespace Player
         // 모든 클라: 네트워크 리스트 변경 시 로컬 비계(콜라이더+외형) 재구성.
         private void OnScaffoldsChanged(NetworkListEvent<Vector3Int> _) => RebuildScaffoldVisuals();
 
+        private int m_PrevScaffoldCount;   // 새로 추가된 비계만 팝(재구성 시 전체 재생 방지)
+
         private void RebuildScaffoldVisuals()
         {
             ClearScaffoldVisuals();
@@ -315,6 +317,10 @@ namespace Player
             Vector3 origin = GridSystem.GridContract.Origin;
             for (int i = 0; i < m_NetScaffolds.Count; i++)
                 m_Scaffolds.Add(CreateScaffold(origin + (Vector3)m_NetScaffolds[i] * u, u));
+
+            if (m_NetScaffolds.Count > m_PrevScaffoldCount && m_Scaffolds.Count > 0)
+                GridSystem.GridJuice.Squish(m_Scaffolds[m_Scaffolds.Count - 1], 0.15f);   // 새 비계 뿅
+            m_PrevScaffoldCount = m_NetScaffolds.Count;
         }
 
         private void ClearScaffoldVisuals()

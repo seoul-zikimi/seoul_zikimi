@@ -110,6 +110,7 @@ public static class JobsnailUiKit
         button.onClick.AddListener(PlayUIClick);
         if (onClick != null)
             button.onClick.AddListener(onClick);
+        JuicyButton.Attach(button);   // 모든 킷 버튼 = 쫀득(호버·눌림·복귀)
 
         if (!string.IsNullOrEmpty(fallbackText) && sprite == null)
         {

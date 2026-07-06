@@ -62,6 +62,6 @@ namespace Player
         private void RequestFxRpc(int index, Vector3 pos) => FxRpc(index, pos);
 
         [Rpc(SendTo.NotOwner)]
-        private void FxRpc(int index, Vector3 pos) => SpawnFx(index, pos);
+        private void FxRpc(int index, Vector3 pos) { if (!IsOwner) SpawnFx(index, pos); }   // 오너는 이미 로컬 재생(이중 방지)
     }
 }

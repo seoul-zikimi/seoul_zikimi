@@ -888,6 +888,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         {
             m_LobbyRoomOverlay.SetActive(true);
             m_LobbyRoomOverlay.transform.SetAsLastSibling();
+            JuicyButton.AttachAll(m_LobbyRoomOverlay);   // 프리팹산 버튼도 쫀득(중복 부착 안전)
             UpdateCustomLobbyRoomOverlay();
         }
     }

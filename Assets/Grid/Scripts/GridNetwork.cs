@@ -298,11 +298,13 @@ namespace GridSystem
             var done = new HashSet<ulong>();
             foreach (var e in m_Cells)
             {
+                bool isNew = !m_SeenVisualOwners.Contains(e.ownerObjectId);   // 이번에 처음 등장한 블록 → 놓기 팝
                 var def = catalog != null ? catalog.GetById(e.materialId) : null;
                 if (def != null && def.Prefab != null)
                 {
                     if (!done.Add(e.ownerObjectId)) continue;   // 오브젝트당 프리팹 1개
-                    SpawnPrefabVisual(def, e.rotationStep, agg[e.ownerObjectId].minCell);
+                    var vgo = SpawnPrefabVisual(def, e.rotationStep, agg[e.ownerObjectId].minCell);
+                    if (isNew) GridJuice.Squish(vgo, 0.12f);    // 쿵 하고 안착(모든 클라)
                 }
                 else
                 {
@@ -314,8 +316,13 @@ namespace GridSystem
                     var col = cube.GetComponent<Collider>();
                     if (col != null) col.isTrigger = true;   // 물리는 ~Solid가 담당, 트리거는 시야가림 페이드용
                     SetColor(cube, ColorForMask(e.completedProcessMask));
+                    if (isNew) GridJuice.Squish(cube, 0.12f);
                 }
             }
+
+            // 다음 재구성에서 '새 블록'을 구분하기 위해 현재 owner 집합 기억
+            m_SeenVisualOwners.Clear();
+            foreach (var e in m_Cells) m_SeenVisualOwners.Add(e.ownerObjectId);
 
             // 공정 마커: 아직 할 공정이 남은 블록 위에 색 점(파랑=고정 필요 / 초록=페인트 필요). 다 되면 안 띄움.
             foreach (var a in agg.Values)
@@ -355,6 +362,8 @@ namespace GridSystem
             return null;
         }
 
+        private readonly HashSet<ulong> m_SeenVisualOwners = new();   // 놓기 팝용: 직전 재구성까지 있던 블록들
+
         private struct OwnerAgg
         {
             public Vector3Int minCell;
@@ -366,7 +375,7 @@ namespace GridSystem
         }
 
         // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 프리팹 피벗=바닥 → X/Z만 중심, Y는 셀 바닥에 안착.
-        private void SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
+        private GameObject SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
         {
             float u = GridContract.Unit;
             var go = Instantiate(def.Prefab, m_VisualRoot.transform);
@@ -384,6 +393,7 @@ namespace GridSystem
                 box.size = mf.sharedMesh.bounds.size;
                 box.isTrigger = true;
             }
+            return go;
         }
 
         // 칸 하나를 막는 보이지 않는 BoxCollider(렌더러 없음). 칸 실제 크기 = 중력 플레이어가 위에 정확히 서고 옆을 못 지나감.

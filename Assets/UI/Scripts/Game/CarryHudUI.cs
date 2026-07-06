@@ -20,6 +20,9 @@ public class CarryHudUI : UIHUD
         SetProcessBar(false);
         SetRevertBar(false);
         SetProcessHint(false);
+
+        var hint = Get<GameObject>((int)GOs.HintPanel);   // 씬 진입 시 조작법 패널 뽁 등장
+        if (hint != null && hint.GetComponent<UiPopIn>() == null) hint.AddComponent<UiPopIn>();
     }
 
     /// <summary>좌상단 조작법/상태 텍스트.</summary>
