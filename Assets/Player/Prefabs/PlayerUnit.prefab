@@ -114,6 +114,7 @@ GameObject:
   - component: {fileID: 1112921772051660238}
   - component: {fileID: 8186700940800385809}
   - component: {fileID: 5322060586137079395}
+  - component: {fileID: 9012345678901234567}
   m_Layer: 0
   m_Name: PlayerUnit
   m_TagString: Player
@@ -346,6 +347,20 @@ MonoBehaviour:
   m_HammerModel: {fileID: 3939406923825996935, guid: 43caca03382ec364ea6d9321d50d92a3, type: 3}
   m_PaintCanModel: {fileID: 3939406923825996935, guid: c418b9fb70bd20d46825878db51f693b, type: 3}
   m_ToolModelScale: 0.4
+  m_HammerFx: {fileID: 2504214343621411470, guid: 3ed0d324122d7b24eaec75c55c74aafc, type: 3}
+--- !u!114 &9012345678901234567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7223451131215545806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f8e2a91c5d74b6fa8e91c0d2b7e5a41, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerEmote
+  m_HeartFx: {fileID: 6855314210357232287, guid: 7c2a9b83b809a0848915fabd9596b68b, type: 3}
 --- !u!114 &5322060586137079395
 MonoBehaviour:
   m_ObjectHideFlags: 0

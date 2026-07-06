@@ -35,6 +35,7 @@ namespace Player
         [SerializeField] private GameObject m_PaintCanModel;
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
+        [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -59,6 +60,7 @@ namespace Player
         private bool m_HasTarget;
         private CarryHudUI m_Hud;   // 프리팹 HUD(UIManager 관리) — 구 OnGUI 대체
         private bool m_HudMissing;  // 프리팹 미생성 경고 1회용
+        private float m_HitFxTimer; // 망치질 이펙트 간격 타이머
         private static readonly Vector3Int s_NoCell = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
         private Vector3Int m_LastShockCell = s_NoCell;   // 같은 셀 안에 있는 동안 충격 중복 전송 방지
 
@@ -246,6 +248,16 @@ namespace Player
             if (m_Target != m_ProcessCell) { m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
             m_ProcessKind = m_HeldTool;
             m_ProcessHold += Time.deltaTime;
+
+            // 망치질 이펙트(CFXR) 0.5초 간격 — 로컬 즉시 + 원격 복제
+            m_HitFxTimer -= Time.deltaTime;
+            if (m_ProcessKind == ProcessType.Fixed && m_HitFxTimer <= 0f)
+            {
+                m_HitFxTimer = 0.5f;
+                Vector3 hit = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
+                SpawnHammerFx(hit);
+                if (IsSpawned) RequestHammerFxRpc(hit);
+            }
 
             if (m_ProcessHold >= m_ProcessSeconds)
             {
@@ -594,6 +606,20 @@ namespace Player
         [Rpc(SendTo.NotOwner)]
         private void ProcessSfxRpc(bool painted)
             => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
+
+        // 망치질 이펙트: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 보이게).
+        private void SpawnHammerFx(Vector3 pos)
+        {
+            if (m_HammerFx == null) return;
+            var go = Instantiate(m_HammerFx, pos, Quaternion.identity);
+            Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestHammerFxRpc(Vector3 pos) => HammerFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void HammerFxRpc(Vector3 pos) => SpawnHammerFx(pos);
 
         private void TryRemove()
         {
