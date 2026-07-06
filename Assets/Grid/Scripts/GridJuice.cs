@@ -82,6 +82,15 @@ namespace GridSystem
             }
         }
 
+        // 블록 쫀득 스퀴시: 눌렸다(y↓ xz↑) 출렁이며 복원. 진행 중이면 재시작.
+        public static void Squish(GameObject go, float amount = 0.08f)
+        {
+            if (go == null) return;
+            var s = go.GetComponent<JuiceSquish>();
+            if (s == null) s = go.AddComponent<JuiceSquish>();
+            s.Play(amount);
+        }
+
         // 카메라 FOV 펀치(팔로우/오빗이 FOV는 안 건드림 → 트랜스폼 흔들기보다 안전). 카메라에 1회 부착.
         public static void FovPunch(Camera cam, float amount)
         {
@@ -173,6 +182,49 @@ namespace GridSystem
                 if (Mathf.Abs(m_Punch) < 0.02f) m_Punch = 0f;
             }
             m_Cam.fieldOfView = m_Base + m_Punch;
+        }
+    }
+
+    /// <summary>블록 스퀴시(squash&stretch): 눌림 → 감쇠 출렁 복원. GridJuice.Squish로 사용.</summary>
+    public class JuiceSquish : MonoBehaviour
+    {
+        Vector3 m_BaseScale;
+        bool m_HasBase;
+        float m_T = -1f;
+        float m_Amt;
+        const float kDur = 0.22f;
+        const float kPressPart = 0.25f;   // 앞 25% = 눌림, 나머지 = 출렁 복원
+
+        public void Play(float amount)
+        {
+            if (!m_HasBase) { m_BaseScale = transform.localScale; m_HasBase = true; }
+            m_Amt = amount;
+            m_T = 0f;
+        }
+
+        void Update()
+        {
+            if (m_T < 0f) return;
+            m_T += Time.deltaTime;
+            float n = m_T / kDur;
+            if (n >= 1f)
+            {
+                transform.localScale = m_BaseScale;
+                m_T = -1f;
+                return;
+            }
+
+            float p;   // 눌림 정도(1=최대 눌림, 음수=반동으로 늘어남)
+            if (n < kPressPart) p = n / kPressPart;
+            else
+            {
+                float t2 = (n - kPressPart) / (1f - kPressPart);
+                p = (1f - t2) * Mathf.Cos(t2 * 5f);   // 감쇠 출렁(음수 구간 = 위로 살짝 늘어남)
+            }
+
+            float y  = 1f - p * m_Amt * 1.6f;   // 눌릴 때 납작
+            float xz = 1f + p * m_Amt;          // 눌릴 때 옆으로 퍼짐
+            transform.localScale = new Vector3(m_BaseScale.x * xz, m_BaseScale.y * y, m_BaseScale.z * xz);
         }
     }
 }

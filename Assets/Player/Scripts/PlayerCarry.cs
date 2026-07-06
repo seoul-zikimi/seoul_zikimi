@@ -36,6 +36,7 @@ namespace Player
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
         [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
+        [SerializeField] private GameObject m_FixDoneFx;  // 고정 완료 이펙트 프리팹(CFXR Hit D 3D (Yellow))
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -263,6 +264,15 @@ namespace Player
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
                 PlayProcessSfx(m_HeldTool == ProcessType.Painted);             // 로컬 + 원격 복제(옆 플레이어도 들림)
+
+                if (m_HeldTool == ProcessType.Fixed)   // 고정 완료 — 챙! (별 타격 + 큰 스퀴시 + 화면 살짝)
+                {
+                    Vector3 done = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
+                    SpawnFixDoneFx(done);
+                    if (IsSpawned) RequestFixDoneFxRpc(done);
+                    GridJuice.FovPunch(m_Cam, -2.5f);   // 로컬 카메라만
+                }
+
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
@@ -608,11 +618,23 @@ namespace Player
             => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
 
         // 망치질 이펙트: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 보이게).
+        // 타격 1세트 = CFXR 스파크(축소·가속 변형) + 블록 스퀴시 + 망치 스윙 + 피치 랜덤 타격음.
         private void SpawnHammerFx(Vector3 pos)
         {
-            if (m_HammerFx == null) return;
-            var go = Instantiate(m_HammerFx, pos, Quaternion.identity);
-            Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
+            if (m_HammerFx != null)
+            {
+                var go = Instantiate(m_HammerFx, pos, Quaternion.identity);
+                go.transform.localScale *= 0.65f;                                  // 블록 스케일에 맞게 축소
+                foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+                { var main = ps.main; main.simulationSpeed = 1.5f; }               // 더 빠르게 탁! 튀고 사라짐
+                Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
+            }
+
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();   // 원격 인스턴스는 m_Net 미탐색
+            if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), 0.08f);
+            SwingHeldTool();
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlaySFXAt(SFXType.Hammering, pos, Random.Range(0.9f, 1.1f));
         }
 
         [Rpc(SendTo.Server)]
@@ -620,6 +642,53 @@ namespace Player
 
         [Rpc(SendTo.NotOwner)]
         private void HammerFxRpc(Vector3 pos) => SpawnHammerFx(pos);
+
+        // 고정 완료 이펙트: 별 타격 + 큰 스퀴시. owner 로컬 즉시 + 다른 클라에도.
+        private void SpawnFixDoneFx(Vector3 pos)
+        {
+            if (m_FixDoneFx != null)
+            {
+                var go = Instantiate(m_FixDoneFx, pos, Quaternion.identity);
+                Destroy(go, 5f);
+            }
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
+            if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), 0.14f);
+            SwingHeldTool();
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestFixDoneFxRpc(Vector3 pos) => FixDoneFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void FixDoneFxRpc(Vector3 pos) => SpawnFixDoneFx(pos);
+
+        // 든 도구 내려찍기 스윙(플레이어가 보는 방향 기준). 모든 클라에서 재생.
+        private Coroutine m_SwingCo;
+        private void SwingHeldTool()
+        {
+            if (m_HeldVisual == null || !isActiveAndEnabled) return;
+            if (m_SwingCo != null) StopCoroutine(m_SwingCo);
+            m_SwingCo = StartCoroutine(SwingCo());
+        }
+
+        private System.Collections.IEnumerator SwingCo()
+        {
+            var t = m_HeldVisual.transform;
+            const float down = 0.06f, back = 0.16f;
+            for (float e = 0f; e < down && t != null; e += Time.deltaTime)   // 휙 내려찍기
+            {
+                t.rotation = transform.rotation * Quaternion.Euler(Mathf.Lerp(0f, -70f, e / down), 0f, 0f);
+                yield return null;
+            }
+            for (float e = 0f; e < back && t != null; e += Time.deltaTime)   // 되돌아오기(감속)
+            {
+                float n = e / back;
+                t.rotation = transform.rotation * Quaternion.Euler(Mathf.Lerp(-70f, 0f, 1f - (1f - n) * (1f - n)), 0f, 0f);
+                yield return null;
+            }
+            if (t != null) t.rotation = Quaternion.identity;
+            m_SwingCo = null;
+        }
 
         private void TryRemove()
         {

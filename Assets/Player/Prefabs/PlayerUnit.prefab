@@ -348,6 +348,7 @@ MonoBehaviour:
   m_PaintCanModel: {fileID: 3939406923825996935, guid: c418b9fb70bd20d46825878db51f693b, type: 3}
   m_ToolModelScale: 0.4
   m_HammerFx: {fileID: 2504214343621411470, guid: 3ed0d324122d7b24eaec75c55c74aafc, type: 3}
+  m_FixDoneFx: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
 --- !u!114 &9012345678901234567
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -360,7 +361,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f8e2a91c5d74b6fa8e91c0d2b7e5a41, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerEmote
-  m_HeartFx: {fileID: 6855314210357232287, guid: 7c2a9b83b809a0848915fabd9596b68b, type: 3}
+  m_EmoteFx:
+  - {fileID: 6855314210357232287, guid: 7c2a9b83b809a0848915fabd9596b68b, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  m_EmojiAtlas: {fileID: 2800000, guid: dffef66376be4fa480fb02b19edbe903, type: 3}
+  m_ThumbsDownTex: {fileID: 2800000, guid: b7d41f3a9c2e58e4d8a2f19c3b6d7e52, type: 3}
 --- !u!114 &5322060586137079395
 MonoBehaviour:
   m_ObjectHideFlags: 0

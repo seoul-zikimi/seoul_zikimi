@@ -56,10 +56,14 @@ public class CarryHudUI : UIHUD
         go.SetActive(on);
         if (!on) return;
         go.transform.position = screenPos;
+        go.transform.localScale = Vector3.one * (1f + 0.15f * Mathf.Clamp01(t01));   // 찰수록 바가 커짐(긴장감)
         var img = Get<Image>(fillIdx);
         if (img != null)
         {
-            img.color = fill;
+            // 85% 이상부터 흰색 펄스 — "곧 완료!" 신호
+            img.color = t01 > 0.85f
+                ? Color.Lerp(fill, Color.white, Mathf.PingPong(Time.unscaledTime * 6f, 0.6f))
+                : fill;
             img.rectTransform.localScale = new Vector3(Mathf.Clamp01(t01), 1f, 1f);   // pivot=왼쪽 → 왼→오 채움
         }
         var txt = Get<Text>(labelIdx);

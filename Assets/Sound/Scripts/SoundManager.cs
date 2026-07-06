@@ -201,12 +201,18 @@ public class SoundManager : Singleton<SoundManager>
     public void PlaySFXAt(SFXType type, Vector3 worldPos) => PlaySFXAt(PickClip(type), worldPos);
 
     /// <summary>3D 효과음 — 클립 직접 지정. 다음 3D 소스를 그 위치로 옮겨 PlayOneShot(round-robin).</summary>
-    public void PlaySFXAt(AudioClip clip, Vector3 worldPos)
+    public void PlaySFXAt(AudioClip clip, Vector3 worldPos) => PlaySFXAt(clip, worldPos, 1f);
+
+    /// <summary>3D 효과음 + 피치(0.9~1.1 랜덤 등) — 망치질 같은 반복음 단조로움 방지.</summary>
+    public void PlaySFXAt(SFXType type, Vector3 worldPos, float pitch) => PlaySFXAt(PickClip(type), worldPos, pitch);
+
+    public void PlaySFXAt(AudioClip clip, Vector3 worldPos, float pitch)
     {
         if (clip == null) return;
         var src = _sfx3D[_sfx3DIndex];
         _sfx3DIndex = (_sfx3DIndex + 1) % _sfx3D.Length;
         src.transform.position = worldPos;
+        src.pitch = pitch;   // round-robin이라 이전 피치 잔재 방지 위해 매번 지정
         src.PlayOneShot(clip);
     }
 

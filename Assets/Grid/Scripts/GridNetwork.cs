@@ -338,6 +338,23 @@ namespace GridSystem
             }
         }
 
+        /// <summary>cell을 덮는 블록 비주얼 루트(프리팹/큐브). 없으면 null — 스퀴시 등 쫀득 연출용.</summary>
+        public GameObject VisualAt(Vector3Int cell)
+        {
+            if (m_VisualRoot == null) return null;
+            Vector3 p = GridCoordinates.CellToWorld(cell) + Vector3.one * 0.5f * GridContract.Unit;
+            foreach (Transform t in m_VisualRoot.transform)
+            {
+                var rends = t.GetComponentsInChildren<Renderer>();
+                if (rends.Length == 0) continue;   // 콜라이더 전용(~Solid 등)은 건너뜀
+                Bounds b = rends[0].bounds;
+                for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+                b.Expand(0.05f);
+                if (b.Contains(p)) return t.gameObject;
+            }
+            return null;
+        }
+
         private struct OwnerAgg
         {
             public Vector3Int minCell;
