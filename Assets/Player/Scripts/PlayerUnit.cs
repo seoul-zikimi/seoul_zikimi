@@ -63,6 +63,9 @@ namespace Player
 
             CreateSlimeTrail();   // 민달팽이 점액 트레일(트레이드마크). 더스트트레일(발먼지)과 별개 공존.
 
+            if (GetComponent<PlayerSplat>() == null)   // 착지 철푸덕(래퍼 스케일 — 리깅과 무관하게 적용)
+                gameObject.AddComponent<PlayerSplat>();
+
             if (!IsOwner)
             {
                 // ClientNetworkTransform이 Transform 직접 이동
