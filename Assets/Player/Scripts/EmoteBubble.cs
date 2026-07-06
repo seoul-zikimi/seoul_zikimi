@@ -51,8 +51,10 @@ namespace Player
             m_T += Time.deltaTime;
             if (m_T >= kLife) { Destroy(gameObject); return; }
 
-            // 빌보드
-            if (Camera.main != null) transform.rotation = Camera.main.transform.rotation;
+            // 빌보드 + 젤리 흔들(±8°)
+            if (Camera.main != null)
+                transform.rotation = Camera.main.transform.rotation
+                                   * Quaternion.Euler(0f, 0f, Mathf.Sin(m_T * 7f) * 8f);
 
             // 팝인(오버슛) → 유지
             float s = m_T < kPop

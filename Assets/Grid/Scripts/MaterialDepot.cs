@@ -60,12 +60,15 @@ namespace GridSystem
             var cat = m_Grid != null ? m_Grid.Catalog : null;
             if (cat == null || cat.GetById(materialId) == null) return;
 
-            // 배송 구역 위에서 흩뿌려 떨어뜨림(물류창고 더미 느낌). 위에서 낙하.
-            var pos = new Vector3(
+            // 배송 비행: 하늘 저편(랜덤 방향)에서 포물선으로 날아와 배송 구역에 착지.
+            // ServerThrow의 던지기 비행(포물선+텀블 회전+착지음)을 그대로 재활용.
+            var to = new Vector3(
                 m_DeliveryZone.x + Random.Range(-1.3f, 1.3f),
-                2.5f,
+                0f,
                 m_DeliveryZone.z + Random.Range(-1.3f, 1.3f));
-            m_Drop.ServerDrop(materialId, pos);
+            float ang = Random.Range(0f, Mathf.PI * 2f);
+            var from = to + new Vector3(Mathf.Cos(ang) * 12f, 6f, Mathf.Sin(ang) * 12f);
+            m_Drop.ServerThrow(materialId, from, to);
         }
 
         private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)

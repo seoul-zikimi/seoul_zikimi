@@ -1115,7 +1115,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                 status.text = "";
             }
         }
+
+        // 새 팀원 입장 → 그 슬롯 디용
+        if (joinedCount > m_PrevJoinedForPop && joinedCount - 1 < m_CustomLobbySlotRoots.Count
+            && m_CustomLobbySlotRoots[joinedCount - 1] != null)
+            GridSystem.GridJuice.Squish(m_CustomLobbySlotRoots[joinedCount - 1], 0.15f);
+        m_PrevJoinedForPop = joinedCount;
     }
+
+    private int m_PrevJoinedForPop;   // 입장 팝 감지용
 
     private void ToggleCustomReadyState()
     {

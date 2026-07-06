@@ -42,6 +42,18 @@ public class GameHudDriver : MonoBehaviour
         MaterialDepot.Spawned   += OnDepotSpawned;
         MaterialDepot.Despawned += OnDepotDespawned;
     }
+
+    // 모든 버튼 쫀득 통일: 씬 배치·프리팹·코드빌드 가리지 않고 1초마다 훑어 JuicyButton 부착.
+    // (Attach는 중복 방지라 멱등 — 새로 생긴 버튼만 실제로 붙음)
+    private float m_JuicySweep;
+    private void Update()
+    {
+        m_JuicySweep -= Time.unscaledDeltaTime;
+        if (m_JuicySweep > 0f) return;
+        m_JuicySweep = 1f;
+        foreach (var b in FindObjectsByType<UnityEngine.UI.Button>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            JuicyButton.Attach(b);
+    }
     private void OnDisable()
     {
         MaterialDepot.Spawned   -= OnDepotSpawned;

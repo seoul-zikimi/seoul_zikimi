@@ -61,6 +61,8 @@ namespace Player
             m_NetScaffolds.OnListChanged += OnScaffoldsChanged;
             RebuildScaffoldVisuals();
 
+            CreateSlimeTrail();   // 민달팽이 점액 트레일(트레이드마크). 더스트트레일(발먼지)과 별개 공존.
+
             if (!IsOwner)
             {
                 // ClientNetworkTransform이 Transform 직접 이동
@@ -308,6 +310,72 @@ namespace Player
         // 모든 클라: 네트워크 리스트 변경 시 로컬 비계(콜라이더+외형) 재구성.
         private void OnScaffoldsChanged(NetworkListEvent<Vector3Int> _) => RebuildScaffoldVisuals();
 
+        // 민달팽이 점액: 발밑에 반투명 초록 자국이 스르르 남았다 사라짐(모든 클라, 원격 포함).
+        private void CreateSlimeTrail()
+        {
+            if (transform.Find("~SlimeTrail") != null) return;
+            var go = new GameObject("~SlimeTrail");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // 트레일 면을 바닥에 눕힘
+
+            var tr = go.AddComponent<TrailRenderer>();
+            tr.time = 1.6f;
+            tr.startWidth = 0.45f;
+            tr.endWidth = 0.06f;
+            tr.minVertexDistance = 0.12f;
+            tr.alignment = LineAlignment.TransformZ;
+            tr.numCapVertices = 4;
+            tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            tr.receiveShadows = false;
+
+            var sh = Shader.Find("Universal Render Pipeline/Lit");   // 빌드 셰이더 스트립 안전 계열
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh != null)
+            {
+                var m = new Material(sh);
+                m.SetFloat("_Surface", 1f);
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                var c = new Color(0.97f, 0.98f, 0.95f, 0.30f);   // 하얀 점액
+                m.SetColor("_BaseColor", c);
+                m.SetColor("_Color", c);
+                tr.material = m;
+            }
+
+            var grad = new Gradient();   // 갈수록 옅어지는 점액
+            grad.SetKeys(
+                new[] { new GradientColorKey(new Color(0.97f, 0.98f, 0.95f), 0f), new GradientColorKey(new Color(0.97f, 0.98f, 0.95f), 1f) },
+                new[] { new GradientAlphaKey(0.35f, 0f), new GradientAlphaKey(0f, 1f) });
+            tr.colorGradient = grad;
+
+            m_SlimeTrail = tr;
+        }
+
+        private TrailRenderer m_SlimeTrail;
+        private PlayerMovement m_MoveForTrail;
+        private Vector3 m_PrevTrailPos;
+
+        private void LateUpdate()
+        {
+            if (m_SlimeTrail == null) return;
+            if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();
+            // 공중(점프/낙하/벽타기)에선 점액이 안 나옴 — 착지하면 다시 이어짐
+            m_SlimeTrail.emitting = m_MoveForTrail == null || m_MoveForTrail.IsGrounded();
+
+            float dt = Time.deltaTime;   // 빨리 갈수록 점액이 굵어짐(스프린트 티)
+            if (dt > 0f)
+            {
+                Vector3 d = transform.position - m_PrevTrailPos; d.y = 0f;
+                float target = Mathf.Lerp(0.32f, 0.62f, Mathf.Clamp01(d.magnitude / dt / 6f));
+                m_SlimeTrail.startWidth = Mathf.Lerp(m_SlimeTrail.startWidth, target, 8f * dt);
+            }
+            m_PrevTrailPos = transform.position;
+        }
+
         private int m_PrevScaffoldCount;   // 새로 추가된 비계만 팝(재구성 시 전체 재생 방지)
 
         private void RebuildScaffoldVisuals()
@@ -319,7 +387,14 @@ namespace Player
                 m_Scaffolds.Add(CreateScaffold(origin + (Vector3)m_NetScaffolds[i] * u, u));
 
             if (m_NetScaffolds.Count > m_PrevScaffoldCount && m_Scaffolds.Count > 0)
-                GridSystem.GridJuice.Squish(m_Scaffolds[m_Scaffolds.Count - 1], 0.15f);   // 새 비계 뿅
+            {
+                var last = m_Scaffolds[m_Scaffolds.Count - 1];
+                GridSystem.GridJuice.Squish(last, 0.15f);   // 새 비계 뿅
+                GridSystem.GridJuice.GroundHit(             // 설치 흙 팡
+                    last.transform.position - Vector3.up * (0.5f * GridSystem.GridContract.Unit), 0.5f);
+                if (SoundManager.Instance != null)          // 가벼운 설치음(높은 피치 짧게)
+                    SoundManager.Instance.PlayTapAt(SFXType.LandObject, last.transform.position, 1.3f, 0.3f);
+            }
             m_PrevScaffoldCount = m_NetScaffolds.Count;
         }
 

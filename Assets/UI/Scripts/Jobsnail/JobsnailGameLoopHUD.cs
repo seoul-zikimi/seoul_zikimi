@@ -32,6 +32,9 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
     private bool m_ResultWasShown;
     private bool m_ResultIntroPlaying;
     private bool m_UrgentBgmStarted;
+    private GridSystem.GamePhase m_PrevPhase = (GridSystem.GamePhase)(-1);   // 시작 배너용 페이즈 감지
+    private GameObject m_StartBanner;
+    private Coroutine m_BannerCo;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -69,6 +72,39 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         Rebuild();
     }
 
+    // ── "공사 시작!" 배너: 빌딩 페이즈 진입 때 화면 중앙에 팝인 → 1.2초 뒤 축소 퇴장 ──
+    private void ShowStartBanner()
+    {
+        if (m_TimerText == null || m_TimerText.canvas == null) return;
+        if (m_StartBanner == null)
+        {
+            var label = JobsnailUiKit.Label("StartBanner", m_TimerText.canvas.transform, "공사 시작!",
+                64, new Color(1f, 0.72f, 0.20f, 1f), TextAlignmentOptions.Center, Vector2.zero, new Vector2(760, 130));
+            m_StartBanner = label.gameObject;
+            m_StartBanner.AddComponent<UiPopIn>();   // 등장 = 디용 팝
+            m_StartBanner.SetActive(false);
+        }
+        if (m_BannerCo != null) StopCoroutine(m_BannerCo);
+        m_BannerCo = StartCoroutine(StartBannerCo());
+    }
+
+    private System.Collections.IEnumerator StartBannerCo()
+    {
+        m_StartBanner.SetActive(false);   // UiPopIn 재발동용 토글
+        m_StartBanner.SetActive(true);
+        m_StartBanner.transform.SetAsLastSibling();
+        yield return new WaitForSecondsRealtime(1.2f);
+
+        var t = m_StartBanner.transform;   // 스륵 축소 퇴장
+        for (float e = 0f; e < 0.15f && m_StartBanner != null; e += Time.unscaledDeltaTime)
+        {
+            t.localScale = Vector3.one * Mathf.Lerp(1f, 0f, e / 0.15f);
+            yield return null;
+        }
+        if (m_StartBanner != null) { m_StartBanner.SetActive(false); t.localScale = Vector3.one; }
+        m_BannerCo = null;
+    }
+
     private void Update()
     {
         if (m_Loop == null)
@@ -78,6 +114,13 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         SetVisible(ready);
         if (!ready)
             return;
+
+        var phase = m_Loop.Phase;   // 빌딩 페이즈 진입 순간 "공사 시작!" 배너 슬램
+        if (phase != m_PrevPhase)
+        {
+            if (phase == GridSystem.GamePhase.Building) ShowStartBanner();
+            m_PrevPhase = phase;
+        }
 
         if (m_Loop.IsBuilding)
         {
@@ -433,7 +476,50 @@ public sealed class JobsnailGameLoopHUD : MonoBehaviour
         }
         if (grade != null) grade.localScale = Vector3.one;
         if (stamp != null) stamp.localScale = Vector3.one;
+
+        if (pct >= 90) StartCoroutine(FireworksCo());   // EXCELLENT — 폭죽 축포!
+
+        if (star != null)   // 별 둥실둥실(정산창 떠 있는 동안)
+        {
+            if (m_StarBobCo != null) StopCoroutine(m_StarBobCo);
+            m_StarBobCo = StartCoroutine(StarBobCo(star));
+        }
+
         m_ResultIntroPlaying = false;
+    }
+
+    private Coroutine m_StarBobCo;
+    private System.Collections.IEnumerator StarBobCo(RectTransform star)
+    {
+        Vector2 basePos = star.anchoredPosition;
+        float t = 0f;
+        while (star != null && star.gameObject.activeInHierarchy)
+        {
+            t += Time.unscaledDeltaTime;
+            star.anchoredPosition = basePos + Vector2.up * (Mathf.Sin(t * 2.4f) * 5f);
+            star.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.8f) * 5f);
+            yield return null;
+        }
+        if (star != null) { star.anchoredPosition = basePos; star.localRotation = Quaternion.identity; }
+        m_StarBobCo = null;
+    }
+
+    // 축하 폭죽: 카메라 앞 공중에 3발 연발(Resources/Fx/ResultFirework = CFXR4 랜덤색 사본).
+    private System.Collections.IEnumerator FireworksCo()
+    {
+        var prefab = Resources.Load<GameObject>("Fx/ResultFirework");
+        var cam = Camera.main;
+        if (prefab == null || cam == null) yield break;
+
+        for (int i = 0; i < 3; i++)
+        {
+            Vector3 pos = cam.transform.position + cam.transform.forward * 9f
+                        + cam.transform.right * Random.Range(-3.5f, 3.5f)
+                        + cam.transform.up * Random.Range(0.5f, 2.5f);
+            var go = Instantiate(prefab, pos, Quaternion.identity);
+            Destroy(go, 6f);
+            yield return new WaitForSecondsRealtime(0.45f);
+        }
     }
 
     // 오버슛 이징(0→1.1→1) — 팝/슬램용.

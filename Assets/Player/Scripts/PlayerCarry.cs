@@ -37,6 +37,7 @@ namespace Player
         [SerializeField] private float m_ToolModelScale = 0.4f;
         [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
         [SerializeField] private GameObject m_FixDoneFx;  // 고정 완료 이펙트 프리팹(CFXR Hit D 3D (Yellow))
+        [SerializeField] private GameObject m_PaintFx;    // 페인트 튀김 프리팹(CFXR2 Blood Shape Splash → 주황 틴트)
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -62,6 +63,8 @@ namespace Player
         private CarryHudUI m_Hud;   // 프리팹 HUD(UIManager 관리) — 구 OnGUI 대체
         private bool m_HudMissing;  // 프리팹 미생성 경고 1회용
         private float m_HitFxTimer; // 망치질 이펙트 간격 타이머
+        private PickupBody m_PrevGrabBody;   // 조준 펄스 on/off 추적
+        private int m_PrevScorePct = -1;     // 완성도 상승 감지(HUD 디용)
         private static readonly Vector3Int s_NoCell = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
         private Vector3Int m_LastShockCell = s_NoCell;   // 같은 셀 안에 있는 동안 충격 중복 전송 방지
 
@@ -149,6 +152,13 @@ namespace Player
             UpdateTarget();
             UpdateGrabTarget();   // 빈손이면 near+aim 집기 대상 산출(하이라이트·집기 공용)
 
+            if (m_PrevGrabBody != m_GrabBody)   // 조준 대상 두근두근 on/off
+            {
+                if (m_PrevGrabBody != null) m_PrevGrabBody.SetTargeted(false);
+                if (m_GrabBody != null) m_GrabBody.SetTargeted(true);
+                m_PrevGrabBody = m_GrabBody;
+            }
+
             if (kb.cKey.wasPressedThisFrame) TryRemove();   // C = 철거(현재 조준 칸)
 
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
@@ -232,48 +242,74 @@ namespace Player
 
         // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
         // 꾹: '든 도구'가 조준 블록에 필요할 때만 바가 차고, 다 차면 그 공정을 적용(누른 채로 다음 단계 이어짐).
+        // 페인트 공정 시간 = SFX_Painting.wav 길이(1.31s) → 붓질 사운드·로딩바가 함께 시작해서 함께 끝남.
+        private const float kPaintSeconds = 1.31f;
+        private float ProcessDurationFor(ProcessType kind) => kind == ProcessType.Painted ? kPaintSeconds : m_ProcessSeconds;
+
         private void UpdateEKey(Keyboard kb)
         {
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
+                CancelPaintStroke();
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
             }
 
             if (!ToolReadyOnTarget())   // 공정 불가(도구 없음/안 맞음/빈 칸) → 바 안 참
             {
+                CancelPaintStroke();
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
             }
 
-            if (m_Target != m_ProcessCell) { m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
+            if (m_Target != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
             m_ProcessKind = m_HeldTool;
+            bool strokeStart = m_ProcessHold <= 0f;
             m_ProcessHold += Time.deltaTime;
 
-            // 망치질 이펙트(CFXR) 0.5초 간격 — 로컬 즉시 + 원격 복제.
-            // 완료타와 겹치면 같은 소리가 메아리처럼 중복되므로, 완료 직전 틱은 건너뜀.
+            if (strokeStart && m_ProcessKind == ProcessType.Painted)   // 붓질 시작 = 사운드 시작(바와 동시 출발)
+            {
+                Vector3 sp = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
+                PaintStrokeSfx(true, sp);
+                if (IsSpawned) RequestPaintStrokeRpc(true, sp);
+            }
+
+            float dur = ProcessDurationFor(m_ProcessKind);   // 페인트=사운드 길이, 망치=m_ProcessSeconds
+
+            // 공정 이펙트 0.5초 간격(망치=타격 세트 / 페인트=붓질+초록 방울, 소리는 스트로크가 담당) — 로컬 즉시 + 원격 복제.
+            // 완료타와 겹치면 같은 소리가 중복되므로, 완료 직전 틱은 건너뜀.
             m_HitFxTimer -= Time.deltaTime;
-            if (m_ProcessKind == ProcessType.Fixed && m_HitFxTimer <= 0f
-                && m_ProcessHold + 0.45f < m_ProcessSeconds)
+            if (m_HitFxTimer <= 0f && m_ProcessHold + 0.45f < dur)
             {
                 m_HitFxTimer = 0.5f;
                 Vector3 hit = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
-                SpawnHammerFx(hit);
-                if (IsSpawned) RequestHammerFxRpc(hit);
+                if (m_ProcessKind == ProcessType.Fixed)
+                {
+                    SpawnHammerFx(hit);
+                    if (IsSpawned) RequestHammerFxRpc(hit);
+                }
+                else
+                {
+                    SpawnPaintFx(hit);
+                    if (IsSpawned) RequestPaintFxRpc(hit);
+                }
             }
 
-            if (m_ProcessHold >= m_ProcessSeconds)
+            if (m_ProcessHold >= dur)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
 
+                Vector3 done = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
                 if (m_HeldTool == ProcessType.Fixed)   // 고정 완료 — 스윙 착점에 챙!(소리·별·스퀴시·카메라 전부 싱크)
                 {
-                    Vector3 done = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
                     SpawnFixDoneFx(done);
                     if (IsSpawned) RequestFixDoneFxRpc(done);
                 }
-                else
-                    PlayProcessSfx(true);   // 페인트는 스윙이 없어 즉시(로컬+원격)
+                else                                   // 페인트 완료 — 붓질 착점에 초록 팡
+                {
+                    SpawnPaintDoneFx(done);
+                    if (IsSpawned) RequestPaintDoneFxRpc(done);
+                }
 
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
@@ -546,6 +582,7 @@ namespace Player
             if (HasMaterial) m_Drop.RequestThrow(m_HeldMaterial.Id, from, to);
             else             m_Drop.RequestThrowTool((int)m_HeldTool, from, to);
             PlaySFX(SFXType.ThrowObject);
+            GridJuice.FovPunch(m_Cam, 1.6f);   // 던질 때 화면 살짝 벌어졌다 복귀 — 손맛
             ClearHeld();
             OnThrow?.Invoke();
         }
@@ -582,15 +619,15 @@ namespace Player
             var s = m_Grid.GridSize;
             foreach (var cell in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
             {
-                if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) return;
-                if (!m_Net.IsCellFree(cell)) return;
+                if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
+                if (!m_Net.IsCellFree(cell)) { ShakePreview(); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
                     GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation),
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
-                return;
+            { ShakePreview(); return; }
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
             if (SoundManager.Instance != null)   // 놓는 자리서 3D + 피치 랜덤(단조로움 방지)
@@ -607,20 +644,6 @@ namespace Player
             if (SoundManager.Instance != null)
                 SoundManager.Instance.PlaySFX(type);
         }
-
-        // 공정 소리: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 들리게).
-        private void PlayProcessSfx(bool painted)
-        {
-            PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
-            if (IsSpawned) RequestProcessSfxRpc(painted);
-        }
-
-        [Rpc(SendTo.Server)]
-        private void RequestProcessSfxRpc(bool painted) => ProcessSfxRpc(painted);
-
-        [Rpc(SendTo.NotOwner)]
-        private void ProcessSfxRpc(bool painted)
-            => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
 
         // 망치질 연출(모든 클라): 스윙부터 시작하고, 망치가 '내려찍히는 순간'(kSwingDown)에
         // 타격 세트(스파크·스퀴시·타격음·카메라펀치)를 재생 → 소리/이펙트가 애니메이션과 싱크.
@@ -665,7 +688,11 @@ namespace Player
             }
 
             var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();   // 원격 인스턴스는 m_Net 미탐색
-            if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), big ? 0.14f : 0.08f);
+            if (net != null)
+            {
+                GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), big ? 0.14f : 0.08f);
+                if (big) net.RippleAround(pos, GridContract.Unit * 2.5f, 0.06f);   // 완료 순간 젤리 파동
+            }
             if (SoundManager.Instance != null)   // 단타 클립(SFX_Hammering.wav) + 연타 전용 채널
                 SoundManager.Instance.PlayTapAt(SFXType.Hammering, pos,
                     big ? Random.Range(0.72f, 0.80f) : Random.Range(0.9f, 1.1f));
@@ -677,6 +704,87 @@ namespace Player
 
         [Rpc(SendTo.NotOwner)]
         private void FixDoneFxRpc(Vector3 pos) { if (!IsOwner) SpawnFixDoneFx(pos); }   // 오너는 이미 로컬 재생(이중 방지)
+
+        // 페인트질 연출: 붓질 스윙 후 착점에 초록 방울 + 페인트 소리(연타 채널·길이 컷).
+        private void SpawnPaintFx(Vector3 pos)
+        {
+            SwingHeldTool();
+            if (isActiveAndEnabled) StartCoroutine(PaintSplashCo(pos, big: false));
+        }
+
+        private void SpawnPaintDoneFx(Vector3 pos)
+        {
+            SwingHeldTool();
+            if (isActiveAndEnabled) StartCoroutine(PaintSplashCo(pos, big: true));
+        }
+
+        private static readonly Color kPaintOrange = new Color(1f, 0.55f, 0.15f);   // 페인트 튀김 색
+
+        private System.Collections.IEnumerator PaintSplashCo(Vector3 pos, bool big)
+        {
+            yield return new WaitForSeconds(kSwingDown);   // 붓이 닿는 순간에 맞춤
+
+            if (m_PaintFx != null)   // 피 튀김 이펙트를 주황으로 틴트 → 페인트 튀김
+            {
+                var go = Instantiate(m_PaintFx, pos, Quaternion.identity);
+                go.transform.localScale *= big ? 1f : 0.55f;
+                TintParticles(go, kPaintOrange);
+                Destroy(go, 5f);
+            }
+            else
+                GridJuice.PaintPop(pos, GridContract.Unit, big ? 1.6f : 1f);   // 프리팹 없으면 방울 폴백
+
+            if (big)
+            {
+                var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
+                if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), 0.10f);
+            }
+            // 소리는 스트로크 사운드(PaintStrokeSfx)가 로딩바와 함께 1회 담당 — 여기선 비주얼만.
+        }
+
+        // 붓질 사운드: 로딩바와 함께 시작·종료(클립 길이 = kPaintSeconds). 피치 고정(길이 싱크 유지).
+        private void PaintStrokeSfx(bool start, Vector3 pos)
+        {
+            if (SoundManager.Instance == null) return;
+            if (start) SoundManager.Instance.PlayTapAt(SFXType.Painting, pos, 1f);
+            else SoundManager.Instance.StopTap();
+        }
+
+        // 스트로크 중단(E 뗌/대상 무효/셀 변경) → 소리도 함께 끊음.
+        private void CancelPaintStroke()
+        {
+            if (m_ProcessKind != ProcessType.Painted || m_ProcessHold <= 0f) return;
+            PaintStrokeSfx(false, default);
+            if (IsSpawned) RequestPaintStrokeRpc(false, default);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestPaintStrokeRpc(bool start, Vector3 pos) => PaintStrokeRpc(start, pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PaintStrokeRpc(bool start, Vector3 pos) { if (!IsOwner) PaintStrokeSfx(start, pos); }
+
+        // 파티클 색 오버라이드(startColor) — CFXR 계열은 버텍스 컬러 기반이라 이걸로 전체 틴트됨.
+        private static void TintParticles(GameObject go, Color c)
+        {
+            foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+            {
+                var main = ps.main;
+                main.startColor = new ParticleSystem.MinMaxGradient(c);
+            }
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestPaintFxRpc(Vector3 pos) => PaintFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PaintFxRpc(Vector3 pos) { if (!IsOwner) SpawnPaintFx(pos); }
+
+        [Rpc(SendTo.Server)]
+        private void RequestPaintDoneFxRpc(Vector3 pos) => PaintDoneFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PaintDoneFxRpc(Vector3 pos) { if (!IsOwner) SpawnPaintDoneFx(pos); }
 
         // 든 도구 내려찍기 스윙(플레이어가 보는 방향 기준). 모든 클라에서 재생.
         private Coroutine m_SwingCo;
@@ -881,6 +989,15 @@ namespace Player
                 for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
                 m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
+
+                float pa = 0.40f + 0.10f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 살아있는 청사진 숨쉬기
+                for (int i = 0; i < m_PreviewGhostMats.Count; i++)
+                    if (m_PreviewGhostMats[i] != null)
+                    {
+                        var c = m_PreviewGhostMats[i].GetColor(s_PvBase); c.a = pa;
+                        m_PreviewGhostMats[i].SetColor(s_PvBase, c);
+                        m_PreviewGhostMats[i].SetColor(s_PvCol, c);
+                    }
                 return;
             }
 
@@ -929,6 +1046,30 @@ namespace Player
             go.GetComponent<Renderer>().sharedMaterial = PreviewMat();
             m_Preview = go;
             m_PreviewKey = -1;
+        }
+
+        // 배치 실패 도리도리: 프리뷰가 좌우로 흔들리며 "여긴 안 돼" 신호(감쇠).
+        private Coroutine m_ShakeCo;
+        private void ShakePreview()
+        {
+            if (m_Preview == null || !isActiveAndEnabled) return;
+            if (m_ShakeCo != null) StopCoroutine(m_ShakeCo);
+            m_ShakeCo = StartCoroutine(ShakePreviewCo());
+        }
+
+        private System.Collections.IEnumerator ShakePreviewCo()
+        {
+            var t = m_Preview.transform;
+            var baseRot = t.rotation;
+            const float dur = 0.25f;
+            for (float e = 0f; e < dur && t != null; e += Time.deltaTime)
+            {
+                float decay = 1f - e / dur;
+                t.rotation = baseRot * Quaternion.Euler(0f, Mathf.Sin(e * 55f) * 8f * decay, 0f);
+                yield return null;
+            }
+            if (t != null) t.rotation = baseRot;
+            m_ShakeCo = null;
         }
 
         private void DestroyPreview()
@@ -1018,6 +1159,10 @@ namespace Player
 
             m_Hud.SetHint(BuildHintText());
             UpdateHudBars();
+
+            int pct = m_Net != null ? Mathf.RoundToInt(m_Net.ScorePercent) : 0;   // 완성도 오르면 패널 디용
+            if (m_PrevScorePct >= 0 && pct > m_PrevScorePct) m_Hud.PopHint();
+            m_PrevScorePct = pct;
         }
 
         private string BuildHintText()
@@ -1066,7 +1211,7 @@ namespace Player
 
             bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
                         && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
-            m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / m_ProcessSeconds),
+            m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
                 m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
                 m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
 

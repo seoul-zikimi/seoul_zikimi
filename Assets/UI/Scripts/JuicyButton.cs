@@ -8,30 +8,41 @@ using UnityEngine.UI;
 /// </summary>
 public class JuicyButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerEnterHandler, IPointerExitHandler
 {
-    const float kHover = 1.06f;
-    const float kPress = 0.90f;
-    const float kSpeed = 16f;     // 수렴 속도(클수록 탱탱)
+    const float kHover = 1.08f;
+    const float kPress = 0.87f;
+    const float kStiffness = 420f;   // 스프링 강성(클수록 빠릿)
+    const float kDamping   = 13f;    // 감쇠(작을수록 더 통통 튐)
 
-    float m_Target = 1f, m_Cur = 1f;
+    float m_Target = 1f, m_Cur = 1f, m_Vel;
     Vector3 m_Base;
     bool m_HasBase;
+    Button m_Btn;
 
     void OnEnable()
     {
         if (!m_HasBase) { m_Base = transform.localScale; m_HasBase = true; }
-        m_Cur = m_Target = 1f;
+        if (m_Btn == null) m_Btn = GetComponent<Button>();
+        m_Cur = m_Target = 1f; m_Vel = 0f;
         transform.localScale = m_Base;
     }
 
-    public void OnPointerEnter(PointerEventData _) => m_Target = kHover;
+    bool Usable => m_Btn == null || m_Btn.interactable;   // 비활성 버튼은 반응 안 함
+
+    public void OnPointerEnter(PointerEventData _) { if (Usable) m_Target = kHover; }
     public void OnPointerExit(PointerEventData _)  => m_Target = 1f;
-    public void OnPointerDown(PointerEventData _)  => m_Target = kPress;
-    public void OnPointerUp(PointerEventData _)    => m_Target = kHover;
+    public void OnPointerDown(PointerEventData _)  { if (Usable) m_Target = kPress; }
+    public void OnPointerUp(PointerEventData _)    { if (Usable) { m_Target = kHover; m_Vel += 2.2f; } }   // 떼는 순간 위로 튕김
 
     void Update()
     {
-        if (Mathf.Approximately(m_Cur, m_Target)) return;
-        m_Cur = Mathf.Lerp(m_Cur, m_Target, 1f - Mathf.Exp(-kSpeed * Time.unscaledDeltaTime));
+        if (!Usable && m_Target != 1f) m_Target = 1f;   // 호버 중 비활성화되면 원복
+        if (Mathf.Approximately(m_Cur, m_Target) && Mathf.Abs(m_Vel) < 0.001f) return;
+
+        // 감쇠 스프링: 목표를 지나쳤다가 통통 튀며 정착 → 진짜 탱글한 손맛
+        float dt = Mathf.Min(Time.unscaledDeltaTime, 1f / 30f);   // 프레임 드랍 시 폭주 방지
+        m_Vel += (m_Target - m_Cur) * kStiffness * dt;
+        m_Vel *= Mathf.Exp(-kDamping * dt);
+        m_Cur += m_Vel * dt;
         transform.localScale = m_Base * m_Cur;
     }
 

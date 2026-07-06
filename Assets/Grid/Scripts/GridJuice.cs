@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -80,6 +81,41 @@ namespace GridSystem
                 fx.vel = d * (u * 1.0f); fx.gravity = -u * 0.5f; fx.life = 0.55f;
                 fx.scaleVel = u * 1.2f; fx.startAlpha = 0.5f;
             }
+        }
+
+        // 페인트: 초록 방울이 팡 튀고 낙하(틱=작게, 완료=크게).
+        public static void PaintPop(Vector3 center, float u, float scale = 1f)
+        {
+            var green = new Color(0.30f, 0.85f, 0.40f);
+            int n = Mathf.RoundToInt(4f * scale);
+            for (int i = 0; i < n; i++)
+            {
+                var dir = Random.insideUnitSphere; dir.y = Mathf.Abs(dir.y);
+                var fx = MakeBit(center, u * 0.09f * scale, green);
+                fx.vel = dir * (u * (1.0f + Random.value) * scale);
+                fx.gravity = -u * 5f; fx.life = 0.4f;
+                fx.spinDeg = 200f; fx.spinAxis = Random.onUnitSphere; fx.startAlpha = 0.95f;
+            }
+        }
+
+        // 흙 팡(배송 착지·붕괴·플레이어 착지 등). Resources/Fx/GroundHit = CFXR2 Ground Hit 사본.
+        static GameObject s_GroundHit;
+        static bool s_GroundHitTried;
+        public static void GroundHit(Vector3 pos, float scale = 1f)
+        {
+            if (!s_GroundHitTried) { s_GroundHitTried = true; s_GroundHit = Resources.Load<GameObject>("Fx/GroundHit"); }
+            if (s_GroundHit == null) return;
+            var go = Object.Instantiate(s_GroundHit, pos, Quaternion.identity);
+            go.transform.localScale *= scale;
+            Object.Destroy(go, 4f);
+        }
+
+        // 젤리 파동: visualRoot 자식 비주얼들을 중심에서 거리순 지연 스퀴시 → 출렁임이 번져나감(민달팽이 시그니처).
+        public static void Ripple(Transform visualRoot, Vector3 center, float radius, float amount = 0.08f, float speed = 9f)
+        {
+            if (visualRoot == null) return;
+            var host = new GameObject("~Ripple").AddComponent<JuiceRipple>();
+            host.Begin(visualRoot, center, radius, amount, speed);
         }
 
         // 블록 쫀득 스퀴시: 눌렸다(y↓ xz↑) 출렁이며 복원. 진행 중이면 재시작.
@@ -182,6 +218,56 @@ namespace GridSystem
                 if (Mathf.Abs(m_Punch) < 0.02f) m_Punch = 0f;
             }
             m_Cam.fieldOfView = m_Base + m_Punch;
+        }
+    }
+
+    /// <summary>젤리 파동 실행기: 거리순으로 지연 스퀴시 후 자멸. GridJuice.Ripple로 사용.</summary>
+    public class JuiceRipple : MonoBehaviour
+    {
+        public void Begin(Transform root, Vector3 center, float radius, float amount, float speed)
+            => StartCoroutine(Run(root, center, radius, amount, speed));
+
+        System.Collections.IEnumerator Run(Transform root, Vector3 center, float radius, float amount, float speed)
+        {
+            var targets = new List<(GameObject go, float d)>();
+            foreach (Transform t in root)
+            {
+                var rend = t.GetComponentInChildren<Renderer>();
+                if (rend == null) continue;
+                float d = Vector3.Distance(rend.bounds.center, center);
+                if (d < radius) targets.Add((t.gameObject, d));
+            }
+            targets.Sort((a, b) => a.d.CompareTo(b.d));
+
+            float elapsed = 0f; int i = 0;
+            while (i < targets.Count && root != null)
+            {
+                elapsed += Time.deltaTime;
+                while (i < targets.Count && targets[i].d / speed <= elapsed)
+                {
+                    if (targets[i].go != null)   // 파동 도달 순간, 멀수록 약하게
+                        GridJuice.Squish(targets[i].go, Mathf.Lerp(amount, amount * 0.3f, targets[i].d / radius));
+                    i++;
+                }
+                yield return null;
+            }
+            Destroy(gameObject);
+        }
+    }
+
+    /// <summary>둥실둥실 부유(공정 마커 등): 위아래 bob + 천천히 회전. 위치 확정 후 부착.</summary>
+    public class JuiceBob : MonoBehaviour
+    {
+        const float kAmp = 0.09f, kHz = 2.2f, kSpin = 70f;
+        Vector3 m_BasePos;
+        float m_Phase;
+
+        void Start() { m_BasePos = transform.position; m_Phase = Random.value * Mathf.PI * 2f; }
+
+        void Update()
+        {
+            transform.position = m_BasePos + Vector3.up * (Mathf.Sin(Time.time * kHz + m_Phase) * kAmp);
+            transform.Rotate(Vector3.up, kSpin * Time.deltaTime, Space.World);
         }
     }
 

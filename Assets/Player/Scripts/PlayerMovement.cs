@@ -20,7 +20,7 @@ namespace Player
             m_Config = config; m_Rb = GetComponent<Rigidbody>();
         }
 
-        // ── 착지 먼지(쫀득): 낙하 후 접지 순간 발밑 먼지 퍼프 ──
+        // ── 착지 쫀득: 낙하 후 접지 순간 흙 팡 + '밟힌 것'이 디용(비계/블록) ──
         private bool m_WasGrounded = true;
         private float m_FallSpeed;   // 공중에서의 최대 낙하 속도
 
@@ -32,10 +32,37 @@ namespace Player
             else
             {
                 if (!m_WasGrounded && m_FallSpeed > 4f)   // 어느 정도 떨어졌을 때만(계단 오르내림 제외)
-                    GridSystem.GridJuice.PlacePuff(transform.position, 1f);
+                {
+                    GridSystem.GridJuice.GroundHit(transform.position, 0.55f);
+                    SquishLandedOn();
+                    if (!m_Rb.isKinematic)   // 원격(kinematic)은 남의 착지 — 내 카메라는 내 착지에만 반응
+                        GridSystem.GridJuice.FovPunch(Camera.main, -Mathf.Min(m_FallSpeed * 0.35f, 3.5f));
+                }
                 m_FallSpeed = 0f;
             }
             m_WasGrounded = g;
+        }
+
+        // 밟힌 대상 디용: 비계면 그 비주얼, 그리드 블록(~Solid)이면 그 셀의 블록 비주얼.
+        private void SquishLandedOn()
+        {
+            foreach (var h in Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
+                                                 0.5f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                var t = h.collider.transform;
+                if (t == transform || t.IsChildOf(transform)) continue;
+                var go = h.collider.gameObject;
+                if (go.name.StartsWith("~Scaffold"))
+                    GridSystem.GridJuice.Squish(go, 0.10f);
+                else if (go.name == "~Solid")
+                {
+                    var net = FindFirstObjectByType<GridSystem.GridNetwork>();
+                    if (net != null)
+                        GridSystem.GridJuice.Squish(
+                            net.VisualAt(GridSystem.GridCoordinates.WorldToCell(h.point + Vector3.down * 0.05f)), 0.08f);
+                }
+                break;   // 첫 유효 대상만
+            }
         }
 
         // 카메라 forward 기준 이동 (FixedUpdate에서 호출)

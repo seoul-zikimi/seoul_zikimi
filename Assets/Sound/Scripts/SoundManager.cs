@@ -144,6 +144,12 @@ public class SoundManager : Singleton<SoundManager>
             _tapSrc.SetScheduledEndTime(AudioSettings.dspTime + maxSeconds);   // 첫 타격 이후 컷
     }
 
+    /// <summary>연타 채널 정지 — 페인트 스트로크 중단 등(로딩바와 소리 동시 종료용).</summary>
+    public void StopTap()
+    {
+        if (_tapSrc != null) _tapSrc.Stop();
+    }
+
     void LoadVolumes()
     {
         SetBGMVolume(PlayerPrefs.GetFloat("BGMVolume", 0.8f));

@@ -128,10 +128,14 @@ namespace GridSystem
                     m_Cells.RemoveAt(i);
                 }
             if (have && m_DropField != null) m_DropField.ServerDrop(materialId, from);   // 철거 재료를 바닥에 떨굼
+            RemovedFxRpc(GridCoordinates.CellToWorld(cell) + new Vector3(0.5f, 0f, 0.5f) * GridContract.Unit);   // 철거 먼지
 
             foreach (var co in m_ServerGrid.SettleUnsupported())     // 받침 사라짐 → 위 미고정 블록 연쇄
                 RemoveCollapsed(co);
         }
+
+        [Rpc(SendTo.Everyone)]
+        private void RemovedFxRpc(Vector3 baseCenter) => GridJuice.PlacePuff(baseCenter, GridContract.Unit);
 
         /// <summary>서버: 미고정 블록을 그리드에서 제거(바닥 드롭 없이) + 재료 id 반환. 좌클릭 집기 전용.</summary>
         public bool ServerPickupBlock(Vector3Int cell, out int materialId)
@@ -194,7 +198,20 @@ namespace GridSystem
         private void CollapsedFxRpc(Vector3 center)
         {
             GridJuice.CollapseBurst(center, GridContract.Unit);
+            GridJuice.GroundHit(center, 1.3f);      // 바닥 흙폭발
             GridJuice.FovPunch(Camera.main, -5f);   // 우르릉 — 화면 살짝 당김
+            GridSoundBridge.PlaySFXAt("LandObject", center);   // 무너지는 소리(돌 낙하음)
+
+            // 젤리 파동: 출렁임이 중심에서 주변 블록으로 번져나감
+            if (m_VisualRoot != null)
+                GridJuice.Ripple(m_VisualRoot.transform, center, GridContract.Unit * 4f, 0.10f, 8f);
+        }
+
+        /// <summary>지점 주변 젤리 파동(고정 완료 등 로컬 연출용).</summary>
+        public void RippleAround(Vector3 center, float radius, float amount)
+        {
+            if (m_VisualRoot != null)
+                GridJuice.Ripple(m_VisualRoot.transform, center, radius, amount);
         }
 
         [Rpc(SendTo.Server)]
@@ -411,6 +428,7 @@ namespace GridSystem
             var model = next == ProcessType.Painted ? (m_DropField != null ? m_DropField.PaintModel  : null)
                       : next == ProcessType.Fixed   ? (m_DropField != null ? m_DropField.HammerModel : null)
                       : null;
+            // 마커는 JuiceBob이 둥실둥실(아래 생성 후 부착)
 
             GameObject go;
             float scale;
@@ -433,6 +451,7 @@ namespace GridSystem
             go.transform.SetParent(m_VisualRoot.transform, false);
             go.transform.localScale = Vector3.one * scale;
             go.transform.position = pos;
+            go.AddComponent<JuiceBob>();   // 둥실둥실 + 회전 — "나 눌러줘" 어필
         }
 
         // 고정 → 페인트 순서로 첫 미완료 필수 공정(없으면 None).

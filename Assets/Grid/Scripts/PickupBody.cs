@@ -57,7 +57,17 @@ namespace GridSystem
             }
         }
 
-        public void SetTarget(Vector3 target) { m_Target = target; m_Arc = false; }   // 킥 → 굴러가기로 전환
+        public void SetTarget(Vector3 target) { m_Target = target; m_Arc = false; m_KickT = kKickSquashDur; }   // 킥 → 굴러가기 + 움찔 찌부
+
+        // ── 착지 재바운스(통·통·통 감쇠) ──
+        private float m_BounceV;
+        private float NextBounce()
+        {
+            if (m_BounceV < 0.9f) { m_BounceV = 0f; return 0f; }
+            float v = m_BounceV;
+            m_BounceV *= 0.45f;
+            return v;
+        }
 
         // 늦참/비주얼 재생성: 이미 안착한 픽업은 비행 연출 없이 곧장 제자리에(유령 비행 방지).
         public void Snap(Vector3 pos)
@@ -71,7 +81,34 @@ namespace GridSystem
         private void Update()
         {
             if (m_Arc) ArcUpdate();
-            else SettleUpdate();
+            else { SettleUpdate(); ApplyIdleScale(); }
+        }
+
+        // ── 디용: 대기 중 숨쉬기 + 집기 조준 시 두근두근(단일 스케일 쓰기 지점) ──
+        private bool m_Targeted;
+        private Vector3 m_VisBase = Vector3.one;
+        private bool m_VisInit;
+        private float m_BreathPhase;
+
+        /// <summary>집기 조준 대상 표시(PlayerCarry가 호출) — 두근두근 펄스.</summary>
+        public void SetTargeted(bool on) => m_Targeted = on;
+
+        private const float kKickSquashDur = 0.22f;
+        private float m_KickT;   // 킥 움찔 잔여시간
+
+        private void ApplyIdleScale()
+        {
+            if (!m_VisInit) { m_VisBase = transform.localScale; m_VisInit = true; m_BreathPhase = Random.value * Mathf.PI * 2f; }
+            float k = m_Targeted
+                ? 1f + Mathf.Abs(Mathf.Sin(Time.time * 9f)) * 0.06f              // 두근두근(조준)
+                : 1f + Mathf.Sin(Time.time * 2f + m_BreathPhase) * 0.018f;       // 숨쉬기(대기)
+
+            if (m_KickT > 0f)   // 차인 순간 움찔 찌부(한 번 눌렸다 복귀)
+            {
+                m_KickT -= Time.deltaTime;
+                k *= 1f - 0.16f * Mathf.Sin((1f - Mathf.Max(0f, m_KickT) / kKickSquashDur) * Mathf.PI);
+            }
+            transform.localScale = m_VisBase * k;
         }
 
         // 포물선: 수평은 등속(시간 선형), 수직은 v0·t−½g·t². 끝나면 목표로 스냅 후 글라이드 모드로.
@@ -82,7 +119,9 @@ namespace GridSystem
             {
                 transform.position = m_Target;
                 m_Arc = false; m_VVel = 0f;
+                m_BounceV = 2.6f;   // 착지 후 통·통·통 재바운스 시동
                 GridSoundBridge.PlaySFXAt("FallObjectWhileThrowing", m_Target);
+                GridJuice.GroundHit(m_Target, 0.7f);   // 착지 흙 팡(배송·던지기 공용)
                 return;
             }
             float u = m_ArcT / m_ArcDur;
@@ -112,9 +151,14 @@ namespace GridSystem
             {
                 m_VVel -= kGravity * Time.deltaTime;
                 pos.y += m_VVel * Time.deltaTime;
-                if (pos.y < m_Target.y) { pos.y = m_Target.y; m_VVel = 0f; }
+                if (pos.y < m_Target.y) { pos.y = m_Target.y; m_VVel = NextBounce(); }   // 착지 → 남은 재바운스
             }
-            else { pos.y = m_Target.y; m_VVel = 0f; }
+            else
+            {
+                pos.y = m_Target.y;
+                if (m_VVel <= 0f) m_VVel = NextBounce();
+                if (m_VVel > 0f) pos.y += m_VVel * Time.deltaTime;   // 재바운스 상승 시작
+            }
 
             transform.position = pos;
 

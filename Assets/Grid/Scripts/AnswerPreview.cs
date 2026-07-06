@@ -69,6 +69,15 @@ namespace GridSystem
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
                 for (int i = 0; i < m_GhostFloors.Count; i++)
                     if (m_GhostFloors[i].go != null) m_GhostFloors[i].go.SetActive(m_GhostFloors[i].baseY == f);
+
+                float ga = 0.34f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 살아있는 청사진 숨쉬기
+                for (int i = 0; i < m_GhostMats.Count; i++)
+                    if (m_GhostMats[i] != null)
+                    {
+                        var c = m_GhostMats[i].GetColor(s_BaseColor); c.a = ga;
+                        m_GhostMats[i].SetColor(s_BaseColor, c);
+                        m_GhostMats[i].SetColor(s_Color, c);
+                    }
             }
             if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
 

@@ -32,6 +32,13 @@ public class CarryHudUI : UIHUD
         if (t != null) t.text = text;
     }
 
+    /// <summary>완성도 상승 등 좋은 일에 패널 디용.</summary>
+    public void PopHint()
+    {
+        var hint = Get<GameObject>((int)GOs.HintPanel);
+        if (hint != null) GridSystem.GridJuice.Squish(hint, 0.05f);
+    }
+
     /// <summary>E 공정 로딩바. screenPos = 스크린 픽셀 좌표(Overlay 캔버스라 그대로 대입).</summary>
     public void SetProcessBar(bool on, Vector2 screenPos = default, float t01 = 0f, Color fill = default, string label = null)
         => SetBar((int)GOs.ProcessBar, (int)Images.ProcessBarFill, (int)Texts.ProcessBarLabel, on, screenPos, t01, fill, label);
