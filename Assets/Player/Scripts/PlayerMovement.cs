@@ -18,6 +18,14 @@ namespace Player
         public void Init(PlayerConfigSO config)
         {
             m_Config = config; m_Rb = GetComponent<Rigidbody>();
+            m_Splat = GetComponent<PlayerSplat>();   // 점프 발구름 스트레치용(스폰 시 부착됨)
+        }
+
+        private PlayerSplat m_Splat;
+        private void JumpStretch()   // 이륙 순간 쭉 늘어남(착지 철푸덕과 짝) — 점프 아치 완성
+        {
+            if (m_Splat == null) m_Splat = GetComponent<PlayerSplat>();
+            if (m_Splat != null) m_Splat.AddImpulse(2.5f);   // 착지 철푸덕(~2.0)과 짝 맞춤
         }
 
         // ── 착지 쫀득: 낙하 후 접지 순간 흙 팡 + '밟힌 것'이 디용(비계/블록) ──
@@ -83,6 +91,7 @@ namespace Player
             if (!IsGrounded()) return;
             float jumpV = Mathf.Sqrt(2f * Physics.gravity.magnitude * kJumpHeight);
             m_Rb.linearVelocity = new Vector3(m_Rb.linearVelocity.x, jumpV, m_Rb.linearVelocity.z);
+            JumpStretch();   // 발구름 쭉
             if (SoundManager.Instance != null)
                 SoundManager.Instance.PlaySFX(SFXType.Jump);
         }
@@ -148,6 +157,7 @@ namespace Player
             Vector3 inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             float jumpV = Mathf.Sqrt(2f * Physics.gravity.magnitude * kJumpHeight);
             m_Rb.linearVelocity = -inDir * m_Config.MoveSpeed + Vector3.up * jumpV;
+            JumpStretch();   // 벽차기도 발구름 쭉
             m_IsClimbing = false;
             m_ClimbCooldown = 0.35f;
         }

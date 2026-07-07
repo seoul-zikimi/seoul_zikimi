@@ -137,10 +137,16 @@ public static class GameLoopHudPrefabGenerator
         JobsnailUiKit.Label("Time", panel.transform, "소요시간     0 : 00", 22, new Color(0.20f, 0.18f, 0.14f, 1f), TextAlignmentOptions.Center, new Vector2(0, -108), new Vector2(440, 36));
         JobsnailUiKit.Label("Score", panel.transform, "건축 0 % 완료", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, -172), new Vector2(440, 52));
 
+        // 완성도 별점(1~3개): 등급 글씨(EXCELLENT/TRY AGAIN) '뒤에' 깔리는 배경(원래 기획).
+        // grade/stamp보다 먼저 생성 → 렌더 순서상 뒤. 채움/개수는 GameLoopHUD가 완성도에 따라 설정.
         var starSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/star");
-        var star = JobsnailUiKit.Box("GradeStar", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(160, -172), new Vector2(96, 96), starSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
-        star.sprite = starSprite;
-        star.preserveAspect = true;
+        var starRow = JobsnailUiKit.Rect("StarRow", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(168, -172), new Vector2(180, 60));
+        for (int i = 0; i < 3; i++)
+        {
+            var s = JobsnailUiKit.Box($"GradeStar{i}", starRow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-46 + i * 46, 0), new Vector2(44, 44), starSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
+            s.sprite = starSprite;
+            s.preserveAspect = true;
+        }
 
         var grade = JobsnailUiKit.Label("Grade", panel.transform, "", 34, new Color(0.85f, 0.15f, 0.12f, 1f), TextAlignmentOptions.Center, new Vector2(175, -172), new Vector2(240, 70));
         grade.fontStyle = FontStyles.Bold;

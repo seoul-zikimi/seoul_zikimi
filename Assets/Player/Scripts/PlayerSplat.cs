@@ -26,6 +26,9 @@ namespace Player
 
         void Start() { TryWrap(); m_PrevPos = transform.position; }
 
+        /// <summary>외부 임펄스(점프 발구름 등): 양수=쭉 늘어남, 음수=찌부. 스프링에 속도로 주입.</summary>
+        public void AddImpulse(float amount) => m_Vel += amount;
+
         // 모델(Animator 루트 또는 Body)을 찾아 래퍼 밑으로 옮긴다. 모델이 늦게 생기면 재시도.
         void TryWrap()
         {

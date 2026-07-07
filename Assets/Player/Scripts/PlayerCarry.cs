@@ -120,14 +120,42 @@ namespace Player
         // 든 게 블록(재료)이면 머리 안 가리게 더 위로, 도구는 그대로. (복제값 기준 — 원격도 동일)
         private Vector3 HeldOffset() => m_HoldOffset + (m_NetMaterialId.Value >= 0 ? Vector3.up * m_BlockHoldRaise : Vector3.zero);
 
+        private Vector3 m_HeldPrevPos;      // 든 비주얼 바운스/스웨이용 위치 추적
+        private Vector3 m_HeldSwayVel;      // 부드럽게 감쇠한 이동속도(관성 스웨이)
+        private float   m_HeldBobPhase;     // 통통 밥 위상
+
         private void Update()
         {
-            // 모든 클라: 든 비주얼이 플레이어를 따라감
+            // 모든 클라: 든 비주얼이 플레이어를 따라감(+ 걸을 때 통통 밥 + 관성 스웨이)
             if (m_HeldVisual != null)
-                m_HeldVisual.transform.position = transform.position + HeldOffset();
+                UpdateHeldVisual();
 
             if (!IsOwner) return;
             OwnerUpdate();
+        }
+
+        // 든 블록/도구 쫀득 연출: 위치델타 기반이라 owner·원격 동일. 망치질 스윙 중엔 회전 양보.
+        private void UpdateHeldVisual()
+        {
+            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+            Vector3 vel = (transform.position - m_HeldPrevPos) / dt;
+            m_HeldPrevPos = transform.position;
+            Vector3 horiz = vel; horiz.y = 0f;
+            float speed = horiz.magnitude;
+
+            m_HeldBobPhase += dt * (7f + speed * 2f);                                  // 걸을수록 빠르게 통통
+            float bob = Mathf.Sin(m_HeldBobPhase) * 0.06f * Mathf.Clamp01(speed / 2f); // 멈추면 밥 사라짐
+            m_HeldSwayVel = Vector3.Lerp(m_HeldSwayVel, horiz, 8f * dt);               // 가감속 관성
+            Vector3 sway = -m_HeldSwayVel * 0.045f;                                    // 가속 방향 반대로 살짝 처짐
+
+            m_HeldVisual.transform.position = transform.position + HeldOffset() + Vector3.up * bob + sway;
+
+            if (m_SwingCo == null)   // 망치질 스윙 코루틴이 회전을 쓰는 동안은 건드리지 않음
+            {
+                var local = transform.InverseTransformDirection(m_HeldSwayVel);        // 몸 기준 기울임
+                Quaternion tilt = Quaternion.Euler(local.z * 4f, 0f, -local.x * 4f);
+                m_HeldVisual.transform.rotation = Quaternion.Slerp(m_HeldVisual.transform.rotation, transform.rotation * tilt, 10f * dt);
+            }
         }
 
         // ── 소유자 입력 ────────────────────────────────────────────────────
@@ -876,6 +904,8 @@ namespace Player
             if (m_HeldVisual != null)
             {
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
+                m_HeldPrevPos = transform.position;   // 바운스 속도 계산 초기화(첫 프레임 튐 방지)
+                m_HeldSwayVel = Vector3.zero;
                 GridJuice.Squish(m_HeldVisual, 0.22f);   // 집는 순간 뽁 — 손맛
             }
 

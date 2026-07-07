@@ -328,14 +328,13 @@ namespace Player
             var go = new GameObject("~SlimeTrail");
             go.transform.SetParent(transform, false);
             go.transform.localPosition = new Vector3(0f, 0.05f, 0f);
-            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // 트레일 면을 바닥에 눕힘
 
             var tr = go.AddComponent<TrailRenderer>();
             tr.time = 1.6f;
             tr.startWidth = 0.45f;
             tr.endWidth = 0.06f;
             tr.minVertexDistance = 0.12f;
-            tr.alignment = LineAlignment.TransformZ;
+            tr.alignment = LineAlignment.View;   // 빌보드 → 바닥이든 벽이든 항상 카메라 향해 잘 보임
             tr.numCapVertices = 4;
             tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             tr.receiveShadows = false;
@@ -374,13 +373,15 @@ namespace Player
         {
             if (m_SlimeTrail == null) return;
             if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();
-            // 공중(점프/낙하/벽타기)에선 점액이 안 나옴 — 착지하면 다시 이어짐
-            m_SlimeTrail.emitting = m_MoveForTrail == null || m_MoveForTrail.IsGrounded();
+            // 바닥 위 또는 벽타기 중엔 점액이 나옴(민달팽이니 벽에도 자국 남김). 점프/낙하 공중에선 끊김.
+            bool climbing = m_MoveForTrail != null && m_MoveForTrail.IsClimbing;
+            m_SlimeTrail.emitting = m_MoveForTrail == null || m_MoveForTrail.IsGrounded() || climbing;
 
             float dt = Time.deltaTime;   // 빨리 갈수록 점액이 굵어짐(스프린트 티)
             if (dt > 0f)
             {
-                Vector3 d = transform.position - m_PrevTrailPos; d.y = 0f;
+                Vector3 d = transform.position - m_PrevTrailPos;
+                if (!climbing) d.y = 0f;   // 벽타기 땐 수직 이동도 속도로 인정(자국 굵기 유지)
                 float target = Mathf.Lerp(0.32f, 0.62f, Mathf.Clamp01(d.magnitude / dt / 6f));
                 m_SlimeTrail.startWidth = Mathf.Lerp(m_SlimeTrail.startWidth, target, 8f * dt);
             }

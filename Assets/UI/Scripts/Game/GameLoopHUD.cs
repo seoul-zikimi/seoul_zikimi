@@ -16,9 +16,9 @@ using UnityEngine.UI;
 /// </summary>
 public sealed class GameLoopHUD : UIHUD
 {
-    private enum GOs { TopBar, EndRequestCluster, InGameSettingsPopup, ResultPanel, StartBanner }
+    private enum GOs { TopBar, EndRequestCluster, InGameSettingsPopup, ResultPanel, StartBanner, StarRow }
     private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast }
-    private enum Imgs { P0, P1, P2, P3, GradeStar, GradeStamp }
+    private enum Imgs { P0, P1, P2, P3, GradeStar0, GradeStar1, GradeStar2, GradeStamp }
     private enum Raws { ResultImage }
     private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
     private enum Slds { BGMSlider, SFXSlider, SensSlider }
@@ -26,7 +26,11 @@ public sealed class GameLoopHUD : UIHUD
     private GameLoopManager m_Loop;
     private AnswerPreview m_AnswerPreview;
     private TextMeshProUGUI m_TimerText, m_ResultScoreText, m_ResultNamesText, m_ResultStructText, m_ResultTimeText, m_ResultGradeText;
-    private Image m_ResultGradeImage, m_ResultStar;
+    private Image m_ResultGradeImage;
+    private Image[] m_ResultStars;
+    private GameObject m_StarRow;
+    private static readonly Color kStarGold = Color.white;                       // 채운 별(스프라이트 원색=금색)
+    private static readonly Color kStarDim = new Color(0.55f, 0.55f, 0.55f, 0.18f); // 빈 별(아주 옅게 — 글씨 안 가리게)
     private Image[] m_PeopleIcons;
     private RawImage m_ResultImage;
     private GameObject m_TopBar, m_ConsentBar, m_ResultPanel, m_SettingsPopup, m_StartBanner;
@@ -35,6 +39,8 @@ public sealed class GameLoopHUD : UIHUD
     private GridSystem.GamePhase m_PrevPhase = (GridSystem.GamePhase)(-1);
     private Coroutine m_BannerCo, m_StarBobCo;
     private GridNetwork m_Net;
+    private int m_LastTimerSecs = -1;  // 초 변화 감지(타이머 톡)
+    private float m_TimerTick;         // 초 넘김 팝 감쇠값
     private bool m_CraneViewing;      // true = 정산서 숨기고 크레인샷 보는 중
     private Button m_CraneToggleBtn;  // 정산서↔크레인샷 토글(프리팹 바인딩, 정산 중에만 표시)
 
@@ -91,7 +97,8 @@ public sealed class GameLoopHUD : UIHUD
         m_ResultGradeText = Get<TextMeshProUGUI>((int)Texts.Grade);
 
         m_PeopleIcons = new[] { Get<Image>((int)Imgs.P0), Get<Image>((int)Imgs.P1), Get<Image>((int)Imgs.P2), Get<Image>((int)Imgs.P3) };
-        m_ResultStar = Get<Image>((int)Imgs.GradeStar);
+        m_ResultStars = new[] { Get<Image>((int)Imgs.GradeStar0), Get<Image>((int)Imgs.GradeStar1), Get<Image>((int)Imgs.GradeStar2) };
+        m_StarRow = Get<GameObject>((int)GOs.StarRow);
         m_ResultGradeImage = Get<Image>((int)Imgs.GradeStamp);
         m_ResultImage = Get<RawImage>((int)Raws.ResultImage);
 
@@ -207,14 +214,21 @@ public sealed class GameLoopHUD : UIHUD
             }
             else
             {
-                m_TimerText.rectTransform.localScale = Vector3.one;
+                if (m_Loop.IsBuilding && secs != m_LastTimerSecs) m_TimerTick = 1f;   // 초 넘어갈 때 톡
+                m_TimerTick = Mathf.Max(0f, m_TimerTick - Time.unscaledDeltaTime * 6f);
+                m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.12f * m_TimerTick);
                 m_TimerText.color = Color.black;
                 if (m_Vignette != null) m_Vignette.intensity.Override(0f);
             }
+            m_LastTimerSecs = secs;
         }
 
         SetCrane(!m_Loop.IsBuilding);       // 정산 중 = 건축물 한 바퀴 크레인샷
         UpdateMilestoneToast();             // 완성도 25/50/75/90% 돌파 토스트
+
+        // 완성도 90%+면 폭죽 멈춤없이(빌드·결과 무관). 아래로 떨어지면 정지.
+        if (Mathf.RoundToInt(m_Loop.Score.Percent) >= 90) StartResultFireworks();
+        else StopResultFireworks();
 
         UpdateResultPanel();
 
@@ -250,10 +264,14 @@ public sealed class GameLoopHUD : UIHUD
         }
     }
 
-    // ── "공사 시작!" 배너: 빌딩 페이즈 진입 때 팝인 → 1.2초 뒤 축소 퇴장 ──
-    private void ShowStartBanner()
+    // ── 중앙 배너(공사 시작 / 완성 등): 팝인 → 잠깐 → 축소 퇴장 ──
+    private void ShowStartBanner() => ShowBanner("공사 시작!", new Color(1f, 0.72f, 0.20f, 1f));
+
+    private void ShowBanner(string text, Color color)
     {
         if (m_StartBanner == null) return;
+        var lbl = m_StartBanner.GetComponent<TextMeshProUGUI>();
+        if (lbl != null) { lbl.text = text; lbl.color = color; }
         if (m_BannerCo != null) StopCoroutine(m_BannerCo);
         m_BannerCo = StartCoroutine(StartBannerCo());
     }
@@ -263,7 +281,7 @@ public sealed class GameLoopHUD : UIHUD
         m_StartBanner.SetActive(false);   // UiPopIn 재발동용 토글
         m_StartBanner.SetActive(true);
         m_StartBanner.transform.SetAsLastSibling();
-        yield return new WaitForSecondsRealtime(1.2f);
+        yield return new WaitForSecondsRealtime(1.4f);
 
         var t = m_StartBanner.transform;   // 스륵 축소 퇴장
         for (float e = 0f; e < 0.15f && m_StartBanner != null; e += Time.unscaledDeltaTime)
@@ -348,17 +366,26 @@ public sealed class GameLoopHUD : UIHUD
             else { m_ResultGradeText.text = "TRY AGAIN"; m_ResultGradeText.color = new Color(0.45f, 0.40f, 0.35f, 1f); }
         }
 
+        // 완성도별 별점 채움(개수 = StarCount). 인트로가 팝 애니메이션 담당.
+        if (m_ResultStars != null)
+        {
+            int stars = StarCount(pct);
+            for (int i = 0; i < m_ResultStars.Length; i++)
+                if (m_ResultStars[i] != null) m_ResultStars[i].color = i < stars ? kStarGold : kStarDim;
+        }
     }
+
+    private static int StarCount(int pct) => pct >= 90 ? 3 : pct >= 60 ? 2 : 1;   // 1~3개
 
     // 결과창 등장 연출: 완성도 숫자 롤업 + 별 팝 + 등급 슬램. 시간정지와 무관하게 unscaled로.
     private IEnumerator ResultIntro(int pct)
     {
-        var star = m_ResultStar != null ? m_ResultStar.rectTransform : null;
         var grade = m_ResultGradeText != null ? m_ResultGradeText.rectTransform : null;
         var stamp = m_ResultGradeImage != null ? m_ResultGradeImage.rectTransform : null;
-        if (star != null) star.localScale = Vector3.zero;
         if (grade != null) grade.localScale = Vector3.zero;
         if (stamp != null) stamp.localScale = Vector3.zero;
+        if (m_ResultStars != null)                            // 별 전부 숨김(아래서 하나씩 팝)
+            foreach (var s in m_ResultStars) if (s != null) s.rectTransform.localScale = Vector3.zero;
         if (m_ResultScoreText != null) m_ResultScoreText.text = "건축 0 % 완료";
 
         float t = 0f; const float dur = 0.55f;
@@ -368,11 +395,9 @@ public sealed class GameLoopHUD : UIHUD
             float k = Mathf.Clamp01(t / dur);
             int cur = Mathf.RoundToInt(Mathf.Lerp(0f, pct, 1f - (1f - k) * (1f - k)));   // ease-out
             if (m_ResultScoreText != null) m_ResultScoreText.text = $"건축 {cur} % 완료";
-            if (star != null) star.localScale = Vector3.one * EaseOutBack(k);            // 별 팝
             yield return null;
         }
         if (m_ResultScoreText != null) m_ResultScoreText.text = $"건축 {pct} % 완료";
-        if (star != null) star.localScale = Vector3.one;
 
         if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
         float t2 = 0f; const float dur2 = 0.28f;
@@ -387,47 +412,94 @@ public sealed class GameLoopHUD : UIHUD
         if (grade != null) grade.localScale = Vector3.one;
         if (stamp != null) stamp.localScale = Vector3.one;
 
-        if (pct >= 90) StartCoroutine(FireworksCo());   // EXCELLENT — 폭죽 축포!
+        // 별점 하나씩 톡톡 등장 — 채운 별·빈(회색) 별 모두 같은 팝(색만 다름). 소리는 채운 별만.
+        int starCount = StarCount(pct);
+        if (m_ResultStars != null)
+            for (int i = 0; i < m_ResultStars.Length; i++)
+            {
+                var srt = m_ResultStars[i] != null ? m_ResultStars[i].rectTransform : null;
+                if (srt == null) continue;
+                if (i < starCount && SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+                for (float tp = 0f; tp < 0.22f; tp += Time.unscaledDeltaTime)
+                {
+                    srt.localScale = Vector3.one * EaseOutBack(Mathf.Clamp01(tp / 0.22f));
+                    yield return null;
+                }
+                srt.localScale = Vector3.one;
+            }
 
-        if (star != null)   // 별 둥실둥실(정산창 떠 있는 동안)
+        if (m_StarRow != null)   // 별 줄 둥실둥실(정산창 떠 있는 동안)
         {
             if (m_StarBobCo != null) StopCoroutine(m_StarBobCo);
-            m_StarBobCo = StartCoroutine(StarBobCo(star));
+            m_StarBobCo = StartCoroutine(StarBobCo((RectTransform)m_StarRow.transform));
         }
 
         m_ResultIntroPlaying = false;
     }
 
-    private IEnumerator StarBobCo(RectTransform star)
+    private IEnumerator StarBobCo(RectTransform row)
     {
-        Vector2 basePos = star.anchoredPosition;
+        Vector2 basePos = row.anchoredPosition;
         float t = 0f;
-        while (star != null && star.gameObject.activeInHierarchy)
+        while (row != null && row.gameObject.activeInHierarchy)
         {
             t += Time.unscaledDeltaTime;
-            star.anchoredPosition = basePos + Vector2.up * (Mathf.Sin(t * 2.4f) * 5f);
-            star.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.8f) * 5f);
+            row.anchoredPosition = basePos + Vector2.up * (Mathf.Sin(t * 2.4f) * 4f);
+            row.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.8f) * 3f);
             yield return null;
         }
-        if (star != null) { star.anchoredPosition = basePos; star.localRotation = Quaternion.identity; }
+        if (row != null) { row.anchoredPosition = basePos; row.localRotation = Quaternion.identity; }
         m_StarBobCo = null;
     }
 
-    // 축하 폭죽: 카메라 앞 공중에 3발 연발(Resources/Fx/ResultFirework = CFXR4 랜덤색 사본).
-    private IEnumerator FireworksCo()
+    // ── 축하 폭죽(Resources/Fx/ResultFirework = CFXR4 랜덤색 사본) ──
+    private Coroutine m_FireworksCo;
+
+    private void StartResultFireworks()   // 결과창 동안 멈춤없이 팡팡
+    {
+        if (m_FireworksCo == null) m_FireworksCo = StartCoroutine(FireworksLoop());
+    }
+    private void StopResultFireworks()
+    {
+        if (m_FireworksCo != null) { StopCoroutine(m_FireworksCo); m_FireworksCo = null; }
+    }
+
+    private IEnumerator FireworksLoop()
     {
         var prefab = Resources.Load<GameObject>("Fx/ResultFirework");
-        var cam = Camera.main;
-        if (prefab == null || cam == null) yield break;
-
-        for (int i = 0; i < 3; i++)
+        while (m_Loop != null && Mathf.RoundToInt(m_Loop.Score.Percent) >= 90)   // 완성도 90%+ 동안 멈춤없이
         {
-            Vector3 pos = cam.transform.position + cam.transform.forward * 9f
-                        + cam.transform.right * Random.Range(-3.5f, 3.5f)
-                        + cam.transform.up * Random.Range(0.5f, 2.5f);
+            SpawnFireworkBurst(prefab, Camera.main);
+            yield return new WaitForSecondsRealtime(Random.Range(0.3f, 0.55f));
+        }
+        m_FireworksCo = null;
+    }
+
+    // 폭죽 색 팔레트(발마다 랜덤 — 프리팹은 고정색이라 파티클 startColor로 틴트)
+    private static readonly Color[] kFireworkColors =
+    {
+        new Color(1f, 0.30f, 0.30f), new Color(1f, 0.62f, 0.15f), new Color(1f, 0.90f, 0.25f),
+        new Color(0.35f, 1f, 0.45f), new Color(0.25f, 0.85f, 1f), new Color(0.45f, 0.55f, 1f),
+        new Color(0.80f, 0.40f, 1f), new Color(1f, 0.45f, 0.80f), Color.white,
+    };
+
+    private void SpawnFireworkBurst(GameObject prefab, Camera cam)
+    {
+        if (prefab == null || cam == null) return;
+        int burst = Random.value < 0.35f ? 2 : 1;   // 가끔 2발 동시
+        for (int b = 0; b < burst; b++)
+        {
+            Vector3 pos = cam.transform.position + cam.transform.forward * Random.Range(6f, 9f)
+                        + cam.transform.right * Random.Range(-4.5f, 4.5f)
+                        + cam.transform.up * Random.Range(-0.8f, 1.5f);   // 눈높이 근처(제자리 폭발이라 여기서 팡)
             var go = Instantiate(prefab, pos, Quaternion.identity);
+            var col = kFireworkColors[Random.Range(0, kFireworkColors.Length)];   // 이 발의 색
+            foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+            {
+                var main = ps.main;
+                main.startColor = new ParticleSystem.MinMaxGradient(col);
+            }
             Destroy(go, 6f);
-            yield return new WaitForSecondsRealtime(0.45f);
         }
     }
 
@@ -488,22 +560,49 @@ public sealed class GameLoopHUD : UIHUD
         if (lbl != null) lbl.text = m_CraneViewing ? "정산서 보기" : "건축물 둘러보기";
     }
 
-    // ── 이벤트 토스트(좌측 슬쩍): 완성도 돌파 알림 ──
+    // ── 이벤트 토스트(좌측 슬쩍): 완성도 돌파 알림 + 100% 완성 축하 ──
     private int m_LastMilestone;
+    private bool m_CelebratedComplete;
     private GameObject m_Toast;
     private TextMeshProUGUI m_ToastText;
     private Coroutine m_ToastCo;
 
     private void UpdateMilestoneToast()
     {
-        if (m_Loop == null || !m_Loop.IsBuilding) return;
+        if (m_Loop == null || !m_Loop.IsBuilding) { m_CelebratedComplete = false; return; }
         int pct = Mathf.RoundToInt(m_Loop.Score.Percent);
+
+        if (pct >= 100 && !m_CelebratedComplete)   // 빌드 중 100% 도달 = 클라이맥스!
+        {
+            m_CelebratedComplete = true;
+            CelebrateComplete();
+            return;
+        }
+
         int milestone = pct >= 90 ? 90 : pct >= 75 ? 75 : pct >= 50 ? 50 : pct >= 25 ? 25 : 0;
         if (milestone > m_LastMilestone)
         {
             m_LastMilestone = milestone;
             ShowToast($"완성도 {milestone}% 돌파!");
         }
+    }
+
+    // 100% 완성 축하: "완성!!" 배너 + 폭죽 + 다리 전체 물결 + 화면 펀치
+    private void CelebrateComplete()
+    {
+        ShowBanner("완성!!", new Color(1f, 0.55f, 0.15f, 1f));
+        // 폭죽은 Update의 완성도 90%+ 감지가 멈춤없이 처리(여기선 배너·물결만)
+
+        if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+        var gm = FindFirstObjectByType<GridManager>();
+        if (m_Net != null && gm != null)
+        {
+            float u = GridContract.Unit;
+            Vector3 center = GridContract.Origin + (Vector3)gm.GridSize * (0.5f * u);
+            m_Net.RippleAround(center, gm.GridSize.x * u, 0.14f);   // 다리 전체 젤리 물결
+        }
+        GridSystem.GridJuice.FovPunch(Camera.main, 4f);
+        if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
     }
 
     private void ShowToast(string msg)

@@ -57,6 +57,12 @@ public class GameHudDriver : MonoBehaviour
             Time.timeScale = Time.timeScale >= 10f ? 1f : 10f;
             Debug.Log($"[DevCheat] timeScale = {Time.timeScale}x");
         }
+        if (kb != null && kb.digit9Key.wasPressedThisFrame)   // 9 = 정답 즉시 100% 완성(완성 연출 테스트)
+        {
+            var net = FindFirstObjectByType<GridSystem.GridNetwork>();
+            if (net != null) net.RequestCheatComplete();
+            Debug.Log("[DevCheat] 정답 100% 완성");
+        }
 #endif
 
         m_JuicySweep -= Time.unscaledDeltaTime;

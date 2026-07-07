@@ -160,6 +160,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return;
 
         var bg = JobsnailUiKit.Image("@JobsnailSessionBackground", transform, JobsnailUiKit.Sprite("UI_pngs/2.sesh/Session_BG"));
+        JobsnailUiKit.CoverFill(bg);   // 화면 꽉 채움(레터박스 X)
         bg.transform.SetAsFirstSibling();
     }
 

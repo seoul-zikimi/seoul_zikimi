@@ -278,6 +278,57 @@ namespace GridSystem
                 GridJuice.Ripple(m_VisualRoot.transform, center, radius, amount);
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>[개발자 치트] 정답을 그리드에 통째로 심어 즉시 100% 완성(완성 연출 테스트용).</summary>
+        public void RequestCheatComplete() => CheatCompleteRpc();
+
+        [Rpc(SendTo.Server)]
+        private void CheatCompleteRpc()
+        {
+            var ans = m_Manager.Answer;
+            var catalog = m_Manager.Catalog;
+            if (ans == null || catalog == null) return;
+
+            m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);   // 그리드 리셋
+            m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
+            m_OwnerCounter = 0;
+            for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
+
+            // 정답을 블록 단위로 재구성해 그대로 심기 + 요구 공정 전부 완료
+            var cells = new List<AnswerCell>(ans.Cells);
+            cells.Sort((a, c) => a.cell.x != c.cell.x ? a.cell.x - c.cell.x
+                               : a.cell.y != c.cell.y ? a.cell.y - c.cell.y : a.cell.z - c.cell.z);
+            var claimed = new HashSet<Vector3Int>();
+            foreach (var a in cells)
+            {
+                if (claimed.Contains(a.cell)) continue;
+                var def = catalog.GetById(a.materialId);
+                if (def == null) { claimed.Add(a.cell); continue; }
+                int rot = a.rotationStep;
+                var fcells = GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, rot);
+
+                bool ok = true;
+                foreach (var fc in fcells)
+                    if (claimed.Contains(fc) || !ans.TryGet(fc, out var ac) || ac.materialId != a.materialId || ac.rotationStep != rot)
+                    { ok = false; break; }
+                if (!ok) { claimed.Add(a.cell); continue; }
+
+                ulong owner = ++m_OwnerCounter;
+                if (!m_ServerGrid.Place(a.cell, def, rot, owner)) { foreach (var fc in fcells) claimed.Add(fc); continue; }
+                foreach (var p in ProcessOrder.Sequence)
+                    if ((def.RequiredMask & (int)p) != 0) m_ServerGrid.TryApplyProcess(a.cell, p, def);
+                int mask = m_ServerGrid.GetCell(a.cell).completedProcessMask;
+
+                foreach (var fc in fcells)
+                {
+                    claimed.Add(fc);
+                    m_Cells.Add(new CellEntry { cell = fc, materialId = a.materialId, rotationStep = (byte)rot, completedProcessMask = mask, ownerObjectId = owner });
+                }
+            }
+            RecomputeScore();
+        }
+#endif
+
         [Rpc(SendTo.Server)]
         private void ProcessRpc(Vector3Int cell, int processBit, bool apply)
             => ApplyProcessServer(cell, (ProcessType)processBit, apply);
