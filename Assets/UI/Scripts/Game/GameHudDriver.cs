@@ -63,6 +63,12 @@ public class GameHudDriver : MonoBehaviour
             if (net != null) net.RequestCheatComplete();
             Debug.Log("[DevCheat] 정답 100% 완성");
         }
+        if (kb != null && kb.digit8Key.wasPressedThisFrame)   // 8 = 1개 빼고 완성(≈99%) — 폭죽 오발화 검증
+        {
+            var net = FindFirstObjectByType<GridSystem.GridNetwork>();
+            if (net != null) net.RequestCheatAlmost();
+            Debug.Log("[DevCheat] 1개 빼고 완성(≈99%)");
+        }
 #endif
 
         m_JuicySweep -= Time.unscaledDeltaTime;

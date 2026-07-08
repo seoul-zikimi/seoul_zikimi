@@ -13,9 +13,10 @@ namespace Player
         [SerializeField] private GameObject[] m_EmoteFx = new GameObject[10];   // 0=F1 … 9=F10 (비면 이모지 폴백)
         [SerializeField] private Texture2D m_EmojiAtlas;                        // TMP EmojiOne(4x4) — 이모지 팝용
         [SerializeField] private Texture2D m_ThumbsDownTex;                     // 붐따 👎 (Noto Emoji 개별 PNG)
+        [SerializeField] private Texture2D m_ThumbsUpTex;                       // 붐업 👍 (Noto Emoji 개별 PNG)
 
-        // 슬롯이 빌 때 쓸 이모지(F2~F10): 😍 😎 😂 😜 😫 🤣 ☺️ ☹️ 👎  (-2=붐따 통짜 텍스처)
-        private static readonly int[] kEmojiForKey = { -1, 2, 3, 6, 11, 10, 13, 0, 15, -2 };
+        // 슬롯이 빌 때 쓸 이모지(F2~F10): 😍 😎 👍 😜 😫 🤣 ☺️ ☹️ 👎  (-2=붐따, -3=붐업 통짜 텍스처)
+        private static readonly int[] kEmojiForKey = { -1, 2, 3, -3, 11, 10, 13, 0, 15, -2 };
 
         private void Update()
         {
@@ -55,6 +56,7 @@ namespace Player
             if (index >= kEmojiForKey.Length) return;
             int code = kEmojiForKey[index];
             if (code == -2)      EmoteBubble.ShowFull(m_ThumbsDownTex, pos);   // 붐따 👎
+            else if (code == -3) EmoteBubble.ShowFull(m_ThumbsUpTex, pos);     // 붐업 👍
             else if (code >= 0)  EmoteBubble.Show(m_EmojiAtlas, code, pos);
         }
 

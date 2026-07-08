@@ -226,8 +226,8 @@ public sealed class GameLoopHUD : UIHUD
         SetCrane(!m_Loop.IsBuilding);       // 정산 중 = 건축물 한 바퀴 크레인샷
         UpdateMilestoneToast();             // 완성도 25/50/75/90% 돌파 토스트
 
-        // 완성도 90%+면 폭죽 멈춤없이(빌드·결과 무관). 아래로 떨어지면 정지.
-        if (Mathf.RoundToInt(m_Loop.Score.Percent) >= 90) StartResultFireworks();
+        // 정확히 100%(만점) 완공일 때만 폭죽 멈춤없이. 반올림(99.6→100) 오발화 방지.
+        if (IsComplete()) StartResultFireworks();
         else StopResultFireworks();
 
         UpdateResultPanel();
@@ -467,7 +467,7 @@ public sealed class GameLoopHUD : UIHUD
     private IEnumerator FireworksLoop()
     {
         var prefab = Resources.Load<GameObject>("Fx/ResultFirework");
-        while (m_Loop != null && Mathf.RoundToInt(m_Loop.Score.Percent) >= 90)   // 완성도 90%+ 동안 멈춤없이
+        while (IsComplete())   // 만점(100%) 유지되는 동안 멈춤없이
         {
             SpawnFireworkBurst(prefab, Camera.main);
             yield return new WaitForSecondsRealtime(Random.Range(0.3f, 0.55f));
@@ -501,6 +501,14 @@ public sealed class GameLoopHUD : UIHUD
             }
             Destroy(go, 6f);
         }
+    }
+
+    // 정확히 만점(모든 칸 배치+공정 완료). Percent 반올림(99.6→100) 오발화 방지용.
+    private bool IsComplete()
+    {
+        if (m_Loop == null) return false;
+        var s = m_Loop.Score;
+        return s.maxScore > 0 && s.score >= s.maxScore;
     }
 
     // 오버슛 이징(0→1.1→1) — 팝/슬램용.
@@ -572,7 +580,7 @@ public sealed class GameLoopHUD : UIHUD
         if (m_Loop == null || !m_Loop.IsBuilding) { m_CelebratedComplete = false; return; }
         int pct = Mathf.RoundToInt(m_Loop.Score.Percent);
 
-        if (pct >= 100 && !m_CelebratedComplete)   // 빌드 중 100% 도달 = 클라이맥스!
+        if (IsComplete() && !m_CelebratedComplete)   // 정확히 만점(100%) 도달 = 클라이맥스!
         {
             m_CelebratedComplete = true;
             CelebrateComplete();

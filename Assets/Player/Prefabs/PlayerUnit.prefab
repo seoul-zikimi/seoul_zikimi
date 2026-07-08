@@ -375,6 +375,7 @@ MonoBehaviour:
   - {fileID: 0}
   m_EmojiAtlas: {fileID: 2800000, guid: dffef66376be4fa480fb02b19edbe903, type: 3}
   m_ThumbsDownTex: {fileID: 2800000, guid: b7d41f3a9c2e58e4d8a2f19c3b6d7e52, type: 3}
+  m_ThumbsUpTex: {fileID: 2800000, guid: 8cb81382697c4bf18ced8069c735a6cd, type: 3}
 --- !u!114 &5322060586137079395
 MonoBehaviour:
   m_ObjectHideFlags: 0

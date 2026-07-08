@@ -280,10 +280,12 @@ namespace GridSystem
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         /// <summary>[개발자 치트] 정답을 그리드에 통째로 심어 즉시 100% 완성(완성 연출 테스트용).</summary>
-        public void RequestCheatComplete() => CheatCompleteRpc();
+        public void RequestCheatComplete() => CheatCompleteRpc(false);
+        /// <summary>[개발자 치트] 마지막 블록 1개만 빼고 완성(≈99%) — 만점 아닐 때 폭죽 오발화 검증용.</summary>
+        public void RequestCheatAlmost() => CheatCompleteRpc(true);
 
         [Rpc(SendTo.Server)]
-        private void CheatCompleteRpc()
+        private void CheatCompleteRpc(bool leaveOneOut)
         {
             var ans = m_Manager.Answer;
             var catalog = m_Manager.Catalog;
@@ -294,11 +296,12 @@ namespace GridSystem
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
 
-            // 정답을 블록 단위로 재구성해 그대로 심기 + 요구 공정 전부 완료
+            // 정답을 블록 단위로 재구성 (leaveOneOut이면 맨 마지막 블록 1개 스킵)
             var cells = new List<AnswerCell>(ans.Cells);
             cells.Sort((a, c) => a.cell.x != c.cell.x ? a.cell.x - c.cell.x
                                : a.cell.y != c.cell.y ? a.cell.y - c.cell.y : a.cell.z - c.cell.z);
             var claimed = new HashSet<Vector3Int>();
+            var blocks = new List<(Vector3Int anchor, MaterialDef def, int rot, List<Vector3Int> fcells)>();
             foreach (var a in cells)
             {
                 if (claimed.Contains(a.cell)) continue;
@@ -312,18 +315,21 @@ namespace GridSystem
                     if (claimed.Contains(fc) || !ans.TryGet(fc, out var ac) || ac.materialId != a.materialId || ac.rotationStep != rot)
                     { ok = false; break; }
                 if (!ok) { claimed.Add(a.cell); continue; }
+                foreach (var fc in fcells) claimed.Add(fc);
+                blocks.Add((a.cell, def, rot, fcells));
+            }
 
+            int count = leaveOneOut ? blocks.Count - 1 : blocks.Count;   // 하나 빼기
+            for (int i = 0; i < count; i++)
+            {
+                var (anchor, def, rot, fcells) = blocks[i];
                 ulong owner = ++m_OwnerCounter;
-                if (!m_ServerGrid.Place(a.cell, def, rot, owner)) { foreach (var fc in fcells) claimed.Add(fc); continue; }
+                if (!m_ServerGrid.Place(anchor, def, rot, owner)) continue;
                 foreach (var p in ProcessOrder.Sequence)
-                    if ((def.RequiredMask & (int)p) != 0) m_ServerGrid.TryApplyProcess(a.cell, p, def);
-                int mask = m_ServerGrid.GetCell(a.cell).completedProcessMask;
-
+                    if ((def.RequiredMask & (int)p) != 0) m_ServerGrid.TryApplyProcess(anchor, p, def);
+                int mask = m_ServerGrid.GetCell(anchor).completedProcessMask;
                 foreach (var fc in fcells)
-                {
-                    claimed.Add(fc);
-                    m_Cells.Add(new CellEntry { cell = fc, materialId = a.materialId, rotationStep = (byte)rot, completedProcessMask = mask, ownerObjectId = owner });
-                }
+                    m_Cells.Add(new CellEntry { cell = fc, materialId = def.Id, rotationStep = (byte)rot, completedProcessMask = mask, ownerObjectId = owner });
             }
             RecomputeScore();
         }
