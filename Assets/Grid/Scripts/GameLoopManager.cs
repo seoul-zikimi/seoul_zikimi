@@ -42,6 +42,13 @@ namespace GridSystem
         // 정산서용: 접속 플레이어 이름(서버가 NetworkList로 복제) / 소요시간 / 구조물 이름
         public int NameCount => m_Names.Count;
         public string GetName(int i) => (i >= 0 && i < m_Names.Count) ? m_Names[i].Name.ToString() : "";
+        /// <summary>clientId로 표시 이름 조회(캐릭터 위 네임태그용). 없으면 빈 문자열.</summary>
+        public string GetNameFor(ulong clientId)
+        {
+            for (int i = 0; i < m_Names.Count; i++)
+                if (m_Names[i].Id == clientId) return m_Names[i].Name.ToString();
+            return "";
+        }
         public float TimeLimit => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 0f;
         public float Elapsed => Mathf.Max(0f, TimeLimit - TimeLeft);
         public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";

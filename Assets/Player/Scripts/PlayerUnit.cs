@@ -62,6 +62,7 @@ namespace Player
             RebuildScaffoldVisuals();
 
             CreateSlimeTrail();   // 민달팽이 점액 트레일(트레이드마크). 더스트트레일(발먼지)과 별개 공존.
+            CreateNametag();      // 캐릭터 위 닉네임(월드 텍스트, 모든 클라)
 
             if (GetComponent<PlayerSplat>() == null)   // 착지 철푸덕(래퍼 스케일 — 리깅과 무관하게 적용)
                 gameObject.AddComponent<PlayerSplat>();
@@ -369,8 +370,49 @@ namespace Player
         private PlayerMovement m_MoveForTrail;
         private Vector3 m_PrevTrailPos;
 
+        // ── 캐릭터 위 닉네임(월드 텍스트) ──
+        private TextMesh m_Nametag;
+        private GridSystem.GameLoopManager m_LoopForName;
+
+        private void CreateNametag()
+        {
+            if (transform.Find("~Nametag") != null) return;
+            var go = new GameObject("~Nametag");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, 1.5f, 0f);   // 머리 바로 위
+
+            var tm = go.AddComponent<TextMesh>();
+            tm.text = "";
+            tm.fontSize = 60;
+            tm.characterSize = 0.05f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.color = Color.white;
+            var font = Resources.Load<Font>("Fonts/서울한강 장체M");   // UI와 같은 폰트
+            if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            tm.font = font;
+            go.GetComponent<MeshRenderer>().material = font.material;
+            go.SetActive(false);
+            m_Nametag = tm;
+        }
+
+        private void UpdateNametag()
+        {
+            if (m_Nametag == null) return;
+            if (m_LoopForName == null) m_LoopForName = FindFirstObjectByType<GridSystem.GameLoopManager>();
+            string nm = m_LoopForName != null ? m_LoopForName.GetNameFor(OwnerClientId) : "";
+            bool show = !string.IsNullOrEmpty(nm);
+            m_Nametag.gameObject.SetActive(show);
+            if (!show) return;
+            if (m_Nametag.text != nm) m_Nametag.text = nm;
+            if (Camera.main != null)   // 항상 카메라 향함(빌보드)
+                m_Nametag.transform.rotation = Camera.main.transform.rotation;
+        }
+
         private void LateUpdate()
         {
+            UpdateNametag();
+
             if (m_SlimeTrail == null) return;
             if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();
             // 바닥 위 또는 벽타기 중엔 점액이 나옴(민달팽이니 벽에도 자국 남김). 점프/낙하 공중에선 끊김.
