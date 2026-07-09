@@ -595,16 +595,15 @@ namespace Player
             OnPlace?.Invoke();
         }
 
-        // 든 재료 또는 도구를 마우스 조준 지점으로 던진다(협동 전달). 최대 m_ThrowRange까지.
+        // 오버쿡드식 던지기: 조준 '방향'으로 붕~ 포물선 로브. 거리는 최소~사거리로 클램프(가까워도 정확히 발밑에 떨구지 않음).
         private void Throw()
         {
             if (m_Drop == null || (!HasMaterial && !HasTool)) return;
             Vector3 aim = AimWorldPoint();                 // 커서 아래 바닥 지점(y=0.5)
             Vector3 flat = aim - transform.position; flat.y = 0f;
-            float dist = flat.magnitude;
-            Vector3 to = dist > m_ThrowRange
-                ? transform.position + flat / Mathf.Max(dist, 1e-4f) * m_ThrowRange   // 너무 멀면 사거리까지만
-                : aim;
+            Vector3 dir = flat.sqrMagnitude > 0.01f ? flat.normalized : transform.forward;
+            float dist = Mathf.Clamp(flat.magnitude, 3f, m_ThrowRange);   // 최소 로브 3 → 항상 시원하게 붕
+            Vector3 to = transform.position + dir * dist;
             to.y = 0.5f;
             Vector3 from = transform.position + Vector3.up * 1.2f;
             if (HasMaterial) m_Drop.RequestThrow(m_HeldMaterial.Id, from, to);

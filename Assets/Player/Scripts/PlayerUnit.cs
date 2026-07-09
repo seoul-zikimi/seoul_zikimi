@@ -127,10 +127,19 @@ namespace Player
                 QueueSpawnOnGrid();
         }
 
+        private int m_KinematicFrames;   // 프리즈 복구용: kinematic 지속 프레임 카운트
+
         private void FixedUpdate()
         {
             if (!IsOwner) return;
-            if (m_Rb != null && m_Rb.isKinematic) return;   // 스폰 위치 대기 중(정지) — 이동 로직 스킵
+            if (m_Rb != null && m_Rb.isKinematic)
+            {
+                // 스폰 대기는 GridManager 찾으면 곧 끝남(보통 <1s). 코루틴이 씬전환/비활성으로 죽어
+                // kinematic이 안 풀리면 영영 프리즈 → 오래 지속되면 강제로 dynamic 복구.
+                if (++m_KinematicFrames > 150) { m_Rb.isKinematic = false; m_KinematicFrames = 0; }
+                return;   // 대기 중(정지) — 이동 로직 스킵
+            }
+            m_KinematicFrames = 0;
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
 

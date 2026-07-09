@@ -45,7 +45,7 @@ namespace GridSystem
             var flat = new Vector3(target.x - from.x, 0f, target.z - from.z);
             if (flat.magnitude >= kArcThreshold)   // 던지기 → 포물선
             {
-                float h = Mathf.Max(1.4f, flat.magnitude * 0.35f);   // 정점 높이(출발점 기준)
+                float h = Mathf.Max(2.0f, flat.magnitude * 0.45f);   // 오버쿡드식: 더 붕 뜨는 로브(정점 높이)
                 m_ArcV0 = Mathf.Sqrt(2f * kArcGravity * h);          // 초기 상승 속도(정점에서 v=0)
                 float dy = target.y - from.y;
                 // y(t)=from.y + v0·t − ½g·t² = target.y 의 하강 해(나중 근) = 총 비행시간
@@ -53,7 +53,8 @@ namespace GridSystem
                 m_ArcFrom = from;
                 m_ArcT = 0f;
                 m_Arc = true;
-                m_Tumble = Random.onUnitSphere;
+                var axis = Vector3.Cross(Vector3.up, flat.normalized);   // 이동 방향 기준 '앞구르기' 축(오버쿡드 느낌)
+                m_Tumble = axis.sqrMagnitude > 0.001f ? axis.normalized : Vector3.right;
             }
         }
 
@@ -129,7 +130,7 @@ namespace GridSystem
                 Mathf.Lerp(m_ArcFrom.x, m_Target.x, u),
                 m_ArcFrom.y + m_ArcV0 * m_ArcT - 0.5f * kArcGravity * m_ArcT * m_ArcT,
                 Mathf.Lerp(m_ArcFrom.z, m_Target.z, u));
-            transform.Rotate(m_Tumble, 360f * Time.deltaTime, Space.World);   // 공중 회전
+            transform.Rotate(m_Tumble, 520f * Time.deltaTime, Space.World);   // 공중 앞구르기(활발하게)
         }
 
         // 떨굼/킥: 목표로 굴러 이동 + 중력 낙하 + 구르기 회전(기존 동작 그대로).
