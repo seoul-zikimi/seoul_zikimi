@@ -136,12 +136,26 @@ public sealed class GameLoopHUD : UIHUD
         if (m_ResultPanel != null) m_ResultPanel.SetActive(false);
         if (m_StartBanner != null) m_StartBanner.SetActive(false);
 
+        // 텍스트 애니메이터: 큰 순간 텍스트만 예쁘게(글자별 물결·흔들)
+        AddJuicyText(m_ResultGradeText, 5f, 4.5f, 0.45f, 8f);                 // 등급(EXCELLENT! 등)
+        AddJuicyText(m_StartBanner != null ? m_StartBanner.GetComponent<TextMeshProUGUI>() : null, 6f, 5f, 0.4f, 6f); // 배너(완성!!/공사 시작!)
+        AddJuicyText(m_ToastText, 3.5f, 4f, 0.5f, 5f);                        // 돌파 토스트
+
         m_Loop = null;
         m_UrgentBgmStarted = false;
         m_PrevPhase = (GridSystem.GamePhase)(-1);
 
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
+    }
+
+    // 텍스트 애니메이터 부착(중복 방지) — 큰 순간 TMP만 글자별 물결·흔들
+    private static void AddJuicyText(TextMeshProUGUI txt, float amp, float freq, float phase, float rot)
+    {
+        if (txt == null) return;
+        var jt = txt.GetComponent<JuicyText>();
+        if (jt == null) jt = txt.gameObject.AddComponent<JuicyText>();
+        jt.Configure(amp, freq, phase, rot);
     }
 
     private void Wire(Btns which, UnityEngine.Events.UnityAction action)
