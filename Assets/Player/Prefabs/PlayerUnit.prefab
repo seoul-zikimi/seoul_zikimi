@@ -265,7 +265,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerUnit
   ShowTopMostFoldoutHeaderGroup: 1
   m_Config: {fileID: 11400000, guid: 341019460c4fb8644a4af4d4b2d0c7b4, type: 2}
-  m_ScaffoldPrefab: {fileID: 0}
+  m_ScaffoldPrefab: {fileID: 8937309129849641977, guid: d359576d61619ef448d934a5aaa85ce8, type: 3}
   m_ScaffoldMaterial: {fileID: 2100000, guid: 6b552e56e1d947fe88554a80b6d82f6f, type: 2}
 --- !u!114 &4719959342839255773
 MonoBehaviour:
@@ -350,32 +350,6 @@ MonoBehaviour:
   m_HammerFx: {fileID: 2504214343621411470, guid: 3ed0d324122d7b24eaec75c55c74aafc, type: 3}
   m_FixDoneFx: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
   m_PaintFx: {fileID: 4553287630450876385, guid: 15483e51212e3d74886ea57291f4639a, type: 3}
---- !u!114 &9012345678901234567
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7223451131215545806}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3f8e2a91c5d74b6fa8e91c0d2b7e5a41, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerEmote
-  m_EmoteFx:
-  - {fileID: 6855314210357232287, guid: 7c2a9b83b809a0848915fabd9596b68b, type: 3}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  m_EmojiAtlas: {fileID: 2800000, guid: dffef66376be4fa480fb02b19edbe903, type: 3}
-  m_ThumbsDownTex: {fileID: 2800000, guid: b7d41f3a9c2e58e4d8a2f19c3b6d7e52, type: 3}
-  m_ThumbsUpTex: {fileID: 2800000, guid: 8cb81382697c4bf18ced8069c735a6cd, type: 3}
 --- !u!114 &5322060586137079395
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -416,6 +390,33 @@ MonoBehaviour:
       Synchronize: 1
       ParameterType: 9
   AnimatorParametersExpanded: 0
+--- !u!114 &9012345678901234567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7223451131215545806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f8e2a91c5d74b6fa8e91c0d2b7e5a41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerEmote
+  ShowTopMostFoldoutHeaderGroup: 1
+  m_EmoteFx:
+  - {fileID: 6855314210357232287, guid: 7c2a9b83b809a0848915fabd9596b68b, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  m_EmojiAtlas: {fileID: 2800000, guid: dffef66376be4fa480fb02b19edbe903, type: 3}
+  m_ThumbsDownTex: {fileID: 2800000, guid: b7d41f3a9c2e58e4d8a2f19c3b6d7e52, type: 3}
+  m_ThumbsUpTex: {fileID: 2800000, guid: 8cb81382697c4bf18ced8069c735a6cd, type: 3}
 --- !u!1 &8392801282134520978
 GameObject:
   m_ObjectHideFlags: 0
