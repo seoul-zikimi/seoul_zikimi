@@ -266,7 +266,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   m_Config: {fileID: 11400000, guid: 341019460c4fb8644a4af4d4b2d0c7b4, type: 2}
   m_ScaffoldPrefab: {fileID: 0}
-  m_ScaffoldMaterial: {fileID: 0}
+  m_ScaffoldMaterial: {fileID: 2100000, guid: 6b552e56e1d947fe88554a80b6d82f6f, type: 2}
 --- !u!114 &4719959342839255773
 MonoBehaviour:
   m_ObjectHideFlags: 0
