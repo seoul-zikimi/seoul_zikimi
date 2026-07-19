@@ -73,7 +73,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var nickImage = nick.gameObject.AddComponent<Image>();
         nickImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/UserNicknameTextbox");
         nickImage.preserveAspect = true;
-        m_NicknameInput = MakeInput(nick, "UserNickname", PlayerPrefs.GetString("PlayerNickname", "UserNickname"));
+        m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", PlayerPrefs.GetString("PlayerNickname", ""));
 
         MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
             new Vector2(0.70f, 0.31f), new Vector2(0.88f, 0.39f), StartGame);
@@ -100,7 +100,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
     {
         string nickname = m_NicknameInput != null ? m_NicknameInput.text.Trim() : "";
         if (string.IsNullOrEmpty(nickname))
-            nickname = "UserNickname";
+            nickname = "달팽이";
 
         PlayerPrefs.SetString("PlayerNickname", nickname);
         PlayerPrefs.Save();
