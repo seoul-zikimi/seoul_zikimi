@@ -33,6 +33,7 @@ public static class CarryHudPrefabGenerator
         hintText.rectTransform.anchorMax = Vector2.one;
         hintText.rectTransform.offsetMin = new Vector2(8f, 6f);
         hintText.rectTransform.offsetMax = new Vector2(-8f, -6f);
+        hintText.horizontalOverflow = HorizontalWrapMode.Wrap;   // 패널 안에서 줄바꿈(밖으로 안 삐져나감)
 
         // ── E 공정 / Z 되돌리기 로딩바(위치는 런타임에 스크린 좌표로 지정) ──
         MakeBar("ProcessBar", root.transform, new Color(0.35f, 0.60f, 1.00f));
