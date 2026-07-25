@@ -17,7 +17,7 @@ using UnityEngine.UI;
 public sealed class GameLoopHUD : UIHUD
 {
     private enum GOs { TopBar, EndRequestCluster, InGameSettingsPopup, ResultPanel, StartBanner, StarRow }
-    private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast }
+    private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast, CoinReward }
     private enum Imgs { P0, P1, P2, P3, GradeStar0, GradeStar1, GradeStar2, GradeStamp }
     private enum Raws { ResultImage }
     private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
@@ -25,7 +25,7 @@ public sealed class GameLoopHUD : UIHUD
 
     private GameLoopManager m_Loop;
     private AnswerPreview m_AnswerPreview;
-    private TextMeshProUGUI m_TimerText, m_ResultScoreText, m_ResultNamesText, m_ResultStructText, m_ResultTimeText, m_ResultGradeText;
+    private TextMeshProUGUI m_TimerText, m_ResultScoreText, m_ResultNamesText, m_ResultStructText, m_ResultTimeText, m_ResultGradeText, m_CoinRewardText;
     private Image m_ResultGradeImage;
     private Image[] m_ResultStars;
     private GameObject m_StarRow;
@@ -106,6 +106,8 @@ public sealed class GameLoopHUD : UIHUD
         m_SettingsButton = Get<Button>((int)Btns.SettingsIconButton);
         m_CraneToggleBtn = Get<Button>((int)Btns.CraneToggleButton);
         m_ToastText = Get<TextMeshProUGUI>((int)Texts.EventToast);
+        m_CoinRewardText = Get<TextMeshProUGUI>((int)Texts.CoinReward);
+        if (m_CoinRewardText != null) m_CoinRewardText.text = "";
         m_Toast = m_ToastText != null ? m_ToastText.gameObject : null;
         if (m_Toast != null) m_Toast.SetActive(false);
         if (m_CraneToggleBtn != null) m_CraneToggleBtn.gameObject.SetActive(false);
@@ -189,7 +191,12 @@ public sealed class GameLoopHUD : UIHUD
         var phase = m_Loop.Phase;   // 빌딩 페이즈 진입 순간 "공사 시작!" 배너 슬램
         if (phase != m_PrevPhase)
         {
-            if (phase == GridSystem.GamePhase.Building) { ShowStartBanner(); m_LastMilestone = 0; }
+            if (phase == GridSystem.GamePhase.Building)
+            {
+                ShowStartBanner();
+                m_LastMilestone = 0;
+                m_PlayersAtStart = Mathf.Clamp(m_Loop.NameCount, 1, 4);   // 기록용 인원수 = 시작 시점 팀원 수(중도 이탈 무관)
+            }
             m_PrevPhase = phase;
         }
 
@@ -333,8 +340,19 @@ public sealed class GameLoopHUD : UIHUD
         m_ResultWasShown = true;
         if (firstShow)
         {
+            transform.SetAsLastSibling();   // 정산서를 주문·힌트 등 다른 HUD보다 앞으로
             m_ResultIntroPlaying = true;
             StartCoroutine(ResultIntro(pct));
+
+            // ── 저장(Easy Save): 맵별×인원수별 최고기록 갱신 + 타임어택 코인 지급 ──
+            string map = !string.IsNullOrEmpty(m_Loop.AnswerName) ? m_Loop.AnswerName
+                       : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            int players = m_PlayersAtStart > 0 ? m_PlayersAtStart : Mathf.Clamp(m_Loop.NameCount, 1, 4);
+            bool newBest = SaveService.ReportRecord(map, players, pct, m_Loop.Elapsed);
+            int coins = SaveService.TimeAttackReward(pct, pct > 0 ? StarCount(pct) : 0);
+            if (coins > 0) SaveService.AddCoins(coins);
+            if (m_CoinRewardText != null)
+                m_CoinRewardText.text = (newBest ? "신기록!  " : "") + $"+{coins}코인  (보유 {SaveService.Coins}코인)";
 
             // 정산서 이미지 = 내가 실제로 지은 구조물(미니씬 렌더). 실패 시 정답 미리보기로 폴백.
             if (m_ResultImage != null)
@@ -584,6 +602,7 @@ public sealed class GameLoopHUD : UIHUD
 
     // ── 이벤트 토스트(좌측 슬쩍): 완성도 돌파 알림 + 100% 완성 축하 ──
     private int m_LastMilestone;
+    private int m_PlayersAtStart;   // 게임 시작 시점 팀원 수(최고기록 인원수 키)
     private bool m_CelebratedComplete;
     private GameObject m_Toast;
     private TextMeshProUGUI m_ToastText;
@@ -627,19 +646,20 @@ public sealed class GameLoopHUD : UIHUD
         if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
     }
 
-    private void ShowToast(string msg)
+    private void ShowToast(string msg, float seconds = 2f)
     {
         if (m_Toast == null || m_ToastText == null) return;   // 프리팹 바인딩(EventToast)
+        m_Toast.transform.SetAsLastSibling();   // 정산 패널 위에도 보이게 맨 앞으로
         m_ToastText.text = msg;
         if (m_ToastCo != null) StopCoroutine(m_ToastCo);
-        m_ToastCo = StartCoroutine(ToastCo());
+        m_ToastCo = StartCoroutine(ToastCo(seconds));
     }
 
-    private IEnumerator ToastCo()
+    private IEnumerator ToastCo(float seconds)
     {
         m_Toast.SetActive(false);   // UiPopIn 재발동
         m_Toast.SetActive(true);
-        yield return new WaitForSecondsRealtime(2.0f);
+        yield return new WaitForSecondsRealtime(seconds);
         m_Toast.SetActive(false);
         m_ToastCo = null;
     }

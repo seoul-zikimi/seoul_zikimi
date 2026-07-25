@@ -160,6 +160,9 @@ public static class GameLoopHudPrefabGenerator
 
         JobsnailUiKit.Box("Divider", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -252), new Vector2(640, 3), new Color(0.80f, 0.80f, 0.80f, 1f));
 
+        // 코인 보상(디바이더 아래 빈 공간, 주황) — 내용은 GameLoopHUD가 정산 때 채움
+        JobsnailUiKit.Label("CoinReward", panel.transform, "", 22, new Color(1f, 0.55f, 0.15f, 1f), TextAlignmentOptions.Center, new Vector2(0, -290), new Vector2(560, 34));
+
         var room = JobsnailUiKit.Button("RoomButton", panel.transform, null, new Vector2(0.14f, 0.05f), new Vector2(0.49f, 0.13f), Vector2.zero, Vector2.zero, null, "방으로 돌아가기");
         SetColor(room, new Color(0.97f, 0.85f, 0.58f, 1f));
         var leave = JobsnailUiKit.Button("LeaveButton", panel.transform, null, new Vector2(0.51f, 0.05f), new Vector2(0.86f, 0.13f), Vector2.zero, Vector2.zero, null, "나가기");
