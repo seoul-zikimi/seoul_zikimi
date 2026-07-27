@@ -21,6 +21,7 @@ namespace Player
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
         [SerializeField] private float m_GrabRange = 2.5f;
+        private const float kBuildReachCells = 2f;   // [07/26 기획] 배치/회수/공정 사거리(칸) — 완화/폐기 시 여기만
         private bool        m_GrabValid;
         private PickupBody  m_GrabBody;     // 레이캐스트로 가리킨 바닥 픽업(소속·정체 보유)
         private Workstation m_GrabStation;  // 레이캐스트로 가리킨 도구함(있으면 그 도구를 집음)
@@ -28,7 +29,7 @@ namespace Player
         [Tooltip("공정 한 단계를 끝내려고 E를 눌러야 하는 시간(초). 로딩바가 차는 속도.")]
         [SerializeField] private float m_ProcessSeconds = 1.2f;
         [Tooltip("재료를 던질 수 있는 최대 거리(칸). 조준점이 더 멀면 이 거리까지만 날아간다.")]
-        [SerializeField] private float m_ThrowRange = 6f;
+        [SerializeField] private float m_ThrowRange = 12f;   // 풀차지 최대 사거리(칸)
         [Tooltip("든 '망치'(고정 도구) 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
         [SerializeField] private GameObject m_HammerModel;
         [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
@@ -110,6 +111,7 @@ namespace Player
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_ThrowAim != null) Destroy(m_ThrowAim);
             DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
             if (m_Hud != null) m_Hud.gameObject.SetActive(false);   // HUD는 UIManager 캐시 → 숨기기만
@@ -173,8 +175,8 @@ namespace Player
             if (kb == null || mouse == null) return;
 
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
-            if (kb.qKey.wasPressedThisFrame) Drop();      // Q = 들고 있는 것 버리기(발밑에)
-            if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
+            UpdateThrowCharge(kb);   // G 탭=짧게 던지기 / 꾹=차징(화살표 미리보기) 후 떼면 멀리
+            // Q(버리기)·C(철거)는 좌클릭에 통합(07/26 기획): 그리드 밖 배치=발밑 버리기, 미고정 블록 좌클릭=회수.
             // Space는 점프(PlayerInputHandler). 집기·배치는 좌클릭. 우클릭은 카메라 회전 전용.
 
             UpdateTarget();
@@ -187,15 +189,13 @@ namespace Player
                 m_PrevGrabBody = m_GrabBody;
             }
 
-            if (kb.cKey.wasPressedThisFrame) TryRemove();   // C = 철거(현재 조준 칸)
-
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
             if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
             {
                 if (HasMaterial)
                 {
-                    if (m_HasTarget) TryPlace();    // 그리드 위 → 그리드 배치
-                    else             TryFreeDrop(); // 그리드 밖 → 바닥 자유 배치
+                    if (m_HasTarget) TryPlace();   // 그리드 위 → 그리드 배치
+                    else             Drop();       // 그리드 밖 '배치' = 발밑에 버리기(기존 Q 통합)
                 }
                 else if (!HasTool)
                 {
@@ -215,22 +215,6 @@ namespace Player
             UpdateHud();         // 프리팹 HUD 갱신(조작법·공정바·공정힌트)
         }
         
-        private void TryFreeDrop()
-        {
-            if (!HasMaterial || m_Drop == null) return;
-            // 마우스 레이 → Y=0 평면(바닥)과 교점 구하기
-            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-            var plane = new Plane(Vector3.up, Vector3.zero);  // Y=0 바닥
-            if (!plane.Raycast(ray, out float dist)) return;
-            Vector3 dropPos = ray.GetPoint(dist);
-            dropPos.y = 0.5f;  // 바닥 위 약간 뜨게
-            // MaterialDropField의 RequestDrop을 사용해 그 위치에 픽업으로 떨굼
-            m_Drop.RequestDrop(m_HeldMaterial.Id, dropPos);
-            PlaySFX(SFXType.LandObject);
-            ClearHeld();
-            OnPlace?.Invoke();
-        }
-
         // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
         private void TryPickupPlaced()
         {
@@ -486,6 +470,14 @@ namespace Player
                 m_Target = c;
                 m_HasTarget = c.x >= 0 && c.x < s.x && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
+
+                // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸(불편하면 완화/폐기 예정)
+                if (m_HasTarget)
+                {
+                    Vector3 center = GridCoordinates.CellToWorld(c) + new Vector3(0.5f, 0f, 0.5f) * GridContract.Unit;
+                    Vector3 flat = center - transform.position; flat.y = 0f;
+                    m_HasTarget = flat.magnitude <= kBuildReachCells * GridContract.Unit + 0.5f * GridContract.Unit;
+                }
             }
         }
 
@@ -595,14 +587,45 @@ namespace Player
             OnPlace?.Invoke();
         }
 
-        // 오버쿡드식 던지기: 조준 '방향'으로 붕~ 포물선 로브. 거리는 최소~사거리로 클램프(가까워도 정확히 발밑에 떨구지 않음).
-        private void Throw()
+        // ── [07/26 기획] G 차징 던지기: 꾹 누를수록 멀리, 화살표로 방향·거리 미리보기 ──
+        private float m_ThrowHold = -1f;   // <0 = 충전 안 함
+        private GameObject m_ThrowAim;     // 조준 화살표(오너 로컬 비주얼)
+        private LineRenderer m_AimShaft, m_AimHead;
+        [SerializeField] private Material m_AimLineMat;   // 궤적 선 머티리얼(Hit Me 에셋 점선)
+        private const float kThrowMin = 3f;          // 탭 = 기존 최소 로브
+        private const float kThrowChargeTime = 0.9f; // 이 시간 꾹 = 최대 사거리
+
+        private void UpdateThrowCharge(Keyboard kb)
+        {
+            bool holding = HasMaterial || HasTool;
+            if (kb.gKey.wasPressedThisFrame && holding && m_Drop != null) m_ThrowHold = 0f;
+            if (m_ThrowHold < 0f) return;
+
+            if (!holding) { CancelThrowAim(); return; }   // 충전 중 손이 비면 취소
+
+            m_ThrowHold += Time.deltaTime;
+            float charge = Mathf.Clamp01(m_ThrowHold / kThrowChargeTime);
+            float dist = Mathf.Lerp(kThrowMin, m_ThrowRange, charge);
+            Vector3 dir = AimDir();
+            ShowThrowAim(dir, dist, charge);
+
+            if (kb.gKey.wasReleasedThisFrame)
+            {
+                Throw(dir, dist);
+                CancelThrowAim();
+            }
+        }
+
+        private Vector3 AimDir()
+        {
+            Vector3 flat = AimWorldPoint() - transform.position; flat.y = 0f;
+            return flat.sqrMagnitude > 0.01f ? flat.normalized : transform.forward;
+        }
+
+        // 오버쿡드식 던지기: 조준 '방향'으로 붕~ 포물선 로브. 거리 = 충전량(탭=최소 3, 풀차지=사거리).
+        private void Throw(Vector3 dir, float dist)
         {
             if (m_Drop == null || (!HasMaterial && !HasTool)) return;
-            Vector3 aim = AimWorldPoint();                 // 커서 아래 바닥 지점(y=0.5)
-            Vector3 flat = aim - transform.position; flat.y = 0f;
-            Vector3 dir = flat.sqrMagnitude > 0.01f ? flat.normalized : transform.forward;
-            float dist = Mathf.Clamp(flat.magnitude, 3f, m_ThrowRange);   // 최소 로브 3 → 항상 시원하게 붕
             Vector3 to = transform.position + dir * dist;
             to.y = 0.5f;
             Vector3 from = transform.position + Vector3.up * 1.2f;
@@ -612,6 +635,82 @@ namespace Player
             GridJuice.FovPunch(m_Cam, 1.6f);   // 던질 때 화면 살짝 벌어졌다 복귀 — 손맛
             ClearHeld();
             OnThrow?.Invoke();
+        }
+
+        // 조준 궤적: 실제 비행(PickupBody.SampleArc)과 같은 수식의 포물선 — 앵그리버드처럼 선 그대로 날아감.
+        private readonly Vector3[] m_ArcPts = new Vector3[24];
+
+        private void ShowThrowAim(Vector3 dir, float dist, float charge)
+        {
+            if (m_ThrowAim == null)
+            {
+                m_ThrowAim = new GameObject("~ThrowAim");
+                m_AimShaft = MakeAimLine(m_ThrowAim.transform, m_ArcPts.Length);
+                m_AimHead  = MakeAimLine(m_ThrowAim.transform, 3);
+            }
+            m_ThrowAim.SetActive(true);
+
+            Vector3 from = transform.position + Vector3.up * 1.2f;              // Throw()의 출발점과 동일
+            Vector3 to = transform.position + dir * dist; to.y = 0.5f;          // Throw()의 목표점과 동일
+            PickupBody.SampleArc(from, to, m_ArcPts);
+
+            var c = Color.Lerp(new Color(1f, 0.75f, 0.2f, 0.9f), new Color(1f, 0.3f, 0.15f, 0.95f), charge);
+            float w = Mathf.Lerp(0.14f, 0.24f, charge);
+
+            m_AimShaft.startColor = m_AimShaft.endColor = c;
+            m_AimShaft.startWidth = w; m_AimShaft.endWidth = w * 0.7f;
+            m_AimShaft.SetPositions(m_ArcPts);
+
+            // 착지점 V자 촉(마지막 구간 접선 방향)
+            Vector3 tang = (m_ArcPts[m_ArcPts.Length - 1] - m_ArcPts[m_ArcPts.Length - 2]).normalized;
+            Vector3 side = Vector3.Cross(Vector3.up, dir);
+            Vector3 tip = m_ArcPts[m_ArcPts.Length - 1];
+            m_AimHead.startColor = m_AimHead.endColor = c;
+            m_AimHead.startWidth = m_AimHead.endWidth = w;
+            m_AimHead.SetPosition(0, tip - tang * 0.5f + side * 0.32f);
+            m_AimHead.SetPosition(1, tip);
+            m_AimHead.SetPosition(2, tip - tang * 0.5f - side * 0.32f);
+        }
+
+        private LineRenderer MakeAimLine(Transform parent, int points)
+        {
+            var go = new GameObject("~AimLine");
+            go.transform.SetParent(parent, false);
+            var lr = go.AddComponent<LineRenderer>();
+            lr.positionCount = points;
+            lr.useWorldSpace = true;
+            lr.numCapVertices = 4;
+            lr.numCornerVertices = 4;
+            lr.alignment = LineAlignment.View;
+            lr.textureMode = LineTextureMode.Tile;   // HitMe 점선 텍스처가 길이 따라 반복
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+
+            if (m_AimLineMat != null)
+            {
+                lr.material = m_AimLineMat;   // Hit Me 에셋의 점선 라인 머티리얼(에셋 참조 → 빌드 안전)
+                return lr;
+            }
+            var sh = Shader.Find("Universal Render Pipeline/Lit");   // 폴백(빌드 셰이더 스트립 안전 계열)
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh != null)
+            {
+                var m = new Material(sh);
+                m.SetFloat("_Surface", 1f);
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                lr.material = m;
+            }
+            return lr;
+        }
+
+        private void CancelThrowAim()
+        {
+            m_ThrowHold = -1f;
+            if (m_ThrowAim != null) m_ThrowAim.SetActive(false);
         }
 
         // 든 재료가 있으면 발밑 바닥에 떨군다(놓기 외에 손을 떠나는 모든 경로 공통). 다시 주워 재배치 가능.
@@ -839,13 +938,6 @@ namespace Player
             }
             if (t != null) t.rotation = Quaternion.identity;
             m_SwingCo = null;
-        }
-
-        private void TryRemove()
-        {
-            if (m_Loop != null && !m_Loop.IsBuilding) return;
-            if (!m_HasTarget || m_Net == null) return;
-            m_Net.RequestRemove(m_Target);   // 서버가 점유 검증 + 재료를 바닥에 떨굼
         }
 
         // ── 비주얼(상태 구동, 모든 클라) ───────────────────────────────────
@@ -1228,9 +1320,9 @@ namespace Player
             string score = m_Net != null ? $"  |  완성도 {m_Net.ScorePercent:F0}%" : "";
             return
                 $"{heldStr}{score}\n" +
-                $"[좌클릭] 집기/배치    [C] 설치한 블록 철거    [Q] 블록 버리기    [G] 던지기\n" +
+                $"[좌클릭] 집기/배치 (그리드 밖 클릭 = 발밑에 버리기, 미고정 블록 클릭 = 회수)    [G 꾹] 차징 던지기(꾹 누를수록 멀리)\n" +
                 $"[Space] 점프    [Space 연타] 비계 발밑에 설치(1칸 올라가기)\n" +
-                $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    [F1~F10] 감정표현    현재 층: {m_BuildHeight}";
+                $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    [T 꾹] 감정표현    현재 층: {m_BuildHeight}";
         }
 
         // E 공정 / Z 되돌리기 로딩바 + 공정 안내(대상 블록 위 · 월드→스크린 좌표는 여기서 계산).

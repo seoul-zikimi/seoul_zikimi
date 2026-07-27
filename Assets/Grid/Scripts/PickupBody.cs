@@ -34,6 +34,30 @@ namespace GridSystem
             Owner = owner; PickupId = id; MaterialId = materialId; ToolBit = toolBit;
         }
 
+        /// <summary>
+        /// 던지기 포물선 샘플링(조준 미리보기용) — Init/ArcUpdate와 '같은 수식'이라 선 그대로 날아간다.
+        /// buffer 길이만큼 점을 채우고 개수를 반환.
+        /// </summary>
+        public static int SampleArc(Vector3 from, Vector3 to, Vector3[] buffer)
+        {
+            var flat = new Vector3(to.x - from.x, 0f, to.z - from.z);
+            float h = Mathf.Max(2.0f, flat.magnitude * 0.45f);
+            float v0 = Mathf.Sqrt(2f * kArcGravity * h);
+            float dy = to.y - from.y;
+            float dur = (v0 + Mathf.Sqrt(Mathf.Max(0f, v0 * v0 - 2f * kArcGravity * dy))) / kArcGravity;
+            int n = buffer.Length;
+            for (int i = 0; i < n; i++)
+            {
+                float t = dur * i / (n - 1);
+                float u = t / dur;
+                buffer[i] = new Vector3(
+                    Mathf.Lerp(from.x, to.x, u),
+                    from.y + v0 * t - 0.5f * kArcGravity * t * t,
+                    Mathf.Lerp(from.z, to.z, u));
+            }
+            return n;
+        }
+
         public void Init(Vector3 from, Vector3 target)
         {
             transform.position = from;
