@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: f23c19d62f6b7d949bd9474e03ad974f
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/Materials/Brown.mat
+  uploadId: 955000

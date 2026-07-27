@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 2b2e5f4ba46f4dc41b7affabcd8f2173
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Runtime/VisualScripting/Nodes/Events/AnimationProjectilePhysicsDisabledEvent.cs
+  uploadId: 955000

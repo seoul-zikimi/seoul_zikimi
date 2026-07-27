@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 850fe20d5ebecbf4cab3a44477db0fb0
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Runtime/VisualScripting/Nodes/Events/BallisticProjectileCollision3DEvent.cs
+  uploadId: 955000

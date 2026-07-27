@@ -46,6 +46,7 @@ MonoBehaviour:
     - glTFast.Export
     - glTFast.Newtonsoft
     - GridSystem
+    - Kamgam.HitMe
     - KinoBloom.Runtime
     - Lofelt.NiceVibrations
     - Lofelt.NiceVibrations.Demo
