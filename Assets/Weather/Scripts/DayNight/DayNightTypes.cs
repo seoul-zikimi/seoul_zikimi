@@ -99,4 +99,19 @@ namespace SeoulZikimi.Weather
             TimeOfDay = timeOfDay;
         }
     }
+
+    /// <summary>세션 생성 UI가 날씨와 낮/밤 옵션을 한 번에 전달할 때 사용한다.</summary>
+    public sealed class EnvironmentSessionOptions
+    {
+        public WeatherSessionOptions Weather { get; }
+        public DayNightSessionOptions DayNight { get; }
+
+        public EnvironmentSessionOptions(
+            WeatherSessionOptions weather,
+            DayNightSessionOptions dayNight)
+        {
+            Weather = weather ?? throw new ArgumentNullException(nameof(weather));
+            DayNight = dayNight ?? throw new ArgumentNullException(nameof(dayNight));
+        }
+    }
 }
