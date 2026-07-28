@@ -47,6 +47,9 @@ namespace Player
         public float FacingYaw => m_NetFacingYaw.Value;
         public void ReportFacingYaw(float yaw) { if (IsSpawned && IsOwner) m_NetFacingYaw.Value = yaw; }
 
+        /// <summary>튜토리얼 전용 훅(로컬 오너 전용) — 비계를 밟고 올라선 층수(1층부터).</summary>
+        public static event System.Action<int> LocalScaffoldFloorReached;
+
         public string ProductName { get; set; }
 
         // ── NGO 경로 ──────────────────────────────────────────────────────
@@ -301,6 +304,8 @@ namespace Player
             transform.position = pos;
             m_Rb.position = pos;
             var v = m_Rb.linearVelocity; v.y = 0f; m_Rb.linearVelocity = v;
+
+            LocalScaffoldFloorReached?.Invoke(cell.y + 1);   // 1층부터 세는 도달 층수(튜토리얼 Quest10)
         }
 
         // owner: 기둥에서 수평으로 벗어나면(걸어 나가거나 뛰어내리면) 비계 전부 제거 요청.

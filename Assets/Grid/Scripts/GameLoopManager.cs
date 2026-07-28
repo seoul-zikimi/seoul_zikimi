@@ -63,6 +63,17 @@ namespace GridSystem
         {
             m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
+
+            if (TutorialSession.IsActive)
+            {
+                // 튜토리얼: 랜덤 정답 대신 전용 정답 고정, 시간제한 없음, 전원동의 종료 로직은 Update()에서 스킵.
+                m_Grid.UseTutorialAnswer();
+                if (IsServer) { m_TimeLeft.Value = float.MaxValue; m_Phase.Value = (int)GamePhase.Building; }
+                OnPhaseChanged((int)Phase, (int)Phase);
+                SubmitName();
+                return;
+            }
+
             if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
@@ -110,6 +121,7 @@ namespace GridSystem
         private void Update()
         {
             if (!IsSpawned) return;   // 스폰 전/디스폰 후엔 네트워크 상태 접근 금지(NullRef 방지)
+            if (TutorialSession.IsActive) return;   // 튜토리얼: 타이머·전원동의·자동종료 전부 TutorialManager가 대신함
 
             // 입력(모든 클라): Enter = 동의 토글 (건축중=종료 동의 / 종료화면=재시작 동의)
             var kb = Keyboard.current;

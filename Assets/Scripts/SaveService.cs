@@ -13,6 +13,8 @@ public static class SaveService
     private const string kCoins = "coins";
     private const string kCodi = "codiItems";
     private const string kSkins = "skins";
+    private const string kTutorialPromptDontShow = "tutorialPromptDontShow";
+    private const string kTutorialCompleted = "tutorialCompleted";
 
     // ── 닉네임 (변경 시 저장) ──
     public static string Nickname
@@ -100,6 +102,20 @@ public static class SaveService
         ES3.Save(key + "_pct", pct, kFile);
         ES3.Save(key + "_sec", seconds, kFile);
         return true;
+    }
+
+    // ── 튜토리얼 안내 팝업 "다시 보지 않음" 여부 (체크 시 저장) ──
+    public static bool TutorialPromptDontShow
+    {
+        get => ES3.Load(kTutorialPromptDontShow, kFile, false);
+        set => ES3.Save(kTutorialPromptDontShow, value, kFile);
+    }
+
+    // ── 튜토리얼 완주 여부 (완료 시 저장) ──
+    public static bool TutorialCompleted
+    {
+        get => ES3.Load(kTutorialCompleted, kFile, false);
+        set => ES3.Save(kTutorialCompleted, value, kFile);
     }
 
     // ── 타임어택 보상표(커스터마이징 기획 문서 기준) ──

@@ -183,7 +183,7 @@ public sealed class GameLoopHUD : UIHUD
         if (m_Loop == null)
             m_Loop = FindFirstObjectByType<GameLoopManager>();
 
-        bool ready = m_Loop != null && m_Loop.IsSpawned;
+        bool ready = m_Loop != null && m_Loop.IsSpawned && !TutorialSession.IsActive;
         SetVisible(ready);
         if (!ready)
             return;

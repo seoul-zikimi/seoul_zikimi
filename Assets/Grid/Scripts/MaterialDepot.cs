@@ -23,6 +23,9 @@ namespace GridSystem
         // UI는 별도 어셈블리(UIManager)라 직접 못 부름 → 이벤트로 알리고 Assembly-CSharp 드라이버가 HUD 연결.
         public static event System.Action<MaterialDepot> Spawned;
         public static event System.Action<MaterialDepot> Despawned;
+
+        /// <summary>튜토리얼 전용 훅 — 로컬 클라이언트가 주문을 요청한 순간(서버 왕복 전, 클릭 즉시).</summary>
+        public static event System.Action<int> LocalOrderRequested;
         public MaterialCatalog Catalog => m_Grid != null ? m_Grid.Catalog : null;
 
         private void Awake()
@@ -51,7 +54,11 @@ namespace GridSystem
             if (m_Marker != null) Destroy(m_Marker);
         }
 
-        public void RequestOrder(int materialId) => OrderRpc(materialId);
+        public void RequestOrder(int materialId)
+        {
+            LocalOrderRequested?.Invoke(materialId);
+            OrderRpc(materialId);
+        }
 
         [Rpc(SendTo.Server)]
         private void OrderRpc(int materialId)

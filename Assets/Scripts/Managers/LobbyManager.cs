@@ -7,6 +7,7 @@ using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using Unity.Services.Authentication;
 using Unity.Services.Core; // 💡 InputField 컴포넌트 접근을 위해 추가
+using UnityEngine.SceneManagement;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -433,6 +434,28 @@ public class LobbyManager : MonoBehaviour
         createSessionHUD.SetActive(false);
         joinCodeHUD.SetActive(false);
         joinByCodeHUD.SetActive(false);
+
+        // 세션 리스트 화면 진입 시 튜토리얼 안내 팝업(다시 보지 않기 체크 / 이미 완주 시 자동으로 스킵).
+        if (active && UIManager.Instance != null && !SaveService.TutorialPromptDontShow && !SaveService.TutorialCompleted)
+            UIManager.Instance.ShowPopupUI<TutorialConfirmPopup>().Show(StartTutorialSession);
+    }
+
+    /// <summary>
+    /// 튜토리얼 진입: 세션/로비 없이 로컬 전용 Host로 곧장 GameScene에 들어간다(혼자 진행, 튜토리얼 전용 정답 사용).
+    /// </summary>
+    private void StartTutorialSession()
+    {
+        TutorialSession.IsActive = true;
+        OnActiveStartHUD(false);
+        PrepareNetworkTransport();
+
+        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening)
+            NetworkManager.Singleton.StartHost();
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+        else
+            Debug.LogWarning("[LobbyManager] NetworkManager가 없어서 튜토리얼 씬 로드를 건너뜁니다.");
     }
     
     // 👤 누군가 방에서 나갔을 때 (클라이언트 퇴장 -> 인원수 감소)

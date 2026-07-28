@@ -28,6 +28,9 @@ namespace Player
         PlayerInputHandler m_Input;
         CameraOrbit        m_Orbit;   // 피치/줌 공유 로직(정답 패널 카메라와 동일 컴포넌트)
 
+        /// <summary>카메라 팔(요 회전 대상) — 튜토리얼 등 외부에서 누적 회전각을 재려고 노출.</summary>
+        public Transform CameraArm => m_CameraArm;
+
         void Awake()
         {
             m_CameraArm = transform.parent;                          // 바로 위 = CameraArm
