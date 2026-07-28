@@ -25,6 +25,8 @@ namespace GridSystem
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<int> m_AnswerIndex =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<int> m_MapIndex =
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 배경 맵(MapCatalog 인덱스)
         private readonly NetworkList<ulong> m_Consents = new();   // 동의한 clientId (건축중=종료동의 / 종료중=재시작동의, 서버 관리)
         private readonly NetworkList<NameEntry> m_Names = new();   // 접속 플레이어 표시 이름(서버 관리, 정산서 명단용)
 
@@ -53,6 +55,11 @@ namespace GridSystem
         public float Elapsed => Mathf.Max(0f, TimeLimit - TimeLeft);
         public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";
 
+        /// <summary>현재 맵(MapCatalog 인덱스). 서버가 정하고 전 클라 동기화 — MapLoader가 이걸 보고 배경 스폰.</summary>
+        public int MapIndex => m_MapIndex.Value;
+        /// <summary>로비에서 호스트가 고른 맵(게임 시작 전 세팅). 서버 스폰 시 m_MapIndex로 복제됨.</summary>
+        public static int HostSelectedMap = 0;
+
         private void Awake()
         {
             m_Grid = GetComponent<GridManager>();
@@ -63,6 +70,8 @@ namespace GridSystem
         {
             m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
+            if (IsServer) m_MapIndex.Value = HostSelectedMap;   // 배경 맵 확정(전원 동기화)
+            ApplyMapAnswers();                         // 맵 전용 정답 세트가 있으면 교체(서버 랜덤픽 전에!)
             if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
@@ -90,6 +99,16 @@ namespace GridSystem
                 GridSoundBridge.SetPhase("Result");
                 GridSoundBridge.PlaySFX("GameOver");
             }
+        }
+
+        // 선택된 맵(MapDef)이 전용 정답 세트를 가지면 GridManager 목록을 교체.
+        // 서버·클라 모두 같은 MapDef를 로드하므로 이후 인덱스 동기화가 그대로 유효하다.
+        private void ApplyMapAnswers()
+        {
+            var catalog = MapCatalog.Instance;
+            var def = catalog != null ? catalog.Get(m_MapIndex.Value) : null;
+            if (def != null && def.Answers != null && def.Answers.Count > 0)
+                m_Grid.SetAnswers(def.Answers);
         }
 
         // 서버: 정답 목록에서 랜덤으로 하나 고른다(1개뿐이면 0). 코스메틱 아님 — 인덱스를 복제.

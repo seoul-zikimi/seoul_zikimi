@@ -17,6 +17,8 @@ namespace Player
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
+            GridSystem.MapLoader.BackgroundSpawned -= Process;   // 런타임 스폰 배경도 커버(씬 스캔보다 늦게 생김)
+            GridSystem.MapLoader.BackgroundSpawned += Process;
             OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
         }
 
@@ -24,14 +26,25 @@ namespace Player
         {
             if (scene.name != SceneNames.GameScene)
                 return;
+            Process(Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None));
+        }
 
+        /// <summary>런타임 스폰된 맵 배경 등 '나중에 생긴' 오브젝트 트리에도 페이드 콜라이더 부여(MapLoader가 호출).</summary>
+        public static void Process(GameObject root)
+        {
+            if (root == null) return;
+            Process(root.GetComponentsInChildren<MeshRenderer>(true));
+        }
+
+        private static void Process(MeshRenderer[] renderers)
+        {
             int water = LayerMask.NameToLayer("Water");
             int ui = LayerMask.NameToLayer("UI");
             int ignoreRay = LayerMask.NameToLayer("Ignore Raycast");
             int transparentFx = LayerMask.NameToLayer("TransparentFX");
 
             int added = 0;
-            foreach (var mr in Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            foreach (var mr in renderers)
             {
                 var go = mr.gameObject;
                 int layer = go.layer;

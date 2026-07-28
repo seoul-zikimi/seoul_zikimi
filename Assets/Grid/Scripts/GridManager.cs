@@ -33,6 +33,15 @@ namespace GridSystem
                 ? m_Answers[Mathf.Clamp(m_ActiveIndex, 0, m_Answers.Count - 1)]
                 : null;
 
+        /// <summary>맵(MapDef)이 전용 정답 세트를 갖고 있으면 교체 — 모든 클라가 같은 MapDef를 로드하므로 인덱스 동기화 유효.</summary>
+        public void SetAnswers(System.Collections.Generic.IReadOnlyList<MapAnswerData> answers)
+        {
+            if (answers == null || answers.Count == 0) return;   // 비면 씬 기본 목록 유지
+            m_Answers = new List<MapAnswerData>(answers);
+            m_ActiveIndex = 0;
+            OnAnswerChanged?.Invoke();
+        }
+
         /// <summary>정답 선택(서버가 뽑은 인덱스를 전 클라가 적용). 바뀌면 OnAnswerChanged 발생.</summary>
         public void SelectAnswer(int index)
         {
