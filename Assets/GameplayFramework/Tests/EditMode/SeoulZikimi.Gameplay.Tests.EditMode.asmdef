@@ -1,0 +1,25 @@
+{
+    "name": "SeoulZikimi.Gameplay.Tests.EditMode",
+    "rootNamespace": "SeoulZikimi.Gameplay.Tests",
+    "references": [
+        "SeoulZikimi.Gameplay",
+        "SeoulZikimi.Weather",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

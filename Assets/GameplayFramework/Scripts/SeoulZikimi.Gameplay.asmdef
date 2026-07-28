@@ -1,12 +1,8 @@
 {
-    "name": "GridSystem",
-    "rootNamespace": "GridSystem",
+    "name": "SeoulZikimi.Gameplay",
+    "rootNamespace": "SeoulZikimi.Gameplay",
     "references": [
-        "Unity.InputSystem",
-        "Unity.Netcode.Runtime",
-        "Unity.Collections",
-        "Core",
-        "SeoulZikimi.Gameplay"
+        "SeoulZikimi.Weather"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
