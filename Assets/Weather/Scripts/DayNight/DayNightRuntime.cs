@@ -62,6 +62,15 @@ namespace SeoulZikimi.Weather
         private readonly WeatherController _weather;
         private readonly DayNightController _dayNight;
 
+        /// <summary>
+        /// 날씨와 낮/밤 선택이 확정된 직후 발생한다.
+        /// 인게임 계절 아이콘이나 입장 안내 UI가 결과를 표시할 때 구독한다.
+        /// </summary>
+        public event Action<EnvironmentSelection> EnvironmentStarted;
+
+        /// <summary>환경 효과가 종료되어 인게임 환경 안내 UI를 숨겨야 할 때 발생한다.</summary>
+        public event Action EnvironmentStopped;
+
         public WorldEnvironmentController(
             WeatherController weather,
             DayNightController dayNight)
@@ -76,7 +85,20 @@ namespace SeoulZikimi.Weather
         {
             WeatherSelection weather = _weather.Start(weatherOptions);
             TimeOfDaySelection timeOfDay = _dayNight.Start(dayNightOptions);
-            return new EnvironmentSelection(weather, timeOfDay);
+            var selection = new EnvironmentSelection(weather, timeOfDay);
+            EnvironmentStarted?.Invoke(selection);
+            return selection;
+        }
+
+        /// <summary>
+        /// 방 생성 UI에서 만든 통합 옵션으로 날씨와 낮/밤 시스템을 함께 시작한다.
+        /// </summary>
+        public EnvironmentSelection Start(EnvironmentSessionOptions options)
+        {
+            if (options == null)
+                throw new ArgumentNullException(nameof(options));
+
+            return Start(options.Weather, options.DayNight);
         }
 
         public void Tick(float deltaTime)
@@ -93,6 +115,7 @@ namespace SeoulZikimi.Weather
         {
             _weather.Stop();
             _dayNight.Stop();
+            EnvironmentStopped?.Invoke();
         }
     }
 }
