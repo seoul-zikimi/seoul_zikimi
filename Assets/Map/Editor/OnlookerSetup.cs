@@ -25,7 +25,8 @@ namespace MapTools
                 string path = AssetDatabase.GUIDToAssetPath(g);
                 if (!path.EndsWith("_Idle.fbx")) continue;
 
-                string name = System.IO.Path.GetFileNameWithoutExtension(path).Replace("Prop_", "").Replace("_Idle", "");
+                string name = System.IO.Path.GetFileNameWithoutExtension(path)
+                    .Replace("Prop_", "").Replace("Onlooker_", "").Replace("_Idle", "");   // 접두사 중복 방지
 
                 // ① 임포트: Generic + 루프
                 var imp = (ModelImporter)AssetImporter.GetAtPath(path);
