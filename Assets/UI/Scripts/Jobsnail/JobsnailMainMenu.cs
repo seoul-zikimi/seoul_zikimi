@@ -76,7 +76,10 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", SaveService.Nickname);
 
         MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
-            new Vector2(0.70f, 0.31f), new Vector2(0.88f, 0.39f), StartGame);
+            new Vector2(0.70f, 0.41f), new Vector2(0.88f, 0.49f), StartGame);
+
+        MakeMainButton(root, "MyPage_Btn", "UI_pngs/1.main/MyPage_Btn", "마이페이지",
+            new Vector2(0.70f, 0.31f), new Vector2(0.88f, 0.39f), OpenMyPage);
 
         MakeMainButton(root, "Settings_Btn", "UI_pngs/1.main/Settings_Btn", "설정",
             new Vector2(0.70f, 0.21f), new Vector2(0.88f, 0.29f), ToggleSettings);
@@ -94,6 +97,11 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null && kb.escapeKey.wasPressedThisFrame && m_SettingsPopup != null && m_SettingsPopup.activeSelf)
             ToggleSettings();
+    }
+
+    private void OpenMyPage()
+    {
+        SceneManager.LoadScene(SceneNames.MyPage);   // 마이페이지 = 전용 씬(옷장 3D + HUD)
     }
 
     private void StartGame()

@@ -4,4 +4,5 @@ public static class SceneNames
     public const string Lobby          = "Lobby";
     public const string GameScene      = "GameScene";
     public const string AnswerAuthoring = "AnswerAuthoring";
+    public const string MyPage          = "MyPage";
 }

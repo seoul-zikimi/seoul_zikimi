@@ -36,7 +36,7 @@ TagManager:
   - 
   - 
   - 
-  - 
+  - MirrorOnly
   - 
   m_SortingLayers:
   - name: Default
