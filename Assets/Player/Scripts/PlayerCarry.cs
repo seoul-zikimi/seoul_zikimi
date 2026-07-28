@@ -98,6 +98,12 @@ namespace Player
         public event System.Action OnPlace;   // 배치/버리기(내려놓기 모션)
         public event System.Action OnThrow;   // 던지기
 
+        // ── 튜토리얼 전용 훅(로컬 오너 전용, 요청 시점에 발화) ──
+        public static event System.Action<int> LocalMaterialPickedUp;                      // materialId
+        public static event System.Action<ProcessType> LocalToolPickedUp;                  // 도구(망치/페인트) 집기
+        public static event System.Action<int, Vector3Int> LocalMaterialPlaced;            // materialId, cell
+        public static event System.Action<ProcessType, Vector3Int> LocalMaterialProcessed;  // 완료한 공정, cell
+
         public override void OnNetworkSpawn()
         {
             m_NetMaterialId.OnValueChanged += OnHeldChanged;
@@ -310,6 +316,7 @@ namespace Player
             if (m_ProcessHold >= dur)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
+                LocalMaterialProcessed?.Invoke(m_HeldTool, m_ProcessCell);
 
                 Vector3 done = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
                 if (m_HeldTool == ProcessType.Fixed)   // 고정 완료 — 스윙 착점에 챙!(소리·별·스퀴시·카메라 전부 싱크)
@@ -567,6 +574,7 @@ namespace Player
             m_NetMaterialId.Value = def.Id;
             m_NetTool.Value = 0;
             PlaySFX(SFXType.PickUpObject);
+            LocalMaterialPickedUp?.Invoke(def.Id);
         }
 
         private void HoldTool(ProcessType tool)
@@ -577,6 +585,7 @@ namespace Player
             m_NetMaterialId.Value = -1;
             m_NetTool.Value = (int)tool;
             PlaySFX(SFXType.PickUpObject);
+            LocalToolPickedUp?.Invoke(tool);
         }
 
         private void Drop()
@@ -755,6 +764,7 @@ namespace Player
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
             { ShakePreview(); return; }
 
+            LocalMaterialPlaced?.Invoke(m_HeldMaterial.Id, m_Target);
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
             if (SoundManager.Instance != null)   // 놓는 자리서 3D + 피치 랜덤(단조로움 방지)
                 SoundManager.Instance.PlaySFXAt(SFXType.LandObject,

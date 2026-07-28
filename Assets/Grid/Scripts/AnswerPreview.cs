@@ -157,6 +157,9 @@ namespace GridSystem
         public static event System.Action<bool> VisibilityChanged;   // 표시/숨김 전환
         public bool IsVisible => Show();
 
+        /// <summary>정답 미리보기 카메라의 누적 요(yaw) — 클램프 없이 계속 더해짐(튜토리얼 회전량 측정용).</summary>
+        public float PreviewYaw => m_Orbit != null ? m_Orbit.Yaw : 0f;
+
         // ── 인터랙티브 오빗(로컬) — 정답 패널 라우터(Assembly-CSharp)가 호출 ──
         public RenderTexture RT => m_RT;
         public void DriveOrbit(Vector2 rotDelta, float zoom)

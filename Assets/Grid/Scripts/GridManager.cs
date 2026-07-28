@@ -13,9 +13,12 @@ namespace GridSystem
         [SerializeField] private MaterialCatalog m_Catalog;
         [Tooltip("정답 맵 목록 — 게임 시작/재시작 때 이 중에서 랜덤으로 하나 선택(서버 권위).")]
         [SerializeField] private List<MapAnswerData> m_Answers = new();
+        [Tooltip("튜토리얼 전용 정답(벽4+지붕). 일반 게임의 랜덤 목록(m_Answers)과는 별개 — 튜토리얼 세션에서만 사용.")]
+        [SerializeField] private MapAnswerData m_TutorialAnswer;
         [SerializeField] private bool m_DrawGizmos = true;
 
         private int m_ActiveIndex;
+        private MapAnswerData m_ForcedAnswer;   // null이 아니면 m_Answers 목록 대신 이걸 사용(튜토리얼)
 
         /// <summary>현재 선택된 정답이 바뀌었을 때(랜덤 선택/재시작). 비주얼 갱신용.</summary>
         public event System.Action OnAnswerChanged;
@@ -27,9 +30,10 @@ namespace GridSystem
         /// <summary>고를 수 있는 정답 개수.</summary>
         public int AnswerCount => m_Answers != null ? m_Answers.Count : 0;
 
-        /// <summary>현재 선택된 정답(없으면 null).</summary>
+        /// <summary>현재 선택된 정답(없으면 null). 튜토리얼 중엔 m_TutorialAnswer가 우선.</summary>
         public MapAnswerData Answer =>
-            (m_Answers != null && m_Answers.Count > 0)
+            m_ForcedAnswer != null ? m_ForcedAnswer
+            : (m_Answers != null && m_Answers.Count > 0)
                 ? m_Answers[Mathf.Clamp(m_ActiveIndex, 0, m_Answers.Count - 1)]
                 : null;
 
@@ -39,6 +43,13 @@ namespace GridSystem
             if (answers == null || answers.Count == 0) return;   // 비면 씬 기본 목록 유지
             m_Answers = new List<MapAnswerData>(answers);
             m_ActiveIndex = 0;
+            OnAnswerChanged?.Invoke();
+        }
+
+        /// <summary>튜토리얼 세션 전용 — 랜덤 목록 대신 튜토리얼 정답을 강제 적용.</summary>
+        public void UseTutorialAnswer()
+        {
+            m_ForcedAnswer = m_TutorialAnswer;
             OnAnswerChanged?.Invoke();
         }
 
