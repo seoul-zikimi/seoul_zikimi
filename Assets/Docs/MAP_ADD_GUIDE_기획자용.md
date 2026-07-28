@@ -27,6 +27,9 @@
 ### 2️⃣ 씬에 배경 꾸미기
 - **GameScene**을 열고, 빈 오브젝트를 만들어 이름을 **`Background`**로 해요.
 - 그 아래에 배경 모델들을 자유롭게 배치해요. (건축 그리드 자리는 비워두기!)
+- ⚠️ **Background에는 "꾸미기용 배경"만!**
+  PaintStation·HammerStation·GridManager·Grid·PlayerSpawnPoint 같은 건 **게임 시스템**이라
+  Background에 넣지 않아요. 씬에 그대로 두면 어느 맵에서든 공용으로 재사용됩니다.
 
 ### 3️⃣ 맵으로 등록 (버튼 한 번)
 - Hierarchy에서 `Background` 선택 → **[메뉴] Tools ▸ Map ▸ Extract Background To Map**
