@@ -64,6 +64,11 @@ namespace GridSystem
         {
             m_Grid = GetComponent<GridManager>();
             m_Net = GetComponent<GridNetwork>();
+
+            // 기존 협동 루프는 그대로 유지하고, 새 Gameplay UI 계약과 연결하는 얇은 어댑터만 런타임에 보장한다.
+            // 어댑터는 별도 상태 머신을 실행하지 않으며 종료 동의/나가기 전달과 상태 조회만 담당한다.
+            if (!TryGetComponent<CurrentCoopGameplayAdapter>(out _))
+                gameObject.AddComponent<CurrentCoopGameplayAdapter>();
         }
 
         public override void OnNetworkSpawn()
