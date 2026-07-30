@@ -1,4 +1,3 @@
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -15,8 +14,9 @@ public class MyPageUI : UIHUD
     private enum Texts { CoinText, ClosetList }
     private enum Btns { BookButton, ApplyButton, RevertButton, CloseButton }
 
-    // 아이템 id 접두사 = 카테고리 컨벤션 (상점/아이템 생기면 이 규칙으로 등록)
+    // 아이템 id 접두사 = 카테고리 컨벤션 (skin_ 등). 아웃핏 = Resources/CodiOutfits
     private string m_Filter = "";
+    private readonly System.Collections.Generic.List<(Button btn, Image thumb, Image lockIcon, TextMeshProUGUI label)> m_Slots = new();
 
     public override void Init()
     {
@@ -24,10 +24,11 @@ public class MyPageUI : UIHUD
         Bind<Button>(typeof(Btns));
 
         Wire(Btns.BookButton, () => UIManager.Instance.ShowPopupUI<RecordBookUI>());   // 책 = 팝업
-        Wire(Btns.ApplyButton, () => SetClosetList("적용할 아이템이 아직 없어요. (상점 준비 중)"));
+        Wire(Btns.ApplyButton, () => SetClosetList("아이템을 누르면 바로 착용/해제돼요."));
         Wire(Btns.RevertButton, RefreshCloset);
         Wire(Btns.CloseButton, Close);
 
+        CollectSlots();
         JuicyButton.AttachAll(gameObject);
         RefreshCloset();
     }
@@ -58,19 +59,128 @@ public class MyPageUI : UIHUD
     /// <summary>카테고리 탭이 호출(프리팹의 카테고리 버튼 onClick에 연결됨). prefix 예: hat_, cloth_.</summary>
     public void SetFilter(string prefix) { m_Filter = prefix ?? ""; RefreshCloset(); }
 
+    /// <summary>프리팹의 Panel/Slot0..N 을 아이템 칸으로 셋업(자물쇠 아이콘 + 라벨 자식 추가).</summary>
+    private void CollectSlots()
+    {
+        m_Slots.Clear();
+        var panel = transform.Find("Panel");
+        if (panel == null) return;
+        var lockSprite = Resources.Load<Sprite>("UI_pngs/MyPage/Lock");
+        for (int i = 0; ; i++)
+        {
+            var t = panel.Find($"Slot{i}");
+            if (t == null) break;
+            var btn = t.GetComponent<Button>();
+            if (btn == null) btn = t.gameObject.AddComponent<Button>();
+            var slotImg = t.GetComponent<Image>();
+            if (slotImg != null) { slotImg.raycastTarget = true; btn.targetGraphic = slotImg; }   // UiKit.Box 기본이 raycast off → 클릭 안 먹힘
+
+            Image thumb;
+            var thumbTr = t.Find("ThumbBG");
+            if (thumbTr == null)
+            {
+                var rt = JobsnailUiKit.Rect("ThumbBG", t, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                rt.SetAsFirstSibling();   // 슬롯 맨 밑에 깔림(자물쇠·가격이 위에)
+                thumb = rt.gameObject.AddComponent<Image>();
+                thumb.preserveAspect = true;
+                thumb.raycastTarget = false;
+            }
+            else thumb = thumbTr.GetComponent<Image>();
+
+            Image lockIcon;
+            var lockTr = t.Find("LockIcon");
+            if (lockTr == null)
+            {
+                var rt = JobsnailUiKit.Rect("LockIcon", t, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 14), new Vector2(36, 36));
+                lockIcon = rt.gameObject.AddComponent<Image>();
+                lockIcon.sprite = lockSprite;
+                lockIcon.preserveAspect = true;
+                lockIcon.raycastTarget = false;
+            }
+            else lockIcon = lockTr.GetComponent<Image>();
+
+            TextMeshProUGUI label;
+            var labelTr = t.Find("ItemLabel");
+            if (labelTr == null)
+            {
+                label = JobsnailUiKit.Label("ItemLabel", t, "", 14, new Color(0.35f, 0.30f, 0.50f, 1f), TextAlignmentOptions.Center, Vector2.zero, new Vector2(88, 88));
+                label.raycastTarget = false;
+            }
+            else label = labelTr.GetComponent<TextMeshProUGUI>();
+
+            m_Slots.Add((btn, thumb, lockIcon, label));
+        }
+    }
+
     private void RefreshCloset()
     {
         var coin = Get<TextMeshProUGUI>((int)Texts.CoinText);
         if (coin != null) coin.text = $"보유 코인  {SaveService.Coins}";
 
-        var sb = new StringBuilder();
-        int n = 0;
-        foreach (var id in SaveService.Skins)
-            if (id.StartsWith(m_Filter)) { sb.AppendLine($"- {id}  (스킨)"); n++; }
-        foreach (var id in SaveService.CodiItems)
-            if (id.StartsWith(m_Filter)) { sb.AppendLine($"- {id}"); n++; }
+        // 아웃핏 카탈로그에서 현재 카테고리(접두사)만
+        var items = new System.Collections.Generic.List<CodiOutfit>();
+        foreach (var o in CodiOutfit.Catalog())
+            if (o.name.StartsWith(m_Filter)) items.Add(o);
 
-        SetClosetList(n > 0 ? sb.ToString() : "보유한 아이템이 없어요.\n게임에서 코인을 모아보세요! (상점 준비 중)");
+        string equipped = SaveService.EquippedOutfit;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            var (btn, thumb, lockIcon, label) = m_Slots[i];
+            btn.onClick.RemoveAllListeners();
+            if (i >= items.Count)
+            {
+                if (thumb != null) thumb.enabled = false;
+                if (lockIcon != null) lockIcon.enabled = false;
+                if (label != null) label.text = "";
+                btn.interactable = false;
+                continue;
+            }
+
+            var item = items[i];
+            string id = item.name;
+            bool owned = SaveService.HasCodiItem(id) || item.Price <= 0;
+            bool on = equipped == id;
+            if (thumb != null)
+            {
+                var sp = item.ResolveThumbnail();
+                thumb.enabled = sp != null;
+                thumb.sprite = sp;
+                thumb.color = owned ? Color.white : new Color(0.65f, 0.65f, 0.7f, 1f);   // 잠금 = 어둡게
+            }
+            if (lockIcon != null) lockIcon.enabled = !owned;   // 잠금 = 자물쇠 표시
+            if (label != null)
+            {
+                label.alignment = owned ? TextAlignmentOptions.Center : TextAlignmentOptions.Bottom;
+                label.text = owned
+                    ? (on ? $"{item.DisplayName}\n[착용중]" : item.DisplayName)
+                    : $"{item.Price}코인";                       // 잠금 = 가격만
+            }
+            btn.interactable = true;
+            btn.onClick.AddListener(() => { if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick); OnClickItem(item); });
+        }
+
+        SetClosetList(items.Count == 0 ? "이 카테고리엔 아이템이 없어요." : "");
+    }
+
+    private void OnClickItem(CodiOutfit item)
+    {
+        string id = item.name;
+        if (!SaveService.HasCodiItem(id) && item.Price > 0)
+        {
+            if (SaveService.BuyCodiItem(id, item.Price))
+            {
+                SetClosetList($"'{item.DisplayName}' 구매 완료! (-{item.Price}코인)");
+                SaveService.EquippedOutfit = id;               // 구매 즉시 착용
+                MyPageSceneController.RefreshEquip();
+            }
+            else SetClosetList("코인이 부족해요.");
+        }
+        else
+        {
+            SaveService.EquippedOutfit = SaveService.EquippedOutfit == id ? "" : id;   // 토글
+            MyPageSceneController.RefreshEquip();
+        }
+        RefreshCloset();
     }
 
     private void SetClosetList(string msg)

@@ -1617,7 +1617,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MyPageSceneController
   m_CharacterPrefab: {fileID: 919132149155446097, guid: dacaf33136a5e7149b92c2cb765925eb, type: 3}
-  m_IdleController: {fileID: 9100000, guid: ec9df20bb5fa35e4db80d19f73a1bcd0, type: 2}
+  m_IdleController: {fileID: 0}
 --- !u!4 &2060134607
 Transform:
   m_ObjectHideFlags: 0
@@ -1658,7 +1658,7 @@ Transform:
   m_GameObject: {fileID: 2075186323}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 1.88, y: 0.71, z: 1.12}
+  m_LocalPosition: {x: 1.88, y: 0.71, z: 2.06}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

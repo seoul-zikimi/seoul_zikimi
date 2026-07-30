@@ -75,15 +75,23 @@ public class MirrorReflection : MonoBehaviour
             var ch = GameObject.Find("~PreviewCharacter");
             if (ch == null) return;
             m_Char = ch.transform;
-            SetLayerRecursively(ch.transform, kMirrorLayer);   // 거울 카메라 전용 레이어(메인 카메라도 이 레이어를 그림)
-            m_CharRenderers = ch.GetComponentsInChildren<Renderer>();
         }
 
+        // 옷 갈아입기(조각 생성/파괴)로 렌더러가 바뀌므로 매 프레임 다시 수집 + 레이어 재적용
+        SetLayerRecursively(m_Char, kMirrorLayer);   // 거울 카메라 전용 레이어(메인 카메라도 이 레이어를 그림)
+        m_CharRenderers = m_Char.GetComponentsInChildren<Renderer>();
+
         // 매 프레임 실제 키·발 위치 측정(스폰 직후 낙하 → 착지로 위치가 변해도 따라감)
-        if (m_CharRenderers != null && m_CharRenderers.Length > 0)
+        bool got = false;
+        var b = new Bounds();
+        foreach (var r in m_CharRenderers)
         {
-            var b = m_CharRenderers[0].bounds;
-            for (int i = 1; i < m_CharRenderers.Length; i++) b.Encapsulate(m_CharRenderers[i].bounds);
+            if (r == null) continue;
+            if (!got) { b = r.bounds; got = true; }
+            else b.Encapsulate(r.bounds);
+        }
+        if (got)
+        {
             m_CharHeight = Mathf.Max(0.3f, b.size.y);
             m_FeetY = b.min.y;
         }
