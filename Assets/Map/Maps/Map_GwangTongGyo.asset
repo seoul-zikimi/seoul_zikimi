@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: 
   m_BackgroundPrefab: {fileID: 9012943349204021915, guid: 59b619c108b875c4f81bf86540b8f6a1, type: 3}
-  m_Answers: []
+  m_Answers:
+  - {fileID: 11400000, guid: 6e284a00050152841a14f5778a3d31a5, type: 2}
   m_Thumbnail: {fileID: 0}
