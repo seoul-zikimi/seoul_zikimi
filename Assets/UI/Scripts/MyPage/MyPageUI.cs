@@ -16,7 +16,7 @@ public class MyPageUI : UIHUD
 
     // 아이템 id 접두사 = 카테고리 컨벤션 (skin_ 등). 아웃핏 = Resources/CodiOutfits
     private string m_Filter = "";
-    private readonly System.Collections.Generic.List<(Button btn, Image thumb, Image lockIcon, TextMeshProUGUI label)> m_Slots = new();
+    private readonly System.Collections.Generic.List<(Button btn, Image thumb, Image lockIcon, TextMeshProUGUI label, Image labelBg)> m_Slots = new();
 
     public override void Init()
     {
@@ -87,6 +87,19 @@ public class MyPageUI : UIHUD
             }
             else thumb = thumbTr.GetComponent<Image>();
 
+            // 썸네일 위 옅은 흰 오버레이(슬롯 전체) — 어두운 썸네일에서도 글씨가 읽히게
+            Image labelBg;
+            var lbgTr = t.Find("LabelBG");
+            if (lbgTr == null)
+            {
+                var rt = JobsnailUiKit.Rect("LabelBG", t, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                rt.SetSiblingIndex(1);   // ThumbBG 바로 위
+                labelBg = rt.gameObject.AddComponent<Image>();
+                labelBg.color = new Color(1f, 1f, 1f, 0.35f);
+                labelBg.raycastTarget = false;
+            }
+            else labelBg = lbgTr.GetComponent<Image>();
+
             Image lockIcon;
             var lockTr = t.Find("LockIcon");
             if (lockTr == null)
@@ -103,12 +116,24 @@ public class MyPageUI : UIHUD
             var labelTr = t.Find("ItemLabel");
             if (labelTr == null)
             {
-                label = JobsnailUiKit.Label("ItemLabel", t, "", 14, new Color(0.35f, 0.30f, 0.50f, 1f), TextAlignmentOptions.Center, Vector2.zero, new Vector2(88, 88));
+                label = JobsnailUiKit.Label("ItemLabel", t, "", 14, Color.white, TextAlignmentOptions.Center, Vector2.zero, new Vector2(88, 88));
                 label.raycastTarget = false;
             }
             else label = labelTr.GetComponent<TextMeshProUGUI>();
+            // 라벨 영역 = 아래 흰 띠와 동일(그 안에서 가운데 정렬)
+            var lrt = label.rectTransform;
+            lrt.anchorMin = new Vector2(0f, 0f);
+            lrt.anchorMax = new Vector2(1f, 0f);
+            lrt.pivot = new Vector2(0.5f, 0.5f);
+            lrt.anchoredPosition = new Vector2(0f, 18f);
+            lrt.sizeDelta = new Vector2(-6f, 34f);
+            label.color = new Color32(20, 20, 25, 255);
+            label.fontStyle = FontStyles.Bold;
+            label.fontSize = 14;
+            label.enableAutoSizing = true;                 // 두 줄(착용중)일 때 자동 축소
+            label.fontSizeMin = 10; label.fontSizeMax = 14;
 
-            m_Slots.Add((btn, thumb, lockIcon, label));
+            m_Slots.Add((btn, thumb, lockIcon, label, labelBg));
         }
     }
 
@@ -125,18 +150,50 @@ public class MyPageUI : UIHUD
         string equipped = SaveService.EquippedOutfit;
         for (int i = 0; i < m_Slots.Count; i++)
         {
-            var (btn, thumb, lockIcon, label) = m_Slots[i];
+            var (btn, thumb, lockIcon, label, labelBg) = m_Slots[i];
             btn.onClick.RemoveAllListeners();
-            if (i >= items.Count)
+
+            // 0번 슬롯 = 기본 모습(스킨 없음) — 항상 보유, 클릭 = 전부 벗기
+            if (i == 0)
+            {
+                bool bare = string.IsNullOrEmpty(equipped);
+                if (thumb != null)
+                {
+                    var sp = Resources.Load<Sprite>("UI_pngs/MyPage/Thumb_default");
+                    thumb.enabled = sp != null;
+                    thumb.sprite = sp;
+                    thumb.color = Color.white;
+                }
+                if (lockIcon != null) lockIcon.enabled = false;
+                if (labelBg != null) labelBg.enabled = true;
+                if (label != null)
+                {
+                    label.alignment = TextAlignmentOptions.Bottom;
+                    label.text = bare ? "기본 모습\n[착용중]" : "기본 모습";
+                }
+                btn.interactable = true;
+                btn.onClick.AddListener(() =>
+                {
+                    if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+                    SaveService.EquippedOutfit = "";
+                    MyPageSceneController.RefreshEquip();
+                    RefreshCloset();
+                });
+                continue;
+            }
+
+            int idx = i - 1;   // 1번 슬롯부터 아이템
+            if (idx >= items.Count)
             {
                 if (thumb != null) thumb.enabled = false;
                 if (lockIcon != null) lockIcon.enabled = false;
+                if (labelBg != null) labelBg.enabled = false;
                 if (label != null) label.text = "";
                 btn.interactable = false;
                 continue;
             }
 
-            var item = items[i];
+            var item = items[idx];
             string id = item.name;
             bool owned = SaveService.HasCodiItem(id) || item.Price <= 0;
             bool on = equipped == id;
@@ -148,9 +205,10 @@ public class MyPageUI : UIHUD
                 thumb.color = owned ? Color.white : new Color(0.65f, 0.65f, 0.7f, 1f);   // 잠금 = 어둡게
             }
             if (lockIcon != null) lockIcon.enabled = !owned;   // 잠금 = 자물쇠 표시
+            if (labelBg != null) labelBg.enabled = true;
             if (label != null)
             {
-                label.alignment = owned ? TextAlignmentOptions.Center : TextAlignmentOptions.Bottom;
+                label.alignment = TextAlignmentOptions.Bottom;   // 글씨는 항상 아래 흰 띠 위에
                 label.text = owned
                     ? (on ? $"{item.DisplayName}\n[착용중]" : item.DisplayName)
                     : $"{item.Price}코인";                       // 잠금 = 가격만
