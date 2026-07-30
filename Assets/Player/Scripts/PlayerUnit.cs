@@ -188,7 +188,7 @@ namespace Player
             for (int i = 0; i < 300; i++)
             {
                 var gm = FindFirstObjectByType<GridSystem.GridManager>();
-                if (gm != null)
+                if (gm != null && !GridSystem.MapLoader.Pending)   // 맵 마커(Spot_*)로 그리드가 이동할 수 있어 적용 후 배치
                 {
                     yield return null;
                     PlaceOnGrid(gm);
