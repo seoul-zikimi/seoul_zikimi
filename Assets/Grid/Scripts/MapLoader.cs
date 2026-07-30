@@ -59,11 +59,17 @@ namespace GridSystem
                 var target = GameObject.Find(targetName);
                 if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상이 씬에 없음: {targetName}"); continue; }
 
-                target.transform.SetPositionAndRotation(t.position, t.rotation);
-
-                // 그리드 기준점 갱신 — GridManager를 옮기면 정답·배치 좌표가 전부 이 값 기준
+                // 그리드는 회전 불가(셀=월드축 정렬) — GridManager는 위치만 적용하고 기준점 갱신
                 var gm = target.GetComponent<GridManager>();
-                if (gm != null) GridContract.Origin = gm.transform.position;
+                if (gm != null)
+                {
+                    target.transform.position = t.position;
+                    GridContract.Origin = gm.transform.position;
+                }
+                else
+                {
+                    target.transform.SetPositionAndRotation(t.position, t.rotation);
+                }
 
                 Debug.Log($"[MapLoader] 맵 마커 적용: {targetName} → {t.position}");
             }
