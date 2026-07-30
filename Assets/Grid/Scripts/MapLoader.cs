@@ -12,9 +12,15 @@ namespace GridSystem
         /// <summary>배경 스폰 직후(루트 전달). 시야가림 페이드 등 후처리는 바깥(Assembly-CSharp)이 구독 — asmdef 역참조 회피.</summary>
         public static event System.Action<GameObject> BackgroundSpawned;
 
+        /// <summary>배경/마커 적용 전이면 true — 플레이어 배치 등은 이게 풀릴 때까지 대기(맵별 위치 레이스 방지).</summary>
+        public static bool Pending { get; private set; }
+
         private GameLoopManager m_Loop;
         private GameObject m_Spawned;
         private int m_SpawnedIndex = -1;
+
+        private void Awake() => Pending = true;
+        private void OnDestroy() => Pending = false;   // 씬 전환 시 대기 해제
 
         private void Update()
         {
@@ -28,7 +34,7 @@ namespace GridSystem
             var def = catalog != null ? catalog.Get(idx) : null;
             if (def == null || def.BackgroundPrefab == null)
             {
-                if (m_SpawnedIndex < 0) { m_SpawnedIndex = idx; Debug.LogWarning("[MapLoader] MapCatalog/배경 프리팹 없음 — 배경 미스폰"); }
+                if (m_SpawnedIndex < 0) { m_SpawnedIndex = idx; Pending = false; Debug.LogWarning("[MapLoader] MapCatalog/배경 프리팹 없음 — 배경 미스폰"); }
                 return;
             }
 
@@ -36,7 +42,31 @@ namespace GridSystem
             m_Spawned = Instantiate(def.BackgroundPrefab);
             m_Spawned.name = $"~MapBackground({def.DisplayName})";
             m_SpawnedIndex = idx;
+            ApplySpots(m_Spawned);                  // 맵 마커(Spot_*)대로 시스템 오브젝트 이동 — 후처리·플레이어 배치보다 먼저
+            Pending = false;
             BackgroundSpawned?.Invoke(m_Spawned);   // 시야가림 페이드 콜라이더 등 후처리 트리거
+        }
+
+        // 배경 프리팹 안의 "Spot_<오브젝트이름>" 마커 위치·회전대로 씬의 시스템 오브젝트를 이동.
+        // 예: Spot_GridManager, Spot_PaintStation, Spot_HammerStation, Spot_PlayerSpawnPoint.
+        // 마커가 없으면 기존 씬 위치 유지(하위 호환). 이름으로 찾으므로 asmdef 타입 참조 불필요.
+        private static void ApplySpots(GameObject bg)
+        {
+            foreach (var t in bg.GetComponentsInChildren<Transform>(true))
+            {
+                if (!t.name.StartsWith("Spot_")) continue;
+                string targetName = t.name.Substring("Spot_".Length);
+                var target = GameObject.Find(targetName);
+                if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상이 씬에 없음: {targetName}"); continue; }
+
+                target.transform.SetPositionAndRotation(t.position, t.rotation);
+
+                // 그리드 기준점 갱신 — GridManager를 옮기면 정답·배치 좌표가 전부 이 값 기준
+                var gm = target.GetComponent<GridManager>();
+                if (gm != null) GridContract.Origin = gm.transform.position;
+
+                Debug.Log($"[MapLoader] 맵 마커 적용: {targetName} → {t.position}");
+            }
         }
     }
 }
