@@ -3,15 +3,15 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// 아웃핏 추출 — 드레스업한 캐릭터(예: PreviewSnail 프리팹)를 선택하고
+/// 아웃핏 추출 — 드레스업한 저작용 스네일 프리팹(Assets/MyPage/*)을 선택하고
 /// Tools ▸ MyPage ▸ Extract Outfit From Selection 실행.
-/// 이름이 "Item_"으로 시작하는 조각(본에 붙여둔 glb 인스턴스)의 본·로컬값을 그대로 담아
-/// Resources/CodiOutfits/skin_safetyset.prefab 을 만든다(이름·가격은 프리팹에서 수정).
+/// **선택한 프리팹(또는 루트)의 이름이 곧 아웃핏 id**가 된다. 예: skin_safetyset, cloth_hoodie.
+/// 이름이 "Item_"으로 시작하는 조각(본에 붙여둔 glb 인스턴스)의 본 상대 포즈를 담아
+/// Resources/CodiOutfits/&lt;id&gt;.prefab 을 만든다. 재추출해도 이름·가격·썸네일·여유배율은 보존.
 /// </summary>
 public static class CodiOutfitExtractor
 {
     private const string kDstDir = "Assets/Resources/CodiOutfits";
-    private const string kDefaultId = "skin_safetyset";
 
     [MenuItem("Tools/MyPage/Extract Outfit From Selection")]
     public static void Extract()
@@ -19,9 +19,12 @@ public static class CodiOutfitExtractor
         var sel = Selection.activeGameObject;
         if (sel == null)
         {
-            EditorUtility.DisplayDialog("아웃핏 추출", "드레스업한 캐릭터(PreviewSnail 프리팹 또는 씬 인스턴스)를 선택하고 실행해 주세요.", "확인");
+            EditorUtility.DisplayDialog("아웃핏 추출", "드레스업한 저작용 스네일 프리팹(또는 씬 인스턴스)을 선택하고 실행해 주세요.\n프리팹 이름 = 아웃핏 id (예: skin_safetyset)", "확인");
             return;
         }
+
+        string id = sel.name.Replace("(Clone)", "").Trim();
+        if (id.StartsWith("PreviewSnail")) id = "skin_safetyset";   // 구버전 이름 호환
 
         // 프리팹 에셋을 선택했으면 임시 인스턴스로
         GameObject root = sel;
@@ -32,10 +35,22 @@ public static class CodiOutfitExtractor
             temp = true;
         }
 
-        var outfitRoot = new GameObject(kDefaultId);
+        var outfitRoot = new GameObject(id);
         var meta = outfitRoot.AddComponent<CodiOutfit>();
-        meta.DisplayName = "안전복 세트";
+        meta.DisplayName = id;
         meta.Price = 100;
+
+        // 기존 아웃핏이 있으면 이름·가격·썸네일·여유배율 보존
+        string path = $"{kDstDir}/{id}.prefab";
+        var old = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        var oldMeta = old != null ? old.GetComponent<CodiOutfit>() : null;
+        if (oldMeta != null)
+        {
+            meta.DisplayName = oldMeta.DisplayName;
+            meta.Price = oldMeta.Price;
+            meta.Thumbnail = oldMeta.Thumbnail;
+            meta.ScaleMargin = oldMeta.ScaleMargin;
+        }
 
         // 포즈 기준 = Animator 노드(model.fbx 루트) — 적용 쪽(CodiOutfit.Apply)과 동일 기준
         var rootAnim = root.GetComponentInChildren<Animator>(true);
@@ -72,12 +87,11 @@ public static class CodiOutfitExtractor
         }
 
         Directory.CreateDirectory(kDstDir);
-        string path = $"{kDstDir}/{kDefaultId}.prefab";
-        if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
+        if (old != null) AssetDatabase.DeleteAsset(path);
         PrefabUtility.SaveAsPrefabAsset(outfitRoot, path);
         Object.DestroyImmediate(outfitRoot);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log($"[Outfit] 저장 완료 → {path} (조각 {n}개). 이름·가격은 프리팹 CodiOutfit에서 수정하세요.");
+        Debug.Log($"[Outfit] 저장 완료 → {path} (id '{id}', 조각 {n}개). 이름·가격은 프리팹 CodiOutfit에서 수정하세요.");
     }
 }
