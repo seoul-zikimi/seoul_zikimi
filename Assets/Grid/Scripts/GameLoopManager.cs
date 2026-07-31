@@ -38,7 +38,10 @@ namespace GridSystem
         private readonly NetworkVariable<int> m_Mode =
             new((int)GameModeKind.TimeAttack, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkList<TeamEntry> m_Teams = new();   // 2vs2 팀 배정(서버 관리, 접속순 번갈아)
+        private readonly NetworkVariable<int> m_Winner =
+            new(-2, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // -2=미정 -1=무승부 0/1=승리 팀
         private GameModeCatalog m_Modes;
+        private int m_SurrenderWinner = -2;   // 서버: 항복으로 확정된 승자(-2=없음)
 
         private GridManager m_Grid;
         private GridNetwork m_Net;
@@ -78,6 +81,9 @@ namespace GridSystem
         public int LocalTeam =>
             (IsSpawned && NetworkManager.Singleton != null) ? GetTeam(NetworkManager.Singleton.LocalClientId) : -1;
 
+        /// <summary>2vs2 승자 팀(-2=미정, -1=무승부, 0/1). 종료 시 확정.</summary>
+        public int WinnerTeam => m_Winner.Value;
+
         public float TimeLimit
         {
             get
@@ -114,6 +120,7 @@ namespace GridSystem
             if (IsServer) m_MapIndex.Value = HostSelectedMap;   // 배경 맵 확정(전원 동기화)
             if (IsServer) m_Mode.Value = Mathf.Clamp(HostSelectedMode, 0, 2);   // 모드 확정(전원 동기화)
             ApplyMapAnswers();                         // 맵 전용 정답 세트가 있으면 교체(서버 랜덤픽 전에!)
+            m_Grid.ConfigureVersus(IsVersus);          // 2vs2: 그리드 X 2배 + 분할벽(전 피어, 블록 배치 전)
             if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
@@ -212,7 +219,11 @@ namespace GridSystem
             for (int i = m_Teams.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Teams[i].Id)) m_Teams.RemoveAt(i);
             AssignTeams(ids);   // 2vs2: 새 접속자 팀 배정(협동 모드는 no-op)
-            if (ids.Count > 0 && m_Consents.Count >= ids.Count)
+            if (IsBuilding && IsVersus)
+            {
+                TryTeamSurrender(ids);   // 2vs2 건축중: 팀 전원 동의 = 그 팀 항복(즉시 패배)
+            }
+            else if (ids.Count > 0 && m_Consents.Count >= ids.Count)
             {
                 if (IsBuilding) Finish();   // 건축 전원동의 → 종료
                 else            Restart();  // 종료 전원동의 → 재시작
@@ -237,8 +248,49 @@ namespace GridSystem
             if (!IsBuilding) return;
             if (IsServer && m_Net != null)
                 m_Net.RecomputeScore();
+
+            // 2vs2: 승패 확정 — 항복이 있으면 그대로, 아니면 완성도(점수) 비교. 동점=무승부.
+            if (IsServer && IsVersus && m_Net != null)
+            {
+                if (m_SurrenderWinner >= 0) m_Winner.Value = m_SurrenderWinner;
+                else
+                {
+                    int a = m_Net.ScoreFor(0).score, b = m_Net.ScoreFor(1).score;
+                    m_Winner.Value = a == b ? -1 : (a > b ? 0 : 1);
+                }
+            }
+            m_SurrenderWinner = -2;
+
             m_Phase.Value = (int)GamePhase.Finished;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);   // 종료 진입 → 동의 초기화(재시작 동의는 새로 받음)
+        }
+
+        // 서버: 2vs2 조기 종료 = 항복(기획). 해당 팀 전원이 동의하면 그 팀 패배로 즉시 종료.
+        private bool TryTeamSurrender(System.Collections.Generic.IReadOnlyList<ulong> ids)
+        {
+            for (int team = 0; team <= 1; team++)
+            {
+                int members = 0, agreed = 0;
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    if (GetTeam(ids[i]) != team) continue;
+                    members++;
+                    if (Contains2(m_Consents, ids[i])) agreed++;
+                }
+                if (members > 0 && agreed >= members)
+                {
+                    m_SurrenderWinner = 1 - team;
+                    Finish();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool Contains2(NetworkList<ulong> list, ulong id)
+        {
+            for (int i = 0; i < list.Count; i++) if (list[i] == id) return true;
+            return false;
         }
 
         // Enter = 동의 토글(건축중=종료 동의 / 종료화면=재시작 동의). 두 페이즈 모두 유효.
@@ -299,6 +351,7 @@ namespace GridSystem
         // 종료 화면에서 접속 전원이 재시작 동의 → 새 랜덤 정답으로 다음 라운드(서버 전용, 전원동의 검사에서만 호출).
         private void Restart()
         {
+            m_Winner.Value = -2;                       // 2vs2 승패 초기화
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리

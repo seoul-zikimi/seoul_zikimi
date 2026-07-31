@@ -24,6 +24,24 @@ namespace GridSystem
         public Vector3Int GridSize => m_GridSize;
         public MaterialCatalog Catalog => m_Catalog;
 
+        // ── 2vs2: X축으로 그리드 2배(A|B 구역) + 중앙 분할벽 ──
+        private bool m_Versus;
+        public bool IsVersusGrid => m_Versus;
+        /// <summary>실제 그리드 크기(2vs2면 X 2배). 서버 그리드·바닥·구역 검사가 이 값을 쓴다.</summary>
+        public Vector3Int EffectiveSize => m_Versus ? new Vector3Int(m_GridSize.x * 2, m_GridSize.y, m_GridSize.z) : m_GridSize;
+        /// <summary>한 팀 구역 크기(=인스펙터 그리드 크기). 팀A: x∈[0,W), 팀B: x∈[W,2W).</summary>
+        public Vector3Int ZoneSize => m_GridSize;
+
+        /// <summary>2vs2 구성 — 스폰 직후(블록 배치 전) GameLoopManager가 호출. 그리드 재생성 + 바닥 확장 + 분할벽.</summary>
+        public void ConfigureVersus(bool on)
+        {
+            if (m_Versus == on) return;
+            m_Versus = on;
+            Grid = new RuntimeGrid(EffectiveSize);
+            RebuildGround();
+            if (on) CreateCenterWall();
+        }
+
         /// <summary>고를 수 있는 정답 개수.</summary>
         public int AnswerCount => m_Answers != null ? m_Answers.Count : 0;
 
@@ -65,13 +83,39 @@ namespace GridSystem
         {
             float u = GridContract.Unit;
             Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);   // 그리드 min-corner(바닥)
-            float sx = m_GridSize.x * u, sz = m_GridSize.z * u;
+            float sx = EffectiveSize.x * u, sz = EffectiveSize.z * u;
             const float thick = 1f, margin = 4f;
 
             var go = new GameObject("~Ground");
             go.transform.SetParent(transform, false);
             go.transform.position = new Vector3(baseW.x + sx * 0.5f, baseW.y - thick * 0.5f, baseW.z + sz * 0.5f);
             go.AddComponent<BoxCollider>().size = new Vector3(sx + margin, thick, sz + margin);
+        }
+
+        // 그리드 크기가 바뀌면(2vs2) 바닥 콜라이더 재생성.
+        private void RebuildGround()
+        {
+            var old = transform.Find("~Ground");
+            if (old != null) Destroy(old.gameObject);
+            CreateGround();
+        }
+
+        // 2vs2 중앙 분할벽 — 넘어갈 수 없는 물리벽 + 반투명 비주얼. 코스메틱+물리라 각 클라 로컬 생성으로 충분(결정적).
+        private void CreateCenterWall()
+        {
+            float u = GridContract.Unit;
+            var size = EffectiveSize;
+            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
+            float wallH = size.y * u + 6f;
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "~VersusWall";
+            go.transform.SetParent(transform, false);
+            go.transform.position = new Vector3(baseW.x + ZoneSize.x * u, baseW.y + wallH * 0.5f, baseW.z + size.z * 0.5f * u);
+            go.transform.localScale = new Vector3(0.3f, wallH, size.z * u + 10f);
+            var r = go.GetComponent<Renderer>();
+            r.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"))   // 빌드 셰이더 스트립 대비 명시 URP Lit
+            { color = new Color(0.35f, 0.35f, 0.42f, 1f) };
         }
 
         public void EnsureGrid()
