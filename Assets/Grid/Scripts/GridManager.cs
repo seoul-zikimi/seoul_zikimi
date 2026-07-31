@@ -39,7 +39,11 @@ namespace GridSystem
             m_Versus = on;
             Grid = new RuntimeGrid(EffectiveSize);
             RebuildGround();
-            if (on) CreateCenterWall();
+            if (on)
+            {
+                CreateCenterWall();
+                MirrorBackgroundForVersus();
+            }
         }
 
         /// <summary>고를 수 있는 정답 개수.</summary>
@@ -114,8 +118,40 @@ namespace GridSystem
             go.transform.position = new Vector3(baseW.x + ZoneSize.x * u, baseW.y + wallH * 0.5f, baseW.z + size.z * 0.5f * u);
             go.transform.localScale = new Vector3(0.3f, wallH, size.z * u + 10f);
             var r = go.GetComponent<Renderer>();
-            r.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"))   // 빌드 셰이더 스트립 대비 명시 URP Lit
-            { color = new Color(0.35f, 0.35f, 0.42f, 1f) };
+            r.sharedMaterial = MakeTransparent(new Color(0.7f, 0.85f, 1f, 0.15f));   // 투명벽(기획) — 상대 진영 보임
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        // URP Lit 투명 머티리얼(런타임 생성). 빌드 셰이더 스트립 대비 명시 URP Lit.
+        private static Material MakeTransparent(Color color)
+        {
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = color };
+            mat.SetFloat("_Surface", 1f);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return mat;
+        }
+
+        // 2vs2: 배경("Background")을 분할벽 중심 기준 180° 회전 복제 — 팀B 진영도 같은 풍경(점대칭).
+        // 복제본은 비주얼 전용(콜라이더·스크립트 제거). 배경이 없으면 조용히 넘어감.
+        private void MirrorBackgroundForVersus()
+        {
+            var bg = GameObject.Find("Background");
+            if (bg == null) return;
+
+            float u = GridContract.Unit;
+            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
+            Vector3 pivot = new Vector3(baseW.x + ZoneSize.x * u, 0f, baseW.z + EffectiveSize.z * 0.5f * u);
+
+            var clone = Instantiate(bg);
+            clone.name = "~VersusMirrorBackground";
+            foreach (var c in clone.GetComponentsInChildren<Collider>(true)) Destroy(c);
+            foreach (var s in clone.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(s);   // 비주얼만 유지
+            clone.transform.RotateAround(pivot, Vector3.up, 180f);
         }
 
         public void EnsureGrid()
