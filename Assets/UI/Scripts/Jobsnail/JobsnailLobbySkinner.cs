@@ -1003,7 +1003,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             : m_LobbyRoomOverlay.transform;
         m_CustomLobbyModeButton = MakeFixedButton(
             parent, kModeLabels[0], new Vector2(305, -190), new Vector2(145, 40),
-            CycleGameMode, 13, new Color(1f, 0.92f, 0.76f, 1f));   // 오버레이 크림톤·게임시작과 같은 폭
+            CycleGameMode, 13, new Color(1f, 0.78f, 0.44f, 1f));   // 게임시작과 같은 주황·같은 폭
     }
 
     private void CycleGameMode()
