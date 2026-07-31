@@ -51,7 +51,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private Button m_CustomLobbyStartButton;
     private Button m_CustomLobbyReadyButton;
     private Button m_CustomLobbyModeButton;   // 방장 전용 — 게임 모드 순환 토글
-    private static readonly string[] kModeLabels = { "모드: 타임어택", "모드: 2vs2 대결", "모드: 자유 건축" };
+    private static readonly string[] kModeLabels = { "모드 · 타임어택", "모드 · 2vs2 대결", "모드 · 자유 건축" };
     private Text m_CustomLobbyStartHint;
     private Text m_CustomLobbyReadyStatus;
     private Text m_CustomLobbyRoomNameText;
@@ -1002,8 +1002,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             ? m_LobbyRoomOverlay.transform.GetChild(0)
             : m_LobbyRoomOverlay.transform;
         m_CustomLobbyModeButton = MakeFixedButton(
-            parent, kModeLabels[0], new Vector2(305, -45), new Vector2(200, 44),
-            CycleGameMode, 18, new Color(0.66f, 0.80f, 1f, 1f));
+            parent, kModeLabels[0], new Vector2(305, -190), new Vector2(145, 40),
+            CycleGameMode, 13, new Color(1f, 0.92f, 0.76f, 1f));   // 오버레이 크림톤·게임시작과 같은 폭
     }
 
     private void CycleGameMode()
