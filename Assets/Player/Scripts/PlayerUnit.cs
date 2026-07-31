@@ -188,7 +188,8 @@ namespace Player
             for (int i = 0; i < 300; i++)
             {
                 var gm = FindFirstObjectByType<GridSystem.GridManager>();
-                if (gm != null && !GridSystem.MapLoader.Pending)   // 맵 마커(Spot_*)로 그리드가 이동할 수 있어 적용 후 배치
+                // 맵 마커(Spot_*) 적용 후 + 2vs2 팀 배정 복제 후 배치
+                if (gm != null && !GridSystem.MapLoader.Pending && TeamReady(gm))
                 {
                     yield return null;
                     PlaceOnGrid(gm);
@@ -213,6 +214,16 @@ namespace Player
             m_SpawnRoutine = null;
         }
 
+        // 2vs2에서만: 내 팀 배정이 복제됐는지(협동 모드는 항상 true). 300프레임 상한은 기존 루프가 보장.
+        private bool TeamReady(GridSystem.GridManager gm)
+        {
+            var loop = gm.GetComponent<GridSystem.GameLoopManager>();
+            if (loop == null) return true;          // 루프 없는 씬(테스트 등)
+            if (!loop.IsSpawned) return false;      // 모드 확정 전 — 잠시 대기(300프레임 상한)
+            if (!loop.IsVersus) return true;
+            return loop.GetTeam(OwnerClientId) >= 0;
+        }
+
         private void PlaceOnGrid(GridSystem.GridManager gm)
         {
             if (gm == null)
@@ -224,9 +235,16 @@ namespace Player
             Vector3Int size = gm.GridSize;
             Vector3 gridCenter = gm.transform.position + new Vector3(size.x * 0.5f, 0f, size.z * 0.5f) * u;
 
-            // 씬에 PlayerSpawnPoint 마커가 있으면 그 위치 우선(맵 마커 Spot_PlayerSpawnPoint로 맵별 이동 가능)
+            var loop = gm.GetComponent<GridSystem.GameLoopManager>();
+            bool versus = loop != null && loop.IsVersus;
+
+            // 협동: 씬 PlayerSpawnPoint 마커가 있으면 그 위치 우선(Spot_PlayerSpawnPoint로 맵별 이동)
             var sp = FindFirstObjectByType<PlayerSpawnPoint>();
-            if (sp != null) gridCenter = sp.transform.position;
+            if (!versus && sp != null) gridCenter = sp.transform.position;
+
+            // 2vs2: 팀B는 오른쪽 구역(x+구역폭) 중앙에 스폰 — 분할벽 너머 자기 진영
+            if (versus && loop.GetTeam(OwnerClientId) == 1)
+                gridCenter += new Vector3(size.x * u, 0f, 0f);
 
             Vector3 spawn = gridCenter + Vector3.up * 2f;
 

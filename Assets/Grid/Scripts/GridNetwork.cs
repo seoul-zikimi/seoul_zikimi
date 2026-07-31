@@ -15,8 +15,12 @@ namespace GridSystem
         private readonly NetworkList<CellEntry> m_Cells = new();
         private readonly NetworkVariable<ScoreSnapshot> m_Score =
             new(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<ScoreSnapshot> m_ScoreB =
+            new(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 2vs2 팀B
         public ScoreSnapshot Score => m_Score.Value;
         public float ScorePercent => m_Score.Value.Percent;
+        /// <summary>2vs2 팀별 점수(0=A, 1=B). 협동 모드는 팀 무관하게 m_Score.</summary>
+        public ScoreSnapshot ScoreFor(int team) => team == 1 ? m_ScoreB.Value : m_Score.Value;
 
         /// <summary>복제된 상태 기준 해당 셀이 비어있는지(클라이언트도 호출 가능). 배치 전 사전 검사용.</summary>
         public bool IsCellFree(Vector3Int cell)
@@ -45,6 +49,7 @@ namespace GridSystem
         }
 
         private GridManager m_Manager;
+        private GameLoopManager m_Loop;        // 같은 오브젝트(2vs2 팀·구역 판정용)
         private MaterialDropField m_DropField; // 같은 오브젝트(붕괴/철거 재료를 바닥에 떨굼)
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
         private ulong m_OwnerCounter;         // 서버 전용 고유 ownerObjectId 발급
@@ -55,13 +60,18 @@ namespace GridSystem
         {
             m_Manager = GetComponent<GridManager>();
             m_DropField = GetComponent<MaterialDropField>();
+            m_Loop = GetComponent<GameLoopManager>();
         }
 
         public override void OnNetworkSpawn()
         {
             if (IsServer)
             {
-                m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+                // 2vs2면 X 2배(A|B 구역) — 서버(=호스트)에서는 로비 선택값을 스폰 순서와 무관하게 읽을 수 있다.
+                bool versus = GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus;
+                var size = m_Manager.GridSize;
+                if (versus) size.x *= 2;
+                m_ServerGrid = new RuntimeGrid(size);
                 m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);   // 환경 바닥·스캐폴드도 지지로 인정
             }
 
@@ -127,12 +137,24 @@ namespace GridSystem
         public void RequestProcess(Vector3Int cell, int processBit, bool apply) => ProcessRpc(cell, processBit, apply);
         public void RequestShock(Vector3Int cell) => ShockRpc(cell);   // 트리거①: 외부충격(플레이어 부딪힘)
 
+        // 2vs2: 요청 셀이 요청자 팀 구역(A: x<W, B: x≥W) 안인지. 협동 모드는 항상 허용.
+        private bool ZoneAllowed(ulong sender, Vector3Int cell)
+        {
+            if (m_Loop == null || !m_Loop.IsVersus) return true;
+            int team = m_Loop.GetTeam(sender);
+            if (team < 0) return false;
+            int half = m_Manager.ZoneSize.x;
+            return team == 0 ? cell.x < half : cell.x >= half;
+        }
+
         [Rpc(SendTo.Server)]
-        private void PlaceRpc(Vector3Int anchor, int materialId, byte rot)
+        private void PlaceRpc(Vector3Int anchor, int materialId, byte rot, RpcParams rpc = default)
         {
             var mat = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(materialId) : null;
             if (mat == null || !m_ServerGrid.CanPlace(anchor, mat, rot)) return;
             if (!m_ServerGrid.WouldBeSupported(anchor, mat, rot)) return;   // 허공(지지 없음) 배치 거부
+            foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
+                if (!ZoneAllowed(rpc.Receive.SenderClientId, c)) return;    // 2vs2: 자기 구역에만 배치
 
             ulong owner = ++m_OwnerCounter;
             m_ServerGrid.Place(anchor, mat, rot, owner);
@@ -174,8 +196,9 @@ namespace GridSystem
         }
 
         [Rpc(SendTo.Server)]
-        private void RemoveRpc(Vector3Int cell)
+        private void RemoveRpc(Vector3Int cell, RpcParams rpc = default)
         {
+            if (!ZoneAllowed(rpc.Receive.SenderClientId, cell)) return;   // 2vs2: 자기 구역만 철거
             var cs = m_ServerGrid.GetCell(cell);
             if (!cs.occupied) return;
             ulong owner = cs.ownerObjectId;
@@ -336,8 +359,11 @@ namespace GridSystem
 #endif
 
         [Rpc(SendTo.Server)]
-        private void ProcessRpc(Vector3Int cell, int processBit, bool apply)
-            => ApplyProcessServer(cell, (ProcessType)processBit, apply);
+        private void ProcessRpc(Vector3Int cell, int processBit, bool apply, RpcParams rpc = default)
+        {
+            if (!ZoneAllowed(rpc.Receive.SenderClientId, cell)) return;   // 2vs2: 자기 구역만 공정
+            ApplyProcessServer(cell, (ProcessType)processBit, apply);
+        }
 
         public void RequestCancelLast(Vector3Int cell) => CancelLastRpc(cell);
 
@@ -400,13 +426,17 @@ namespace GridSystem
         public void RecomputeScore()
         {
             if (m_Manager.Answer == null) return;
-            var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);
-            m_Score.Value = new ScoreSnapshot
-            {
-                score = s.score, maxScore = s.maxScore, answerCells = s.answerCellCount,
-                placedCorrect = s.placedCorrect, processCorrect = s.processCorrect,
-            };
+            var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);   // 협동=전체 / 2vs2=팀A 구역
+            m_Score.Value = Snap(s);
+            if (m_Loop != null && m_Loop.IsVersus)   // 팀B: 같은 정답을 구역폭만큼 밀어서 채점
+                m_ScoreB.Value = Snap(m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog, new Vector3Int(m_Manager.ZoneSize.x, 0, 0)));
         }
+
+        private static ScoreSnapshot Snap(GridScore s) => new ScoreSnapshot
+        {
+            score = s.score, maxScore = s.maxScore, answerCells = s.answerCellCount,
+            placedCorrect = s.placedCorrect, processCorrect = s.processCorrect,
+        };
 
         /// <summary>게임 재시작용: 서버 그리드·복제 리스트를 비운다(→ 비주얼/점수 자동 0 갱신).</summary>
         public void ServerResetGrid()
