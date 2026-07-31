@@ -1,3 +1,4 @@
+using SeoulZikimi.Gameplay;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -30,6 +31,15 @@ namespace GridSystem
         private readonly NetworkList<ulong> m_Consents = new();   // 동의한 clientId (건축중=종료동의 / 종료중=재시작동의, 서버 관리)
         private readonly NetworkList<NameEntry> m_Names = new();   // 접속 플레이어 표시 이름(서버 관리, 정산서 명단용)
 
+        // ── 게임 모드(GameplayFramework 통합 1단계) ──
+        /// <summary>로비에서 방장이 고른 모드(0=타임어택, 1=2vs2, 2=자유). 서버 스폰 시 m_Mode로 복제.</summary>
+        public static int HostSelectedMode = (int)GameModeKind.TimeAttack;
+
+        private readonly NetworkVariable<int> m_Mode =
+            new((int)GameModeKind.TimeAttack, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkList<TeamEntry> m_Teams = new();   // 2vs2 팀 배정(서버 관리, 접속순 번갈아)
+        private GameModeCatalog m_Modes;
+
         private GridManager m_Grid;
         private GridNetwork m_Net;
         private bool m_UrgentBgmStarted;
@@ -51,7 +61,33 @@ namespace GridSystem
                 if (m_Names[i].Id == clientId) return m_Names[i].Name.ToString();
             return "";
         }
-        public float TimeLimit => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 0f;
+
+        // ── 모드 조회(전 클라 동일) ──
+        public GameModeKind Mode => (GameModeKind)m_Mode.Value;
+        public GameModeDefinition ModeDef => (m_Modes ??= GameModeCatalog.CreateDefault()).Get(Mode);
+        public bool IsVersus => Mode == GameModeKind.TeamVersus;
+
+        /// <summary>clientId의 팀(0=A, 1=B). 미배정/협동 모드는 -1.</summary>
+        public int GetTeam(ulong clientId)
+        {
+            for (int i = 0; i < m_Teams.Count; i++)
+                if (m_Teams[i].Id == clientId) return m_Teams[i].Team;
+            return -1;
+        }
+
+        public int LocalTeam =>
+            (IsSpawned && NetworkManager.Singleton != null) ? GetTeam(NetworkManager.Singleton.LocalClientId) : -1;
+
+        public float TimeLimit
+        {
+            get
+            {
+                var def = ModeDef;
+                if (def.TimeLimitPolicy == TimeLimitPolicy.Fixed) return def.FixedTimeLimitSeconds;        // 2vs2 = 7분 고정
+                if (def.TimeLimitPolicy == TimeLimitPolicy.Unlimited) return 0f;                            // 자유모드 = 무제한
+                return (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 0f;     // 타임어택 = 정답별
+            }
+        }
         public float Elapsed => Mathf.Max(0f, TimeLimit - TimeLeft);
         public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";
 
@@ -76,6 +112,7 @@ namespace GridSystem
             m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
             if (IsServer) m_MapIndex.Value = HostSelectedMap;   // 배경 맵 확정(전원 동기화)
+            if (IsServer) m_Mode.Value = Mathf.Clamp(HostSelectedMode, 0, 2);   // 모드 확정(전원 동기화)
             ApplyMapAnswers();                         // 맵 전용 정답 세트가 있으면 교체(서버 랜덤픽 전에!)
             if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
@@ -125,10 +162,27 @@ namespace GridSystem
 
         private void ResetTimerAndPhase()
         {
-            float t = (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 180f;
+            var def = ModeDef;
+            float t;
+            if (def.TimeLimitPolicy == TimeLimitPolicy.Fixed) t = def.FixedTimeLimitSeconds;          // 2vs2 = 7분 고정
+            else if (def.TimeLimitPolicy == TimeLimitPolicy.Unlimited) t = float.MaxValue;            // 자유모드
+            else t = (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 180f;
             m_TimeLeft.Value = Mathf.Max(1f, t);
             m_Phase.Value = (int)GamePhase.Building;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);
+        }
+
+        // 서버: 2vs2 팀 배정 — 미배정 접속자를 인원 적은 팀에 순서대로. 협동 모드는 배정 안 함.
+        private void AssignTeams(System.Collections.Generic.IReadOnlyList<ulong> ids)
+        {
+            if (!IsVersus) return;
+            for (int k = 0; k < ids.Count; k++)
+            {
+                if (GetTeam(ids[k]) >= 0) continue;
+                int a = 0, b = 0;
+                for (int i = 0; i < m_Teams.Count; i++) { if (m_Teams[i].Team == 0) a++; else b++; }
+                m_Teams.Add(new TeamEntry { Id = ids[k], Team = a <= b ? 0 : 1 });
+            }
         }
 
         private void Update()
@@ -155,6 +209,9 @@ namespace GridSystem
                 if (!Contains(ids, m_Consents[i])) m_Consents.RemoveAt(i);
             for (int i = m_Names.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Names[i].Id)) m_Names.RemoveAt(i);
+            for (int i = m_Teams.Count - 1; i >= 0; i--)
+                if (!Contains(ids, m_Teams[i].Id)) m_Teams.RemoveAt(i);
+            AssignTeams(ids);   // 2vs2: 새 접속자 팀 배정(협동 모드는 no-op)
             if (ids.Count > 0 && m_Consents.Count >= ids.Count)
             {
                 if (IsBuilding) Finish();   // 건축 전원동의 → 종료
@@ -213,6 +270,18 @@ namespace GridSystem
             for (int i = 0; i < m_Names.Count; i++)
                 if (m_Names[i].Id == sender) { var e = m_Names[i]; e.Name = name; m_Names[i] = e; return; }
             m_Names.Add(new NameEntry { Id = sender, Name = name });
+        }
+
+        private struct TeamEntry : INetworkSerializable, System.IEquatable<TeamEntry>
+        {
+            public ulong Id;
+            public int Team;   // 0=A, 1=B
+            public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+            {
+                serializer.SerializeValue(ref Id);
+                serializer.SerializeValue(ref Team);
+            }
+            public bool Equals(TeamEntry other) => Id == other.Id && Team == other.Team;
         }
 
         private struct NameEntry : INetworkSerializable, System.IEquatable<NameEntry>
