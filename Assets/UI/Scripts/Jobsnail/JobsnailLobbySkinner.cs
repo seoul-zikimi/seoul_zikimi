@@ -50,6 +50,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private bool m_IsStartingGame;
     private Button m_CustomLobbyStartButton;
     private Button m_CustomLobbyReadyButton;
+    private Button m_CustomLobbyModeButton;   // 방장 전용 — 게임 모드 순환 토글
+    private static readonly string[] kModeLabels = { "모드: 타임어택", "모드: 2vs2 대결", "모드: 자유 건축" };
     private Text m_CustomLobbyStartHint;
     private Text m_CustomLobbyReadyStatus;
     private Text m_CustomLobbyRoomNameText;
@@ -992,6 +994,24 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
     }
 
+    // 모드 버튼은 프리팹/코드 어느 빌드 경로든 오버레이가 생긴 뒤 한 번만 만든다(프리팹에 없어도 동작).
+    private void EnsureModeButton()
+    {
+        if (m_CustomLobbyModeButton != null || m_LobbyRoomOverlay == null) return;
+        Transform parent = m_LobbyRoomOverlay.transform.childCount > 0
+            ? m_LobbyRoomOverlay.transform.GetChild(0)
+            : m_LobbyRoomOverlay.transform;
+        m_CustomLobbyModeButton = MakeFixedButton(
+            parent, kModeLabels[0], new Vector2(305, -45), new Vector2(200, 44),
+            CycleGameMode, 18, new Color(0.66f, 0.80f, 1f, 1f));
+    }
+
+    private void CycleGameMode()
+    {
+        GridSystem.GameLoopManager.HostSelectedMode = (GridSystem.GameLoopManager.HostSelectedMode + 1) % 3;
+        UpdateCustomLobbyRoomOverlay();
+    }
+
     private static void MakeLobbySlot(Transform parent, Vector2 anchored, string name, string status, out GameObject slotRoot, out Text nameText, out Text statusText)
     {
         var slot = JobsnailUiKit.Box("LobbyUserSlot", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(295, 102), new Color(1f, 1f, 1f, 0.98f));
@@ -1028,6 +1048,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             m_CustomLobbyStatusBadgeImage.color = roomIsFullEnough
                 ? new Color(0.45f, 0.84f, 0.38f, 1f)
                 : new Color(1f, 0.78f, 0.44f, 1f);
+
+        // 게임 모드 토글(방장 전용) — 누를 때마다 타임어택→2vs2→자유 순환. 시작 시 전원 동기화됨.
+        EnsureModeButton();
+        if (m_CustomLobbyModeButton != null)
+        {
+            m_CustomLobbyModeButton.gameObject.SetActive(isHost);
+            int mode = Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMode, 0, 2);
+            SetButtonLabel(m_CustomLobbyModeButton, kModeLabels[mode]);
+        }
 
         if (m_CustomLobbyStartButton != null)
         {
