@@ -223,6 +223,11 @@ namespace Player
             float u = GridSystem.GridContract.Unit;
             Vector3Int size = gm.GridSize;
             Vector3 gridCenter = gm.transform.position + new Vector3(size.x * 0.5f, 0f, size.z * 0.5f) * u;
+
+            // 씬에 PlayerSpawnPoint 마커가 있으면 그 위치 우선(맵 마커 Spot_PlayerSpawnPoint로 맵별 이동 가능)
+            var sp = FindFirstObjectByType<PlayerSpawnPoint>();
+            if (sp != null) gridCenter = sp.transform.position;
+
             Vector3 spawn = gridCenter + Vector3.up * 2f;
 
             Vector3 rayOrigin = gridCenter + Vector3.up * 20f;

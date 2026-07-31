@@ -31,6 +31,14 @@ namespace GridSystem
             m_Drop = GetComponent<MaterialDropField>();
         }
 
+        /// <summary>맵 마커(Spot_DeliveryZone)로 배송 구역 이동 — MapLoader가 배경 스폰 시 호출. 비주얼 마커도 갱신.</summary>
+        public void SetDeliveryZone(Vector3 worldPos)
+        {
+            m_DeliveryZone = worldPos;
+            if (m_Marker != null)
+                m_Marker.transform.position = new Vector3(worldPos.x, 0.05f, worldPos.z);
+        }
+
         public override void OnNetworkSpawn()
         {
             // 배송 구역 바닥 마커(로컬 비주얼, 모든 클라) — 어디서 줍는지 보이게

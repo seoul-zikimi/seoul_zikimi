@@ -56,6 +56,16 @@ namespace GridSystem
             {
                 if (!t.name.StartsWith("Spot_")) continue;
                 string targetName = t.name.Substring("Spot_".Length);
+
+                // 배송 구역은 오브젝트가 아니라 MaterialDepot의 좌표 필드 — 전용 처리
+                if (targetName == "DeliveryZone")
+                {
+                    var depot = FindFirstObjectByType<MaterialDepot>();
+                    if (depot != null) { depot.SetDeliveryZone(t.position); Debug.Log($"[MapLoader] 맵 마커 적용: DeliveryZone → {t.position}"); }
+                    else Debug.LogWarning("[MapLoader] Spot_DeliveryZone 있으나 MaterialDepot 없음");
+                    continue;
+                }
+
                 var target = GameObject.Find(targetName);
                 if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상이 씬에 없음: {targetName}"); continue; }
 
