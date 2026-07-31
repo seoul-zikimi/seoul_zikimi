@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20201acce871a3c45b510babe7f8bb03, type: 3}
   m_Name: Map_GwangTongGyo
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
-  m_DisplayName: 
+  m_DisplayName: "\uCCAD\uACC4\uCC9C \uAD11\uD1B5\uAD50"
   m_BackgroundPrefab: {fileID: 9012943349204021915, guid: 59b619c108b875c4f81bf86540b8f6a1, type: 3}
   m_Answers:
   - {fileID: 11400000, guid: 6e284a00050152841a14f5778a3d31a5, type: 2}
