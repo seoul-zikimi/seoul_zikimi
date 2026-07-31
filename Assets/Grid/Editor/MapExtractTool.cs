@@ -27,8 +27,15 @@ namespace GridSystem.EditorTools
                 return;
             }
 
-            string mapName = root.scene.name == "GameScene" ? "GwangTongGyo" : root.scene.name;
-            mapName = EditorInputDialogFallback(mapName);
+            // 맵 이름은 저장 창에서 직접 정한다(파일명 = MapBg_이름). 기본값: 선택 오브젝트 이름(Background면 씬 기반).
+            string defaultName = (root.name != "Background") ? root.name
+                : (root.scene.name == "GameScene" ? "GwangTongGyo" : root.scene.name);
+            string chosen = EditorUtility.SaveFilePanelInProject(
+                "맵 이름 정하기", $"MapBg_{defaultName}", "prefab",
+                "새 맵의 이름을 정해주세요. 파일명이 MapBg_이름 형식이면 '이름'이 맵 이름이 됩니다.", kPrefabDir);
+            if (string.IsNullOrEmpty(chosen)) return;   // 취소
+            string mapName = Path.GetFileNameWithoutExtension(chosen);
+            if (mapName.StartsWith("MapBg_")) mapName = mapName.Substring("MapBg_".Length);
 
             // ① 배경 프리팹
             Directory.CreateDirectory(kPrefabDir);
@@ -86,7 +93,6 @@ namespace GridSystem.EditorTools
         }
 
         // 간단 이름 확정(다이얼로그 대신 씬/기본명 사용 — 필요하면 생성된 에셋 이름을 바꾸면 됨)
-        private static string EditorInputDialogFallback(string defaultName) => defaultName;
 
         /// <summary>선택한 MapDef의 썸네일 재촬영(배경을 바꾼 뒤 갱신용).</summary>
         [MenuItem("Tools/Map/Regenerate Map Thumbnail")]
