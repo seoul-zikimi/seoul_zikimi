@@ -136,22 +136,26 @@ namespace GridSystem
             return mat;
         }
 
-        // 2vs2: 배경("Background")을 분할벽 중심 기준 180° 회전 복제 — 팀B 진영도 같은 풍경(점대칭).
-        // 복제본은 비주얼 전용(콜라이더·스크립트 제거). 배경이 없으면 조용히 넘어감.
+        // 2vs2: 이름이 "Background"로 시작하는 씬 루트 전부를 분할벽 중심 기준 180° 회전 복제 —
+        // 팀B 진영도 같은 풍경(점대칭). 복제본은 비주얼 전용(콜라이더·스크립트 제거).
         private void MirrorBackgroundForVersus()
         {
-            var bg = GameObject.Find("Background");
-            if (bg == null) return;
-
             float u = GridContract.Unit;
             Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
             Vector3 pivot = new Vector3(baseW.x + ZoneSize.x * u, 0f, baseW.z + EffectiveSize.z * 0.5f * u);
 
-            var clone = Instantiate(bg);
-            clone.name = "~VersusMirrorBackground";
-            foreach (var c in clone.GetComponentsInChildren<Collider>(true)) Destroy(c);
-            foreach (var s in clone.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(s);   // 비주얼만 유지
-            clone.transform.RotateAround(pivot, Vector3.up, 180f);
+            int cloned = 0;
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                if (!root.name.StartsWith("Background")) continue;
+                var clone = Instantiate(root);
+                clone.name = $"~VersusMirror({root.name})";
+                foreach (var c in clone.GetComponentsInChildren<Collider>(true)) Destroy(c);
+                foreach (var s in clone.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(s);   // 비주얼만 유지
+                clone.transform.RotateAround(pivot, Vector3.up, 180f);
+                cloned++;
+            }
+            if (cloned > 0) Debug.Log($"[Grid] 2vs2 배경 대칭 복제: {cloned}개 (벽 중심 180°)");
         }
 
         public void EnsureGrid()
