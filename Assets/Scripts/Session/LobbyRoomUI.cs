@@ -10,7 +10,9 @@ public class LobbyRoomUI : MonoBehaviour
     public GameObject clientPanel;  
 
     [Header("Host Controls")]
-    public Button startGameButton; 
+    public Button startGameButton;
+    [Tooltip("게임 모드 선택(0=타임어택, 1=2vs2, 2=자유). 프리팹에서 TMP_Dropdown 연결 — 없으면 타임어택 고정")]
+    public TMPro.TMP_Dropdown modeDropdown;
 
     // 💡 오브젝트가 SetActive(true) 되는 순간 무조건 실행됩니다.
     private void OnEnable()
@@ -33,6 +35,14 @@ public class LobbyRoomUI : MonoBehaviour
                 startGameButton.interactable = readyNet != null && readyNet.IsAllReady;
                 startGameButton.onClick.RemoveAllListeners();
                 startGameButton.onClick.AddListener(OnStartGameButtonClicked);
+            }
+
+            // 게임 모드 선택(방장 전용) — 게임 씬 스폰 시 GameLoopManager가 전원에게 동기화
+            if (modeDropdown != null)
+            {
+                modeDropdown.SetValueWithoutNotify(GridSystem.GameLoopManager.HostSelectedMode);
+                modeDropdown.onValueChanged.RemoveAllListeners();
+                modeDropdown.onValueChanged.AddListener(v => GridSystem.GameLoopManager.HostSelectedMode = v);
             }
             
             Debug.Log("[LobbyRoom] 방장 패널을 활성화합니다.");
