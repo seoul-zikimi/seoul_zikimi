@@ -77,13 +77,21 @@ namespace GridSystem
             m_Loop = GetComponent<GameLoopManager>();
         }
 
+        // 이 판에 쓸 건축 영역 크기 — 호스트가 고른 맵이 전용 크기를 갖고 있으면 그걸, 아니면 씬 값.
+        private Vector3Int ServerGridSize()
+        {
+            var catalog = MapCatalog.Instance;
+            var def = catalog != null ? catalog.Get(GameLoopManager.HostSelectedMap) : null;
+            return def != null && def.HasGridSize ? def.GridSize : m_Manager.GridSize;
+        }
+
         public override void OnNetworkSpawn()
         {
             if (IsServer)
             {
-                // 2vs2면 X 2배(A|B 구역) — 서버(=호스트)에서는 로비 선택값을 스폰 순서와 무관하게 읽을 수 있다.
+                // 서버(=호스트)에서는 로비 선택값을 스폰 순서와 무관하게 읽을 수 있다 — 맵 크기와 모드 둘 다 여기서 확정.
                 bool versus = GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus;
-                var size = m_Manager.GridSize;
+                var size = ServerGridSize();
                 if (versus) size.x *= 2;
                 m_ServerGrid = new RuntimeGrid(size);
                 m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);   // 환경 바닥·스캐폴드도 지지로 인정
@@ -450,7 +458,7 @@ namespace GridSystem
             var catalog = m_Manager.Catalog;
             if (ans == null || catalog == null) return;
 
-            m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);   // 그리드 리셋
+            m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 그리드 리셋(2vs2면 2배 폭 유지)
             m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
@@ -578,7 +586,7 @@ namespace GridSystem
         public void ServerResetGrid()
         {
             if (!IsServer) return;
-            m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+            m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 2vs2면 2배 폭 유지
             m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);

@@ -45,6 +45,14 @@ namespace GridSystem
             m_Spawned = Instantiate(def.BackgroundPrefab);
             m_Spawned.name = $"~MapBackground({def.DisplayName})";
             m_SpawnedIndex = idx;
+
+            // 맵 전용 건축 영역 크기(있으면) — 마커 배치·플레이어 배치보다 먼저 확정해야 위치가 맞는다.
+            if (def.HasGridSize)
+            {
+                var gm = FindFirstObjectByType<GridManager>();
+                if (gm != null) gm.ApplyMapGridSize(def.GridSize);
+            }
+
             ApplySpots(m_Spawned, m_Loop.IsVersus);   // 맵 마커(Spot_*)대로 배치/스폰 — 후처리·플레이어 배치보다 먼저
             if (m_Loop.IsVersus) SetupVersusBackground(m_Spawned);   // 2vs2: 대칭 처리(전용 맵이면 통과)
             Pending = false;
