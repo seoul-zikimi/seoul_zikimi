@@ -1309,23 +1309,6 @@ namespace Player
 
         private string BuildHintText()
         {
-            // [기존 개발용 문구 — 유지]
-            // string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
-            //             : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
-            //             :               "빈손 — 우상단서 주문 → 배송 구역에서 좌클릭으로 줍기 (작업장서 좌클릭=도구)";
-            // if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
-            //     held = "빈손 — 좌클릭 = 미고정 블록 집기 (고정 전)";
-            // string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
-            // string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
-            // string grab = !m_GrabValid ? "없음"
-            //             : m_GrabStation != null ? "도구함"
-            //             : m_GrabBody.ToolBit != 0 ? "도구" : "재료" + m_GrabBody.MaterialId;
-            // string text =
-            //     $"[Carry] 들기: {held}\n" +
-            //     $"좌클릭 집기/배치 · C 철거 · Q 버리기 · Space 점프/벽점프 · G 던지기\n" +
-            //     $"E꾹 공정 · Z꾹 되돌리기 · R 회전 · 벽 보고 W/S 기어오르기 · 층 {m_BuildHeight}(자동) · TAB 정답    {tgt}  {score}\n" +
-            //     $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget} · 집기대상={grab}";
-
             string heldStr;
             if (HasMaterial)
                 heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
