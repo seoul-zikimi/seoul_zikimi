@@ -34,12 +34,21 @@ public static class TutorialContentSetup
     private const int kDoorId = 11;
     private const int kRoofId = 12;
 
-    // ── 정답 그리드 레이아웃 (4×3×4, 좌/우 X 극단·앞/뒤 Z 극단 — TutorialQuestSequence의 군집 판정과 매칭) ──
+    // ── 정답 그리드 레이아웃 (2×3×2, 벽 4개가 빈틈없이 붙은 정사각형 + 지붕) ──
+    // 사용자가 배경에서 직접 검증한 배치(중심 기준 벽 간격 ~1칸, 지붕 스케일 1.7배)를 그대로 그리드 1칸 단위로 옮김.
+    // 벽 Footprint를 1×1×1로 줄여서(기존 2×1×1은 실제 모델 크기보다 훨씬 커서 벽 사이가 벌어져 보였음)
+    // TutorialQuestSequence.cs의 상수(kLeftWallCell 등)와 반드시 같은 값으로 유지해야 한다.
     private static readonly Vector3Int kGridSize = new(4, 3, 4);
-    private static readonly Vector3Int[] kDoorCells = { new(1, 0, 0), new(2, 0, 0) };   // 뒷벽(문벽, preset)
-    private static readonly Vector3Int[] kLeftCells = { new(0, 0, 0), new(0, 0, 1) };   // 왼쪽 벽(X=0 끝)
-    private static readonly Vector3Int[] kRightCells = { new(3, 0, 0), new(3, 0, 1) };  // 오른쪽 벽(X=3 끝)
-    private static readonly Vector3Int[] kFrontCells = { new(1, 0, 3), new(2, 0, 3) };  // 앞쪽 벽(Z=3 끝)
+    private static readonly Vector3Int kDoorCell  = new(0, 0, 0);   // 뒷벽(문벽, preset)
+    private static readonly Vector3Int kLeftCell  = new(0, 0, 1);   // 왼쪽 벽
+    private static readonly Vector3Int kRightCell = new(1, 0, 0);   // 오른쪽 벽
+    private static readonly Vector3Int kFrontCell = new(1, 0, 1);   // 앞쪽 벽
+    private static readonly Vector3Int[] kRoofCells =
+    {
+        new(0, 1, 0), new(1, 1, 0), new(0, 1, 1), new(1, 1, 1),
+    };
+    private static readonly Vector3Int kWallFootprint = new(1, 1, 1);
+    private static readonly Vector3Int kRoofFootprint = new(2, 1, 2);
 
     // 배경 프리팹(MapBg_Tutorial)에서 사용자가 이미 손으로 맞춰둔 회전/스케일 값 그대로 재사용한다
     // (FrontWall/BackWall 기준 — Footprint에 억지로 늘려 맞추지 않아 원본 모델이 찌그러지지 않는다).
@@ -51,13 +60,13 @@ public static class TutorialContentSetup
     [MenuItem("Jobsnail/Tutorial/Setup Tutorial Content (전체 자동)")]
     public static void SetupAll()
     {
-        var wallPrefab = WrapModelToFootprint(kWallGlbPath, "Box_TutorialWall", new Vector3Int(2, 1, 1), kWallModelRotation, kWallModelScale);
-        var doorPrefab = WrapModelToFootprint(kDoorGlbPath, "Box_TutorialWallDoor", new Vector3Int(2, 1, 1), kWallModelRotation, kDoorModelScale);
-        var roofPrefab = WrapModelToFootprint(kRoofGlbPath, "Box_TutorialRoof", new Vector3Int(4, 1, 4), kWallModelRotation, kRoofModelScale);
+        var wallPrefab = WrapModelToFootprint(kWallGlbPath, "Box_TutorialWall", kWallFootprint, kWallModelRotation, kWallModelScale);
+        var doorPrefab = WrapModelToFootprint(kDoorGlbPath, "Box_TutorialWallDoor", kWallFootprint, kWallModelRotation, kDoorModelScale);
+        var roofPrefab = WrapModelToFootprint(kRoofGlbPath, "Box_TutorialRoof", kRoofFootprint, kWallModelRotation, kRoofModelScale);
 
-        ConfigureMaterial(kWallMatPath, kWallId, new Vector3Int(2, 1, 1), wallPrefab, requireFixed: true, mustBeFixed: true);
-        ConfigureMaterial(kDoorMatPath, kDoorId, new Vector3Int(2, 1, 1), doorPrefab, requireFixed: false, mustBeFixed: false);
-        ConfigureMaterial(kRoofMatPath, kRoofId, new Vector3Int(4, 1, 4), roofPrefab, requireFixed: false, mustBeFixed: false);
+        ConfigureMaterial(kWallMatPath, kWallId, kWallFootprint, wallPrefab, requireFixed: true, mustBeFixed: true);
+        ConfigureMaterial(kDoorMatPath, kDoorId, kWallFootprint, doorPrefab, requireFixed: false, mustBeFixed: false);
+        ConfigureMaterial(kRoofMatPath, kRoofId, kRoofFootprint, roofPrefab, requireFixed: false, mustBeFixed: false);
 
         RegisterInCatalog(kWallMatPath);
         RegisterInCatalog(kDoorMatPath);
@@ -173,14 +182,15 @@ public static class TutorialContentSetup
             return;
         }
 
-        var cells = new System.Collections.Generic.List<AnswerCell>();
-        foreach (var c in kDoorCells) cells.Add(new AnswerCell { cell = c, materialId = doorDef.Id, rotationStep = 0 });
-        foreach (var c in kLeftCells) cells.Add(new AnswerCell { cell = c, materialId = wallDef.Id, rotationStep = 1 });
-        foreach (var c in kRightCells) cells.Add(new AnswerCell { cell = c, materialId = wallDef.Id, rotationStep = 1 });
-        foreach (var c in kFrontCells) cells.Add(new AnswerCell { cell = c, materialId = wallDef.Id, rotationStep = 0 });
-        for (int x = 0; x < kGridSize.x; x++)
-            for (int z = 0; z < kGridSize.z; z++)
-                cells.Add(new AnswerCell { cell = new Vector3Int(x, 1, z), materialId = roofDef.Id, rotationStep = 0 });
+        var cells = new System.Collections.Generic.List<AnswerCell>
+        {
+            new() { cell = kDoorCell,  materialId = doorDef.Id, rotationStep = 0 },
+            new() { cell = kLeftCell,  materialId = wallDef.Id, rotationStep = 1 },
+            new() { cell = kRightCell, materialId = wallDef.Id, rotationStep = 1 },
+            new() { cell = kFrontCell, materialId = wallDef.Id, rotationStep = 0 },
+        };
+        foreach (var c in kRoofCells)
+            cells.Add(new AnswerCell { cell = c, materialId = roofDef.Id, rotationStep = 0 });
 
         var answer = AssetDatabase.LoadAssetAtPath<MapAnswerData>(kAnswerPath);
         bool isNew = answer == null;
@@ -206,14 +216,11 @@ public static class TutorialContentSetup
         }
 
         var presetProp = so.FindProperty("m_PresetCells");
-        presetProp.arraySize = kDoorCells.Length;
-        for (int i = 0; i < kDoorCells.Length; i++)
-        {
-            var elem = presetProp.GetArrayElementAtIndex(i);
-            elem.FindPropertyRelative("x").intValue = kDoorCells[i].x;
-            elem.FindPropertyRelative("y").intValue = kDoorCells[i].y;
-            elem.FindPropertyRelative("z").intValue = kDoorCells[i].z;
-        }
+        presetProp.arraySize = 1;
+        var presetElem = presetProp.GetArrayElementAtIndex(0);
+        presetElem.FindPropertyRelative("x").intValue = kDoorCell.x;
+        presetElem.FindPropertyRelative("y").intValue = kDoorCell.y;
+        presetElem.FindPropertyRelative("z").intValue = kDoorCell.z;
 
         so.FindProperty("m_TimeLimitSeconds").floatValue = 9999999f;
         so.FindProperty("m_DisplayName").stringValue = "튜토리얼 집";

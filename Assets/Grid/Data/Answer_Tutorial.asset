@@ -14,81 +14,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MapAnswerData
   m_GridSize: {x: 4, y: 3, z: 4}
   m_Cells:
-  - cell: {x: 1, y: 0, z: 0}
-    materialId: 11
-    rotationStep: 0
-  - cell: {x: 2, y: 0, z: 0}
-    materialId: 11
-    rotationStep: 0
   - cell: {x: 0, y: 0, z: 0}
-    materialId: 10
-    rotationStep: 1
+    materialId: 11
+    rotationStep: 0
   - cell: {x: 0, y: 0, z: 1}
     materialId: 10
     rotationStep: 1
-  - cell: {x: 3, y: 0, z: 0}
+  - cell: {x: 1, y: 0, z: 0}
     materialId: 10
     rotationStep: 1
-  - cell: {x: 3, y: 0, z: 1}
-    materialId: 10
-    rotationStep: 1
-  - cell: {x: 1, y: 0, z: 3}
-    materialId: 10
-    rotationStep: 0
-  - cell: {x: 2, y: 0, z: 3}
+  - cell: {x: 1, y: 0, z: 1}
     materialId: 10
     rotationStep: 0
   - cell: {x: 0, y: 1, z: 0}
     materialId: 12
     rotationStep: 0
-  - cell: {x: 0, y: 1, z: 1}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 0, y: 1, z: 2}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 0, y: 1, z: 3}
-    materialId: 12
-    rotationStep: 0
   - cell: {x: 1, y: 1, z: 0}
+    materialId: 12
+    rotationStep: 0
+  - cell: {x: 0, y: 1, z: 1}
     materialId: 12
     rotationStep: 0
   - cell: {x: 1, y: 1, z: 1}
     materialId: 12
     rotationStep: 0
-  - cell: {x: 1, y: 1, z: 2}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 1, y: 1, z: 3}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 2, y: 1, z: 0}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 2, y: 1, z: 1}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 2, y: 1, z: 2}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 2, y: 1, z: 3}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 3, y: 1, z: 0}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 3, y: 1, z: 1}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 3, y: 1, z: 2}
-    materialId: 12
-    rotationStep: 0
-  - cell: {x: 3, y: 1, z: 3}
-    materialId: 12
-    rotationStep: 0
   m_PresetCells:
-  - {x: 1, y: 0, z: 0}
-  - {x: 2, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
   m_StartPilePosition: {x: 0, y: 0, z: 0}
   m_TimeLimitSeconds: 9999999
   m_AnswerImage: {fileID: 0}

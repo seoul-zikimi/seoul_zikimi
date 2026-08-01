@@ -18,6 +18,16 @@ public class TutorialQuestSequence : MonoBehaviour
     private const string kRoofMaterialName = "Mat_TutorialRoof";
     private const float kRotateThreshold = 720f;   // 카메라/정답 회전 누적 판정(느슨한 목측 기준 — 필요시 조정)
 
+    // TutorialContentSetup.cs(에디터 툴)가 굽는 Answer_Tutorial의 좌표와 반드시 같은 값으로 유지해야 한다.
+    // 벽 4개가 빈틈없이 붙은 2×1×2 정사각형 + 그 위 지붕(2×1×2).
+    private static readonly Vector3Int kLeftWallCell  = new(0, 0, 1);
+    private static readonly Vector3Int kRightWallCell = new(1, 0, 0);
+    private static readonly Vector3Int kFrontWallCell = new(1, 0, 1);
+    private static readonly Vector3Int[] kRoofCellsStatic =
+    {
+        new(0, 1, 0), new(1, 1, 0), new(0, 1, 1), new(1, 1, 1),
+    };
+
     private static readonly string[] kIntroLines =
     {
         "반갑습니다. 당신은 건축업을 하는 민달팽이입니다. 당신의 목표는 열심히 일해 달팽이집을 마련하는 것입니다.",
@@ -102,7 +112,10 @@ public class TutorialQuestSequence : MonoBehaviour
         yield return null;
 
         ResolveMaterialIds();
-        BuildCellClusters();
+        m_LeftCells = new List<Vector3Int> { kLeftWallCell };
+        m_RightCells = new List<Vector3Int> { kRightWallCell };
+        m_FrontCells = new List<Vector3Int> { kFrontWallCell };
+        m_RoofCells = new List<Vector3Int>(kRoofCellsStatic);
         m_Steps = BuildSteps();
 
         m_Active = true;
@@ -138,80 +151,6 @@ public class TutorialQuestSequence : MonoBehaviour
 
         if (m_WallMaterialId == MaterialCatalog.NoMaterial || m_RoofMaterialId == MaterialCatalog.NoMaterial)
             Debug.LogWarning($"[TutorialQuestSequence] MaterialCatalog에서 '{kWallMaterialName}'/'{kRoofMaterialName}'을(를) 찾지 못했습니다 — MaterialCatalog.asset 등록을 확인하세요.");
-    }
-
-    // 정답의 벽 칸들을 인접(6방향) 기준으로 군집화한다. 좌/우 벽은 X 한 값에 고정된 채 Z로 뻗어있고,
-    // 앞쪽 벽은 X로 뻗어있다(여러 X값을 가짐) — 이 상대적 모양 차이로 좌/우/앞을 구분한다.
-    // GridManager.GridSize(모든 맵이 공유하는 고정 크기, 예: 16×8×16)에 의존하지 않으므로
-    // 튜토리얼처럼 작은 답을 써도 항상 올바르게 판정된다.
-    private void BuildCellClusters()
-    {
-        var answer = m_Grid.Answer;
-        if (answer == null) return;
-
-        var wallCells = new HashSet<Vector3Int>();
-        var roofCells = new HashSet<Vector3Int>();
-        foreach (var cell in answer.Cells)
-        {
-            if (answer.IsPreset(cell.cell)) continue;
-            if (cell.materialId == m_WallMaterialId) wallCells.Add(cell.cell);
-            else if (cell.materialId == m_RoofMaterialId) roofCells.Add(cell.cell);
-        }
-        m_RoofCells = new List<Vector3Int>(roofCells);
-
-        var singleXClusters = new List<(int x, List<Vector3Int> cells)>();
-        foreach (var cluster in ClusterCells(wallCells))
-        {
-            int clusterMinX = int.MaxValue, clusterMaxX = int.MinValue;
-            foreach (var cell in cluster)
-            {
-                if (cell.x < clusterMinX) clusterMinX = cell.x;
-                if (cell.x > clusterMaxX) clusterMaxX = cell.x;
-            }
-            if (clusterMinX == clusterMaxX) singleXClusters.Add((clusterMinX, cluster));
-            else m_FrontCells = cluster;
-        }
-
-        singleXClusters.Sort((a, b) => a.x.CompareTo(b.x));
-        if (singleXClusters.Count > 0) m_LeftCells = singleXClusters[0].cells;
-        if (singleXClusters.Count > 1) m_RightCells = singleXClusters[^1].cells;
-    }
-
-    private static readonly Vector3Int[] kNeighborDirs =
-    {
-        new(1, 0, 0), new(-1, 0, 0), new(0, 1, 0), new(0, -1, 0), new(0, 0, 1), new(0, 0, -1),
-    };
-
-    private static List<List<Vector3Int>> ClusterCells(HashSet<Vector3Int> cells)
-    {
-        var result = new List<List<Vector3Int>>();
-        var remaining = new HashSet<Vector3Int>(cells);
-        while (remaining.Count > 0)
-        {
-            Vector3Int start = default;
-            foreach (var c in remaining) { start = c; break; }
-
-            var cluster = new List<Vector3Int>();
-            var stack = new Stack<Vector3Int>();
-            stack.Push(start);
-            remaining.Remove(start);
-            while (stack.Count > 0)
-            {
-                var cur = stack.Pop();
-                cluster.Add(cur);
-                foreach (var dir in kNeighborDirs)
-                {
-                    var next = cur + dir;
-                    if (remaining.Contains(next))
-                    {
-                        remaining.Remove(next);
-                        stack.Push(next);
-                    }
-                }
-            }
-            result.Add(cluster);
-        }
-        return result;
     }
 
     private bool CellsPlaced(List<Vector3Int> cells, int materialId)

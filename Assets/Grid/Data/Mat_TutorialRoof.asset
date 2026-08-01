@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Mat_TutorialRoof
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 12
-  m_Footprint: {x: 4, y: 1, z: 4}
-  m_Prefab: {fileID: 5539898628079030635, guid: ed4de14ecd720824b86c6f3be6d3dbae, type: 3}
+  m_Footprint: {x: 2, y: 1, z: 2}
+  m_Prefab: {fileID: 8219101360117128124, guid: ed4de14ecd720824b86c6f3be6d3dbae, type: 3}
   m_RequiredProcesses: 
   m_MustBeFixed: 0
   m_Walkable: 0
