@@ -888,7 +888,7 @@ MonoBehaviour:
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
   ActiveSceneSynchronization: 0
-  SceneMigrationSynchronization: 1
+  SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
@@ -922,7 +922,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDepot
   ShowTopMostFoldoutHeaderGroup: 1
-  m_DeliveryZone: {x: -3.5, y: 0, z: 4}
 --- !u!114 &1935995226
 MonoBehaviour:
   m_ObjectHideFlags: 0
