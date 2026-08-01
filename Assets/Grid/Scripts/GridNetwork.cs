@@ -273,6 +273,56 @@ namespace GridSystem
         }
 
         /// <summary>무너진 오브젝트를 복제 리스트에서 제거하고 재료를 바닥에 떨군다(주워서 재배치 가능).</summary>
+        /// <summary>[아이템: 지진] 해당 팀 구역에서 '고정 공정'이 안 된 하중부재를 전부 무너뜨린다.
+        /// 그 위에 얹혀 있던 것들도 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 무너진 개수 반환.</summary>
+        public int ServerEarthquake(int team)
+        {
+            if (!IsServer || m_ServerGrid == null) return 0;
+
+            var victims = new System.Collections.Generic.List<Vector3Int>();
+            foreach (var e in m_Cells)
+            {
+                if (!InZone(team, e.cell)) continue;
+                if ((e.completedProcessMask & (int)ProcessType.Fixed) != 0) continue;   // 고정된 건 버팀
+                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
+                if (def == null || !def.MustBeFixed) continue;                            // 바닥 등 비-하중부재는 제외
+                victims.Add(e.cell);
+            }
+
+            int collapsed = 0;
+            foreach (var cell in victims)
+            {
+                if (!m_ServerGrid.GetCell(cell).occupied) continue;   // 앞선 연쇄로 이미 사라짐
+                foreach (var co in m_ServerGrid.Collapse(cell)) { RemoveCollapsed(co); collapsed++; }
+            }
+            foreach (var co in m_ServerGrid.SettleUnsupported()) { RemoveCollapsed(co); collapsed++; }
+
+            EarthquakeFxRpc(team);
+            return collapsed;
+        }
+
+        // 협동 모드에는 구역이 없다 → 전부 대상.
+        private bool InZone(int team, Vector3Int cell)
+        {
+            if (m_Loop == null || !m_Loop.IsVersus) return true;
+            int half = m_Manager.ZoneSize.x;
+            return team == 0 ? cell.x < half : cell.x >= half;
+        }
+
+        // 지진 연출: 맞은 팀은 화면이 크게 흔들리고, 상대는 약하게(무슨 일이 났는지 알 수 있게).
+        [Rpc(SendTo.Everyone)]
+        private void EarthquakeFxRpc(int team)
+        {
+            bool mine = m_Loop == null || !m_Loop.IsVersus || m_Loop.LocalTeam == team;
+            GridJuice.FovPunch(Camera.main, mine ? -9f : -2f);
+
+            var center = GridCoordinates.CellToWorld(
+                new Vector3Int(m_Manager.ZoneSize.x / 2 + (team == 1 ? m_Manager.ZoneSize.x : 0), 1, m_Manager.ZoneSize.z / 2));
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            if (mine) GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 2f),
+                                           "지진! 고정 안 한 블록이 무너져요!", new Color(0.85f, 0.35f, 0.15f));
+        }
+
         private void RemoveCollapsed(CollapsedObject co)
         {
             Vector3 from = default; bool have = false;

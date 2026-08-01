@@ -219,8 +219,16 @@ namespace GridSystem
                     if (target == 0) { m_MoveMulA.Value = def.Magnitude; m_MoveMulUntilA = Time.time + def.EffectDurationSeconds; }
                     else { m_MoveMulB.Value = def.Magnitude; m_MoveMulUntilB = Time.time + def.EffectDurationSeconds; }
                     break;
+                case CompetitiveItemKind.Earthquake:
+                    if (m_Net != null)
+                    {
+                        int n = m_Net.ServerEarthquake(target);
+                        Debug.Log($"[Item] 지진 → 팀{(target == 0 ? "A" : "B")}: 미고정 블록 {n}개 붕괴");
+                    }
+                    break;
+
                 default:
-                    Debug.Log($"[Item] 효과 미구현(소비됨): {kind} → 팀{(target == 0 ? "A" : "B")}");   // TODO: 지진·날씨·안개 등 순차 연결
+                    Debug.Log($"[Item] 효과 미구현(소비됨): {kind} → 팀{(target == 0 ? "A" : "B")}");   // TODO: 날씨·안개·공정·해킹·우산
                     break;
             }
         }
