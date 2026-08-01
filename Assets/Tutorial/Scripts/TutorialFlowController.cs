@@ -141,28 +141,35 @@ public class TutorialFlowController : MonoBehaviour
 
         s_TutorialPending = true;
         NetworkManager.Singleton.StartHost();
+        Debug.Log("[TutorialFlowController] StartHost 호출됨 — 호스트 준비를 기다리는 중...");
 
-        LobbyRoomNet readyNet = null;
+        // LobbyRoomNet.OnStartGameButtonClicked()은 m_IsAllReady 등 방 상태에 의존해서 타이밍에 취약함.
+        // 실제 게임의 '즉시 혼자 시작' 경로(JobsnailLobbySkinner.StartGameFromLobby)와 동일하게,
+        // 호스트가 확실히 떴는지만 확인하고 바로 씬을 로드한다(더 단순하고, 이미 검증된 방식).
         float timeout = Time.unscaledTime + 6f;
         while (Time.unscaledTime < timeout)
         {
-            readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
-            if (readyNet != null && readyNet.IsSpawned)
+            if (NetworkManager.Singleton.IsListening && NetworkManager.Singleton.IsServer)
                 break;
             yield return null;
         }
 
-        if (readyNet == null)
+        if (!NetworkManager.Singleton.IsListening || !NetworkManager.Singleton.IsServer)
         {
-            Debug.LogWarning("[TutorialFlowController] LobbyRoomNet을 찾지 못해 튜토리얼 세션을 시작하지 못했습니다.");
+            Debug.LogWarning("[TutorialFlowController] 호스트 시작을 확인하지 못해 튜토리얼 세션을 시작하지 못했습니다.");
             s_TutorialPending = false;
             yield break;
         }
 
-        // CheckAllPlayersReady가 접속 인원 갱신을 반영할 시간을 한 프레임 더 준다(1인방은 즉시 준비완료 처리됨).
+        // 씬 배치 오브젝트(LobbyRoomNet 등) 스폰이 안정될 시간을 한 프레임 더 준다.
         yield return null;
         yield return null;
-        readyNet.OnStartGameButtonClicked();
+
+        Debug.Log($"[TutorialFlowController] GameScene 로드 시도 (mapIndex={mapIndex})");
+        if (NetworkManager.Singleton.SceneManager != null && NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
+            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+        else
+            SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
     }
 
     private static int ResolveTutorialMapIndex()

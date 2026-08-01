@@ -44,6 +44,7 @@ public class TutorialQuestSequence : MonoBehaviour
         if (!TutorialFlowController.ConsumeTutorialFlag())
             return;
 
+        Debug.Log("[TutorialQuestSequence] 튜토리얼 플래그 확인됨 — 진행 상태 머신 시작");
         new GameObject("~TutorialQuestSequence").AddComponent<TutorialQuestSequence>();
     }
 
