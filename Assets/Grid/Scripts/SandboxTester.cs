@@ -42,7 +42,8 @@ namespace GridSystem
             if (Camera.main != null)
                 Camera.main.transform.SetPositionAndRotation(new Vector3(7f, 22f, -12f), Quaternion.Euler(48f, 0f, 0f));
 
-            Debug.Log("[Sandbox] WASD=이동 / 블록 초록=사거리 안, 빨강=밖 / Spot_DeliveryZone을 끌면 노란 마커가 실제 착지 위치");
+            Debug.Log("[Sandbox] WASD=이동 / 블록 초록=사거리 안, 빨강=밖 / V=2vs2 대칭 미리보기 토글 / " +
+                      "Spot_DeliveryZone을 끌면 노란 마커가 실제 착지 위치");
         }
 
         private void Update()
@@ -50,6 +51,35 @@ namespace GridSystem
             MovePlayer();
             PaintBlocks();
             UpdateDelivery();
+
+            var kb = Keyboard.current;
+            if (kb != null && kb.vKey.wasPressedThisFrame) ToggleVersus();
+        }
+
+        // V: 2vs2 구성(더미 배경 + 180° 미러 복제 + 가운데 투명벽 + 팀 구역)을 Play 중에 켜고 끈다.
+        private GameObject m_VersusRoot;
+        private void ToggleVersus()
+        {
+            if (m_VersusRoot != null)
+            {
+                Destroy(m_VersusRoot);
+                m_VersusRoot = null;
+                Debug.Log("[Sandbox] 2vs2 미리보기 끔");
+                return;
+            }
+
+            var zone = m_GridSize;
+            var effective = new Vector3Int(zone.x * 2, zone.y, zone.z);
+
+            m_VersusRoot = new GameObject("~SandboxVersus");
+            var bg = VersusPreviewBuilder.BuildDummyBackground(zone);
+            bg.transform.SetParent(m_VersusRoot.transform, true);
+
+            var mirror = VersusBackground.CreateMirror(bg, VersusBackground.MirrorPivot(zone, effective));
+            if (mirror != null) mirror.transform.SetParent(m_VersusRoot.transform, true);
+
+            VersusPreviewBuilder.BuildOverlay(zone, effective).transform.SetParent(m_VersusRoot.transform, true);
+            Debug.Log("[Sandbox] 2vs2 미리보기 켬 — 왼쪽(파랑)=팀A, 오른쪽(빨강)=팀B. 더미 구조물이 점대칭이어야 정상");
         }
 
         private void MovePlayer()
