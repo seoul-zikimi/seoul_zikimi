@@ -86,9 +86,23 @@ namespace GridSystem
         public void RequestOrder(int materialId) => OrderRpc(materialId);
 
         [Rpc(SendTo.Server)]
-        private void OrderRpc(int materialId)
+        private void OrderRpc(int materialId, RpcParams rpc = default)
         {
             if (m_Drop == null) return;
+
+            // 주문 해킹: 차단당한 팀은 새 재료를 못 시킨다(서버 권위 검사).
+            var loop = GetComponent<GameLoopManager>();
+            var items = GetComponent<ItemNetwork>();
+            if (loop != null && items != null && loop.IsVersus)
+            {
+                int team = loop.GetTeam(rpc.Receive.SenderClientId);
+                if (items.IsOrderBlocked(team))
+                {
+                    Debug.Log($"[Depot] 주문 차단됨(해킹) — 팀{(team == 1 ? "B" : "A")}");
+                    return;
+                }
+            }
+
             var cat = m_Grid != null ? m_Grid.Catalog : null;
             if (cat == null || cat.GetById(materialId) == null) return;
 
