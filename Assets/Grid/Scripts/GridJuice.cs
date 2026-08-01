@@ -16,7 +16,8 @@ namespace GridSystem
         static readonly int s_Color = Shader.PropertyToID("_Color");
 
         static Material s_Mat;
-        static Material FxMat()
+        /// <summary>FX 조각용 공용 투명 머티리얼(ItemFx 등도 재사용).</summary>
+        internal static Material FxMat()
         {
             if (s_Mat != null) return s_Mat;
             var sh = Shader.Find("Universal Render Pipeline/Lit");
@@ -33,7 +34,8 @@ namespace GridSystem
             return m;
         }
 
-        static JuiceParticle MakeBit(Vector3 pos, float size, Color col)
+        /// <summary>수명 자율 FX 조각 하나(위치·크기·색). 나머지 물리값은 호출측이 채운다.</summary>
+        internal static JuiceParticle MakeBit(Vector3 pos, float size, Color col)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "~Fx";

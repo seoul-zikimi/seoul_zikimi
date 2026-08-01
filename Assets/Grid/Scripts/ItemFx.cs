@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace GridSystem
 {
@@ -10,39 +9,8 @@ namespace GridSystem
     /// </summary>
     public static class ItemFx
     {
-        // ── 파티클 조각 (GridJuice.FxMat과 동일 컨셉 — 투명 URP Lit) ──
-        static Material s_Mat;
-        static Material FxMat()
-        {
-            if (s_Mat != null) return s_Mat;
-            var sh = Shader.Find("Universal Render Pipeline/Lit");
-            if (sh == null) sh = Shader.Find("Sprites/Default");
-            if (sh == null) return null;
-            var m = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
-            m.SetFloat("_Surface", 1f);
-            m.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-            m.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-            m.SetInt("_ZWrite", 0);
-            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            m.renderQueue = (int)RenderQueue.Transparent;
-            s_Mat = m;
-            return m;
-        }
-
-        static JuiceParticle MakeBit(Vector3 pos, float size, Color col)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "~ItemFx";
-            var c = go.GetComponent<Collider>();
-            if (c != null) c.enabled = false;
-            go.transform.position = pos;
-            go.transform.localScale = Vector3.one * size;
-            var mat = FxMat();
-            if (mat != null) go.GetComponent<Renderer>().sharedMaterial = mat;
-            var fx = go.AddComponent<JuiceParticle>();
-            fx.color = col;
-            return fx;
-        }
+        // 조각 생성은 GridJuice와 같은 것을 쓴다(공용 투명 머티리얼·수명 자율 파티클).
+        static JuiceParticle MakeBit(Vector3 pos, float size, Color col) => GridJuice.MakeBit(pos, size, col);
 
         // ── 이벤트 FX ────────────────────────────────────────────
         /// <summary>등장: 아래에서 반짝이 팡 + 팝 사운드.</summary>
@@ -177,14 +145,7 @@ namespace GridSystem
             if (Time.time < m_Next) return;
             m_Next = Time.time + Random.Range(0.25f, 0.5f);
             var pos = transform.position + Random.onUnitSphere * 0.32f;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "~Twinkle";
-            var c = go.GetComponent<Collider>();
-            if (c != null) c.enabled = false;
-            go.transform.position = pos;
-            go.transform.localScale = Vector3.one * 0.05f;
-            var fx = go.AddComponent<JuiceParticle>();
-            fx.color = Color.Lerp(color, Color.white, 0.7f);
+            var fx = GridJuice.MakeBit(pos, 0.05f, Color.Lerp(color, Color.white, 0.7f));
             fx.vel = Vector3.up * 0.5f; fx.life = 0.45f; fx.spinDeg = 240f; fx.spinAxis = Random.onUnitSphere;
         }
     }

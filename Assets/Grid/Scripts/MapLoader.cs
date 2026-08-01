@@ -66,6 +66,7 @@ namespace GridSystem
 
         // 배경 프리팹 안의 "Spot_<오브젝트이름>" 마커 위치·회전대로 씬의 시스템 오브젝트를 이동.
         // 예: Spot_GridManager, Spot_PaintStation, Spot_HammerStation, Spot_PlayerSpawnPoint.
+        // 배송 지점은 마커가 아니라 "DeliveryPoint" 빈 오브젝트로 지정한다(MaterialDepot이 직접 찾음).
         // 마커가 없으면 기존 씬 위치 유지(하위 호환). 이름으로 찾으므로 asmdef 타입 참조 불필요.
         private static void ApplySpots(GameObject bg)
         {
@@ -74,7 +75,7 @@ namespace GridSystem
                 if (!t.name.StartsWith("Spot_")) continue;
                 string targetName = t.name.Substring("Spot_".Length);
 
-                // 배송 구역은 오브젝트가 아니라 MaterialDepot의 좌표 필드 — 전용 처리
+                // 배송 구역은 씬 오브젝트가 아니라 MaterialDepot이 들고 있는 위치 — 전용 처리
                 if (targetName == "DeliveryZone")
                 {
                     var depot = FindFirstObjectByType<MaterialDepot>();

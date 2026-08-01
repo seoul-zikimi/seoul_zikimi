@@ -296,10 +296,8 @@ namespace GridSystem
             foreach (var e in m_Items) AddVisual(e);
         }
 
-        /// <summary>종류별 대표색(FX 테스터 등 외부에서도 사용).</summary>
-        public static Color KindColorOf(CompetitiveItemKind k) => KindColor(k);
-
-        private static Color KindColor(CompetitiveItemKind k) => k switch
+        /// <summary>종류별 대표색(비주얼·FX 공용).</summary>
+        public static Color KindColor(CompetitiveItemKind k) => k switch
         {
             CompetitiveItemKind.Earthquake => new Color(0.55f, 0.35f, 0.2f),
             CompetitiveItemKind.Rain => new Color(0.3f, 0.5f, 0.95f),

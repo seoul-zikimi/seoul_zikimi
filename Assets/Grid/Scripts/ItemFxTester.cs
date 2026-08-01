@@ -18,7 +18,7 @@ namespace GridSystem
 
         private Vector3 Pos => (m_Anchor != null ? m_Anchor : transform).position;
         private SeoulZikimi.Gameplay.CompetitiveItemKind Kind => s_Kinds[m_Kind];
-        private Color Col => ItemNetwork.KindColorOf(Kind);
+        private Color Col => ItemNetwork.KindColor(Kind);
 
         private void Update()
         {
