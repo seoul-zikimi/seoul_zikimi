@@ -13,8 +13,12 @@ namespace GridSystem
     [RequireComponent(typeof(MaterialDropField))]
     public class MaterialDepot : NetworkBehaviour
     {
-        [Tooltip("주문한 재료가 배송돼 떨어지는 구역(월드 XZ). 그리드 밖 권장.")]
-        [SerializeField] private Vector3 m_DeliveryZone = new Vector3(-3.5f, 0f, 4f);
+        // 배송 지점은 맵이 정한다: DeliveryPoint 오브젝트(끌어서 조정, 실시간 반영) 또는 Spot_DeliveryZone 마커.
+        // 둘 다 없을 때만 쓰는 폴백 — 그리드 원점 기준 상대 위치라 맵이 옮겨가도 따라간다.
+        // (인스펙터에 월드 좌표를 직접 입력하던 예전 방식은 제거됨)
+        private static readonly Vector3 kFallbackOffset = new Vector3(-3.5f, 0f, 4f);
+        private Vector3 m_DeliveryZone;
+        private bool m_ZoneSetByMap;
 
         private GridManager m_Grid;
         private MaterialDropField m_Drop;
@@ -35,18 +39,28 @@ namespace GridSystem
         public void SetDeliveryZone(Vector3 worldPos)
         {
             m_DeliveryZone = worldPos;
+            m_ZoneSetByMap = true;
             if (m_Point != null)
                 Debug.LogWarning("[Depot] DeliveryPoint와 Spot_DeliveryZone이 둘 다 있음 — DeliveryPoint가 우선됩니다. 배경 프리팹에서 하나만 두세요.");
-            if (m_Marker != null)
-                m_Marker.transform.position = new Vector3(worldPos.x, worldPos.y + 0.05f, worldPos.z);
+            SyncMarker();
         }
 
-        // 씬(또는 배경 프리팹)에 'DeliveryPoint' 빈 오브젝트가 있으면 좌표 입력 대신 그 위치를 배송 구역으로 사용.
-        // 우선순위: DeliveryPoint 오브젝트 > Spot_DeliveryZone 마커 > 인스펙터 좌표.
+        // 노란 바닥 표시를 현재 배송 지점에 맞춘다(스폰·마커 적용·포인트 이동 공용).
+        private void SyncMarker()
+        {
+            if (m_Marker == null) return;
+            var z = ZonePos;
+            m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
+        }
+
+        // 우선순위: DeliveryPoint 오브젝트(권장 — 끌어서 조정) > Spot_DeliveryZone 마커 > 그리드 기준 폴백.
         private Transform m_Point;
         private float m_NextPointFind;
 
-        private Vector3 ZonePos => m_Point != null ? m_Point.position : m_DeliveryZone;
+        private Vector3 ZonePos =>
+            m_Point != null ? m_Point.position :
+            m_ZoneSetByMap ? m_DeliveryZone :
+                             GridContract.Origin + kFallbackOffset;
 
         private void Update()
         {
@@ -61,12 +75,7 @@ namespace GridSystem
                     Debug.Log($"[Depot] DeliveryPoint 연결 — 배송 구역 = {m_Point.position}");
                 }
             }
-            // 마커가 포인트를 라이브로 따라감(에디터에서 끌면서 조정 가능)
-            if (m_Point != null && m_Marker != null)
-            {
-                var z = ZonePos;
-                m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
-            }
+            if (m_Point != null) SyncMarker();   // 에디터에서 끌면서 조정 가능하게 라이브 추적
         }
 
         public override void OnNetworkSpawn()
@@ -74,8 +83,8 @@ namespace GridSystem
             // 배송 구역 바닥 마커(로컬 비주얼, 모든 클라) — 어디서 줍는지 보이게
             m_Marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
             m_Marker.name = "~DeliveryZone";
-            m_Marker.transform.position = new Vector3(m_DeliveryZone.x, 0.05f, m_DeliveryZone.z);
             m_Marker.transform.localScale = new Vector3(3f, 0.1f, 3f);
+            SyncMarker();
             var col = m_Marker.GetComponent<Collider>();
             if (col != null) Destroy(col);
             SetColor(m_Marker, new Color(0.95f, 0.8f, 0.2f));
