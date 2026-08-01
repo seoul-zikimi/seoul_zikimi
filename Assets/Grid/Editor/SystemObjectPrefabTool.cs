@@ -27,28 +27,40 @@ namespace GridSystem.EditorTools
         {
             Directory.CreateDirectory(kDir);
 
-            foreach (var (name, tool, modelGuid) in kStations)
+            // 플레이어 스폰 마커 — 빈 오브젝트 + PlayerSpawnPoint 컴포넌트면 충분(위치만 쓰는 마커)
+            BuildIfMissing("PlayerSpawnPoint", () =>
             {
-                string path = $"{kDir}/{name}.prefab";
-                if (AssetDatabase.LoadAssetAtPath<GameObject>(path) != null)
-                {
-                    Debug.Log($"[SystemObject] 이미 있음 — 건너뜀: {path}");
-                    continue;
-                }
+                var go = new GameObject("PlayerSpawnPoint");
+                go.AddComponent<Player.PlayerSpawnPoint>();
+                return go;
+            });
 
-                var scene = GameObject.Find(name);
-                var go = scene != null ? Object.Instantiate(scene) : MakeStation(name, tool, modelGuid);
-                go.name = name;
-                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-
-                PrefabUtility.SaveAsPrefabAsset(go, path);
-                Object.DestroyImmediate(go);
-                Debug.Log($"[SystemObject] 생성: {path} ({(scene != null ? "씬 오브젝트 복사" : "기본 구성")})");
-            }
+            foreach (var (name, tool, modelGuid) in kStations)
+                BuildIfMissing(name, () => MakeStation(name, tool, modelGuid));
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[SystemObject] 완료 — 이제 배경 프리팹에 Spot_HammerStation / Spot_PaintStation 마커만 두면 그 자리에 생깁니다.");
+        }
+
+        // 이미 있으면 건드리지 않는다. 씬에 같은 이름 오브젝트가 있으면 그 설정을 그대로 프리팹으로 저장.
+        static void BuildIfMissing(string name, System.Func<GameObject> makeDefault)
+        {
+            string path = $"{kDir}/{name}.prefab";
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(path) != null)
+            {
+                Debug.Log($"[SystemObject] 이미 있음 — 건너뜀: {path}");
+                return;
+            }
+
+            var scene = GameObject.Find(name);
+            var go = scene != null ? Object.Instantiate(scene) : makeDefault();
+            go.name = name;
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+
+            PrefabUtility.SaveAsPrefabAsset(go, path);
+            Object.DestroyImmediate(go);
+            Debug.Log($"[SystemObject] 생성: {path} ({(scene != null ? "씬 오브젝트 복사" : "기본 구성")})");
         }
 
         static GameObject MakeStation(string name, int tool, string modelGuid)
