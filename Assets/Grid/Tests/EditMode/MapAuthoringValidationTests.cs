@@ -74,6 +74,16 @@ namespace GridSystem.Tests
         }
 
         [Test]
+        public void 주문가능_재료_목록에_빈칸이_없다()
+        {
+            foreach (var m in Maps())
+                for (int i = 0; i < m.AvailableMaterials.Count; i++)
+                    Assert.IsNotNull(m.AvailableMaterials[i],
+                        $"[{m.name}] Available Materials {i}번 칸이 비었음(None) — 지우거나 재료를 넣으세요. " +
+                        "목록 전체를 비우면 카탈로그의 모든 재료가 주문 가능해집니다.");
+        }
+
+        [Test]
         public void 맵_표시이름이_서로_겹치지_않는다()
         {
             var dup = Maps().GroupBy(m => m.DisplayName).Where(g => g.Count() > 1).Select(g => g.Key).ToList();

@@ -16,11 +16,16 @@ namespace GridSystem
         [SerializeField] private Sprite m_Thumbnail;           // 로비 "선택된 맵 이미지"용(선택)
         [Tooltip("이 맵의 건축 영역 크기(칸). 비워두면(0) GameScene의 GridManager 값을 씁니다. 2vs2에서는 가로가 2배가 됩니다.")]
         [SerializeField] private Vector3Int m_GridSize;        // (0,0,0) = 미설정
+        [Tooltip("이 맵에서 주문할 수 있는 재료. 비워두면 MaterialCatalog 전체가 나옵니다.")]
+        [SerializeField] private List<MaterialDef> m_AvailableMaterials = new();
 
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
         public GameObject BackgroundPrefab => m_BackgroundPrefab;
         public IReadOnlyList<MapAnswerData> Answers => m_Answers;
         public Sprite Thumbnail => m_Thumbnail;
+
+        /// <summary>이 맵에서 주문 가능한 재료(비면 카탈로그 전체). 카탈로그 자체는 전역 그대로다.</summary>
+        public IReadOnlyList<MaterialDef> AvailableMaterials => m_AvailableMaterials;
 
         /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
         public Vector3Int GridSize => m_GridSize;
