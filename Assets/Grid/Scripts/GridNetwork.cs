@@ -301,6 +301,36 @@ namespace GridSystem
             return collapsed;
         }
 
+        /// <summary>[날씨: 강풍·태풍] 해당 팀 구역의 미고정 블록 중 최대 count개를 바람에 무너뜨린다.
+        /// 지진처럼 전멸이 아니라 조금씩 갉아먹는 압박. 서버 전용, 무너진 개수 반환.</summary>
+        public int ServerWindCollapse(int team, int count)
+        {
+            if (!IsServer || m_ServerGrid == null || count <= 0) return 0;
+
+            var candidates = new System.Collections.Generic.List<Vector3Int>();
+            foreach (var e in m_Cells)
+            {
+                if (!InZone(team, e.cell)) continue;
+                if ((e.completedProcessMask & (int)ProcessType.Fixed) != 0) continue;
+                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
+                if (def == null || !def.MustBeFixed) continue;
+                candidates.Add(e.cell);
+            }
+            if (candidates.Count == 0) return 0;
+
+            int collapsed = 0;
+            for (int i = 0; i < count && candidates.Count > 0; i++)
+            {
+                int pick = Random.Range(0, candidates.Count);
+                var cell = candidates[pick];
+                candidates.RemoveAt(pick);
+                if (!m_ServerGrid.GetCell(cell).occupied) continue;
+                foreach (var co in m_ServerGrid.Collapse(cell)) { RemoveCollapsed(co); collapsed++; }
+            }
+            foreach (var co in m_ServerGrid.SettleUnsupported()) { RemoveCollapsed(co); collapsed++; }
+            return collapsed;
+        }
+
         // 협동 모드에는 구역이 없다 → 전부 대상.
         private bool InZone(int team, Vector3Int cell)
         {

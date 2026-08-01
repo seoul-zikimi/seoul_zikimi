@@ -239,8 +239,9 @@ public sealed class GameLoopHUD : UIHUD
                 string held = items != null ? items.LocalHeldName() : "";
                 if (!string.IsNullOrEmpty(held))
                     timer += $"\n<size=55%>[{held}] E로 사용</size>";
-                if (GridSystem.ItemNetwork.LocalOrderBlocked())
-                    timer += "\n<size=55%>주문 해킹당함 — 잠시 주문 불가</size>";
+                string status = GridSystem.ItemNetwork.LocalStatusLine();
+                if (!string.IsNullOrEmpty(status))
+                    timer += $"\n<size=55%>{status}</size>";
             }
             m_TimerText.text = timer;
 

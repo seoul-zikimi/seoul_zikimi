@@ -9,7 +9,8 @@ namespace GridSystem
     /// 2vs2 경쟁 아이템 네트워크 호스트(서버 권위) — GameLoopManager와 같은 오브젝트(런타임 자동 부착).
     /// 규칙(30초 월드 스폰 · 완성도 10% 최초 달성 보상 · 미사용 60초 소멸)은 프레임워크
     /// CompetitiveItemSpawnDirector가 결정하고, 이 클래스는 월드 배치/복제/획득/사용만 담당한다.
-    /// 획득 = 빈손으로 접근(1.2m), 사용 = F키. 효과는 이동속도 버프/디버프부터 실적용(나머지는 순차 연결).
+    /// 획득 = 빈손으로 접근(1.2m), 사용 = E키(도구를 안 든 상태 — PlayerCarry가 공정과 갈라서 호출).
+    /// 효과 실행은 프레임워크 CompetitiveItemUseService가 맡고, 이 클래스는 각 효과 인터페이스의 월드 구현이다.
     /// </summary>
     public class ItemNetwork : NetworkBehaviour,
         ICompetitiveItemSpawnGateway, IOpponentTeamResolver,
@@ -40,14 +41,23 @@ namespace GridSystem
             public float MoveMul;       // 이동속도 배율
             public float ProcessMul;    // 공정(망치·페인트) 진행 속도 배율
             public bool OrderBlocked;   // 재료 주문 차단(해킹)
+            public int Weather;         // 이 팀 진영에 걸린 날씨(WeatherKind, Sunny=없음)
+            public bool Fog;            // 화면 가림
+            public bool WeatherImmune;  // 우산 — 날씨의 게임플레이 피해 무시
 
-            public static TeamEffects None => new() { MoveMul = 1f, ProcessMul = 1f, OrderBlocked = false };
+            public static TeamEffects None => new()
+            {
+                MoveMul = 1f, ProcessMul = 1f, OrderBlocked = false,
+                Weather = (int)SeoulZikimi.Weather.WeatherKind.Sunny, Fog = false, WeatherImmune = false,
+            };
 
             public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
             {
                 s.SerializeValue(ref MoveMul); s.SerializeValue(ref ProcessMul); s.SerializeValue(ref OrderBlocked);
+                s.SerializeValue(ref Weather); s.SerializeValue(ref Fog); s.SerializeValue(ref WeatherImmune);
             }
-            public bool Equals(TeamEffects o) => MoveMul == o.MoveMul && ProcessMul == o.ProcessMul && OrderBlocked == o.OrderBlocked;
+            public bool Equals(TeamEffects o) => MoveMul == o.MoveMul && ProcessMul == o.ProcessMul
+                && OrderBlocked == o.OrderBlocked && Weather == o.Weather && Fog == o.Fog && WeatherImmune == o.WeatherImmune;
         }
 
         private readonly NetworkList<ItemEntry> m_Items = new();
@@ -66,6 +76,10 @@ namespace GridSystem
         private readonly float[] m_MoveUntil = new float[2];
         private readonly float[] m_ProcUntil = new float[2];
         private readonly float[] m_OrderUntil = new float[2];
+        private readonly float[] m_WeatherUntil = new float[2];
+        private readonly float[] m_FogUntil = new float[2];
+        private readonly float[] m_ImmuneUntil = new float[2];
+        private float m_NextWeatherTick;   // 날씨 피해 판정 주기
         private GameObject m_VisualRoot;
         private readonly System.Collections.Generic.Dictionary<uint, GameObject> m_Visuals = new();
 
@@ -132,6 +146,29 @@ namespace GridSystem
         /// <summary>내 팀이 주문 해킹당했는가(주문 HUD 안내용).</summary>
         public static bool LocalOrderBlocked() => LocalEffects().OrderBlocked;
 
+        /// <summary>내 팀에 걸린 상태 한 줄 요약(없으면 ""). HUD 표시용.</summary>
+        public static string LocalStatusLine()
+        {
+            var fx = LocalEffects();
+            var parts = new System.Collections.Generic.List<string>();
+            if (fx.Weather != (int)WeatherKind.Sunny) parts.Add(WeatherName((WeatherKind)fx.Weather));
+            if (fx.Fog) parts.Add("안개");
+            if (fx.WeatherImmune) parts.Add("우산(날씨 면역)");
+            if (fx.MoveMul < 1f) parts.Add("이동 느림"); else if (fx.MoveMul > 1f) parts.Add("이동 빠름");
+            if (fx.ProcessMul < 1f) parts.Add("공정 느림"); else if (fx.ProcessMul > 1f) parts.Add("공정 빠름");
+            if (fx.OrderBlocked) parts.Add("주문 차단");
+            return parts.Count == 0 ? "" : string.Join(" · ", parts);
+        }
+
+        private static string WeatherName(WeatherKind w) => w switch
+        {
+            WeatherKind.Rain => "비",
+            WeatherKind.Snow => "눈",
+            WeatherKind.StrongWind => "강풍",
+            WeatherKind.Typhoon => "태풍",
+            _ => w.ToString(),
+        };
+
         private static TeamEffects LocalEffects()
         {
             if (s_Instance == null || s_Instance.m_Loop == null || !s_Instance.m_Loop.IsVersus) return TeamEffects.None;
@@ -189,6 +226,8 @@ namespace GridSystem
         {
             if (!IsSpawned) return;
 
+            SyncLocalWeatherFx();   // 연출은 모든 클라가 각자(서버 게이트보다 앞)
+
             if (!IsServer || m_Loop == null || !m_Loop.IsVersus) return;
 
             if (m_Loop.IsBuilding && m_Director != null)
@@ -218,6 +257,67 @@ namespace GridSystem
             }
 
             ExpireEffects();
+            TickWeatherDamage();
+        }
+
+        // ── 날씨: 서버가 피해를 판정하고, 보이는 건 각 클라가 그린다 ──
+        // 비/눈 = 미끄러짐(플레이어가 훅 밀림), 강풍/태풍 = 미고정 블록이 바람에 무너짐.
+        // 우산(면역)이 걸린 팀은 피해를 건너뛴다. 태풍은 둘 다 + 더 잦게.
+        private void TickWeatherDamage()
+        {
+            if (Time.time < m_NextWeatherTick) return;
+            m_NextWeatherTick = Time.time + 1f;
+
+            for (int team = 0; team < 2; team++)
+            {
+                var fx = Fx(team);
+                var weather = (WeatherKind)fx.Weather;
+                if (weather == WeatherKind.Sunny || fx.WeatherImmune) continue;
+
+                bool slippery = weather is WeatherKind.Rain or WeatherKind.Snow or WeatherKind.Typhoon;
+                bool windy = weather is WeatherKind.StrongWind or WeatherKind.Typhoon;
+
+                if (slippery) SlipTeam(team, weather == WeatherKind.Typhoon ? 1f : 0.6f);
+                if (windy && m_Net != null)
+                {
+                    int blown = m_Net.ServerWindCollapse(team, weather == WeatherKind.Typhoon ? 2 : 1);
+                    if (blown > 0) Debug.Log($"[Weather] 바람에 무너짐 → 팀{TeamId(team)} {blown}개");
+                }
+            }
+        }
+
+        // 해당 팀 플레이어들을 무작위 방향으로 살짝 밀어 '미끄러짐'을 만든다(소유 클라가 실제로 밀림).
+        private void SlipTeam(int team, float strength)
+        {
+            if (NetworkManager.Singleton == null) return;
+            foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+            {
+                if (m_Loop == null || m_Loop.GetTeam(client.ClientId) != team) continue;
+                var dir = Random.insideUnitCircle.normalized;
+                SlipRpc(new Vector3(dir.x, 0f, dir.y) * (3.5f * strength),
+                        RpcTarget.Single(client.ClientId, RpcTargetUse.Temp));
+            }
+        }
+
+        [Rpc(SendTo.SpecifiedInParams)]
+        private void SlipRpc(Vector3 impulse, RpcParams rpc = default)
+        {
+            var po = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClient.PlayerObject : null;
+            if (po == null) return;
+            var rb = po.GetComponent<Rigidbody>();
+            if (rb != null && !rb.isKinematic) rb.AddForce(impulse, ForceMode.VelocityChange);
+        }
+
+        // 내 팀 상태를 로컬 연출(날씨 파티클·안개)에 반영 — 값이 바뀔 때만.
+        private WeatherKind m_ShownWeather = WeatherKind.Sunny;
+        private bool m_ShownFog;
+        private void SyncLocalWeatherFx()
+        {
+            var fx = LocalEffects();
+            var weather = (WeatherKind)fx.Weather;
+            if (weather == m_ShownWeather && fx.Fog == m_ShownFog) return;
+            m_ShownWeather = weather; m_ShownFog = fx.Fog;
+            TeamWeatherFx.Get().Set(weather, fx.Fog);
         }
 
         // 지속 효과 만료(서버) — 시간이 지난 것만 기본값으로 되돌린다.
@@ -230,6 +330,10 @@ namespace GridSystem
                 if (fx.MoveMul != 1f && Time.time >= m_MoveUntil[team]) { fx.MoveMul = 1f; changed = true; }
                 if (fx.ProcessMul != 1f && Time.time >= m_ProcUntil[team]) { fx.ProcessMul = 1f; changed = true; }
                 if (fx.OrderBlocked && Time.time >= m_OrderUntil[team]) { fx.OrderBlocked = false; changed = true; }
+                if (fx.Weather != (int)SeoulZikimi.Weather.WeatherKind.Sunny && Time.time >= m_WeatherUntil[team])
+                { fx.Weather = (int)SeoulZikimi.Weather.WeatherKind.Sunny; changed = true; }
+                if (fx.Fog && Time.time >= m_FogUntil[team]) { fx.Fog = false; changed = true; }
+                if (fx.WeatherImmune && Time.time >= m_ImmuneUntil[team]) { fx.WeatherImmune = false; changed = true; }
                 if (changed) SetFx(team, fx);
             }
         }
@@ -307,15 +411,33 @@ namespace GridSystem
             m_OrderUntil[team] = Time.time + durationSeconds;
         }
 
-        // 아래 셋은 아직 월드 쪽 구현이 없다 — 서비스 흐름은 그대로 타고, 효과만 순차 연결 예정.
         void ITeamFogTarget.ApplyFog(string teamId, float durationSeconds)
-            => Debug.Log($"[Item] 안개 미구현(소비됨) → 팀{teamId} {durationSeconds}초");
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0) return;
+            var fx = Fx(team); fx.Fog = true; SetFx(team, fx);
+            m_FogUntil[team] = Time.time + durationSeconds;
+            Debug.Log($"[Item] 안개 → 팀{teamId} {durationSeconds}초");
+        }
 
         void ITemporaryTeamWeatherTarget.ApplyTemporaryWeather(string teamId, SeoulZikimi.Weather.WeatherKind weather, float durationSeconds)
-            => Debug.Log($"[Item] 날씨({weather}) 미구현(소비됨) → 팀{teamId} {durationSeconds}초");
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0) return;
+            // 이미 날씨가 걸려 있으면 새 날씨로 교체 + 타이머 초기화(기획서 규칙)
+            var fx = Fx(team); fx.Weather = (int)weather; SetFx(team, fx);
+            m_WeatherUntil[team] = Time.time + durationSeconds;
+            Debug.Log($"[Item] 날씨 {weather} → 팀{teamId} {durationSeconds}초");
+        }
 
         void ITeamWeatherImmunityTarget.ApplyWeatherImmunity(string teamId, float durationSeconds)
-            => Debug.Log($"[Item] 우산(날씨 면역) 미구현(소비됨) → 팀{teamId} {durationSeconds}초");
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0) return;
+            var fx = Fx(team); fx.WeatherImmune = true; SetFx(team, fx);
+            m_ImmuneUntil[team] = Time.time + durationSeconds;
+            Debug.Log($"[Item] 우산(날씨 면역) → 팀{teamId} {durationSeconds}초");
+        }
 
         // ── 비주얼(전 클라 로컬) — 종류별 색 구슬 + 이벤트별 FX ─────
         // 증분 갱신: 리스트 변화 종류로 등장/획득/사용/소멸을 구분해야 FX가 맞는 순간에 터진다.
