@@ -258,15 +258,37 @@ namespace Player
         private const float kPaintSeconds = 1.31f;
         private float ProcessDurationFor(ProcessType kind) => kind == ProcessType.Painted ? kPaintSeconds : m_ProcessSeconds;
 
+        // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
+        // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 완성 파츠 중 무작위로 고른다(기획서).
+        private const float kCannonChargeSeconds = 0.8f;
+        private float m_CannonCharge;
+
+        private void UpdateCannonCharge(Keyboard kb, GridSystem.ItemNetwork items)
+        {
+            if (kb.eKey.isPressed)
+            {
+                m_CannonCharge += Time.deltaTime;
+                return;
+            }
+            if (kb.eKey.wasReleasedThisFrame && m_CannonCharge > 0f)
+            {
+                bool charged = m_CannonCharge >= kCannonChargeSeconds;
+                m_CannonCharge = 0f;
+                if (charged) items.RequestUseHeld();   // 덜 눌렀으면 불발(다시 조준)
+            }
+        }
+
         private void UpdateEKey(Keyboard kb)
         {
             // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
-            // (도구를 들었다 = 공정할 의도). 아이템이 없으면 아래 공정 로직 그대로.
-            if (kb.eKey.wasPressedThisFrame && !HasTool)
+            // (도구를 들었다 = 공정할 의도). 대포만 예외로 '꾹 눌렀다 떼면 발사'.
+            var items = GridSystem.ItemNetwork.Instance;
+            if (!HasTool && items != null && items.LocalHasItem)
             {
-                var items = GridSystem.ItemNetwork.Instance;
-                if (items != null && items.LocalHasItem) { items.RequestUseHeld(); return; }
+                if (items.LocalHoldsCannon) { UpdateCannonCharge(kb, items); return; }
+                if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }
             }
+            m_CannonCharge = 0f;
 
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
@@ -1334,11 +1356,20 @@ namespace Player
         {
             Vector2 sp = default;
 
-            bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
-                        && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
-            m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
-                m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
-                m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+            if (m_CannonCharge > 0f)   // 대포 충전은 같은 바를 머리 위에 띄워 게이지로 쓴다
+            {
+                bool ok = WorldToScreen(transform.position + Vector3.up * 2.2f, out sp);
+                m_Hud.SetProcessBar(ok, sp, Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds),
+                    new Color(0.95f, 0.55f, 0.15f), "대포 조준 중… (떼면 발사)");
+            }
+            else
+            {
+                bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
+                            && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
+                m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
+                    m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
+                    m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+            }
 
             bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell
                        && WorldToScreen(GridCoordinates.CellToWorld(m_RevertCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);

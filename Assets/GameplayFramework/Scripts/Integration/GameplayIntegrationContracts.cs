@@ -19,7 +19,7 @@ namespace SeoulZikimi.Gameplay
 
     /// <summary>
     /// TODO(Inventory): 현재 손에 든 경쟁 아이템 조회와 사용 완료 제거를 실제 인벤토리에 연결해야 한다.
-    /// 대포는 CompetitiveItemKind에 없으므로 여기에서 반환하지 않는다.
+    /// 대포를 포함한 모든 아이템 종류를 반환한다.
     /// </summary>
     public interface IHeldCompetitiveItemGateway
     {

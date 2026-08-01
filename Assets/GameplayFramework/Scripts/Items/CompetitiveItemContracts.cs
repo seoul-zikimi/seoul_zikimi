@@ -48,6 +48,15 @@ namespace SeoulZikimi.Gameplay
     }
 
     /// <summary>
+    /// 대포: 지정 팀 영역에서 '배치와 공정이 모두 끝난' 파츠 하나를 무작위로 파괴하고,
+    /// 그 위에 얹혀 있던 재료는 기존 붕괴 규칙대로 연쇄로 무너뜨려야 한다.
+    /// </summary>
+    public interface ICompletedConstructionTarget
+    {
+        void DestroyRandomCompleted(string teamId);
+    }
+
+    /// <summary>
     /// 기존 날씨가 있으면 새 날씨로 교체하고 durationSeconds 타이머를 처음부터 시작해야 한다.
     /// </summary>
     public interface ITemporaryTeamWeatherTarget
