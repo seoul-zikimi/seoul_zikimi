@@ -11,7 +11,10 @@ namespace GridSystem
     /// CompetitiveItemSpawnDirector가 결정하고, 이 클래스는 월드 배치/복제/획득/사용만 담당한다.
     /// 획득 = 빈손으로 접근(1.2m), 사용 = F키. 효과는 이동속도 버프/디버프부터 실적용(나머지는 순차 연결).
     /// </summary>
-    public class ItemNetwork : NetworkBehaviour, ICompetitiveItemSpawnGateway
+    public class ItemNetwork : NetworkBehaviour,
+        ICompetitiveItemSpawnGateway, IOpponentTeamResolver,
+        IUnfixedConstructionTarget, ITeamMovementModifierTarget, ITeamProcessModifierTarget,
+        ITeamOrderLockTarget, ITeamFogTarget, ITemporaryTeamWeatherTarget, ITeamWeatherImmunityTarget
     {
         private const float kPickupRange = 1.2f;
         private const string kTeamA = "A", kTeamB = "B";
@@ -31,17 +34,38 @@ namespace GridSystem
             public bool Equals(ItemEntry o) => Id == o.Id && Kind == o.Kind && Pos == o.Pos && Held == o.Held && Holder == o.Holder;
         }
 
+        /// <summary>팀에 걸린 지속 효과(서버가 만료 관리, 클라는 값만 읽는다).</summary>
+        private struct TeamEffects : INetworkSerializable, System.IEquatable<TeamEffects>
+        {
+            public float MoveMul;       // 이동속도 배율
+            public float ProcessMul;    // 공정(망치·페인트) 진행 속도 배율
+            public bool OrderBlocked;   // 재료 주문 차단(해킹)
+
+            public static TeamEffects None => new() { MoveMul = 1f, ProcessMul = 1f, OrderBlocked = false };
+
+            public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
+            {
+                s.SerializeValue(ref MoveMul); s.SerializeValue(ref ProcessMul); s.SerializeValue(ref OrderBlocked);
+            }
+            public bool Equals(TeamEffects o) => MoveMul == o.MoveMul && ProcessMul == o.ProcessMul && OrderBlocked == o.OrderBlocked;
+        }
+
         private readonly NetworkList<ItemEntry> m_Items = new();
-        // 팀별 이동속도 배율(서버가 만료 관리, 클라는 값만 읽음). [0]=A, [1]=B
-        private readonly NetworkVariable<float> m_MoveMulA = new(1f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-        private readonly NetworkVariable<float> m_MoveMulB = new(1f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<TeamEffects> m_FxA =
+            new(TeamEffects.None, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<TeamEffects> m_FxB =
+            new(TeamEffects.None, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private GameLoopManager m_Loop;
         private GridManager m_Grid;
         private GridNetwork m_Net;
         private CompetitiveItemSpawnDirector m_Director;   // 서버 전용
+        private CompetitiveItemUseService m_UseService;    // 서버 전용(대상 팀 결정 + 효과 실행)
         private uint m_NextId;
-        private float m_MoveMulUntilA, m_MoveMulUntilB;    // 서버 전용 만료 시각(Time.time)
+        // 서버 전용 만료 시각(Time.time). [0]=팀A, [1]=팀B
+        private readonly float[] m_MoveUntil = new float[2];
+        private readonly float[] m_ProcUntil = new float[2];
+        private readonly float[] m_OrderUntil = new float[2];
         private GameObject m_VisualRoot;
         private readonly System.Collections.Generic.Dictionary<uint, GameObject> m_Visuals = new();
 
@@ -60,7 +84,13 @@ namespace GridSystem
             m_VisualRoot = new GameObject("~ItemVisuals");
             m_Items.OnListChanged += OnItemsChanged;
             if (IsServer)
-                m_Director = DefaultCompetitiveItemFactory.CreateSpawnDirector(this, new UnityRandom());
+            {
+                var definitions = CompetitiveItemDefinitionCatalog.CreateDefault();
+                m_Director = DefaultCompetitiveItemFactory.CreateSpawnDirector(this, new UnityRandom(), definitions);
+                var effects = DefaultCompetitiveItemFactory.CreateEffects(
+                    definitions, this, this, this, this, this, this, this);
+                m_UseService = new CompetitiveItemUseService(definitions, effects, this);
+            }
             RebuildVisuals();
         }
 
@@ -94,13 +124,30 @@ namespace GridSystem
         }
 
         /// <summary>로컬 플레이어 팀의 이동속도 배율(PlayerMovement가 곱함). 협동/미배정 = 1.</summary>
-        public static float LocalMoveMultiplier()
+        public static float LocalMoveMultiplier() => LocalEffects().MoveMul;
+
+        /// <summary>로컬 플레이어 팀의 공정 진행 속도 배율(PlayerCarry가 곱함). 협동/미배정 = 1.</summary>
+        public static float LocalProcessMultiplier() => LocalEffects().ProcessMul;
+
+        /// <summary>내 팀이 주문 해킹당했는가(주문 HUD 안내용).</summary>
+        public static bool LocalOrderBlocked() => LocalEffects().OrderBlocked;
+
+        private static TeamEffects LocalEffects()
         {
-            if (s_Instance == null || s_Instance.m_Loop == null || !s_Instance.m_Loop.IsVersus) return 1f;
+            if (s_Instance == null || s_Instance.m_Loop == null || !s_Instance.m_Loop.IsVersus) return TeamEffects.None;
             int team = s_Instance.m_Loop.LocalTeam;
-            if (team < 0) return 1f;
-            return team == 0 ? s_Instance.m_MoveMulA.Value : s_Instance.m_MoveMulB.Value;
+            return team < 0 ? TeamEffects.None : s_Instance.Fx(team);
         }
+
+        private TeamEffects Fx(int team) => team == 1 ? m_FxB.Value : m_FxA.Value;
+
+        private void SetFx(int team, TeamEffects v)
+        {
+            if (team == 1) m_FxB.Value = v; else m_FxA.Value = v;
+        }
+
+        /// <summary>서버 검사용: 해당 팀이 지금 재료를 주문할 수 있는가(MaterialDepot이 호출).</summary>
+        public bool IsOrderBlocked(int team) => team >= 0 && Fx(team).OrderBlocked;
 
         // ── 게이트웨이 (SpawnDirector → 월드) — 서버 전용 ─────────
         string ICompetitiveItemSpawnGateway.Spawn(CompetitiveItemSpawnRequest request)
@@ -170,9 +217,21 @@ namespace GridSystem
                 }
             }
 
-            // 이동속도 배율 만료
-            if (m_MoveMulA.Value != 1f && Time.time >= m_MoveMulUntilA) m_MoveMulA.Value = 1f;
-            if (m_MoveMulB.Value != 1f && Time.time >= m_MoveMulUntilB) m_MoveMulB.Value = 1f;
+            ExpireEffects();
+        }
+
+        // 지속 효과 만료(서버) — 시간이 지난 것만 기본값으로 되돌린다.
+        private void ExpireEffects()
+        {
+            for (int team = 0; team < 2; team++)
+            {
+                var fx = Fx(team);
+                bool changed = false;
+                if (fx.MoveMul != 1f && Time.time >= m_MoveUntil[team]) { fx.MoveMul = 1f; changed = true; }
+                if (fx.ProcessMul != 1f && Time.time >= m_ProcUntil[team]) { fx.ProcessMul = 1f; changed = true; }
+                if (fx.OrderBlocked && Time.time >= m_OrderUntil[team]) { fx.OrderBlocked = false; changed = true; }
+                if (changed) SetFx(team, fx);
+            }
         }
 
         /// <summary>새 라운드(재시작) — 아이템·배율·규칙 초기화. GameLoopManager.Restart가 호출(서버).</summary>
@@ -181,7 +240,7 @@ namespace GridSystem
             if (!IsServer) return;
             for (int i = m_Items.Count - 1; i >= 0; i--) m_Items.RemoveAt(i);
             m_Director?.Reset();
-            m_MoveMulA.Value = 1f; m_MoveMulB.Value = 1f;
+            m_FxA.Value = TeamEffects.None; m_FxB.Value = TeamEffects.None;
         }
 
         private bool HasHeld(ulong clientId)
@@ -199,39 +258,66 @@ namespace GridSystem
             {
                 var e = m_Items[i];
                 if (!e.Held || e.Holder != sender) continue;
+                int team = m_Loop.GetTeam(sender);
+                if (team < 0) return;                      // 팀 미배정이면 소비하지 않는다
                 m_Items.RemoveAt(i);
-                ApplyEffect((CompetitiveItemKind)e.Kind, m_Loop.GetTeam(sender));
+                m_UseService?.Use((CompetitiveItemKind)e.Kind, sender.ToString(), TeamId(team));
                 return;
             }
         }
 
-        // 효과 적용(서버). 정의값(지속·배율)은 프레임워크 기본표 사용.
-        private void ApplyEffect(CompetitiveItemKind kind, int userTeam)
+        // ── 프레임워크 효과 어댑터 ────────────────────────────────
+        // 대상 팀 결정과 효과 실행은 CompetitiveItemUseService가 한다. 이 클래스는 각 효과 인터페이스의
+        // '유니티 쪽 구현'만 제공한다(순수 도메인 ↔ 네트워크/월드 경계).
+        private const string kTeamAId = kTeamA, kTeamBId = kTeamB;
+
+        private static int TeamIndex(string teamId) => teamId == kTeamBId ? 1 : teamId == kTeamAId ? 0 : -1;
+        private static string TeamId(int index) => index == 1 ? kTeamBId : kTeamAId;
+
+        string IOpponentTeamResolver.GetOpponentTeamId(string sourceTeamId)
+            => sourceTeamId == kTeamBId ? kTeamAId : kTeamBId;
+
+        void IUnfixedConstructionTarget.CollapseAllUnfixed(string teamId)
         {
-            if (userTeam < 0) return;
-            var def = CompetitiveItemDefinitionCatalog.CreateDefault().Get(kind);
-            int target = def.TargetSide == ItemTargetSide.Ally ? userTeam : 1 - userTeam;
-
-            switch (kind)
-            {
-                case CompetitiveItemKind.MovementSlow:
-                case CompetitiveItemKind.MovementBoost:
-                    if (target == 0) { m_MoveMulA.Value = def.Magnitude; m_MoveMulUntilA = Time.time + def.EffectDurationSeconds; }
-                    else { m_MoveMulB.Value = def.Magnitude; m_MoveMulUntilB = Time.time + def.EffectDurationSeconds; }
-                    break;
-                case CompetitiveItemKind.Earthquake:
-                    if (m_Net != null)
-                    {
-                        int n = m_Net.ServerEarthquake(target);
-                        Debug.Log($"[Item] 지진 → 팀{(target == 0 ? "A" : "B")}: 미고정 블록 {n}개 붕괴");
-                    }
-                    break;
-
-                default:
-                    Debug.Log($"[Item] 효과 미구현(소비됨): {kind} → 팀{(target == 0 ? "A" : "B")}");   // TODO: 날씨·안개·공정·해킹·우산
-                    break;
-            }
+            int team = TeamIndex(teamId);
+            if (team < 0 || m_Net == null) return;
+            int n = m_Net.ServerEarthquake(team);
+            Debug.Log($"[Item] 지진 → 팀{teamId}: 미고정 블록 {n}개 붕괴");
         }
+
+        void ITeamMovementModifierTarget.ApplyMovementSpeedMultiplier(string teamId, float multiplier, float durationSeconds)
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0) return;
+            var fx = Fx(team); fx.MoveMul = multiplier; SetFx(team, fx);
+            m_MoveUntil[team] = Time.time + durationSeconds;
+        }
+
+        void ITeamProcessModifierTarget.ApplyProcessSpeedMultiplier(string teamId, float multiplier, float durationSeconds)
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0) return;
+            var fx = Fx(team); fx.ProcessMul = multiplier; SetFx(team, fx);
+            m_ProcUntil[team] = Time.time + durationSeconds;
+        }
+
+        void ITeamOrderLockTarget.LockNewOrders(string teamId, float durationSeconds)
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0) return;
+            var fx = Fx(team); fx.OrderBlocked = true; SetFx(team, fx);
+            m_OrderUntil[team] = Time.time + durationSeconds;
+        }
+
+        // 아래 셋은 아직 월드 쪽 구현이 없다 — 서비스 흐름은 그대로 타고, 효과만 순차 연결 예정.
+        void ITeamFogTarget.ApplyFog(string teamId, float durationSeconds)
+            => Debug.Log($"[Item] 안개 미구현(소비됨) → 팀{teamId} {durationSeconds}초");
+
+        void ITemporaryTeamWeatherTarget.ApplyTemporaryWeather(string teamId, SeoulZikimi.Weather.WeatherKind weather, float durationSeconds)
+            => Debug.Log($"[Item] 날씨({weather}) 미구현(소비됨) → 팀{teamId} {durationSeconds}초");
+
+        void ITeamWeatherImmunityTarget.ApplyWeatherImmunity(string teamId, float durationSeconds)
+            => Debug.Log($"[Item] 우산(날씨 면역) 미구현(소비됨) → 팀{teamId} {durationSeconds}초");
 
         // ── 비주얼(전 클라 로컬) — 종류별 색 구슬 + 이벤트별 FX ─────
         // 증분 갱신: 리스트 변화 종류로 등장/획득/사용/소멸을 구분해야 FX가 맞는 순간에 터진다.

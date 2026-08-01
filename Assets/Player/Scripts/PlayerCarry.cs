@@ -285,7 +285,7 @@ namespace Player
             if (m_Target != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
             m_ProcessKind = m_HeldTool;
             bool strokeStart = m_ProcessHold <= 0f;
-            m_ProcessHold += Time.deltaTime;
+            m_ProcessHold += Time.deltaTime * GridSystem.ItemNetwork.LocalProcessMultiplier();   // 2vs2 공정 버프/디버프
 
             if (strokeStart && m_ProcessKind == ProcessType.Painted)   // 붓질 시작 = 사운드 시작(바와 동시 출발)
             {
