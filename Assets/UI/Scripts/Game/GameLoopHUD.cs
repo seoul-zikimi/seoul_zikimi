@@ -238,7 +238,7 @@ public sealed class GameLoopHUD : UIHUD
                 var items = m_Loop.GetComponent<GridSystem.ItemNetwork>();
                 string held = items != null ? items.LocalHeldName() : "";
                 if (!string.IsNullOrEmpty(held))
-                    timer += $"\n<size=55%>[{held}] F로 사용</size>";
+                    timer += $"\n<size=55%>[{held}] E로 사용</size>";
             }
             m_TimerText.text = timer;
 

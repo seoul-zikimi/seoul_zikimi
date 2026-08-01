@@ -260,6 +260,14 @@ namespace Player
 
         private void UpdateEKey(Keyboard kb)
         {
+            // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
+            // (도구를 들었다 = 공정할 의도). 아이템이 없으면 아래 공정 로직 그대로.
+            if (kb.eKey.wasPressedThisFrame && !HasTool)
+            {
+                var items = GridSystem.ItemNetwork.Instance;
+                if (items != null && items.LocalHasItem) { items.RequestUseHeld(); return; }
+            }
+
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
                 CancelPaintStroke();

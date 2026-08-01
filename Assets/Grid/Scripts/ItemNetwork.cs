@@ -2,7 +2,6 @@ using SeoulZikimi.Gameplay;
 using SeoulZikimi.Weather;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace GridSystem
 {
@@ -72,7 +71,19 @@ namespace GridSystem
             if (s_Instance == this) s_Instance = null;
         }
 
-        // ── 조회 API ─────────────────────────────────────────────
+        // ── 조회/조작 API ─────────────────────────────────────────
+        /// <summary>씬의 아이템 호스트(없으면 null — 협동 모드 등).</summary>
+        public static ItemNetwork Instance => s_Instance;
+
+        /// <summary>내가 아이템을 들고 있는가(E 사용 가능).</summary>
+        public bool LocalHasItem => LocalHeldName() != "";
+
+        /// <summary>[기획] 아이템을 든 채로 E — 입력은 PlayerCarry가 공정(도구)과 갈라서 호출한다.</summary>
+        public void RequestUseHeld()
+        {
+            if (LocalHasItem) UseHeldRpc();
+        }
+
         /// <summary>내(로컬 플레이어)가 들고 있는 아이템 이름. 없으면 "".</summary>
         public string LocalHeldName()
         {
@@ -130,11 +141,6 @@ namespace GridSystem
         private void Update()
         {
             if (!IsSpawned) return;
-
-            // 사용(F) — 로컬 입력은 모든 클라에서
-            var kb = Keyboard.current;
-            if (kb != null && kb.fKey.wasPressedThisFrame && LocalHeldName() != "")
-                UseHeldRpc();
 
             if (!IsServer || m_Loop == null || !m_Loop.IsVersus) return;
 
