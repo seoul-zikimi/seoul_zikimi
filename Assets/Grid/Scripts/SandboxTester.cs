@@ -8,7 +8,7 @@ namespace GridSystem
     /// 네트워크 없이 굴리는 샌드박스 테스터(테스트 씬 전용).
     /// · WASD = 테스트 플레이어 이동 → 블록 색으로 2칸 사거리 판정 확인(초록=닿음, 빨강=안 닿음)
     ///   1×1 / 3×3 / 9×9 블록을 놔서, 큰 블록도 가장자리에 서면 닿는지 바로 보인다.
-    /// · DeliveryPoint 오브젝트를 끌어 옮기면 노란 마커가 '실제 배송될 위치'(클램프 적용 후)를 보여준다.
+    /// · Spot_DeliveryZone 마커를 끌어 옮기면 노란 마커가 '실제 배송될 위치'(클램프 적용 후)를 보여준다.
     ///   마커가 안 따라오면 그리드 밖으로 잘린 것.
     /// 아이템 파티클/사운드는 같은 씬의 ItemFxTester(숫자키)가 담당.
     /// </summary>
@@ -17,7 +17,7 @@ namespace GridSystem
         [SerializeField] private float m_ReachCells = 2f;      // PlayerCarry의 사거리와 같은 값
         [SerializeField] private Vector3Int m_GridSize = new(8, 6, 8);
         [SerializeField] private float m_MoveSpeed = 6f;
-        [SerializeField] private Transform m_DeliveryPoint;    // 씬의 "DeliveryPoint"
+        [SerializeField] private Transform m_DeliveryPoint;    // 씬의 "Spot_DeliveryZone" 마커
 
         private Transform m_Player;
         private Transform m_DeliveryMarker;
@@ -38,7 +38,11 @@ namespace GridSystem
             m_DeliveryMarker = MakeBox("~DeliveryResult", Vector3.zero, new Vector3(1.2f, 0.1f, 1.2f),
                                        new Color(0.95f, 0.8f, 0.2f)).transform;
 
-            Debug.Log("[Sandbox] WASD=이동 / 블록 초록=사거리 안, 빨강=밖 / DeliveryPoint를 끌면 노란 마커가 실제 착지 위치");
+            // 테스트 씬 전용: 블록·배송 지점이 한 화면에 다 들어오게 카메라를 잡아준다.
+            if (Camera.main != null)
+                Camera.main.transform.SetPositionAndRotation(new Vector3(7f, 22f, -12f), Quaternion.Euler(48f, 0f, 0f));
+
+            Debug.Log("[Sandbox] WASD=이동 / 블록 초록=사거리 안, 빨강=밖 / Spot_DeliveryZone을 끌면 노란 마커가 실제 착지 위치");
         }
 
         private void Update()

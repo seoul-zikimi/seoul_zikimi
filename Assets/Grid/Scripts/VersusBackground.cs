@@ -30,9 +30,9 @@ namespace GridSystem
             clone.name = $"~VersusMirror({bg.name})";
             foreach (var c in clone.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
             foreach (var s in clone.GetComponentsInChildren<MonoBehaviour>(true)) Object.DestroyImmediate(s);
-            // 복제본의 마커 이름을 죽인다 — 안 그러면 GameObject.Find("DeliveryPoint") 등이 반대편 사본을 잡는다.
+            // 복제본의 마커 이름을 죽인다 — 안 그러면 GameObject.Find("Spot_DeliveryZone") 등이 반대편 사본을 잡는다.
             foreach (var t in clone.GetComponentsInChildren<Transform>(true))
-                if (t.name.StartsWith("Spot_") || t.name == "DeliveryPoint") t.name = "~Mirror_" + t.name;
+                if (t.name.StartsWith("Spot_")) t.name = "~Mirror_" + t.name;
             clone.transform.RotateAround(pivot, Vector3.up, 180f);
             return clone;
         }

@@ -112,19 +112,22 @@ namespace GridSystem.Tests
         }
 
         [Test]
-        public void 배송지점_지정방식이_한_맵에_두개_이상_섞여있지_않다()
+        public void 배송지점_마커가_있고_레거시_오브젝트가_없다()
         {
             foreach (var m in Maps())
             {
                 if (m.BackgroundPrefab == null) continue;
-                bool hasPoint = false, hasSpot = false;
+                bool hasSpot = false, hasLegacy = false;
                 foreach (var t in m.BackgroundPrefab.GetComponentsInChildren<Transform>(true))
                 {
-                    if (t.name == "DeliveryPoint") hasPoint = true;
-                    if (t.name == "Spot_DeliveryZone") hasSpot = true;
+                    if (t.name == MaterialDepot.kSpotName) hasSpot = true;
+                    if (t.name == "DeliveryPoint") hasLegacy = true;
                 }
-                Assert.IsFalse(hasPoint && hasSpot,
-                    $"[{m.name}] DeliveryPoint와 Spot_DeliveryZone이 둘 다 있음 — DeliveryPoint가 이깁니다. 하나만 두세요.");
+                Assert.IsFalse(hasLegacy,
+                    $"[{m.name}] 레거시 'DeliveryPoint'가 남아 있음 — 배송 지점은 {MaterialDepot.kSpotName} 마커로 지정합니다. " +
+                    "Tools ▸ Map ▸ 레거시 DeliveryPoint 정리 로 지우세요.");
+                Assert.IsTrue(hasSpot,
+                    $"[{m.name}] {MaterialDepot.kSpotName} 마커가 없음 — 재료가 그리드 옆 기본 위치로 떨어집니다.");
             }
         }
     }
