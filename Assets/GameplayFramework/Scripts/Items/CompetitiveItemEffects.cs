@@ -33,6 +33,22 @@ namespace SeoulZikimi.Gameplay
             => _target.CollapseAllUnfixed(request.TargetTeamId);
     }
 
+    public sealed class CannonItemEffect : CompetitiveItemEffectBase
+    {
+        private readonly ICompletedConstructionTarget _target;
+
+        public CannonItemEffect(
+            CompetitiveItemDefinition definition,
+            ICompletedConstructionTarget target)
+            : base(definition)
+        {
+            _target = target ?? throw new ArgumentNullException(nameof(target));
+        }
+
+        public override void Apply(CompetitiveItemUseRequest request)
+            => _target.DestroyRandomCompleted(request.TargetTeamId);
+    }
+
     public sealed class WeatherItemEffect : CompetitiveItemEffectBase
     {
         private readonly ITemporaryTeamWeatherTarget _target;

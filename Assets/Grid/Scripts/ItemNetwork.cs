@@ -14,7 +14,7 @@ namespace GridSystem
     /// </summary>
     public class ItemNetwork : NetworkBehaviour,
         ICompetitiveItemSpawnGateway, IOpponentTeamResolver,
-        IUnfixedConstructionTarget, ITeamMovementModifierTarget, ITeamProcessModifierTarget,
+        IUnfixedConstructionTarget, ICompletedConstructionTarget, ITeamMovementModifierTarget, ITeamProcessModifierTarget,
         ITeamOrderLockTarget, ITeamFogTarget, ITemporaryTeamWeatherTarget, ITeamWeatherImmunityTarget
     {
         private const float kPickupRange = 1.2f;
@@ -102,7 +102,7 @@ namespace GridSystem
                 var definitions = CompetitiveItemDefinitionCatalog.CreateDefault();
                 m_Director = DefaultCompetitiveItemFactory.CreateSpawnDirector(this, new UnityRandom(), definitions);
                 var effects = DefaultCompetitiveItemFactory.CreateEffects(
-                    definitions, this, this, this, this, this, this, this);
+                    definitions, this, this, this, this, this, this, this, this);
                 m_UseService = new CompetitiveItemUseService(definitions, effects, this);
             }
             RebuildVisuals();
@@ -121,6 +121,18 @@ namespace GridSystem
 
         /// <summary>내가 아이템을 들고 있는가(E 사용 가능).</summary>
         public bool LocalHasItem => LocalHeldName() != "";
+
+        /// <summary>내가 든 게 대포인가 — 대포만 '꾹 눌렀다 떼기'로 발사한다(기획서).</summary>
+        public bool LocalHoldsCannon
+        {
+            get
+            {
+                ulong me = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : ulong.MaxValue;
+                foreach (var e in m_Items)
+                    if (e.Held && e.Holder == me) return (CompetitiveItemKind)e.Kind == CompetitiveItemKind.Cannon;
+                return false;
+            }
+        }
 
         /// <summary>[기획] 아이템을 든 채로 E — 입력은 PlayerCarry가 공정(도구)과 갈라서 호출한다.</summary>
         public void RequestUseHeld()
@@ -387,6 +399,15 @@ namespace GridSystem
             Debug.Log($"[Item] 지진 → 팀{teamId}: 미고정 블록 {n}개 붕괴");
         }
 
+        void ICompletedConstructionTarget.DestroyRandomCompleted(string teamId)
+        {
+            int team = TeamIndex(teamId);
+            if (team < 0 || m_Net == null) return;
+            bool hit = m_Net.ServerCannonDestroy(team);
+            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 완성 파츠 1개 파괴"
+                          : $"[Item] 대포 → 팀{teamId}: 부술 완성 파츠가 없음");
+        }
+
         void ITeamMovementModifierTarget.ApplyMovementSpeedMultiplier(string teamId, float multiplier, float durationSeconds)
         {
             int team = TeamIndex(teamId);
@@ -525,6 +546,7 @@ namespace GridSystem
             CompetitiveItemKind.Umbrella => new Color(1f, 0.85f, 0.3f),
             CompetitiveItemKind.MovementBoost => new Color(0.3f, 0.85f, 0.4f),
             CompetitiveItemKind.ProcessBoost => new Color(0.2f, 0.7f, 0.9f),
+            CompetitiveItemKind.Cannon => new Color(0.25f, 0.25f, 0.3f),
             _ => Color.gray,
         };
 
@@ -542,6 +564,7 @@ namespace GridSystem
             CompetitiveItemKind.Umbrella => "우산",
             CompetitiveItemKind.MovementBoost => "속도 버프",
             CompetitiveItemKind.ProcessBoost => "공정 버프",
+            CompetitiveItemKind.Cannon => "대포",
             _ => k.ToString(),
         };
 

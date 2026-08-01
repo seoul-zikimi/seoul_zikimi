@@ -9,6 +9,7 @@ namespace SeoulZikimi.Gameplay
         public static CompetitiveItemEffectCatalog CreateEffects(
             ICompetitiveItemDefinitionCatalog definitions,
             IUnfixedConstructionTarget construction,
+            ICompletedConstructionTarget cannon,
             ITemporaryTeamWeatherTarget weather,
             ITeamFogTarget fog,
             ITeamMovementModifierTarget movement,
@@ -21,6 +22,8 @@ namespace SeoulZikimi.Gameplay
 
             var effects = new Dictionary<CompetitiveItemKind, ICompetitiveItemEffect>
             {
+                [CompetitiveItemKind.Cannon] = new CannonItemEffect(
+                    definitions.Get(CompetitiveItemKind.Cannon), cannon),
                 [CompetitiveItemKind.Earthquake] = new EarthquakeItemEffect(
                     definitions.Get(CompetitiveItemKind.Earthquake), construction),
                 [CompetitiveItemKind.Rain] = new WeatherItemEffect(

@@ -3,7 +3,7 @@ using System;
 namespace SeoulZikimi.Gameplay
 {
     /// <summary>
-    /// 대포는 맵/조준 방식 확정 전까지 의도적으로 포함하지 않는다.
+    /// 대포는 조준해서 쏘지만, 파괴 대상은 상대 진영의 완성된 파츠 중 하나를 무작위로 고른다.
     /// </summary>
     public enum CompetitiveItemKind
     {
@@ -18,7 +18,8 @@ namespace SeoulZikimi.Gameplay
         OrderHack,
         Umbrella,
         MovementBoost,
-        ProcessBoost
+        ProcessBoost,
+        Cannon
     }
 
     public enum ItemTargetSide

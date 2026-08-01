@@ -301,6 +301,48 @@ namespace GridSystem
             return collapsed;
         }
 
+        /// <summary>[아이템: 대포] 해당 팀 구역에서 '배치+공정이 모두 끝난' 파츠 하나를 무작위로 파괴한다.
+        /// 위에 얹혀 있던 것들은 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 파괴 성공 여부 반환.</summary>
+        public bool ServerCannonDestroy(int team)
+        {
+            if (!IsServer || m_ServerGrid == null) return false;
+
+            var targets = new System.Collections.Generic.List<Vector3Int>();
+            foreach (var e in m_Cells)
+            {
+                if (!InZone(team, e.cell)) continue;
+                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
+                if (def == null) continue;
+                if (!IsFullyProcessed(def, e.completedProcessMask)) continue;   // 완성된 파츠만
+                targets.Add(e.cell);
+            }
+            if (targets.Count == 0) return false;
+
+            var hit = targets[Random.Range(0, targets.Count)];
+            CannonHitFxRpc(CellWorld(hit));
+            foreach (var co in m_ServerGrid.Collapse(hit)) RemoveCollapsed(co);
+            foreach (var co in m_ServerGrid.SettleUnsupported()) RemoveCollapsed(co);
+            return true;
+        }
+
+        // 그 재료가 요구하는 공정이 전부 끝났는가(채점과 같은 기준인 RequiredMask 사용).
+        private static bool IsFullyProcessed(MaterialDef def, int completedMask)
+        {
+            int need = def.RequiredMask;
+            return need != 0 && (completedMask & need) == need;
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void CannonHitFxRpc(Vector3 center)
+        {
+            GridJuice.CollapseBurst(center, GridContract.Unit);
+            GridJuice.GroundHit(center, 1.6f);
+            GridJuice.FovPunch(Camera.main, -7f);
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.5f),
+                                 "대포 명중!", new Color(0.95f, 0.55f, 0.15f));
+        }
+
         /// <summary>[날씨: 강풍·태풍] 해당 팀 구역의 미고정 블록 중 최대 count개를 바람에 무너뜨린다.
         /// 지진처럼 전멸이 아니라 조금씩 갉아먹는 압박. 서버 전용, 무너진 개수 반환.</summary>
         public int ServerWindCollapse(int team, int count)
