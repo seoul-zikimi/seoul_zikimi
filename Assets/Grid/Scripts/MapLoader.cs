@@ -17,6 +17,7 @@ namespace GridSystem
 
         private GameLoopManager m_Loop;
         private GameObject m_Spawned;
+        private GameObject m_MirrorClone;   // 2vs2 배경 대칭 복제본(맵 교체 시 같이 정리)
         private int m_SpawnedIndex = -1;
 
         private void Awake() => Pending = true;
@@ -39,12 +40,36 @@ namespace GridSystem
             }
 
             if (m_Spawned != null) Destroy(m_Spawned);   // 맵 교체(새 라운드에 다른 맵) 대응
+            if (m_MirrorClone != null) Destroy(m_MirrorClone);
             m_Spawned = Instantiate(def.BackgroundPrefab);
             m_Spawned.name = $"~MapBackground({def.DisplayName})";
             m_SpawnedIndex = idx;
             ApplySpots(m_Spawned);                  // 맵 마커(Spot_*)대로 시스템 오브젝트 이동 — 후처리·플레이어 배치보다 먼저
+            if (m_Loop.IsVersus) SetupVersusBackground(m_Spawned);   // 2vs2: 대칭 처리(전용 맵이면 통과)
             Pending = false;
             BackgroundSpawned?.Invoke(m_Spawned);   // 시야가림 페이드 콜라이더 등 후처리 트리거
+        }
+
+        // 2vs2 배경 대칭 처리 —
+        // · 배경 프리팹 안에 "VersusSymmetric" 빈 오브젝트가 있으면: 이미 대칭으로 제작된 전용 맵 → 아무것도 안 함(권장).
+        // · 없으면: 임시로 배경을 분할벽 중심 기준 180° 회전 복제(비주얼 전용). 가운데가 구조물로 막힐 수 있어
+        //   2vs2 전용 맵(가운데 비운 대칭 배경)을 만드는 것을 권장.
+        private void SetupVersusBackground(GameObject bg)
+        {
+            if (bg.transform.Find("VersusSymmetric") != null) return;   // 전용 대칭 맵 — 복제 불필요
+
+            var gm = FindFirstObjectByType<GridManager>();
+            if (gm == null) return;
+            float u = GridContract.Unit;
+            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
+            Vector3 pivot = new Vector3(baseW.x + gm.ZoneSize.x * u, 0f, baseW.z + gm.EffectiveSize.z * 0.5f * u);
+
+            m_MirrorClone = Instantiate(bg);
+            m_MirrorClone.name = $"~VersusMirror({bg.name})";
+            foreach (var c in m_MirrorClone.GetComponentsInChildren<Collider>(true)) Destroy(c);
+            foreach (var s in m_MirrorClone.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(s);   // 비주얼만 유지
+            m_MirrorClone.transform.RotateAround(pivot, Vector3.up, 180f);
+            Debug.Log("[MapLoader] 2vs2 배경 임시 대칭 복제 — 전용 대칭 맵을 만들면 VersusSymmetric 마커로 끌 수 있음");
         }
 
         // 배경 프리팹 안의 "Spot_<오브젝트이름>" 마커 위치·회전대로 씬의 시스템 오브젝트를 이동.
