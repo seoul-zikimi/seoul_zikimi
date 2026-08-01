@@ -53,6 +53,10 @@ namespace GridSystem
                 if (gm != null) gm.ApplyMapGridSize(def.GridSize);
             }
 
+            // 이 맵에서 주문할 수 있는 재료(비면 카탈로그 전체) — 주문 HUD가 이 목록만 보여준다.
+            var depot = FindFirstObjectByType<MaterialDepot>();
+            if (depot != null) depot.SetAvailableMaterials(def.AvailableMaterials);
+
             ApplySpots(m_Spawned, m_Loop.IsVersus);   // 맵 마커(Spot_*)대로 배치/스폰 — 후처리·플레이어 배치보다 먼저
             if (m_Loop.IsVersus) SetupVersusBackground(m_Spawned);   // 2vs2: 대칭 처리(전용 맵이면 통과)
             Pending = false;

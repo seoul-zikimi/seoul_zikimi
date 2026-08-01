@@ -26,7 +26,35 @@ namespace GridSystem
         // UI는 별도 어셈블리(UIManager)라 직접 못 부름 → 이벤트로 알리고 Assembly-CSharp 드라이버가 HUD 연결.
         public static event System.Action<MaterialDepot> Spawned;
         public static event System.Action<MaterialDepot> Despawned;
+        /// <summary>주문 목록이 바뀜(맵 로드/교체) — HUD 다시 그리기.</summary>
+        public static event System.Action<MaterialDepot> MaterialsChanged;
+
         public MaterialCatalog Catalog => m_Grid != null ? m_Grid.Catalog : null;
+
+        // 맵별 주문 가능 목록(MapDef.AvailableMaterials). 비면 카탈로그 전체를 쓴다 — 카탈로그는 전역 그대로.
+        private System.Collections.Generic.List<MaterialDef> m_Orderable;
+
+        /// <summary>이 맵에서 주문할 수 있는 재료 목록(비어 있으면 카탈로그 전체).</summary>
+        public System.Collections.Generic.IReadOnlyList<MaterialDef> OrderableMaterials =>
+            (m_Orderable != null && m_Orderable.Count > 0)
+                ? (System.Collections.Generic.IReadOnlyList<MaterialDef>)m_Orderable
+                : Catalog != null ? Catalog.Materials : System.Array.Empty<MaterialDef>();
+
+        /// <summary>맵이 정한 주문 목록 적용 — MapLoader가 배경 스폰 때 모든 클라에서 호출.</summary>
+        public void SetAvailableMaterials(System.Collections.Generic.IReadOnlyList<MaterialDef> materials)
+        {
+            m_Orderable = new System.Collections.Generic.List<MaterialDef>();
+            if (materials != null)
+                foreach (var m in materials) if (m != null) m_Orderable.Add(m);
+            MaterialsChanged?.Invoke(this);
+        }
+
+        /// <summary>서버 검증용: 이 맵에서 주문할 수 있는 재료인가.</summary>
+        private bool IsOrderable(int materialId)
+        {
+            foreach (var m in OrderableMaterials) if (m != null && m.Id == materialId) return true;
+            return false;
+        }
 
         private void Awake()
         {
@@ -105,6 +133,11 @@ namespace GridSystem
 
             var cat = m_Grid != null ? m_Grid.Catalog : null;
             if (cat == null || cat.GetById(materialId) == null) return;
+            if (!IsOrderable(materialId))   // 이 맵에서 안 파는 재료(조작된 요청 포함)
+            {
+                Debug.LogWarning($"[Depot] 이 맵에서 주문할 수 없는 재료: id {materialId}");
+                return;
+            }
 
             // 배송 비행: 하늘 저편(랜덤 방향)에서 포물선으로 날아와 배송 구역에 착지.
             // ServerThrow의 던지기 비행(포물선+텀블 회전+착지음)을 그대로 재활용.
