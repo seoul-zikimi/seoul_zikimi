@@ -269,13 +269,11 @@ namespace GridSystem
         // ── 프레임워크 효과 어댑터 ────────────────────────────────
         // 대상 팀 결정과 효과 실행은 CompetitiveItemUseService가 한다. 이 클래스는 각 효과 인터페이스의
         // '유니티 쪽 구현'만 제공한다(순수 도메인 ↔ 네트워크/월드 경계).
-        private const string kTeamAId = kTeamA, kTeamBId = kTeamB;
-
-        private static int TeamIndex(string teamId) => teamId == kTeamBId ? 1 : teamId == kTeamAId ? 0 : -1;
-        private static string TeamId(int index) => index == 1 ? kTeamBId : kTeamAId;
+        private static int TeamIndex(string teamId) => teamId == kTeamB ? 1 : teamId == kTeamA ? 0 : -1;
+        private static string TeamId(int index) => index == 1 ? kTeamB : kTeamA;
 
         string IOpponentTeamResolver.GetOpponentTeamId(string sourceTeamId)
-            => sourceTeamId == kTeamBId ? kTeamAId : kTeamBId;
+            => sourceTeamId == kTeamB ? kTeamA : kTeamB;
 
         void IUnfixedConstructionTarget.CollapseAllUnfixed(string teamId)
         {
