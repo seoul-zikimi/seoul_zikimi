@@ -140,8 +140,10 @@ public class TutorialQuestSequence : MonoBehaviour
             Debug.LogWarning($"[TutorialQuestSequence] MaterialCatalog에서 '{kWallMaterialName}'/'{kRoofMaterialName}'을(를) 찾지 못했습니다 — MaterialCatalog.asset 등록을 확인하세요.");
     }
 
-    // 정답의 벽 칸들을 인접(6방향) 기준으로 군집화한 뒤, X 극단값으로 좌/우 벽을 구분하고
-    // 나머지 하나를 앞쪽 벽으로 판정한다(뒷벽은 Preset이라 애초에 제외됨).
+    // 정답의 벽 칸들을 인접(6방향) 기준으로 군집화한다. 좌/우 벽은 X 한 값에 고정된 채 Z로 뻗어있고,
+    // 앞쪽 벽은 X로 뻗어있다(여러 X값을 가짐) — 이 상대적 모양 차이로 좌/우/앞을 구분한다.
+    // GridManager.GridSize(모든 맵이 공유하는 고정 크기, 예: 16×8×16)에 의존하지 않으므로
+    // 튜토리얼처럼 작은 답을 써도 항상 올바르게 판정된다.
     private void BuildCellClusters()
     {
         var answer = m_Grid.Answer;
@@ -157,19 +159,22 @@ public class TutorialQuestSequence : MonoBehaviour
         }
         m_RoofCells = new List<Vector3Int>(roofCells);
 
-        int minX = 0, maxX = m_Grid.GridSize.x - 1;
+        var singleXClusters = new List<(int x, List<Vector3Int> cells)>();
         foreach (var cluster in ClusterCells(wallCells))
         {
-            bool allMinX = true, allMaxX = true;
+            int clusterMinX = int.MaxValue, clusterMaxX = int.MinValue;
             foreach (var cell in cluster)
             {
-                if (cell.x != minX) allMinX = false;
-                if (cell.x != maxX) allMaxX = false;
+                if (cell.x < clusterMinX) clusterMinX = cell.x;
+                if (cell.x > clusterMaxX) clusterMaxX = cell.x;
             }
-            if (allMinX) m_LeftCells = cluster;
-            else if (allMaxX) m_RightCells = cluster;
+            if (clusterMinX == clusterMaxX) singleXClusters.Add((clusterMinX, cluster));
             else m_FrontCells = cluster;
         }
+
+        singleXClusters.Sort((a, b) => a.x.CompareTo(b.x));
+        if (singleXClusters.Count > 0) m_LeftCells = singleXClusters[0].cells;
+        if (singleXClusters.Count > 1) m_RightCells = singleXClusters[^1].cells;
     }
 
     private static readonly Vector3Int[] kNeighborDirs =
