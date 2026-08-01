@@ -4,34 +4,43 @@ using UnityEngine;
 /// <summary>
 /// mk-secondary 병합으로 도입된 "Spot_" 마커 시스템(배경 프리팹에 Spot_이름 마커를 두면
 /// Resources/SystemObjects/의 프리팹이 그 자리에 자동 스폰되거나, 씬의 GridManager/MaterialDepot이
-/// 그 위치를 따라감)에 맞춰 튜토리얼 배경에 필요한 마커들을 전부 가깝게 모아 배치한다.
+/// 그 위치를 따라감)에 맞춰 튜토리얼 배경에 필요한 마커들을 배치한다.
+///
+/// 중요: GridManager는 옮기지 않는다(Spot_GridManager 마커 제거). GameScene의 GridManager는
+/// 원래 (-11, 0, -7)에 고정 배치되어 있고(광통교용으로 이미 검증된 위치), 이걸 런타임에 옮기면
+/// "플레이어 스폰 타이밍 vs 그리드 원점 이동 타이밍" 레이스가 생겨 사거리 판정이 꼬일 수 있다
+/// (배치하려는데 역방향으로 튕기는 버그의 유력한 원인). 대신 튜토리얼 콘텐츠(바닥·마커)를
+/// GridManager의 기존 위치 기준으로 옮겨서 맞춘다 — 그리드 원점 자체는 항상 예측 가능하게 유지.
 /// 전부 create-or-update 방식이라 여러 번 실행해도 안전하다(이미 있으면 위치만 최신 값으로 갱신).
 /// </summary>
 public static class TutorialSpotMarkerFix
 {
     private const string kPrefabPath = "Assets/Map/Prefabs/MapBg_Tutorial.prefab";
 
-    // 그리드 원점(Spot_GridManager)을 배경 로컬 (0,0,0) — 즉 벽 4개가 모이는 방 바로 그 자리 — 로 고정한다.
-    // 이후 모든 위치는 전부 이 원점 기준 몇 칸 이내로 가깝게 모아서, 플레이어가 스폰되자마자
-    // 방·망치 작업대·배송 지점을 전부 눈에 보이는 거리에서 바로 찾을 수 있게 한다.
-    private const string kGridManagerMarker = "Spot_GridManager";
-    private static readonly Vector3 kGridManagerPos = Vector3.zero;
+    // GameScene에 고정된 GridManager의 실제 위치(Assets/Scenes/GameScene.unity에서 직접 확인한 값).
+    // 이 좌표를 기준으로 나머지 마커를 배치해야 그리드 원점(GridContract.Origin)과 어긋나지 않는다.
+    private static readonly Vector3 kGridOrigin = new(-11f, 0f, -7f);
+
+    private const string kGridManagerMarker = "Spot_GridManager";   // 더는 쓰지 않음 — 있으면 제거
 
     private const string kPlayerSpawnMarker = "Spot_PlayerSpawnPoint";
-    private static readonly Vector3 kPlayerSpawnPos = new(3f, 0.1f, 1f);   // 방에서 몇 걸음 거리
+    private static readonly Vector3 kPlayerSpawnPos = kGridOrigin + new Vector3(3f, 0.1f, 1f);   // 방에서 몇 걸음 거리
 
     private const string kHammerMarker = "Spot_HammerStation";
-    private static readonly Vector3 kHammerPos = new(2.5f, 0.5f, 2.5f);   // 바닥에 파묻히지 않게 y=0.5(큐브가 바닥에 얹힌 높이)
+    private static readonly Vector3 kHammerPos = kGridOrigin + new Vector3(2.5f, 0.5f, 2.5f);   // y=0.5(큐브가 바닥에 얹힌 높이)
 
     private const string kDeliveryMarker = "Spot_DeliveryZone";
-    private static readonly Vector3 kDeliveryPos = new(-1.5f, 0f, 1f);   // 방 반대쪽, 역시 가까운 거리
+    private static readonly Vector3 kDeliveryPos = kGridOrigin + new Vector3(-1.5f, 0f, 1f);   // 방 반대쪽, 역시 가까운 거리
 
-    [MenuItem("Jobsnail/Tutorial/Setup All Spot Markers (그리드원점+스폰+망치+배송)")]
+    [MenuItem("Jobsnail/Tutorial/Setup All Spot Markers (스폰+망치+배송, 그리드 고정 기준)")]
     public static void SetupAllMarkers()
     {
         var contents = PrefabUtility.LoadPrefabContents(kPrefabPath);
 
-        SetMarkerPosition(contents, kGridManagerMarker, kGridManagerPos);
+        // Spot_GridManager는 더 이상 쓰지 않는다 — 있으면 제거(이전 실행분 정리).
+        var oldGridMarker = contents.transform.Find(kGridManagerMarker);
+        if (oldGridMarker != null) Object.DestroyImmediate(oldGridMarker.gameObject);
+
         SetMarkerPosition(contents, kPlayerSpawnMarker, kPlayerSpawnPos);
         SetMarkerPosition(contents, kHammerMarker, kHammerPos);
         SetMarkerPosition(contents, kDeliveryMarker, kDeliveryPos);
@@ -40,7 +49,7 @@ public static class TutorialSpotMarkerFix
         PrefabUtility.UnloadPrefabContents(contents);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("[TutorialSpotMarkerFix] Spot 마커 4개(그리드원점/플레이어스폰/망치/배송) 위치 설정 완료 — 전부 방에서 가까운 거리로 모았습니다.");
+        Debug.Log("[TutorialSpotMarkerFix] Spot 마커 설정 완료(그리드 원점은 안 옮김) — 플레이어스폰/망치/배송을 GridManager 고정 위치 기준으로 모았습니다.");
     }
 
     private static void SetMarkerPosition(GameObject root, string name, Vector3 localPos)
@@ -55,9 +64,9 @@ public static class TutorialSpotMarkerFix
         t.localPosition = localPos;
     }
 
-    // 바닥이 없어서 플레이어가 그리드 낙하 복구 높이(원점 y-12) 밑으로 떨어지는 문제 대응.
-    // 그리드 좌표계(Spot_GridManager)와 별개로, 확실히 동작하는 독립적인 실제 바닥(콜라이더+비주얼)을
-    // 배경 프리팹 자체에 직접 만들어 넣는다.
+    // 바닥이 없어서 플레이어가 그리드 낙하 복구 높이 밑으로 떨어지는 문제 대응.
+    // GridManager 자체 그리드 크기(16×8×16 기본값)에 맞춰 이미 보이지 않는 바닥이 자동 생기지만,
+    // 확실하게 동작하는 독립적인 실제 바닥(콜라이더+비주얼)도 GridManager 고정 위치 기준으로 추가해둔다.
     private const string kFloorName = "~TutorialFloor";
 
     [MenuItem("Jobsnail/Tutorial/Add Floor To Tutorial Background")]
@@ -68,15 +77,15 @@ public static class TutorialSpotMarkerFix
         var floorGo = existing != null ? existing.gameObject : GameObject.CreatePrimitive(PrimitiveType.Cube);
         floorGo.name = kFloorName;
         if (existing == null) floorGo.transform.SetParent(contents.transform, false);
-        // 방·스폰·작업대가 전부 원점 기준 몇 칸 이내라 20x20이면 넉넉히 다 덮는다. 벽 바닥(y=0) 바로 아래.
-        floorGo.transform.localPosition = new Vector3(0f, -0.1f, 0f);
+        // GridManager 고정 위치(kGridOrigin) 중심으로 20x20 — 방·스폰·작업대·배송 지점을 전부 덮는다.
+        floorGo.transform.localPosition = kGridOrigin + new Vector3(0f, -0.1f, 0f);
         floorGo.transform.localScale = new Vector3(20f, 0.2f, 20f);
 
         PrefabUtility.SaveAsPrefabAsset(contents, kPrefabPath);
         PrefabUtility.UnloadPrefabContents(contents);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log($"[TutorialSpotMarkerFix] {kFloorName} 바닥 추가/갱신 완료.");
+        Debug.Log($"[TutorialSpotMarkerFix] {kFloorName} 바닥 추가/갱신 완료 (GridManager 고정 위치 기준).");
     }
 
     // 배경에 이미 완성된 모습으로 박혀있던 벽/지붕 장식을 제거한다 — 이제 이 모양은 Answer_Tutorial(정답)로
