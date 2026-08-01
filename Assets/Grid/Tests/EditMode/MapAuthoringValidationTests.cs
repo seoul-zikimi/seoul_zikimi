@@ -112,22 +112,31 @@ namespace GridSystem.Tests
         }
 
         [Test]
-        public void 배송지점_마커가_있고_레거시_오브젝트가_없다()
+        public void 모든_맵에_Spot_마커_다섯종이_다_있다()
         {
             foreach (var m in Maps())
             {
                 if (m.BackgroundPrefab == null) continue;
-                bool hasSpot = false, hasLegacy = false;
+                var found = new HashSet<string>();
                 foreach (var t in m.BackgroundPrefab.GetComponentsInChildren<Transform>(true))
-                {
-                    if (t.name == MaterialDepot.kSpotName) hasSpot = true;
-                    if (t.name == "DeliveryPoint") hasLegacy = true;
-                }
-                Assert.IsFalse(hasLegacy,
-                    $"[{m.name}] 레거시 'DeliveryPoint'가 남아 있음 — 배송 지점은 {MaterialDepot.kSpotName} 마커로 지정합니다. " +
-                    "Tools ▸ Map ▸ 레거시 DeliveryPoint 정리 로 지우세요.");
-                Assert.IsTrue(hasSpot,
-                    $"[{m.name}] {MaterialDepot.kSpotName} 마커가 없음 — 재료가 그리드 옆 기본 위치로 떨어집니다.");
+                    if (t.name.StartsWith("Spot_")) found.Add(t.name.Substring("Spot_".Length));
+
+                foreach (var need in kKnownSpots)
+                    Assert.IsTrue(found.Contains(need),
+                        $"[{m.name}] Spot_{need} 마커가 없음 — 이 맵에서는 해당 오브젝트가 안 나오거나 공용 위치에 남습니다.");
+            }
+        }
+
+        [Test]
+        public void 레거시_DeliveryPoint가_남아있지_않다()
+        {
+            foreach (var m in Maps())
+            {
+                if (m.BackgroundPrefab == null) continue;
+                foreach (var t in m.BackgroundPrefab.GetComponentsInChildren<Transform>(true))
+                    Assert.AreNotEqual("DeliveryPoint", t.name,
+                        $"[{m.name}] 레거시 'DeliveryPoint'가 남아 있음 — 배송 지점은 {MaterialDepot.kSpotName} 마커로 지정합니다. " +
+                        "Tools ▸ Map ▸ 레거시 DeliveryPoint 정리 로 지우세요.");
             }
         }
     }
