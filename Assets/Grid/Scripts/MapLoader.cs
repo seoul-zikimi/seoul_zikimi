@@ -45,7 +45,7 @@ namespace GridSystem
             m_Spawned = Instantiate(def.BackgroundPrefab);
             m_Spawned.name = $"~MapBackground({def.DisplayName})";
             m_SpawnedIndex = idx;
-            ApplySpots(m_Spawned);                  // 맵 마커(Spot_*)대로 시스템 오브젝트 이동 — 후처리·플레이어 배치보다 먼저
+            ApplySpots(m_Spawned, m_Loop.IsVersus);   // 맵 마커(Spot_*)대로 배치/스폰 — 후처리·플레이어 배치보다 먼저
             if (m_Loop.IsVersus) SetupVersusBackground(m_Spawned);   // 2vs2: 대칭 처리(전용 맵이면 통과)
             Pending = false;
             BackgroundSpawned?.Invoke(m_Spawned);   // 시야가림 페이드 콜라이더 등 후처리 트리거
@@ -91,7 +91,7 @@ namespace GridSystem
             s_SpawnedSystemObjects.Clear();
         }
 
-        private static void ApplySpots(GameObject bg)
+        private static void ApplySpots(GameObject bg, bool versus)
         {
             foreach (var t in bg.GetComponentsInChildren<Transform>(true))
             {
@@ -118,7 +118,33 @@ namespace GridSystem
                 }
 
                 Debug.Log($"[MapLoader] 맵 마커 적용: {targetName} → {t.position}");
+
+                // 2vs2: 상대 진영에도 같은 작업대가 있어야 공평하다 → 분할벽 기준 점대칭 위치에 하나 더.
+                // 그리드·플레이어 스폰은 대상이 아니다(그리드는 하나로 2배 확장, 스폰은 팀별 오프셋 처리).
+                if (versus && targetName != "GridManager" && targetName != "PlayerSpawnPoint")
+                    SpawnVersusMirror(targetName, t);
             }
+        }
+
+        // 팀B 쪽 사본 — 배경 미러와 같은 축(분할벽 중심)으로 180° 회전한 자리에 스폰한다.
+        private static void SpawnVersusMirror(string targetName, Transform spot)
+        {
+            var gm = FindFirstObjectByType<GridManager>();
+            if (gm == null) return;
+
+            var mirror = SpawnSystemObject(targetName);
+            if (mirror == null)
+            {
+                Debug.LogWarning($"[MapLoader] 2vs2 대칭 사본을 못 만듦: Resources/SystemObjects/{targetName} 없음");
+                return;
+            }
+
+            var pivot = VersusBackground.MirrorPivot(gm.ZoneSize, gm.EffectiveSize);
+            mirror.name = targetName + "_B";   // 팀B용(이름이 같으면 GameObject.Find가 헷갈린다)
+            mirror.transform.SetPositionAndRotation(
+                new Vector3(2f * pivot.x - spot.position.x, spot.position.y, 2f * pivot.z - spot.position.z),
+                spot.rotation * Quaternion.Euler(0f, 180f, 0f));
+            Debug.Log($"[MapLoader] 2vs2 대칭 사본 스폰: {mirror.name} → {mirror.transform.position}");
         }
     }
 }
