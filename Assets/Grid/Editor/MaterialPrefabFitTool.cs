@@ -36,6 +36,41 @@ namespace GridSystem.EditorTools
                       "AnswerAuthoring 씬에서 'Setup Autotiles3D Authoring'을 다시 실행한 뒤 칠하세요.");
         }
 
+        /// <summary>규약 검사만(수정 없음). 문제 없으면 null, 있으면 사람이 읽을 설명 반환.</summary>
+        public static string Check(MaterialDef def)
+        {
+            if (def == null || def.Prefab == null) return null;
+            var fp = def.Footprint;
+            var probe = (GameObject)PrefabUtility.InstantiatePrefab(def.Prefab);
+            if (probe == null) probe = Object.Instantiate(def.Prefab);
+            probe.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            try
+            {
+                var renderers = probe.GetComponentsInChildren<Renderer>();
+                if (renderers.Length == 0) return null;
+                var b = renderers[0].bounds;
+                foreach (var r in renderers) b.Encapsulate(r.bounds);
+
+                bool pivotOk = b.min.magnitude <= kTol;
+                bool sizeOk = Mathf.Abs(b.size.x - fp.x) <= kTol
+                           && Mathf.Abs(b.size.y - fp.y) <= kTol
+                           && Mathf.Abs(b.size.z - fp.z) <= kTol;
+                if (pivotOk && sizeOk) return null;
+                return (pivotOk ? "" : $"피벗이 min-corner가 아님(바운드 min {b.min}). ")
+                     + (sizeOk ? "" : $"모델 크기 {b.size.x:F2}×{b.size.y:F2}×{b.size.z:F2} ≠ footprint {fp}. ")
+                     + "어서링에서 칠한 정답과 게임 배치가 어긋납니다.";
+            }
+            finally { Object.DestroyImmediate(probe); }
+        }
+
+        /// <summary>단일 MaterialDef 맞춤(인스펙터 버튼용).</summary>
+        public static bool FitOne(MaterialDef def)
+        {
+            bool changed = Fit(def);
+            if (changed) AssetDatabase.SaveAssets();
+            return changed;
+        }
+
         // 프리팹이 규약(피벗 min-corner + footprint 크기)에 안 맞으면 맞춘 래퍼로 교체. 수정했으면 true.
         static bool Fit(MaterialDef def)
         {
