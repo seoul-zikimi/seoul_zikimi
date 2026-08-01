@@ -17,7 +17,9 @@ public class TutorialFlowController : MonoBehaviour
 {
     private const string kDismissedKey = "TutorialPopupDismissed";
     private const string kTutorialMapDisplayName = "튜토리얼";
-    private const ushort kLocalHostPort = 7777;
+    // 0 = OS가 비어있는 포트를 알아서 골라줌. 7777 등 고정 포트는 이전 세션이 안 놓아주면
+    // "address already in use"로 호스트 시작 자체가 실패함 — 솔로 튜토리얼은 굳이 고정 포트가 필요 없음.
+    private const ushort kLocalHostPort = 0;
 
     private static TutorialFlowController s_Instance;
     private static bool s_TutorialPending;
@@ -165,7 +167,14 @@ public class TutorialFlowController : MonoBehaviour
         yield return null;
         yield return null;
 
-        Debug.Log($"[TutorialFlowController] GameScene 로드 시도 (mapIndex={mapIndex})");
+        // LobbyRoomNet.OnNetworkSpawn()이 자기 자신의(기본값=0번) 맵 인덱스를 GameLoopManager.HostSelectedMap에
+        // 덮어쓴다(늦참자 초기 반영 로직) — 그래서 위에서 설정한 값이 스폰 직후 조용히 사라진다.
+        // LobbyRoomNet에도 우리 맵을 반영하고, GameLoopManager.HostSelectedMap을 씬 로드 직전에 다시 한번 확정한다.
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null) readyNet.HostSelectMap(mapIndex);
+        GameLoopManager.HostSelectedMap = mapIndex;
+
+        Debug.Log($"[TutorialFlowController] GameScene 로드 시도 (mapIndex={mapIndex}, readyNet 찾음={readyNet != null})");
         if (NetworkManager.Singleton.SceneManager != null && NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
         else

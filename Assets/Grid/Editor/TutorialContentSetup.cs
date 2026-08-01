@@ -23,7 +23,9 @@ public static class TutorialContentSetup
     private const string kRoofMatPath = "Assets/Grid/Data/Mat_TutorialRoof.asset";
 
     private const string kPrefabDir = "Assets/Grid/Prefabs/";
-    private const string kCatalogPath = "Assets/Grid/Data/MaterialCatalog.asset";
+    // 주의: Assets/Grid/Data/MaterialCatalog.asset은 실제로 GameScene에 연결된 카탈로그가 아니다(미사용 잔재).
+    // GameScene의 GridManager.m_Catalog가 실제 참조하는 건 이 파일 — 반드시 여기에 등록해야 런타임에 인식된다.
+    private const string kCatalogPath = "Assets/Prefabs/Map/1_KwangTongGyo/1_GwangTongGyo_MaterialCatalog.asset";
     private const string kAnswerPath = "Assets/Grid/Data/Answer_Tutorial.asset";
     private const string kMapDefPath = "Assets/Map/Maps/Map_Tutorial.asset";
 
@@ -39,12 +41,19 @@ public static class TutorialContentSetup
     private static readonly Vector3Int[] kRightCells = { new(3, 0, 0), new(3, 0, 1) };  // 오른쪽 벽(X=3 끝)
     private static readonly Vector3Int[] kFrontCells = { new(1, 0, 3), new(2, 0, 3) };  // 앞쪽 벽(Z=3 끝)
 
+    // 배경 프리팹(MapBg_Tutorial)에서 사용자가 이미 손으로 맞춰둔 회전/스케일 값 그대로 재사용한다
+    // (FrontWall/BackWall 기준 — Footprint에 억지로 늘려 맞추지 않아 원본 모델이 찌그러지지 않는다).
+    private static readonly Quaternion kWallModelRotation = new(0.7071068f, 0f, 0f, 0.7071068f);   // 90° X축
+    private static readonly Vector3 kWallModelScale = Vector3.one;
+    private static readonly Vector3 kDoorModelScale = new(1f, 1f, 1.05f);
+    private static readonly Vector3 kRoofModelScale = new(1.7f, 1.7f, 1f);
+
     [MenuItem("Jobsnail/Tutorial/Setup Tutorial Content (전체 자동)")]
     public static void SetupAll()
     {
-        var wallPrefab = WrapModelToFootprint(kWallGlbPath, "Box_TutorialWall", new Vector3Int(2, 1, 1));
-        var doorPrefab = WrapModelToFootprint(kDoorGlbPath, "Box_TutorialWallDoor", new Vector3Int(2, 1, 1));
-        var roofPrefab = WrapModelToFootprint(kRoofGlbPath, "Box_TutorialRoof", new Vector3Int(4, 1, 4));
+        var wallPrefab = WrapModelToFootprint(kWallGlbPath, "Box_TutorialWall", new Vector3Int(2, 1, 1), kWallModelRotation, kWallModelScale);
+        var doorPrefab = WrapModelToFootprint(kDoorGlbPath, "Box_TutorialWallDoor", new Vector3Int(2, 1, 1), kWallModelRotation, kDoorModelScale);
+        var roofPrefab = WrapModelToFootprint(kRoofGlbPath, "Box_TutorialRoof", new Vector3Int(4, 1, 4), kWallModelRotation, kRoofModelScale);
 
         ConfigureMaterial(kWallMatPath, kWallId, new Vector3Int(2, 1, 1), wallPrefab, requireFixed: true, mustBeFixed: true);
         ConfigureMaterial(kDoorMatPath, kDoorId, new Vector3Int(2, 1, 1), doorPrefab, requireFixed: false, mustBeFixed: false);
@@ -62,9 +71,10 @@ public static class TutorialContentSetup
         Debug.Log("[TutorialContentSetup] 완료: 프리팹 3개 + MaterialDef 3개 + MaterialCatalog 등록 + Answer_Tutorial 생성 + Map_Tutorial 연결");
     }
 
-    // GLB를 인스턴스화해 렌더러 바운즈를 측정하고, 바운즈의 최소 모서리가 (0,0,0)에 오도록,
-    // 크기가 정확히 Footprint가 되도록 위치/스케일을 계산해 프리팹으로 저장한다(수동 정렬 불필요).
-    private static GameObject WrapModelToFootprint(string glbPath, string prefabName, Vector3Int footprint)
+    // GLB를 인스턴스화해 지정된 회전/스케일(배경에서 이미 검증된 값)을 그대로 적용하고,
+    // Footprint 박스에 억지로 늘리는 대신 XZ 중앙·바닥(Y=0)에만 맞춰 위치를 이동한다.
+    // → 모델이 찌그러지지 않고, 배경에 있던 것과 똑같은 비율로 정답/고스트에 보인다.
+    private static GameObject WrapModelToFootprint(string glbPath, string prefabName, Vector3Int footprint, Quaternion modelRotation, Vector3 modelScale)
     {
         var model = AssetDatabase.LoadAssetAtPath<GameObject>(glbPath);
         if (model == null)
@@ -77,8 +87,8 @@ public static class TutorialContentSetup
         var instance = Object.Instantiate(model, root.transform);
         instance.name = "Model";
         instance.transform.localPosition = Vector3.zero;
-        instance.transform.localRotation = Quaternion.identity;
-        instance.transform.localScale = Vector3.one;
+        instance.transform.localRotation = modelRotation;
+        instance.transform.localScale = modelScale;
 
         var renderers = instance.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0)
@@ -88,18 +98,13 @@ public static class TutorialContentSetup
             return null;
         }
 
-        // root가 월드 원점 + identity이고 instance도 identity 상태라, 지금 시점의 world bounds == root 로컬 기준 크기.
+        // root가 월드 원점에 있으므로 지금 시점의 world bounds == root 로컬 기준 크기.
         Bounds bounds = renderers[0].bounds;
         for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
 
-        Vector3 size = bounds.size;
-        Vector3 scale = new(
-            size.x > 0.0001f ? footprint.x / size.x : 1f,
-            size.y > 0.0001f ? footprint.y / size.y : 1f,
-            size.z > 0.0001f ? footprint.z / size.z : 1f);
-
-        instance.transform.localScale = scale;
-        instance.transform.localPosition = new Vector3(-bounds.min.x * scale.x, -bounds.min.y * scale.y, -bounds.min.z * scale.z);
+        Vector3 targetCenter = new(footprint.x * 0.5f, 0f, footprint.z * 0.5f);
+        Vector3 offset = new(targetCenter.x - bounds.center.x, -bounds.min.y, targetCenter.z - bounds.center.z);
+        instance.transform.localPosition += offset;
 
         string path = kPrefabDir + prefabName + ".prefab";
         Directory.CreateDirectory(kPrefabDir);

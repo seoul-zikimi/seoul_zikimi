@@ -109,7 +109,6 @@ public class TutorialQuestSequence : MonoBehaviour
         var dlg = UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>();
         dlg.OnSkipRequested -= OnSkipRequested;
         dlg.OnSkipRequested += OnSkipRequested;
-        UIManager.Instance.ShowHUDUI<TutorialTooltipHUD>();
 
         dlg.ShowLines(kIntroLines, () => EnterStep(0));
     }
@@ -266,7 +265,7 @@ public class TutorialQuestSequence : MonoBehaviour
             {
                 if (AnyMoveKeyHeld()) m_MoveHeldTime += Time.deltaTime;
                 return m_MoveHeldTime >= 4f;
-            }, () => { m_MoveHeldTime = 0f; SetTooltipLine(0); }),
+            }, () => m_MoveHeldTime = 0f),
 
             new(new[]
             {
@@ -277,7 +276,7 @@ public class TutorialQuestSequence : MonoBehaviour
                 if (m_LocalInput != null && !AnswerPanelFocus.Active)
                     m_CamRotAccum += m_LocalInput.CameraRotate.magnitude;
                 return m_CamRotAccum >= kRotateThreshold;
-            }, () => { m_CamRotAccum = 0f; SetTooltipLine(1); }),
+            }, () => m_CamRotAccum = 0f),
 
             new(new[]
             {
@@ -288,46 +287,46 @@ public class TutorialQuestSequence : MonoBehaviour
                 if (m_LocalInput != null && AnswerPanelFocus.Active)
                     m_AnswerRotAccum += m_LocalInput.CameraRotate.magnitude;
                 return m_AnswerRotAccum >= kRotateThreshold;
-            }, () => { m_AnswerRotAccum = 0f; SetTooltipLine(2); }),
+            }, () => m_AnswerRotAccum = 0f),
 
             new(new[]
             {
                 "건축에 필요한 재료들은 우측 드로어 UI에서 주문할 수 있습니다.",
                 "드로어 UI는 화살표 버튼을 눌러 접거나 열 수 있습니다. '벽' 재료를 주문해보세요!",
-            }, AnyWallPickupExists, () => SetTooltipLine(3)),
+            }, AnyWallPickupExists),
 
             new(new[]
             {
                 "주문한 재료는 주문 배송지에 도착합니다.",
                 "도착한 왼쪽 벽을 클릭해 들어봅시다!",
-            }, () => m_LocalCarry.IsHolding, () => SetTooltipLine(4)),
+            }, () => m_LocalCarry.IsHolding),
 
             new(new[]
             {
                 "이제 벽을 건축할 곳으로 운반해 배치해봅시다.",
                 "투명 답안의 맞는 위치에 클릭해 배치하세요! 우선 왼쪽 벽부터 배치해봅시다.",
                 "오브젝트를 든 채로 R버튼을 누르면 회전시킬 수 있습니다.",
-            }, () => CellsPlaced(m_LeftCells, m_WallMaterialId), () => SetTooltipLine(5)),
+            }, () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
             {
                 "답안은 Tab키를 눌러 보이거나 보이지 않게 할 수 있습니다.",
                 "배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요? 해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.",
                 "망치 도구를 클릭해 들어보세요.",
-            }, () => m_LocalCarry.IsHoldingTool, () => SetTooltipLine(6)),
+            }, () => m_LocalCarry.IsHoldingTool),
 
             new(new[]
             {
                 "망치를 든 채로, 왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.",
                 "이런 식으로, 공정이 필요한 오브젝트들이 있습니다. 두 개의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.",
                 "공정을 잘못 진행했을 경우, z키를 꾹 누르면 공정 취소가 가능합니다.",
-            }, () => CellsFixed(m_LeftCells, m_WallMaterialId), () => SetTooltipLine(7)),
+            }, () => CellsFixed(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
             {
                 "어떤 맵은 이미 약간의 건축이 되어 있거나, 일부 재료들이 맵 곳곳에 존재하는 경우가 있습니다.",
                 "이제 오른쪽 벽과 앞쪽 벽을 알맞게 배치하고 고정해 보세요.",
-            }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_WallMaterialId), () => SetTooltipLine(5)),
+            }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_WallMaterialId)),
 
             new(new[]
             {
@@ -339,12 +338,12 @@ public class TutorialQuestSequence : MonoBehaviour
             {
                 if (GridContract.LocalBuildFloor >= 2) m_ReachedFloor3 = true;
                 return m_ReachedFloor3;
-            }, () => { m_ReachedFloor3 = false; SetTooltipLine(8); }),
+            }, () => m_ReachedFloor3 = false),
 
             new(new[]
             {
                 "지붕을 들고, 비계 깔기를 통해 한 층 올라가 지붕을 설치해보세요!",
-            }, () => CellsPlaced(m_RoofCells, m_RoofMaterialId), () => SetTooltipLine(9)),
+            }, () => CellsPlaced(m_RoofCells, m_RoofMaterialId)),
         };
         return steps;
     }
@@ -357,6 +356,8 @@ public class TutorialQuestSequence : MonoBehaviour
             EnterStep(m_Index + 1);
     }
 
+    // 퀘스트 전환이 너무 매끄럽게 느껴지지 않도록, 이전 퀘스트 완료 표시 줄 + 현재 진행도([퀘스트 N/11])를
+    // 대사 맨 앞에 붙여 넣는다 — 플레이어가 "완료됐다"는 걸 명확히 보고 한 번 더 클릭해야 다음으로 넘어간다.
     private void EnterStep(int index)
     {
         m_Index = index;
@@ -367,18 +368,22 @@ public class TutorialQuestSequence : MonoBehaviour
         }
         var step = m_Steps[index];
         step.OnEnter?.Invoke();
-        UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(step.Lines, null);
+
+        var displayLines = new List<string>();
+        if (index > 0)
+            displayLines.Add($"✅ 퀘스트 {index} 완료!");
+        for (int i = 0; i < step.Lines.Length; i++)
+            displayLines.Add(i == 0 ? $"[퀘스트 {index + 1}/{m_Steps.Count}] {step.Lines[i]}" : step.Lines[i]);
+
+        UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, null);
     }
 
     private void ShowOutro()
     {
         m_Index = -2;
-        UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(kOutroLines, FinishTutorial);
-    }
-
-    private void SetTooltipLine(int index)
-    {
-        UIManager.Instance.ShowHUDUI<TutorialTooltipHUD>().SetHighlightedLine(index);
+        var displayLines = new List<string> { $"✅ 퀘스트 {m_Steps.Count} 완료!" };
+        displayLines.AddRange(kOutroLines);
+        UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, FinishTutorial);
     }
 
     private void OnSkipRequested() => FinishTutorial();
@@ -388,7 +393,6 @@ public class TutorialQuestSequence : MonoBehaviour
         if (!m_Active) return;
         m_Active = false;
         UIManager.Instance.HideHUDUI<TutorialDialogueHUD>();
-        UIManager.Instance.HideHUDUI<TutorialTooltipHUD>();
         if (m_Loop != null) m_Loop.RequestLeaveToLobby();
         Destroy(gameObject);
     }
