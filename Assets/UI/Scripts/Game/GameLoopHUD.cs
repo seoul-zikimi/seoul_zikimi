@@ -333,7 +333,11 @@ public sealed class GameLoopHUD : UIHUD
         if (!show)
             return;
 
-        var score = m_Loop.Score;
+        // 2vs2: 점수는 '내 팀' 기준으로 표시
+        if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+        bool versus = m_Loop.IsVersus;
+        int myTeam = Mathf.Max(0, m_Loop.LocalTeam);
+        var score = (versus && m_Net != null) ? m_Net.ScoreFor(myTeam) : m_Loop.Score;
         int pct = Mathf.RoundToInt(score.Percent);
 
         bool firstShow = !m_ResultWasShown;
@@ -364,7 +368,18 @@ public sealed class GameLoopHUD : UIHUD
                 if (rt != null) m_ResultImage.texture = rt;
             }
         }
-        if (!m_ResultIntroPlaying) m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
+        if (!m_ResultIntroPlaying)
+        {
+            if (versus && m_Net != null)
+            {
+                // 승/패/무 + 양 팀 완성도 (WinnerTeam: -1=무승부, 0/1=승리 팀)
+                int enemyPct = Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent);
+                int w = m_Loop.WinnerTeam;
+                string verdict = w == -1 ? "무승부 (DRAW)" : (w == myTeam ? "승리!" : "패배...");   // 폰트가 한글/ASCII만 지원 — 이모지 금지
+                m_ResultScoreText.text = $"{verdict}\n우리 팀 {pct}%  :  상대 팀 {enemyPct}%";
+            }
+            else m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
+        }
 
         if (m_ResultStructText != null)
         {
