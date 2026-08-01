@@ -56,19 +56,11 @@ namespace GridSystem
         //   2vs2 전용 맵(가운데 비운 대칭 배경)을 만드는 것을 권장.
         private void SetupVersusBackground(GameObject bg)
         {
-            if (bg.transform.Find("VersusSymmetric") != null) return;   // 전용 대칭 맵 — 복제 불필요
+            if (VersusBackground.IsAuthoredSymmetric(bg)) return;   // 전용 대칭 맵 — 복제 불필요
 
             var gm = FindFirstObjectByType<GridManager>();
             if (gm == null) return;
-            float u = GridContract.Unit;
-            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
-            Vector3 pivot = new Vector3(baseW.x + gm.ZoneSize.x * u, 0f, baseW.z + gm.EffectiveSize.z * 0.5f * u);
-
-            m_MirrorClone = Instantiate(bg);
-            m_MirrorClone.name = $"~VersusMirror({bg.name})";
-            foreach (var c in m_MirrorClone.GetComponentsInChildren<Collider>(true)) Destroy(c);
-            foreach (var s in m_MirrorClone.GetComponentsInChildren<MonoBehaviour>(true)) Destroy(s);   // 비주얼만 유지
-            m_MirrorClone.transform.RotateAround(pivot, Vector3.up, 180f);
+            m_MirrorClone = VersusBackground.CreateMirror(bg, VersusBackground.MirrorPivot(gm.ZoneSize, gm.EffectiveSize));
             Debug.Log("[MapLoader] 2vs2 배경 임시 대칭 복제 — 전용 대칭 맵을 만들면 VersusSymmetric 마커로 끌 수 있음");
         }
 

@@ -35,6 +35,8 @@ namespace GridSystem
         public void SetDeliveryZone(Vector3 worldPos)
         {
             m_DeliveryZone = worldPos;
+            if (m_Point != null)
+                Debug.LogWarning("[Depot] DeliveryPoint와 Spot_DeliveryZone이 둘 다 있음 — DeliveryPoint가 우선됩니다. 배경 프리팹에서 하나만 두세요.");
             if (m_Marker != null)
                 m_Marker.transform.position = new Vector3(worldPos.x, worldPos.y + 0.05f, worldPos.z);
         }
@@ -99,13 +101,14 @@ namespace GridSystem
             // 배송 비행: 하늘 저편(랜덤 방향)에서 포물선으로 날아와 배송 구역에 착지.
             // ServerThrow의 던지기 비행(포물선+텀블 회전+착지음)을 그대로 재활용.
             var zone = ZonePos;   // DeliveryPoint 오브젝트 있으면 그 위치(높이 포함)
+            Debug.Log($"[Depot] 배송 지점 = {zone} (출처: {(m_Point != null ? "DeliveryPoint 오브젝트" : "Spot_DeliveryZone/인스펙터 좌표")})");
             var to = new Vector3(
                 zone.x + Random.Range(-1.3f, 1.3f),
                 zone.y,
                 zone.z + Random.Range(-1.3f, 1.3f));
             float ang = Random.Range(0f, Mathf.PI * 2f);
             var from = to + new Vector3(Mathf.Cos(ang) * 12f, 6f, Mathf.Sin(ang) * 12f);
-            m_Drop.ServerThrow(materialId, from, to);
+            m_Drop.ServerDeliver(materialId, from, to);   // 배송 지점 높이 그대로 착지
         }
 
         private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)
