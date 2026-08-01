@@ -222,7 +222,20 @@ public sealed class GameLoopHUD : UIHUD
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         if (m_TimerText != null)
         {
-            m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
+            string timer = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
+            // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
+            if (m_Loop.IsVersus && m_Loop.IsBuilding)
+            {
+                if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+                if (m_Net != null)
+                {
+                    int my = Mathf.Max(0, m_Loop.LocalTeam);
+                    int a = Mathf.RoundToInt(m_Net.ScoreFor(my).Percent);
+                    int b = Mathf.RoundToInt(m_Net.ScoreFor(1 - my).Percent);
+                    timer += $"\n<size=60%>우리 {a}% : 상대 {b}%</size>";
+                }
+            }
+            m_TimerText.text = timer;
 
             // 막판 30초: 타이머 빨갛게 + 두근두근 펄스 + 화면 가장자리 빨간 비네트
             if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
