@@ -81,6 +81,7 @@ namespace Player
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
+            speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             Vector3 v = dir * speed;
             m_Rb.linearVelocity = new Vector3(v.x, m_Rb.linearVelocity.y, v.z);   // Y 보존(중력·점프가 담당)
         }

@@ -234,6 +234,11 @@ public sealed class GameLoopHUD : UIHUD
                     int b = Mathf.RoundToInt(m_Net.ScoreFor(1 - my).Percent);
                     timer += $"\n<size=60%>우리 {a}% : 상대 {b}%</size>";
                 }
+                // 소지 아이템 안내(F로 사용)
+                var items = m_Loop.GetComponent<GridSystem.ItemNetwork>();
+                string held = items != null ? items.LocalHeldName() : "";
+                if (!string.IsNullOrEmpty(held))
+                    timer += $"\n<size=55%>[{held}] F로 사용</size>";
             }
             m_TimerText.text = timer;
 

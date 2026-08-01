@@ -111,6 +111,9 @@ namespace GridSystem
             // 어댑터는 별도 상태 머신을 실행하지 않으며 종료 동의/나가기 전달과 상태 조회만 담당한다.
             if (!TryGetComponent<CurrentCoopGameplayAdapter>(out _))
                 gameObject.AddComponent<CurrentCoopGameplayAdapter>();
+            // 2vs2 경쟁 아이템 호스트(런타임 보장 — 씬 수정 불필요, 서버/클라 동일 순서로 부착)
+            if (!TryGetComponent<ItemNetwork>(out _))
+                gameObject.AddComponent<ItemNetwork>();
         }
 
         public override void OnNetworkSpawn()
@@ -352,6 +355,7 @@ namespace GridSystem
         private void Restart()
         {
             m_Winner.Value = -2;                       // 2vs2 승패 초기화
+            if (TryGetComponent<ItemNetwork>(out var items)) items.ServerReset();   // 경쟁 아이템 정리
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리
