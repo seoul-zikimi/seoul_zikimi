@@ -84,6 +84,27 @@ namespace GridSystem.Tests
         }
 
         [Test]
+        public void 정답에_쓰인_재료가_주문가능_목록에_다_있다()
+        {
+            foreach (var m in Maps())
+            {
+                if (m.AvailableMaterials.Count == 0) continue;   // 비면 카탈로그 전체 주문 가능 → 검사 불필요
+
+                var orderable = new HashSet<int>();
+                foreach (var d in m.AvailableMaterials) if (d != null) orderable.Add(d.Id);
+
+                foreach (var ans in m.Answers)
+                {
+                    if (ans == null) continue;
+                    foreach (var cell in ans.Cells)
+                        Assert.IsTrue(orderable.Contains(cell.materialId),
+                            $"[{m.name}] 정답 '{ans.name}'이 재료 id {cell.materialId}를 쓰는데 Available Materials에 없음 " +
+                            "— 그 맵은 정답을 완성할 수 없습니다.");
+                }
+            }
+        }
+
+        [Test]
         public void 맵_표시이름이_서로_겹치지_않는다()
         {
             var dup = Maps().GroupBy(m => m.DisplayName).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
