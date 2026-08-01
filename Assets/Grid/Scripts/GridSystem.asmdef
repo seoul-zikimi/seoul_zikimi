@@ -6,7 +6,8 @@
         "Unity.Netcode.Runtime",
         "Unity.Collections",
         "Core",
-        "SeoulZikimi.Gameplay"
+        "SeoulZikimi.Gameplay",
+        "SeoulZikimi.Weather"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
