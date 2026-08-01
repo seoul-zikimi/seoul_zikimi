@@ -37,9 +37,28 @@ namespace GridSystem
         {
             if (m_Versus == on) return;
             m_Versus = on;
+            Rebuild();
+        }
+
+        /// <summary>맵 전용 건축 영역 크기 적용(MapDef.GridSize). 배경 스폰과 함께 모든 클라가 같은 값으로 호출한다.
+        /// 비어 있거나 같은 값이면 아무 것도 하지 않는다.</summary>
+        public void ApplyMapGridSize(Vector3Int size)
+        {
+            if (size.x <= 0 || size.y <= 0 || size.z <= 0) return;   // 미설정 → 씬 값 유지
+            if (m_GridSize == size) return;
+            m_GridSize = size;
+            Rebuild();
+            Debug.Log($"[Grid] 맵 전용 건축 영역 적용: {size}");
+        }
+
+        // 크기·모드가 바뀌면 그리드·바닥·분할벽을 현재 값으로 다시 만든다.
+        private void Rebuild()
+        {
             Grid = new RuntimeGrid(EffectiveSize);
             RebuildGround();
-            if (on) CreateCenterWall();   // 배경 대칭은 MapLoader.SetupVersusBackground가 담당(배경은 런타임 스폰)
+            var oldWall = transform.Find("~VersusWall");
+            if (oldWall != null) Destroy(oldWall.gameObject);
+            if (m_Versus) CreateCenterWall();   // 배경 대칭은 MapLoader가 담당(배경은 런타임 스폰)
         }
 
         /// <summary>고를 수 있는 정답 개수.</summary>

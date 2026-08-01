@@ -14,10 +14,16 @@ namespace GridSystem
         [SerializeField] private GameObject m_BackgroundPrefab; // 환경(배경) 통째 프리팹 — MapLoader가 스폰
         [SerializeField] private List<MapAnswerData> m_Answers = new();   // 이 맵 전용 정답 세트(비우면 GridManager 기본 목록 사용)
         [SerializeField] private Sprite m_Thumbnail;           // 로비 "선택된 맵 이미지"용(선택)
+        [Tooltip("이 맵의 건축 영역 크기(칸). 비워두면(0) GameScene의 GridManager 값을 씁니다. 2vs2에서는 가로가 2배가 됩니다.")]
+        [SerializeField] private Vector3Int m_GridSize;        // (0,0,0) = 미설정
 
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
         public GameObject BackgroundPrefab => m_BackgroundPrefab;
         public IReadOnlyList<MapAnswerData> Answers => m_Answers;
         public Sprite Thumbnail => m_Thumbnail;
+
+        /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
+        public Vector3Int GridSize => m_GridSize;
+        public bool HasGridSize => m_GridSize.x > 0 && m_GridSize.y > 0 && m_GridSize.z > 0;
     }
 }
