@@ -9,35 +9,81 @@ namespace GridSystem
     /// </summary>
     public static class ItemFx
     {
-        // 조각 생성은 GridJuice와 같은 것을 쓴다(공용 투명 머티리얼·수명 자율 파티클).
+        // 일반 조각은 GridJuice와 공용(빛 받는 투명 재질).
         static JuiceParticle MakeBit(Vector3 pos, float size, Color col) => GridJuice.MakeBit(pos, size, col);
 
-        // ── 이벤트 FX ────────────────────────────────────────────
-        /// <summary>등장: 아래에서 반짝이 팡 + 팝 사운드.</summary>
-        public static void Spawned(Vector3 pos, Color col)
+        // 반짝이는 조명을 안 받아야 '빛나는' 느낌이 난다 — URP Unlit + 가산 블렌딩 전용 재질.
+        static Material s_Glow;
+        static Material GlowMat()
         {
-            for (int i = 0; i < 8; i++)
-            {
-                float a = (i / 8f) * Mathf.PI * 2f;
-                var fx = MakeBit(pos, 0.09f, col);
-                fx.vel = new Vector3(Mathf.Cos(a), 1.6f + Random.value, Mathf.Sin(a)) * 1.1f;
-                fx.gravity = -3.5f; fx.life = 0.5f; fx.spinDeg = 320f; fx.spinAxis = Random.onUnitSphere;
-            }
-            Play(PopClip(), pos, 0.55f);
+            if (s_Glow != null) return s_Glow;
+            var sh = Shader.Find("Universal Render Pipeline/Unlit");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh == null) return null;
+            var m = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            m.SetFloat("_Surface", 1f);
+            m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);   // 가산 = 겹칠수록 밝게
+            m.SetInt("_ZWrite", 0);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            s_Glow = m;
+            return m;
         }
 
-        /// <summary>획득: 조각이 위로 모이며 사라짐 + 동전 블링.</summary>
+        // 밝게 빛나는 조각(색은 흰색 쪽으로 끌어올림 — 어두운 아이템 색도 반짝여 보이게)
+        static JuiceParticle MakeSpark(Vector3 pos, float size, Color col, float whiten = 0.65f)
+        {
+            var fx = GridJuice.MakeBit(pos, size, Color.Lerp(col, Color.white, whiten));
+            var mat = GlowMat();
+            if (mat != null)
+            {
+                var r = fx.GetComponent<Renderer>();
+                if (r != null) r.sharedMaterial = mat;
+            }
+            return fx;
+        }
+
+        /// <summary>구슬 반짝이 등 외부에서 쓰는 발광 조각.</summary>
+        internal static JuiceParticle MakeSparkPublic(Vector3 pos, float size, Color col) => MakeSpark(pos, size, col, 0.75f);
+
+        // ── 이벤트 FX ────────────────────────────────────────────
+        /// <summary>등장: 사방으로 튀는 반짝이 + 위로 솟는 불꽃 + 반짝 소리.</summary>
+        public static void Spawned(Vector3 pos, Color col)
+        {
+            for (int i = 0; i < 14; i++)   // 작고 밝은 반짝이가 팡
+            {
+                float a = (i / 14f) * Mathf.PI * 2f + Random.value * 0.3f;
+                var fx = MakeSpark(pos, 0.05f + Random.value * 0.03f, col);
+                fx.vel = new Vector3(Mathf.Cos(a) * 1.6f, 2.2f + Random.value * 1.6f, Mathf.Sin(a) * 1.6f);
+                fx.gravity = -5f; fx.life = 0.45f + Random.value * 0.2f;
+                fx.scaleVel = -0.06f;   // 점점 작아지며 사라짐(별 반짝임)
+                fx.spinDeg = 500f; fx.spinAxis = Random.onUnitSphere;
+            }
+            for (int i = 0; i < 4; i++)    // 중심에서 위로 곧게 솟는 심지
+            {
+                var fx = MakeSpark(pos, 0.07f, col, 0.85f);
+                fx.vel = new Vector3(Random.Range(-0.25f, 0.25f), 3.4f + Random.value, Random.Range(-0.25f, 0.25f));
+                fx.gravity = -6f; fx.life = 0.5f; fx.scaleVel = -0.08f;
+            }
+            Play(SparkleClip(), pos, 0.7f);
+        }
+
+        /// <summary>획득: 바깥의 반짝이가 중심으로 빨려들며 위로 솟음 + 코인 소리.</summary>
         public static void PickedUp(Vector3 pos, Color col)
         {
-            for (int i = 0; i < 10; i++)
+            const int n = 12;
+            for (int i = 0; i < n; i++)
             {
-                var d = Random.insideUnitSphere; d.y = Mathf.Abs(d.y) + 0.6f;
-                var fx = MakeBit(pos + Random.insideUnitSphere * 0.25f, 0.08f, col);
-                fx.vel = d.normalized * (1.4f + Random.value * 1.2f);
-                fx.gravity = 2.5f;   // 위로 가속(모여 올라가는 느낌)
-                fx.life = 0.35f; fx.scaleVel = -0.15f; fx.spinDeg = 260f; fx.spinAxis = Random.onUnitSphere;
+                float a = (i / (float)n) * Mathf.PI * 2f;
+                var offset = new Vector3(Mathf.Cos(a), Random.Range(-0.1f, 0.4f), Mathf.Sin(a)) * 0.75f;
+                var fx = MakeSpark(pos + offset, 0.06f, col);
+                fx.vel = (-offset).normalized * 2.6f + Vector3.up * 1.4f;   // 중심으로 빨려들며 살짝 상승
+                fx.gravity = 3.5f;                                          // 위로 가속 = 빨려 올라감
+                fx.life = 0.3f; fx.scaleVel = -0.12f;
+                fx.spinDeg = 420f; fx.spinAxis = Random.onUnitSphere;
             }
-            Play(BlingClip(), pos, 0.7f);
+            Play(CoinClip(), pos, 0.85f);
         }
 
         /// <summary>발동: 수평 링 충격파 + 위 분수 + 상승 스윕 사운드.</summary>
@@ -69,7 +115,7 @@ namespace GridSystem
                 fx.vel = new Vector3(Random.Range(-0.4f, 0.4f), 0.5f, Random.Range(-0.4f, 0.4f));
                 fx.gravity = -0.8f; fx.life = 0.5f; fx.scaleVel = 0.25f; fx.startAlpha = 0.5f;
             }
-            Play(FizzleClip(), pos, 0.4f);
+            Play(FizzleClip(), pos, 0.95f);
         }
 
         /// <summary>월드 구슬 꾸미기: 뿅 팝인 + 둥실 부유 + 주기적 반짝이.</summary>
@@ -83,7 +129,7 @@ namespace GridSystem
         }
 
         // ── 합성 사운드 (44.1kHz 모노, 최초 1회 생성 후 캐시) ──
-        static AudioClip s_Pop, s_Bling, s_Use, s_Fizzle;
+        static AudioClip s_Sparkle, s_Coin, s_Use, s_Fizzle;
 
         static void Play(AudioClip clip, Vector3 pos, float vol)
         {
@@ -101,19 +147,39 @@ namespace GridSystem
             return clip;
         }
 
-        // 팡: 사인 300→120Hz 급강하 + 지수 감쇠 (뽁)
-        static AudioClip PopClip() => s_Pop != null ? s_Pop : s_Pop = Synth("~ItemPop", 0.16f, t =>
+        // 반짝: 고음 3음(G6-C7-E7)이 빠르게 타고 올라가며 각각 짧게 울린다 — 종/유리 느낌.
+        // 낮은 음이 없어야 '두꺼운 뽁'이 아니라 '반짝'으로 들린다.
+        static readonly float[] kSparkleNotes = { 1568f, 2093f, 2637f };
+        static AudioClip SparkleClip() => s_Sparkle != null ? s_Sparkle : s_Sparkle = Synth("~ItemSparkle", 0.3f, t =>
         {
-            float f = Mathf.Lerp(300f, 120f, t / 0.16f);
-            return Mathf.Sin(2f * Mathf.PI * f * t) * Mathf.Exp(-t * 22f);
+            float v = 0f;
+            for (int i = 0; i < kSparkleNotes.Length; i++)
+            {
+                float start = i * 0.045f;
+                if (t < start) continue;
+                float local = t - start;
+                float f = kSparkleNotes[i];
+                // 사인 + 3배음 살짝(유리처럼 맑게) + 빠른 감쇠
+                v += (Mathf.Sin(2f * Mathf.PI * f * local) + 0.25f * Mathf.Sin(6f * Mathf.PI * f * local))
+                     * Mathf.Exp(-local * 13f) * 0.42f;
+            }
+            return v;
         });
 
-        // 블링: 880Hz → 1320Hz 두 음 동전 소리
-        static AudioClip BlingClip() => s_Bling != null ? s_Bling : s_Bling = Synth("~ItemBling", 0.26f, t =>
+        // 코인: B5 → E6 두 음(고전 동전 소리 진행). 사각파 성분을 섞어 금속처럼 쨍하게,
+        // 첫 음은 아주 짧게 튕기고 둘째 음이 길게 울린다.
+        static AudioClip CoinClip() => s_Coin != null ? s_Coin : s_Coin = Synth("~ItemCoin", 0.5f, t =>
         {
-            float f = t < 0.08f ? 880f : 1318.5f;   // A5 → E6
-            float local = t < 0.08f ? t : t - 0.08f;
-            return Mathf.Sin(2f * Mathf.PI * f * t) * Mathf.Exp(-local * 16f) * 0.8f;
+            const float kSwitch = 0.07f;
+            float f = t < kSwitch ? 987.77f : 1318.5f;          // B5 → E6
+            float local = t < kSwitch ? t : t - kSwitch;
+            float decay = t < kSwitch ? 6f : 7.5f;              // 둘째 음이 길게 남음
+            float phase = 2f * Mathf.PI * f * local;
+            float sine = Mathf.Sin(phase);
+            float square = Mathf.Sign(sine);                    // 금속성 쨍한 성분
+            float body = sine * 0.65f + square * 0.35f;
+            float attack = Mathf.Clamp01(local * 400f);         // 딱 튕기는 어택
+            return body * attack * Mathf.Exp(-local * decay) * 0.85f;
         });
 
         // 발동: 220→980Hz 상승 스윕 + 살짝 배음 (뾰로롱↑)
@@ -125,12 +191,15 @@ namespace GridSystem
             return (Mathf.Sin(2f * Mathf.PI * f * t) + 0.35f * Mathf.Sin(4f * Mathf.PI * f * t)) * env * 0.6f;
         });
 
-        // 피식: 감쇠 노이즈(결정적 의사난수 — 캐시라 매번 동일해도 무방)
-        static AudioClip FizzleClip() => s_Fizzle != null ? s_Fizzle : s_Fizzle = Synth("~ItemFizzle", 0.3f, t =>
+        // 피식: 감쇠 노이즈 + 아래로 떨어지는 저음(김 빠지는 느낌). 너무 작게 들려서 소리를 키웠다.
+        static AudioClip FizzleClip() => s_Fizzle != null ? s_Fizzle : s_Fizzle = Synth("~ItemFizzle", 0.45f, t =>
         {
             float r = Mathf.Sin(t * 12345.678f) * 43758.5453f;
             r -= Mathf.Floor(r);
-            return (r * 2f - 1f) * Mathf.Exp(-t * 12f) * 0.4f;
+            float noise = (r * 2f - 1f) * Mathf.Exp(-t * 7f) * 0.55f;
+            float f = Mathf.Lerp(420f, 150f, t / 0.45f);                    // 축 처지는 하강음
+            float tone = Mathf.Sin(2f * Mathf.PI * f * t) * Mathf.Exp(-t * 5f) * 0.45f;
+            return noise + tone;
         });
     }
 
@@ -145,7 +214,7 @@ namespace GridSystem
             if (Time.time < m_Next) return;
             m_Next = Time.time + Random.Range(0.25f, 0.5f);
             var pos = transform.position + Random.onUnitSphere * 0.32f;
-            var fx = GridJuice.MakeBit(pos, 0.05f, Color.Lerp(color, Color.white, 0.7f));
+            var fx = ItemFx.MakeSparkPublic(pos, 0.05f, color);
             fx.vel = Vector3.up * 0.5f; fx.life = 0.45f; fx.spinDeg = 240f; fx.spinAxis = Random.onUnitSphere;
         }
     }
