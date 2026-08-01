@@ -65,7 +65,7 @@ namespace SeoulZikimi.Gameplay
             => LeaveGameRequested?.Invoke();
 
         /// <summary>
-        /// 대포를 제외한 아이템을 든 상태에서 E 입력이 들어오면 호출한다.
+        /// 아이템을 든 상태에서 E 입력이 들어오면 호출한다(대포는 꾹 눌렀다 뗄 때).
         /// TODO(Network): 서버가 소유권과 팀을 검증한 뒤 CompetitiveItemUseService.Use를 호출해야 한다.
         /// </summary>
         public void RequestUseHeldItem()

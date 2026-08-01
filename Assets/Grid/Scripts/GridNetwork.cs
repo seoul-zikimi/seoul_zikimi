@@ -15,8 +15,12 @@ namespace GridSystem
         private readonly NetworkList<CellEntry> m_Cells = new();
         private readonly NetworkVariable<ScoreSnapshot> m_Score =
             new(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<ScoreSnapshot> m_ScoreB =
+            new(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 2vs2 팀B
         public ScoreSnapshot Score => m_Score.Value;
         public float ScorePercent => m_Score.Value.Percent;
+        /// <summary>2vs2 팀별 점수(0=A, 1=B). 협동 모드는 팀 무관하게 m_Score.</summary>
+        public ScoreSnapshot ScoreFor(int team) => team == 1 ? m_ScoreB.Value : m_Score.Value;
 
         /// <summary>복제된 상태 기준 해당 셀이 비어있는지(클라이언트도 호출 가능). 배치 전 사전 검사용.</summary>
         public bool IsCellFree(Vector3Int cell)
@@ -35,6 +39,20 @@ namespace GridSystem
             return false;
         }
 
+        /// <summary>해당 셀을 차지한 블록이 실제로 차지한 모든 셀을 채운다(멀티셀 블록 포함). 사거리 판정용.</summary>
+        public bool TryGetBlockCells(Vector3Int cell, System.Collections.Generic.List<Vector3Int> result)
+        {
+            result.Clear();
+            ulong owner = 0;
+            bool found = false;
+            foreach (var e in m_Cells)
+                if (e.cell == cell) { owner = e.ownerObjectId; found = true; break; }
+            if (!found) return false;
+            foreach (var e in m_Cells)
+                if (e.ownerObjectId == owner) result.Add(e.cell);
+            return true;
+        }
+
         /// <summary>해당 셀이 '미고정 하중부재'(고정 전)면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)</summary>
         public bool IsPickupable(Vector3Int cell)
         {
@@ -45,6 +63,7 @@ namespace GridSystem
         }
 
         private GridManager m_Manager;
+        private GameLoopManager m_Loop;        // 같은 오브젝트(2vs2 팀·구역 판정용)
         private MaterialDropField m_DropField; // 같은 오브젝트(붕괴/철거 재료를 바닥에 떨굼)
         private RuntimeGrid m_ServerGrid;     // 서버 전용 권위 상태
         private ulong m_OwnerCounter;         // 서버 전용 고유 ownerObjectId 발급
@@ -55,13 +74,26 @@ namespace GridSystem
         {
             m_Manager = GetComponent<GridManager>();
             m_DropField = GetComponent<MaterialDropField>();
+            m_Loop = GetComponent<GameLoopManager>();
+        }
+
+        // 이 판에 쓸 건축 영역 크기 — 호스트가 고른 맵이 전용 크기를 갖고 있으면 그걸, 아니면 씬 값.
+        private Vector3Int ServerGridSize()
+        {
+            var catalog = MapCatalog.Instance;
+            var def = catalog != null ? catalog.Get(GameLoopManager.HostSelectedMap) : null;
+            return def != null && def.HasGridSize ? def.GridSize : m_Manager.GridSize;
         }
 
         public override void OnNetworkSpawn()
         {
             if (IsServer)
             {
-                m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+                // 서버(=호스트)에서는 로비 선택값을 스폰 순서와 무관하게 읽을 수 있다 — 맵 크기와 모드 둘 다 여기서 확정.
+                bool versus = GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus;
+                var size = ServerGridSize();
+                if (versus) size.x *= 2;
+                m_ServerGrid = new RuntimeGrid(size);
                 m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);   // 환경 바닥·스캐폴드도 지지로 인정
             }
 
@@ -127,12 +159,24 @@ namespace GridSystem
         public void RequestProcess(Vector3Int cell, int processBit, bool apply) => ProcessRpc(cell, processBit, apply);
         public void RequestShock(Vector3Int cell) => ShockRpc(cell);   // 트리거①: 외부충격(플레이어 부딪힘)
 
+        // 2vs2: 요청 셀이 요청자 팀 구역(A: x<W, B: x≥W) 안인지. 협동 모드는 항상 허용.
+        private bool ZoneAllowed(ulong sender, Vector3Int cell)
+        {
+            if (m_Loop == null || !m_Loop.IsVersus) return true;
+            int team = m_Loop.GetTeam(sender);
+            if (team < 0) return false;
+            int half = m_Manager.ZoneSize.x;
+            return team == 0 ? cell.x < half : cell.x >= half;
+        }
+
         [Rpc(SendTo.Server)]
-        private void PlaceRpc(Vector3Int anchor, int materialId, byte rot)
+        private void PlaceRpc(Vector3Int anchor, int materialId, byte rot, RpcParams rpc = default)
         {
             var mat = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(materialId) : null;
             if (mat == null || !m_ServerGrid.CanPlace(anchor, mat, rot)) return;
             if (!m_ServerGrid.WouldBeSupported(anchor, mat, rot)) return;   // 허공(지지 없음) 배치 거부
+            foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
+                if (!ZoneAllowed(rpc.Receive.SenderClientId, c)) return;    // 2vs2: 자기 구역에만 배치
 
             ulong owner = ++m_OwnerCounter;
             m_ServerGrid.Place(anchor, mat, rot, owner);
@@ -174,8 +218,9 @@ namespace GridSystem
         }
 
         [Rpc(SendTo.Server)]
-        private void RemoveRpc(Vector3Int cell)
+        private void RemoveRpc(Vector3Int cell, RpcParams rpc = default)
         {
+            if (!ZoneAllowed(rpc.Receive.SenderClientId, cell)) return;   // 2vs2: 자기 구역만 철거
             var cs = m_ServerGrid.GetCell(cell);
             if (!cs.occupied) return;
             ulong owner = cs.ownerObjectId;
@@ -236,6 +281,128 @@ namespace GridSystem
         }
 
         /// <summary>무너진 오브젝트를 복제 리스트에서 제거하고 재료를 바닥에 떨군다(주워서 재배치 가능).</summary>
+        /// <summary>[아이템: 지진] 해당 팀 구역에서 '고정 공정'이 안 된 하중부재를 전부 무너뜨린다.
+        /// 그 위에 얹혀 있던 것들도 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 무너진 개수 반환.</summary>
+        public int ServerEarthquake(int team)
+        {
+            if (!IsServer || m_ServerGrid == null) return 0;
+
+            var victims = new System.Collections.Generic.List<Vector3Int>();
+            foreach (var e in m_Cells)
+            {
+                if (!InZone(team, e.cell)) continue;
+                if ((e.completedProcessMask & (int)ProcessType.Fixed) != 0) continue;   // 고정된 건 버팀
+                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
+                if (def == null || !def.MustBeFixed) continue;                            // 바닥 등 비-하중부재는 제외
+                victims.Add(e.cell);
+            }
+
+            int collapsed = 0;
+            foreach (var cell in victims)
+            {
+                if (!m_ServerGrid.GetCell(cell).occupied) continue;   // 앞선 연쇄로 이미 사라짐
+                foreach (var co in m_ServerGrid.Collapse(cell)) { RemoveCollapsed(co); collapsed++; }
+            }
+            foreach (var co in m_ServerGrid.SettleUnsupported()) { RemoveCollapsed(co); collapsed++; }
+
+            EarthquakeFxRpc(team);
+            return collapsed;
+        }
+
+        /// <summary>[아이템: 대포] 해당 팀 구역에서 '배치+공정이 모두 끝난' 파츠 하나를 무작위로 파괴한다.
+        /// 위에 얹혀 있던 것들은 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 파괴 성공 여부 반환.</summary>
+        public bool ServerCannonDestroy(int team)
+        {
+            if (!IsServer || m_ServerGrid == null) return false;
+
+            var targets = new System.Collections.Generic.List<Vector3Int>();
+            foreach (var e in m_Cells)
+            {
+                if (!InZone(team, e.cell)) continue;
+                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
+                if (def == null) continue;
+                if (!IsFullyProcessed(def, e.completedProcessMask)) continue;   // 완성된 파츠만
+                targets.Add(e.cell);
+            }
+            if (targets.Count == 0) return false;
+
+            var hit = targets[Random.Range(0, targets.Count)];
+            CannonHitFxRpc(CellWorld(hit));
+            foreach (var co in m_ServerGrid.Collapse(hit)) RemoveCollapsed(co);
+            foreach (var co in m_ServerGrid.SettleUnsupported()) RemoveCollapsed(co);
+            return true;
+        }
+
+        // 그 재료가 요구하는 공정이 전부 끝났는가(채점과 같은 기준인 RequiredMask 사용).
+        private static bool IsFullyProcessed(MaterialDef def, int completedMask)
+        {
+            int need = def.RequiredMask;
+            return need != 0 && (completedMask & need) == need;
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void CannonHitFxRpc(Vector3 center)
+        {
+            GridJuice.CollapseBurst(center, GridContract.Unit);
+            GridJuice.GroundHit(center, 1.6f);
+            GridJuice.FovPunch(Camera.main, -7f);
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.5f),
+                                 "대포 명중!", new Color(0.95f, 0.55f, 0.15f));
+        }
+
+        /// <summary>[날씨: 강풍·태풍] 해당 팀 구역의 미고정 블록 중 최대 count개를 바람에 무너뜨린다.
+        /// 지진처럼 전멸이 아니라 조금씩 갉아먹는 압박. 서버 전용, 무너진 개수 반환.</summary>
+        public int ServerWindCollapse(int team, int count)
+        {
+            if (!IsServer || m_ServerGrid == null || count <= 0) return 0;
+
+            var candidates = new System.Collections.Generic.List<Vector3Int>();
+            foreach (var e in m_Cells)
+            {
+                if (!InZone(team, e.cell)) continue;
+                if ((e.completedProcessMask & (int)ProcessType.Fixed) != 0) continue;
+                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
+                if (def == null || !def.MustBeFixed) continue;
+                candidates.Add(e.cell);
+            }
+            if (candidates.Count == 0) return 0;
+
+            int collapsed = 0;
+            for (int i = 0; i < count && candidates.Count > 0; i++)
+            {
+                int pick = Random.Range(0, candidates.Count);
+                var cell = candidates[pick];
+                candidates.RemoveAt(pick);
+                if (!m_ServerGrid.GetCell(cell).occupied) continue;
+                foreach (var co in m_ServerGrid.Collapse(cell)) { RemoveCollapsed(co); collapsed++; }
+            }
+            foreach (var co in m_ServerGrid.SettleUnsupported()) { RemoveCollapsed(co); collapsed++; }
+            return collapsed;
+        }
+
+        // 협동 모드에는 구역이 없다 → 전부 대상.
+        private bool InZone(int team, Vector3Int cell)
+        {
+            if (m_Loop == null || !m_Loop.IsVersus) return true;
+            int half = m_Manager.ZoneSize.x;
+            return team == 0 ? cell.x < half : cell.x >= half;
+        }
+
+        // 지진 연출: 맞은 팀은 화면이 크게 흔들리고, 상대는 약하게(무슨 일이 났는지 알 수 있게).
+        [Rpc(SendTo.Everyone)]
+        private void EarthquakeFxRpc(int team)
+        {
+            bool mine = m_Loop == null || !m_Loop.IsVersus || m_Loop.LocalTeam == team;
+            GridJuice.FovPunch(Camera.main, mine ? -9f : -2f);
+
+            var center = GridCoordinates.CellToWorld(
+                new Vector3Int(m_Manager.ZoneSize.x / 2 + (team == 1 ? m_Manager.ZoneSize.x : 0), 1, m_Manager.ZoneSize.z / 2));
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            if (mine) GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 2f),
+                                           "지진! 고정 안 한 블록이 무너져요!", new Color(0.85f, 0.35f, 0.15f));
+        }
+
         private void RemoveCollapsed(CollapsedObject co)
         {
             Vector3 from = default; bool have = false;
@@ -291,7 +458,7 @@ namespace GridSystem
             var catalog = m_Manager.Catalog;
             if (ans == null || catalog == null) return;
 
-            m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);   // 그리드 리셋
+            m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 그리드 리셋(2vs2면 2배 폭 유지)
             m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
@@ -336,8 +503,11 @@ namespace GridSystem
 #endif
 
         [Rpc(SendTo.Server)]
-        private void ProcessRpc(Vector3Int cell, int processBit, bool apply)
-            => ApplyProcessServer(cell, (ProcessType)processBit, apply);
+        private void ProcessRpc(Vector3Int cell, int processBit, bool apply, RpcParams rpc = default)
+        {
+            if (!ZoneAllowed(rpc.Receive.SenderClientId, cell)) return;   // 2vs2: 자기 구역만 공정
+            ApplyProcessServer(cell, (ProcessType)processBit, apply);
+        }
 
         public void RequestCancelLast(Vector3Int cell) => CancelLastRpc(cell);
 
@@ -400,19 +570,23 @@ namespace GridSystem
         public void RecomputeScore()
         {
             if (m_Manager.Answer == null) return;
-            var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);
-            m_Score.Value = new ScoreSnapshot
-            {
-                score = s.score, maxScore = s.maxScore, answerCells = s.answerCellCount,
-                placedCorrect = s.placedCorrect, processCorrect = s.processCorrect,
-            };
+            var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);   // 협동=전체 / 2vs2=팀A 구역
+            m_Score.Value = Snap(s);
+            if (m_Loop != null && m_Loop.IsVersus)   // 팀B: 같은 정답을 구역폭만큼 밀어서 채점
+                m_ScoreB.Value = Snap(m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog, new Vector3Int(m_Manager.ZoneSize.x, 0, 0)));
         }
+
+        private static ScoreSnapshot Snap(GridScore s) => new ScoreSnapshot
+        {
+            score = s.score, maxScore = s.maxScore, answerCells = s.answerCellCount,
+            placedCorrect = s.placedCorrect, processCorrect = s.processCorrect,
+        };
 
         /// <summary>게임 재시작용: 서버 그리드·복제 리스트를 비운다(→ 비주얼/점수 자동 0 갱신).</summary>
         public void ServerResetGrid()
         {
             if (!IsServer) return;
-            m_ServerGrid = new RuntimeGrid(m_Manager.GridSize);
+            m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 2vs2면 2배 폭 유지
             m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);

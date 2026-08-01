@@ -222,7 +222,28 @@ public sealed class GameLoopHUD : UIHUD
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         if (m_TimerText != null)
         {
-            m_TimerText.text = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
+            string timer = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
+            // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
+            if (m_Loop.IsVersus && m_Loop.IsBuilding)
+            {
+                if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+                if (m_Net != null)
+                {
+                    int my = Mathf.Max(0, m_Loop.LocalTeam);
+                    int a = Mathf.RoundToInt(m_Net.ScoreFor(my).Percent);
+                    int b = Mathf.RoundToInt(m_Net.ScoreFor(1 - my).Percent);
+                    timer += $"\n<size=60%>우리 {a}% : 상대 {b}%</size>";
+                }
+                // 소지 아이템 안내(F로 사용)
+                var items = m_Loop.GetComponent<GridSystem.ItemNetwork>();
+                string held = items != null ? items.LocalHeldName() : "";
+                if (!string.IsNullOrEmpty(held))
+                    timer += $"\n<size=55%>[{held}] E로 사용</size>";
+                string status = GridSystem.ItemNetwork.LocalStatusLine();
+                if (!string.IsNullOrEmpty(status))
+                    timer += $"\n<size=55%>{status}</size>";
+            }
+            m_TimerText.text = timer;
 
             // 막판 30초: 타이머 빨갛게 + 두근두근 펄스 + 화면 가장자리 빨간 비네트
             if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
@@ -333,7 +354,11 @@ public sealed class GameLoopHUD : UIHUD
         if (!show)
             return;
 
-        var score = m_Loop.Score;
+        // 2vs2: 점수는 '내 팀' 기준으로 표시
+        if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+        bool versus = m_Loop.IsVersus;
+        int myTeam = Mathf.Max(0, m_Loop.LocalTeam);
+        var score = (versus && m_Net != null) ? m_Net.ScoreFor(myTeam) : m_Loop.Score;
         int pct = Mathf.RoundToInt(score.Percent);
 
         bool firstShow = !m_ResultWasShown;
@@ -364,7 +389,18 @@ public sealed class GameLoopHUD : UIHUD
                 if (rt != null) m_ResultImage.texture = rt;
             }
         }
-        if (!m_ResultIntroPlaying) m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
+        if (!m_ResultIntroPlaying)
+        {
+            if (versus && m_Net != null)
+            {
+                // 승/패/무 + 양 팀 완성도 (WinnerTeam: -1=무승부, 0/1=승리 팀)
+                int enemyPct = Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent);
+                int w = m_Loop.WinnerTeam;
+                string verdict = w == -1 ? "무승부 (DRAW)" : (w == myTeam ? "승리!" : "패배...");   // 폰트가 한글/ASCII만 지원 — 이모지 금지
+                m_ResultScoreText.text = $"{verdict}\n우리 팀 {pct}%  :  상대 팀 {enemyPct}%";
+            }
+            else m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
+        }
 
         if (m_ResultStructText != null)
         {

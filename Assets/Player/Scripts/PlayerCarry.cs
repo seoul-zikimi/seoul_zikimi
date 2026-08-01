@@ -258,8 +258,38 @@ namespace Player
         private const float kPaintSeconds = 1.31f;
         private float ProcessDurationFor(ProcessType kind) => kind == ProcessType.Painted ? kPaintSeconds : m_ProcessSeconds;
 
+        // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
+        // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 완성 파츠 중 무작위로 고른다(기획서).
+        private const float kCannonChargeSeconds = 0.8f;
+        private float m_CannonCharge;
+
+        private void UpdateCannonCharge(Keyboard kb, GridSystem.ItemNetwork items)
+        {
+            if (kb.eKey.isPressed)
+            {
+                m_CannonCharge += Time.deltaTime;
+                return;
+            }
+            if (kb.eKey.wasReleasedThisFrame && m_CannonCharge > 0f)
+            {
+                bool charged = m_CannonCharge >= kCannonChargeSeconds;
+                m_CannonCharge = 0f;
+                if (charged) items.RequestUseHeld();   // 덜 눌렀으면 불발(다시 조준)
+            }
+        }
+
         private void UpdateEKey(Keyboard kb)
         {
+            // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
+            // (도구를 들었다 = 공정할 의도). 대포만 예외로 '꾹 눌렀다 떼면 발사'.
+            var items = GridSystem.ItemNetwork.Instance;
+            if (!HasTool && items != null && items.LocalHasItem)
+            {
+                if (items.LocalHoldsCannon) { UpdateCannonCharge(kb, items); return; }
+                if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }
+            }
+            m_CannonCharge = 0f;
+
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
                 CancelPaintStroke();
@@ -277,7 +307,7 @@ namespace Player
             if (m_Target != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
             m_ProcessKind = m_HeldTool;
             bool strokeStart = m_ProcessHold <= 0f;
-            m_ProcessHold += Time.deltaTime;
+            m_ProcessHold += Time.deltaTime * GridSystem.ItemNetwork.LocalProcessMultiplier();   // 2vs2 공정 버프/디버프
 
             if (strokeStart && m_ProcessKind == ProcessType.Painted)   // 붓질 시작 = 사운드 시작(바와 동시 출발)
             {
@@ -471,14 +501,27 @@ namespace Player
                 m_HasTarget = c.x >= 0 && c.x < s.x && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
 
-                // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸(불편하면 완화/폐기 예정)
+                // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸.
+                // 중심점이 아니라 '블록이 차지한 셀 중 가장 가까운 셀'까지의 거리 — 큰 블록도 가장자리에 서면 닿는다.
                 if (m_HasTarget)
-                {
-                    Vector3 center = GridCoordinates.CellToWorld(c) + new Vector3(0.5f, 0f, 0.5f) * GridContract.Unit;
-                    Vector3 flat = center - transform.position; flat.y = 0f;
-                    m_HasTarget = flat.magnitude <= kBuildReachCells * GridContract.Unit + 0.5f * GridContract.Unit;
-                }
+                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(c),
+                                                    GridContract.Origin, GridContract.Unit, kBuildReachCells);
             }
+        }
+
+        // 사거리 판정 대상 셀: 들고 있으면 놓을 자리(풋프린트 전체), 빈손이면 가리킨 블록이 차지한 셀 전체.
+        // 어느 쪽도 아니면 가리킨 칸 하나.
+        private readonly System.Collections.Generic.List<Vector3Int> m_ReachCells = new();
+        private System.Collections.Generic.List<Vector3Int> ReachCells(Vector3Int target)
+        {
+            if (HasMaterial && m_HeldMaterial != null)
+                return GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation);
+
+            if (m_Net != null && m_Net.TryGetBlockCells(target, m_ReachCells)) return m_ReachCells;
+
+            m_ReachCells.Clear();
+            m_ReachCells.Add(target);
+            return m_ReachCells;
         }
 
         // 손 비었을 때 '마우스가 가리킨' 바닥 픽업 또는 도구함을 집는다(테두리=집기 동일 대상).
@@ -1288,23 +1331,6 @@ namespace Player
 
         private string BuildHintText()
         {
-            // [기존 개발용 문구 — 유지]
-            // string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
-            //             : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
-            //             :               "빈손 — 우상단서 주문 → 배송 구역에서 좌클릭으로 줍기 (작업장서 좌클릭=도구)";
-            // if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
-            //     held = "빈손 — 좌클릭 = 미고정 블록 집기 (고정 전)";
-            // string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
-            // string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
-            // string grab = !m_GrabValid ? "없음"
-            //             : m_GrabStation != null ? "도구함"
-            //             : m_GrabBody.ToolBit != 0 ? "도구" : "재료" + m_GrabBody.MaterialId;
-            // string text =
-            //     $"[Carry] 들기: {held}\n" +
-            //     $"좌클릭 집기/배치 · C 철거 · Q 버리기 · Space 점프/벽점프 · G 던지기\n" +
-            //     $"E꾹 공정 · Z꾹 되돌리기 · R 회전 · 벽 보고 W/S 기어오르기 · 층 {m_BuildHeight}(자동) · TAB 정답    {tgt}  {score}\n" +
-            //     $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget} · 집기대상={grab}";
-
             string heldStr;
             if (HasMaterial)
                 heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
@@ -1330,11 +1356,20 @@ namespace Player
         {
             Vector2 sp = default;
 
-            bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
-                        && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
-            m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
-                m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
-                m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+            if (m_CannonCharge > 0f)   // 대포 충전은 같은 바를 머리 위에 띄워 게이지로 쓴다
+            {
+                bool ok = WorldToScreen(transform.position + Vector3.up * 2.2f, out sp);
+                m_Hud.SetProcessBar(ok, sp, Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds),
+                    new Color(0.95f, 0.55f, 0.15f), "대포 조준 중… (떼면 발사)");
+            }
+            else
+            {
+                bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
+                            && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
+                m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
+                    m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
+                    m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+            }
 
             bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell
                        && WorldToScreen(GridCoordinates.CellToWorld(m_RevertCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);

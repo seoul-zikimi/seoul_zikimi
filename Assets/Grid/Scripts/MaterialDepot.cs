@@ -13,8 +13,11 @@ namespace GridSystem
     [RequireComponent(typeof(MaterialDropField))]
     public class MaterialDepot : NetworkBehaviour
     {
-        [Tooltip("주문한 재료가 배송돼 떨어지는 구역(월드 XZ). 그리드 밖 권장.")]
-        [SerializeField] private Vector3 m_DeliveryZone = new Vector3(-3.5f, 0f, 4f);
+        // 배송 지점은 배경 프리팹의 "Spot_DeliveryZone" 마커가 정한다(다른 Spot_ 마커들과 같은 체계).
+        // 마커를 끌어서 옮기면 착지 지점도 실시간으로 따라간다.
+        // 마커가 없을 때만 쓰는 폴백 — 그리드 원점 기준 상대 위치라 맵이 옮겨가도 따라간다.
+        public const string kSpotName = "Spot_DeliveryZone";
+        private static readonly Vector3 kFallbackOffset = new Vector3(-3.5f, 0f, 4f);
 
         private GridManager m_Grid;
         private MaterialDropField m_Drop;
@@ -31,40 +34,33 @@ namespace GridSystem
             m_Drop = GetComponent<MaterialDropField>();
         }
 
-        /// <summary>맵 마커(Spot_DeliveryZone)로 배송 구역 이동 — MapLoader가 배경 스폰 시 호출. 비주얼 마커도 갱신.</summary>
-        public void SetDeliveryZone(Vector3 worldPos)
+        // 노란 바닥 표시를 현재 배송 지점에 맞춘다(스폰·마커 이동 공용).
+        private void SyncMarker()
         {
-            m_DeliveryZone = worldPos;
-            if (m_Marker != null)
-                m_Marker.transform.position = new Vector3(worldPos.x, worldPos.y + 0.05f, worldPos.z);
+            if (m_Marker == null) return;
+            var z = ZonePos;
+            m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
         }
 
-        // 씬(또는 배경 프리팹)에 'DeliveryPoint' 빈 오브젝트가 있으면 좌표 입력 대신 그 위치를 배송 구역으로 사용.
-        // 우선순위: DeliveryPoint 오브젝트 > Spot_DeliveryZone 마커 > 인스펙터 좌표.
-        private Transform m_Point;
-        private float m_NextPointFind;
+        private Transform m_Spot;
+        private float m_NextSpotFind;
 
-        private Vector3 ZonePos => m_Point != null ? m_Point.position : m_DeliveryZone;
+        private Vector3 ZonePos => m_Spot != null ? m_Spot.position : GridContract.Origin + kFallbackOffset;
 
         private void Update()
         {
-            // 배경 프리팹에서 늦게 생겨도 잡히게 0.5초 간격 재탐색(찾으면 중단)
-            if (m_Point == null && Time.time >= m_NextPointFind)
+            // 배경 프리팹이 런타임에 스폰되므로 늦게 생겨도 잡히게 0.5초 간격 재탐색(찾으면 중단)
+            if (m_Spot == null && Time.time >= m_NextSpotFind)
             {
-                m_NextPointFind = Time.time + 0.5f;
-                var p = GameObject.Find("DeliveryPoint");
+                m_NextSpotFind = Time.time + 0.5f;
+                var p = GameObject.Find(kSpotName);
                 if (p != null)
                 {
-                    m_Point = p.transform;
-                    Debug.Log($"[Depot] DeliveryPoint 연결 — 배송 구역 = {m_Point.position}");
+                    m_Spot = p.transform;
+                    Debug.Log($"[Depot] {kSpotName} 연결 — 배송 지점 = {m_Spot.position}");
                 }
             }
-            // 마커가 포인트를 라이브로 따라감(에디터에서 끌면서 조정 가능)
-            if (m_Point != null && m_Marker != null)
-            {
-                var z = ZonePos;
-                m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
-            }
+            if (m_Spot != null) SyncMarker();   // 마커를 끌면서 조정 가능하게 라이브 추적
         }
 
         public override void OnNetworkSpawn()
@@ -72,8 +68,8 @@ namespace GridSystem
             // 배송 구역 바닥 마커(로컬 비주얼, 모든 클라) — 어디서 줍는지 보이게
             m_Marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
             m_Marker.name = "~DeliveryZone";
-            m_Marker.transform.position = new Vector3(m_DeliveryZone.x, 0.05f, m_DeliveryZone.z);
             m_Marker.transform.localScale = new Vector3(3f, 0.1f, 3f);
+            SyncMarker();
             var col = m_Marker.GetComponent<Collider>();
             if (col != null) Destroy(col);
             SetColor(m_Marker, new Color(0.95f, 0.8f, 0.2f));
@@ -90,22 +86,37 @@ namespace GridSystem
         public void RequestOrder(int materialId) => OrderRpc(materialId);
 
         [Rpc(SendTo.Server)]
-        private void OrderRpc(int materialId)
+        private void OrderRpc(int materialId, RpcParams rpc = default)
         {
             if (m_Drop == null) return;
+
+            // 주문 해킹: 차단당한 팀은 새 재료를 못 시킨다(서버 권위 검사).
+            var loop = GetComponent<GameLoopManager>();
+            var items = GetComponent<ItemNetwork>();
+            if (loop != null && items != null && loop.IsVersus)
+            {
+                int team = loop.GetTeam(rpc.Receive.SenderClientId);
+                if (items.IsOrderBlocked(team))
+                {
+                    Debug.Log($"[Depot] 주문 차단됨(해킹) — 팀{(team == 1 ? "B" : "A")}");
+                    return;
+                }
+            }
+
             var cat = m_Grid != null ? m_Grid.Catalog : null;
             if (cat == null || cat.GetById(materialId) == null) return;
 
             // 배송 비행: 하늘 저편(랜덤 방향)에서 포물선으로 날아와 배송 구역에 착지.
             // ServerThrow의 던지기 비행(포물선+텀블 회전+착지음)을 그대로 재활용.
-            var zone = ZonePos;   // DeliveryPoint 오브젝트 있으면 그 위치(높이 포함)
+            var zone = ZonePos;   // 마커 위치(높이 포함)
+            Debug.Log($"[Depot] 배송 지점 = {zone} (출처: {(m_Spot != null ? kSpotName : "마커 없음 — 그리드 기준 폴백")})");
             var to = new Vector3(
                 zone.x + Random.Range(-1.3f, 1.3f),
                 zone.y,
                 zone.z + Random.Range(-1.3f, 1.3f));
             float ang = Random.Range(0f, Mathf.PI * 2f);
             var from = to + new Vector3(Mathf.Cos(ang) * 12f, 6f, Mathf.Sin(ang) * 12f);
-            m_Drop.ServerThrow(materialId, from, to);
+            m_Drop.ServerDeliver(materialId, from, to);   // 배송 지점 높이 그대로 착지
         }
 
         private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)

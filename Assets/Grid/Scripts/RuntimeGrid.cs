@@ -250,6 +250,10 @@ namespace GridSystem
         /// 요구 공정은 catalog의 MaterialDef.RequiredMask에서 파생(정답엔 미저장).
         /// </summary>
         public GridScore ScoreAgainst(MapAnswerData answer, MaterialCatalog catalog)
+            => ScoreAgainst(answer, catalog, Vector3Int.zero);
+
+        /// <summary>offset = 정답 셀을 이동시켜 비교(2vs2: 팀B 구역은 (구역폭,0,0) 오프셋으로 같은 정답 채점).</summary>
+        public GridScore ScoreAgainst(MapAnswerData answer, MaterialCatalog catalog, Vector3Int offset)
         {
             var result = new GridScore();
             if (answer == null) return result;
@@ -265,7 +269,7 @@ namespace GridSystem
                 var def = catalog != null ? catalog.GetById(ans.materialId) : null;
                 int reqMask = def != null ? def.RequiredMask : 0;
 
-                var cell = GetCell(ans.cell);
+                var cell = GetCell(ans.cell + offset);
                 // 회전은 '점유 칸 형태'로 이미 검증됨(잘못 회전 → 다른 칸 → 재료 불일치로 감점).
                 // 대칭 부재(1×1×3, 1×1×1 등)가 시각상 동일한데 step 숫자만 달라 감점되는 것 방지.
                 bool placedOk = cell.occupied && cell.materialId == ans.materialId;

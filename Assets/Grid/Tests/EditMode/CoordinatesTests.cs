@@ -5,6 +5,16 @@ namespace GridSystem.Tests
 {
     public class CoordinatesTests
     {
+        // GridContract.Origin은 씬의 GridManager가 덮어쓰는 전역값이다(에디터에 GameScene이 열려 있으면 0이 아님).
+        // 좌표 변환 규칙만 보려는 테스트라 원점을 0으로 고정하고, 끝나면 원래 값으로 되돌린다.
+        Vector3 m_SavedOrigin;
+
+        [SetUp]
+        public void FixOrigin() { m_SavedOrigin = GridContract.Origin; GridContract.Origin = Vector3.zero; }
+
+        [TearDown]
+        public void RestoreOrigin() => GridContract.Origin = m_SavedOrigin;
+
         [Test]
         public void CellToWorld_MatchesContract()
         {

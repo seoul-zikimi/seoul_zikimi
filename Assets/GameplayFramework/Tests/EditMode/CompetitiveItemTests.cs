@@ -7,11 +7,12 @@ namespace SeoulZikimi.Gameplay.Tests
     public sealed class CompetitiveItemTests
     {
         [Test]
-        public void DefaultCatalog_ContainsEveryNonCannonItem()
+        public void DefaultCatalog_ContainsEveryItem()
         {
             var catalog = CompetitiveItemDefinitionCatalog.CreateDefault();
 
-            Assert.That(catalog.GetAll().Count, Is.EqualTo(12));
+            Assert.That(catalog.GetAll().Count, Is.EqualTo(13));
+            Assert.That(catalog.Get(CompetitiveItemKind.Cannon).Weight, Is.EqualTo(10f));
             Assert.That(catalog.Get(CompetitiveItemKind.Rain).EffectDurationSeconds, Is.EqualTo(60f));
             Assert.That(catalog.Get(CompetitiveItemKind.MovementSlow).Magnitude, Is.EqualTo(0.7f));
             Assert.That(catalog.Get(CompetitiveItemKind.MovementBoost).Magnitude, Is.EqualTo(1.3f));
@@ -74,6 +75,7 @@ namespace SeoulZikimi.Gameplay.Tests
                 target,
                 target,
                 target,
+                target,
                 target);
             var service = new CompetitiveItemUseService(
                 definitions,
@@ -100,6 +102,7 @@ namespace SeoulZikimi.Gameplay.Tests
                 definitions,
                 DefaultCompetitiveItemFactory.CreateEffects(
                     definitions,
+                    target,
                     target,
                     target,
                     target,
@@ -159,6 +162,7 @@ namespace SeoulZikimi.Gameplay.Tests
 
         private sealed class FakeTargets :
             IUnfixedConstructionTarget,
+            ICompletedConstructionTarget,
             ITemporaryTeamWeatherTarget,
             ITeamFogTarget,
             ITeamMovementModifierTarget,
@@ -166,6 +170,9 @@ namespace SeoulZikimi.Gameplay.Tests
             ITeamOrderLockTarget,
             ITeamWeatherImmunityTarget
         {
+            public string CannonTeamId { get; private set; }
+            public void DestroyRandomCompleted(string teamId) => CannonTeamId = teamId;
+
             public string WeatherTeamId { get; private set; }
             public WeatherKind WeatherKind { get; private set; }
             public string MovementTeamId { get; private set; }
