@@ -81,6 +81,18 @@ namespace GridSystem
             });
         }
 
+        /// <summary>배송(보급소 주문): 던지기와 같지만 착지 높이를 배송 지점 높이로 존중한다(높은 곳에 배송 지점을 둘 수 있게).</summary>
+        public void ServerDeliver(int materialId, Vector3 fromPos, Vector3 toPos)
+        {
+            if (!IsServer || materialId < 0) return;
+            var rest = new Vector3(toPos.x, toPos.y + 0.5f, toPos.z);
+            ClampToFloor(ref rest);
+            m_Pickups.Add(new PickupEntry
+            {
+                pickupId = ++m_Counter, materialId = materialId, pos = rest, fromPos = fromPos
+            });
+        }
+
         public void RequestThrow(int materialId, Vector3 fromPos, Vector3 toPos) => ThrowRpc(materialId, fromPos, toPos);
 
         [Rpc(SendTo.Server)]
@@ -116,19 +128,24 @@ namespace GridSystem
                     var p = m_Pickups[i];
                     var np = p.pos + d * kKickDistance;
                     np.y = 0.5f;
-                    ClampToFloor(ref np);
+                    ClampToFloor(ref np, 6f);   // 킥 폭주 방지(그리드 주변으로 제한)
                     p.pos = np;
                     m_Pickups[i] = p;   // 값 변경 → 복제 → 클라가 그 위치로 굴림
                     return;
                 }
         }
 
-        private void ClampToFloor(ref Vector3 p)
+        // 그리드 주변 월드 사각형으로 제한. 기준은 GridContract.Origin(맵 마커로 그리드가 이동하면 같이 이동) —
+        // 예전엔 셀 개수를 월드 좌표처럼 써서, 그리드가 원점 밖에 있는 맵에선 배송 지점이 통째로 잘려 나갔다.
+        private void ClampToFloor(ref Vector3 p, float marginUnits = 60f)   // 기본은 넉넉히(배송 구역이 멀 수 있음), 킥만 좁게
+            => p = ClampToFloorWorld(p, m_Grid.EffectiveSize, GridContract.Origin, GridContract.Unit, marginUnits);
+
+        /// <summary>그리드 주변 월드 사각형으로 제한(순수 계산 — 테스트 대상).</summary>
+        public static Vector3 ClampToFloorWorld(Vector3 p, Vector3Int size, Vector3 origin, float unit, float marginUnits)
         {
-            const float m = 6f;   // 그리드 밖(배송 구역 등)도 허용 — 킥 폭주만 막는 느슨한 경계
-            var s = m_Grid.GridSize;
-            p.x = Mathf.Clamp(p.x, -m, s.x + m);
-            p.z = Mathf.Clamp(p.z, -m, s.z + m);
+            p.x = Mathf.Clamp(p.x, origin.x - marginUnits, origin.x + size.x * unit + marginUnits);
+            p.z = Mathf.Clamp(p.z, origin.z - marginUnits, origin.z + size.z * unit + marginUnits);
+            return p;
         }
 
         // ── 줍기 ────────────────────────────────────────────────────────────

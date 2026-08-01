@@ -219,31 +219,79 @@ namespace GridSystem
             }
         }
 
-        // ── 비주얼(전 클라 로컬) — 종류별 색 구슬 + 라벨 ──────────
-        private void OnItemsChanged(NetworkListEvent<ItemEntry> _) => RebuildVisuals();
+        // ── 비주얼(전 클라 로컬) — 종류별 색 구슬 + 이벤트별 FX ─────
+        // 증분 갱신: 리스트 변화 종류로 등장/획득/사용/소멸을 구분해야 FX가 맞는 순간에 터진다.
+        private void OnItemsChanged(NetworkListEvent<ItemEntry> e)
+        {
+            switch (e.Type)
+            {
+                case NetworkListEvent<ItemEntry>.EventType.Add:
+                    AddVisual(e.Value);
+                    ItemFx.Spawned(e.Value.Pos, KindColor((CompetitiveItemKind)e.Value.Kind));
+                    break;
+
+                case NetworkListEvent<ItemEntry>.EventType.Value:
+                    if (e.Value.Held && !e.PreviousValue.Held)   // 누군가 주움
+                    {
+                        RemoveVisual(e.Value.Id);
+                        ItemFx.PickedUp(e.PreviousValue.Pos, KindColor((CompetitiveItemKind)e.Value.Kind));
+                    }
+                    break;
+
+                case NetworkListEvent<ItemEntry>.EventType.Remove:
+                case NetworkListEvent<ItemEntry>.EventType.RemoveAt:
+                    RemoveVisual(e.Value.Id);
+                    var col = KindColor((CompetitiveItemKind)e.Value.Kind);
+                    if (e.Value.Held) ItemFx.Used(HolderPos(e.Value.Holder, e.Value.Pos), col);   // 사용
+                    else ItemFx.Expired(e.Value.Pos, col);                                        // 미사용 소멸
+                    break;
+
+                default:
+                    RebuildVisuals();   // Clear 등(라운드 리셋) — 통째로 맞춤
+                    break;
+            }
+        }
+
+        private static Vector3 HolderPos(ulong clientId, Vector3 fallback)
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null || nm.SpawnManager == null) return fallback;
+            var po = nm.SpawnManager.GetPlayerNetworkObject(clientId);
+            return po != null ? po.transform.position + Vector3.up * 0.6f : fallback;
+        }
+
+        private void RemoveVisual(uint id)
+        {
+            if (m_Visuals.TryGetValue(id, out var go) && go != null) Destroy(go);
+            m_Visuals.Remove(id);
+        }
+
+        private void AddVisual(ItemEntry e)
+        {
+            if (m_VisualRoot == null || e.Held || m_Visuals.ContainsKey(e.Id)) return;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = $"~Item_{e.Id}";
+            go.transform.SetParent(m_VisualRoot.transform, false);
+            go.transform.position = e.Pos;
+            go.transform.localScale = Vector3.one * 0.55f;
+            var col = go.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            var color = KindColor((CompetitiveItemKind)e.Kind);
+            go.GetComponent<Renderer>().sharedMaterial =
+                new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = color };
+            ItemFx.DecorateOrb(go, color);   // 팝인 + 둥실 + 반짝이
+            m_Visuals[e.Id] = go;
+        }
 
         private void RebuildVisuals()
         {
             foreach (var kv in m_Visuals) if (kv.Value != null) Destroy(kv.Value);
             m_Visuals.Clear();
-            if (m_VisualRoot == null) return;
-
-            foreach (var e in m_Items)
-            {
-                if (e.Held) continue;   // 소지 중이면 월드에서 숨김
-                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.name = $"~Item_{e.Id}";
-                go.transform.SetParent(m_VisualRoot.transform, false);
-                go.transform.position = e.Pos;
-                go.transform.localScale = Vector3.one * 0.55f;
-                var col = go.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-                var r = go.GetComponent<Renderer>();
-                r.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"))
-                { color = KindColor((CompetitiveItemKind)e.Kind) };
-                m_Visuals[e.Id] = go;
-            }
+            foreach (var e in m_Items) AddVisual(e);
         }
+
+        /// <summary>종류별 대표색(FX 테스터 등 외부에서도 사용).</summary>
+        public static Color KindColorOf(CompetitiveItemKind k) => KindColor(k);
 
         private static Color KindColor(CompetitiveItemKind k) => k switch
         {

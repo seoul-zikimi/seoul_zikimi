@@ -471,14 +471,27 @@ namespace Player
                 m_HasTarget = c.x >= 0 && c.x < s.x && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
 
-                // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸(불편하면 완화/폐기 예정)
+                // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸.
+                // 중심점이 아니라 '블록이 차지한 셀 중 가장 가까운 셀'까지의 거리 — 큰 블록도 가장자리에 서면 닿는다.
                 if (m_HasTarget)
-                {
-                    Vector3 center = GridCoordinates.CellToWorld(c) + new Vector3(0.5f, 0f, 0.5f) * GridContract.Unit;
-                    Vector3 flat = center - transform.position; flat.y = 0f;
-                    m_HasTarget = flat.magnitude <= kBuildReachCells * GridContract.Unit + 0.5f * GridContract.Unit;
-                }
+                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(c),
+                                                    GridContract.Origin, GridContract.Unit, kBuildReachCells);
             }
+        }
+
+        // 사거리 판정 대상 셀: 들고 있으면 놓을 자리(풋프린트 전체), 빈손이면 가리킨 블록이 차지한 셀 전체.
+        // 어느 쪽도 아니면 가리킨 칸 하나.
+        private readonly System.Collections.Generic.List<Vector3Int> m_ReachCells = new();
+        private System.Collections.Generic.List<Vector3Int> ReachCells(Vector3Int target)
+        {
+            if (HasMaterial && m_HeldMaterial != null)
+                return GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation);
+
+            if (m_Net != null && m_Net.TryGetBlockCells(target, m_ReachCells)) return m_ReachCells;
+
+            m_ReachCells.Clear();
+            m_ReachCells.Add(target);
+            return m_ReachCells;
         }
 
         // 손 비었을 때 '마우스가 가리킨' 바닥 픽업 또는 도구함을 집는다(테두리=집기 동일 대상).

@@ -39,6 +39,20 @@ namespace GridSystem
             return false;
         }
 
+        /// <summary>해당 셀을 차지한 블록이 실제로 차지한 모든 셀을 채운다(멀티셀 블록 포함). 사거리 판정용.</summary>
+        public bool TryGetBlockCells(Vector3Int cell, System.Collections.Generic.List<Vector3Int> result)
+        {
+            result.Clear();
+            ulong owner = 0;
+            bool found = false;
+            foreach (var e in m_Cells)
+                if (e.cell == cell) { owner = e.ownerObjectId; found = true; break; }
+            if (!found) return false;
+            foreach (var e in m_Cells)
+                if (e.ownerObjectId == owner) result.Add(e.cell);
+            return true;
+        }
+
         /// <summary>해당 셀이 '미고정 하중부재'(고정 전)면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)</summary>
         public bool IsPickupable(Vector3Int cell)
         {
