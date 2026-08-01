@@ -15,7 +15,7 @@ namespace GridSystem
             if (nm == null) { Debug.LogWarning("[Sandbox] NetworkManager가 없음 — 주문/배송 테스트 불가"); return; }
             if (nm.IsListening) return;
             nm.StartHost();
-            Debug.Log("[Sandbox] 호스트 시작 — 우상단 주문 HUD에서 재료를 주문하면 DeliveryPoint 자리에 떨어집니다.");
+            Debug.Log("[Sandbox] 호스트 시작 — 우상단 주문 HUD에서 재료를 주문하면 Spot_DeliveryZone 자리에 떨어집니다.");
         }
     }
 }

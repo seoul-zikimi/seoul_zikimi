@@ -13,12 +13,11 @@ namespace GridSystem
     [RequireComponent(typeof(MaterialDropField))]
     public class MaterialDepot : NetworkBehaviour
     {
-        // 배송 지점은 맵이 정한다: DeliveryPoint 오브젝트(끌어서 조정, 실시간 반영) 또는 Spot_DeliveryZone 마커.
-        // 둘 다 없을 때만 쓰는 폴백 — 그리드 원점 기준 상대 위치라 맵이 옮겨가도 따라간다.
-        // (인스펙터에 월드 좌표를 직접 입력하던 예전 방식은 제거됨)
+        // 배송 지점은 배경 프리팹의 "Spot_DeliveryZone" 마커가 정한다(다른 Spot_ 마커들과 같은 체계).
+        // 마커를 끌어서 옮기면 착지 지점도 실시간으로 따라간다.
+        // 마커가 없을 때만 쓰는 폴백 — 그리드 원점 기준 상대 위치라 맵이 옮겨가도 따라간다.
+        public const string kSpotName = "Spot_DeliveryZone";
         private static readonly Vector3 kFallbackOffset = new Vector3(-3.5f, 0f, 4f);
-        private Vector3 m_DeliveryZone;
-        private bool m_ZoneSetByMap;
 
         private GridManager m_Grid;
         private MaterialDropField m_Drop;
@@ -35,17 +34,7 @@ namespace GridSystem
             m_Drop = GetComponent<MaterialDropField>();
         }
 
-        /// <summary>맵 마커(Spot_DeliveryZone)로 배송 구역 이동 — MapLoader가 배경 스폰 시 호출. 비주얼 마커도 갱신.</summary>
-        public void SetDeliveryZone(Vector3 worldPos)
-        {
-            m_DeliveryZone = worldPos;
-            m_ZoneSetByMap = true;
-            if (m_Point != null)
-                Debug.LogWarning("[Depot] DeliveryPoint와 Spot_DeliveryZone이 둘 다 있음 — DeliveryPoint가 우선됩니다. 배경 프리팹에서 하나만 두세요.");
-            SyncMarker();
-        }
-
-        // 노란 바닥 표시를 현재 배송 지점에 맞춘다(스폰·마커 적용·포인트 이동 공용).
+        // 노란 바닥 표시를 현재 배송 지점에 맞춘다(스폰·마커 이동 공용).
         private void SyncMarker()
         {
             if (m_Marker == null) return;
@@ -53,29 +42,25 @@ namespace GridSystem
             m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
         }
 
-        // 우선순위: DeliveryPoint 오브젝트(권장 — 끌어서 조정) > Spot_DeliveryZone 마커 > 그리드 기준 폴백.
-        private Transform m_Point;
-        private float m_NextPointFind;
+        private Transform m_Spot;
+        private float m_NextSpotFind;
 
-        private Vector3 ZonePos =>
-            m_Point != null ? m_Point.position :
-            m_ZoneSetByMap ? m_DeliveryZone :
-                             GridContract.Origin + kFallbackOffset;
+        private Vector3 ZonePos => m_Spot != null ? m_Spot.position : GridContract.Origin + kFallbackOffset;
 
         private void Update()
         {
-            // 배경 프리팹에서 늦게 생겨도 잡히게 0.5초 간격 재탐색(찾으면 중단)
-            if (m_Point == null && Time.time >= m_NextPointFind)
+            // 배경 프리팹이 런타임에 스폰되므로 늦게 생겨도 잡히게 0.5초 간격 재탐색(찾으면 중단)
+            if (m_Spot == null && Time.time >= m_NextSpotFind)
             {
-                m_NextPointFind = Time.time + 0.5f;
-                var p = GameObject.Find("DeliveryPoint");
+                m_NextSpotFind = Time.time + 0.5f;
+                var p = GameObject.Find(kSpotName);
                 if (p != null)
                 {
-                    m_Point = p.transform;
-                    Debug.Log($"[Depot] DeliveryPoint 연결 — 배송 구역 = {m_Point.position}");
+                    m_Spot = p.transform;
+                    Debug.Log($"[Depot] {kSpotName} 연결 — 배송 지점 = {m_Spot.position}");
                 }
             }
-            if (m_Point != null) SyncMarker();   // 에디터에서 끌면서 조정 가능하게 라이브 추적
+            if (m_Spot != null) SyncMarker();   // 마커를 끌면서 조정 가능하게 라이브 추적
         }
 
         public override void OnNetworkSpawn()
@@ -109,8 +94,8 @@ namespace GridSystem
 
             // 배송 비행: 하늘 저편(랜덤 방향)에서 포물선으로 날아와 배송 구역에 착지.
             // ServerThrow의 던지기 비행(포물선+텀블 회전+착지음)을 그대로 재활용.
-            var zone = ZonePos;   // DeliveryPoint 오브젝트 있으면 그 위치(높이 포함)
-            Debug.Log($"[Depot] 배송 지점 = {zone} (출처: {(m_Point != null ? "DeliveryPoint 오브젝트" : "Spot_DeliveryZone/인스펙터 좌표")})");
+            var zone = ZonePos;   // 마커 위치(높이 포함)
+            Debug.Log($"[Depot] 배송 지점 = {zone} (출처: {(m_Spot != null ? kSpotName : "마커 없음 — 그리드 기준 폴백")})");
             var to = new Vector3(
                 zone.x + Random.Range(-1.3f, 1.3f),
                 zone.y,

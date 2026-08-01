@@ -51,8 +51,9 @@
   - `Spot_GridManager` — 그리드(건축 구역) 위치
   - `Spot_PaintStation` / `Spot_HammerStation` — 작업대 위치
   - `Spot_PlayerSpawnPoint` — 플레이어 시작 위치
-  - `Spot_DeliveryZone` — 재료 배송(주문한 재료가 떨어지는) 구역
-- 💡 배송 구역은 **`DeliveryPoint`** 라는 빈 오브젝트를 두는 방식을 권장해요 — 끌어서 옮기면 노란 바닥 표시가 실시간으로 따라옵니다. (`Spot_DeliveryZone` 마커도 동작하지만, 한 맵에 둘 다 두면 `DeliveryPoint`가 이깁니다. 하나만 두세요.)
+  - `Spot_DeliveryZone` — 주문한 재료가 **떨어지는(착지) 지점**
+- 💡 `Spot_DeliveryZone`은 끌어서 옮기면 노란 바닥 표시가 실시간으로 따라옵니다. 없으면 그리드 옆 기본 위치로 떨어져요.
+  (예전에 쓰던 `DeliveryPoint`라는 이름은 더 이상 쓰지 않습니다.)
 - 게임 시작 때 배경이 뜨면서 해당 오브젝트가 마커 위치·방향으로 자동 이동해요.
 - 마커를 안 만들면 기존(공용) 위치 그대로 — 광통교는 안 만들어도 됩니다.
 

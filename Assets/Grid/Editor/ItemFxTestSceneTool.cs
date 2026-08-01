@@ -35,7 +35,7 @@ namespace GridSystem.EditorTools
 
             Debug.Log($"[SandboxTest] 준비 완료: {kPath}\n" +
                       "Play 후 — WASD=이동(블록 초록=사거리 안) / 1~5,0,←→=아이템 FX / " +
-                      "우상단 주문 HUD로 재료 주문 → DeliveryPoint 자리에 낙하 / DeliveryPoint를 끌면 노란 마커가 실제 착지 위치\n" +
+                      "우상단 주문 HUD로 재료 주문 → Spot_DeliveryZone 자리에 낙하 / 마커를 끌면 노란 표시가 실제 착지 위치\n" +
                       "2vs2 배경은 Tools ▸ Test ▸ 2vs2 배경 미리보기 로 확인");
         }
 
@@ -95,9 +95,11 @@ namespace GridSystem.EditorTools
                 else Debug.LogWarning($"[SandboxTest] MaterialCatalog을 못 찾음: {kCatalogPath} — 주문 목록이 비어 보일 수 있음");
             }
 
-            if (Find("DeliveryPoint") == null)
+            var legacyPoint = Find("DeliveryPoint");   // 예전 이름으로 만든 씬이면 표준 이름으로 갈아끼움
+            if (legacyPoint != null) legacyPoint.name = MaterialDepot.kSpotName;
+            if (Find(MaterialDepot.kSpotName) == null)
             {
-                var p = new GameObject("DeliveryPoint");
+                var p = new GameObject(MaterialDepot.kSpotName);
                 p.transform.position = new Vector3(-3.5f, 0f, 4f);
             }
 
@@ -116,7 +118,7 @@ namespace GridSystem.EditorTools
             if (Object.FindFirstObjectByType<SandboxTester>() == null)
             {
                 var sandbox = new GameObject("SandboxTester").AddComponent<SandboxTester>();
-                SetRef(sandbox, "m_DeliveryPoint", Find("DeliveryPoint").transform);
+                SetRef(sandbox, "m_DeliveryPoint", Find(MaterialDepot.kSpotName).transform);
             }
         }
 
