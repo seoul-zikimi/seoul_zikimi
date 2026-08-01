@@ -1,0 +1,177 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c11bfe3d9b1ffb47a62e4a2621c2a83, type: 3}
+  m_Name: ExportedAnswer
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapAnswerData
+  m_GridSize: {x: 15, y: 10, z: 15}
+  m_Cells:
+  - cell: {x: 4, y: 0, z: 6}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 4, y: 1, z: 6}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 4, y: 0, z: 7}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 4, y: 1, z: 7}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 4, y: 0, z: 8}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 4, y: 1, z: 8}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 7, y: 0, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 7, y: 1, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 6, y: 0, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 6, y: 1, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 5, y: 0, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 5, y: 1, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 4, y: 0, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 4, y: 1, z: 2}
+    materialId: 10
+    rotationStep: 2
+  - cell: {x: 8, y: 0, z: 5}
+    materialId: 9
+    rotationStep: 1
+  - cell: {x: 8, y: 1, z: 5}
+    materialId: 9
+    rotationStep: 1
+  - cell: {x: 8, y: 0, z: 4}
+    materialId: 9
+    rotationStep: 1
+  - cell: {x: 8, y: 1, z: 4}
+    materialId: 9
+    rotationStep: 1
+  - cell: {x: 8, y: 0, z: 3}
+    materialId: 9
+    rotationStep: 1
+  - cell: {x: 8, y: 1, z: 3}
+    materialId: 9
+    rotationStep: 1
+  - cell: {x: 8, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 8, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 9, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 10, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 1
+  - cell: {x: 11, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 1
+  m_PresetCells: []
+  m_StartPilePosition: {x: 0, y: 0, z: 0}
+  m_TimeLimitSeconds: 180
+  m_AnswerImage: {fileID: 0}
+  m_DisplayName: 
