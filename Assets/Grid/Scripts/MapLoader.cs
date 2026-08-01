@@ -41,6 +41,7 @@ namespace GridSystem
 
             if (m_Spawned != null) Destroy(m_Spawned);   // 맵 교체(새 라운드에 다른 맵) 대응
             if (m_MirrorClone != null) Destroy(m_MirrorClone);
+            ClearSpawnedSystemObjects();                // 이전 맵이 만든 작업대 등 정리
             m_Spawned = Instantiate(def.BackgroundPrefab);
             m_Spawned.name = $"~MapBackground({def.DisplayName})";
             m_SpawnedIndex = idx;
@@ -68,6 +69,28 @@ namespace GridSystem
         // 예: Spot_GridManager, Spot_PaintStation, Spot_HammerStation, Spot_PlayerSpawnPoint.
         // 배송 지점(Spot_DeliveryZone)은 옮길 씬 오브젝트가 없어 MaterialDepot이 직접 추적한다.
         // 마커가 없으면 기존 씬 위치 유지(하위 호환). 이름으로 찾으므로 asmdef 타입 참조 불필요.
+        // 마커 대상이 씬에 없으면 Resources/SystemObjects/<이름> 프리팹을 스폰한다.
+        // 덕분에 작업대 같은 건 씬에 미리 둘 필요 없이 "맵에 마커를 두면 생긴다".
+        // 다음 맵으로 갈아탈 때 같이 지우려고 목록으로 들고 있는다.
+        private static readonly System.Collections.Generic.List<GameObject> s_SpawnedSystemObjects = new();
+
+        private static GameObject SpawnSystemObject(string targetName)
+        {
+            var prefab = Resources.Load<GameObject>($"SystemObjects/{targetName}");
+            if (prefab == null) return null;
+            var go = Instantiate(prefab);
+            go.name = targetName;   // (Clone) 제거 — 다음 맵에서 GameObject.Find로 다시 찾을 수 있게
+            s_SpawnedSystemObjects.Add(go);
+            Debug.Log($"[MapLoader] 시스템 오브젝트 스폰: {targetName}");
+            return go;
+        }
+
+        private static void ClearSpawnedSystemObjects()
+        {
+            foreach (var go in s_SpawnedSystemObjects) if (go != null) Destroy(go);
+            s_SpawnedSystemObjects.Clear();
+        }
+
         private static void ApplySpots(GameObject bg)
         {
             foreach (var t in bg.GetComponentsInChildren<Transform>(true))
@@ -79,7 +102,8 @@ namespace GridSystem
                 if (targetName == "DeliveryZone") continue;
 
                 var target = GameObject.Find(targetName);
-                if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상이 씬에 없음: {targetName}"); continue; }
+                if (target == null) target = SpawnSystemObject(targetName);   // 씬에 없으면 마커 자리에 새로 만든다
+                if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상도 프리팹도 없음: {targetName} (Resources/SystemObjects/{targetName})"); continue; }
 
                 // 그리드는 회전 불가(셀=월드축 정렬) — GridManager는 위치만 적용하고 기준점 갱신
                 var gm = target.GetComponent<GridManager>();
