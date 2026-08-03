@@ -13,6 +13,9 @@ using System.Linq;
 /// </summary>
 public static class MapExporter
 {
+    // Answer 익스포트의 원점 정규화 오프셋 — Preset 셀 익스포트가 같은 값으로 당겨야 좌표가 맞는다.
+    const string kNormalizeOffsetKey = "MapExporter.NormalizeOffset";
+
     /// <summary>
     /// V0 게이트. 열린 씬의 Autotiles3D_Grid에 배치된 모든 셀에 대해
     /// GridCoordinates.CellToWorld(cell) == grid.ToWorldPoint(cell) 인지 검증한다.
@@ -107,8 +110,10 @@ public static class MapExporter
                 var def = catalog.GetById(matId);
                 var footprint = def != null ? def.Footprint : Vector3Int.one;
                 int rot = QuatToStep(node.LocalRotation);
-                // InternalPosition = 피벗 위치 = min-corner anchor (피벗을 XZ min-corner로 정렬했으므로 보정 불필요)
-                var anchor = node.InternalPosition;
+                // Autotiles3D는 회전된 타일을 '피벗 기준'으로 돌려 그린다 → 화면 점유가 피벗의 -x/-z쪽으로 밀린다.
+                // 게임 규약은 min-corner 앵커 + +방향 확장이므로, 회전 블록은 화면 점유의 min-corner로 앵커를 보정해야
+                // '어서링에서 보이는 그 자리'가 그대로 저장된다. (회전 0이면 보정량 0)
+                var anchor = node.InternalPosition + RotatedRawMin(footprint, rot);
 
                 // 이 블록이 점유하는 칸들(인게임 배치와 동일 함수) — 하나라도 범위 밖이면 블록 통째 스킵
                 var fcells = new List<Vector3Int>();
@@ -133,6 +138,23 @@ public static class MapExporter
         }
 
         var cells = new List<AnswerCell>(occupied.Values);
+
+        // ★ 원점 정규화: '어디에 칠했는지'는 의미가 없다 — 게임은 맵마다 그리드 크기·원점이 다르다.
+        // 어서링 그리드(15칸) 가운데에 그려도 min-corner를 (0,0,0)으로 당겨 저장 → 어느 맵 그리드에도 들어간다.
+        if (cells.Count > 0)
+        {
+            var minC = cells[0].cell;
+            foreach (var c in cells) minC = Vector3Int.Min(minC, c.cell);
+            if (minC != Vector3Int.zero)
+            {
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    var c = cells[i]; c.cell -= minC; cells[i] = c;
+                }
+                Debug.Log($"[Grid] 원점 정규화: 칠한 위치 min {minC} → (0,0,0)으로 이동해 저장 (모양은 동일).");
+            }
+            SessionState.SetVector3(kNormalizeOffsetKey, minC);   // Preset 익스포트가 같은 오프셋을 쓰도록
+        }
 
         if (unmapped.Count > 0)
         {
@@ -242,10 +264,12 @@ public static class MapExporter
                 var def = catalog.GetById(matId);
                 var footprint = def != null ? def.Footprint : Vector3Int.one;
                 int rot = QuatToStep(node.LocalRotation);
-                foreach (var fc in GridFootprint.EnumerateFootprintCells(node.InternalPosition, footprint, rot))
+                var presetOffset = Vector3Int.RoundToInt(SessionState.GetVector3(kNormalizeOffsetKey, Vector3.zero));
+                foreach (var fc in GridFootprint.EnumerateFootprintCells(node.InternalPosition + RotatedRawMin(footprint, rot), footprint, rot))
                 {
-                    if (fc.x < 0 || fc.x >= size.x || fc.y < 0 || fc.y >= size.y || fc.z < 0 || fc.z >= size.z) continue;
-                    presetCells.Add(fc);
+                    var nc = fc - presetOffset;   // Answer 익스포트와 같은 원점 정규화
+                    if (nc.x < 0 || nc.x >= size.x || nc.y < 0 || nc.y >= size.y || nc.z < 0 || nc.z >= size.z) continue;
+                    presetCells.Add(nc);
                 }
             }
         }
@@ -315,4 +339,15 @@ public static class MapExporter
 
     // Y축 회전 Quaternion → 0~3 스텝(90°).
     static int QuatToStep(Quaternion q) => Mathf.RoundToInt(q.eulerAngles.y / 90f) & 3;
+
+    // 피벗(원점) 기준으로 footprint를 rot만큼 돌렸을 때 점유 셀들의 min 오프셋.
+    // Autotiles3D 화면 점유의 min-corner = InternalPosition + 이 값. (rot 0이면 (0,0,0))
+    static Vector3Int RotatedRawMin(Vector3Int footprint, int rot)
+    {
+        var min = Vector3Int.zero;
+        for (int x = 0; x < footprint.x; x++)
+        for (int z = 0; z < footprint.z; z++)
+            min = Vector3Int.Min(min, GridFootprint.RotateXZ(new Vector3Int(x, 0, z), rot));
+        return min;
+    }
 }
