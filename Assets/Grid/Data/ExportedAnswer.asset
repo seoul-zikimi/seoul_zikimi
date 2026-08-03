@@ -14,42 +14,162 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MapAnswerData
   m_GridSize: {x: 20, y: 20, z: 20}
   m_Cells:
-  - cell: {x: 3, y: 0, z: 2}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 3, y: 1, z: 2}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 4, y: 0, z: 2}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 4, y: 1, z: 2}
-    materialId: 9
-    rotationStep: 0
+  - cell: {x: 5, y: 0, z: 1}
+    materialId: 10
+    rotationStep: 3
+  - cell: {x: 5, y: 1, z: 1}
+    materialId: 10
+    rotationStep: 3
   - cell: {x: 5, y: 0, z: 2}
-    materialId: 9
-    rotationStep: 0
+    materialId: 10
+    rotationStep: 3
   - cell: {x: 5, y: 1, z: 2}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 0, y: 0, z: 2}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 0, y: 1, z: 2}
-    materialId: 9
-    rotationStep: 0
+    materialId: 10
+    rotationStep: 3
+  - cell: {x: 5, y: 0, z: 3}
+    materialId: 10
+    rotationStep: 3
+  - cell: {x: 5, y: 1, z: 3}
+    materialId: 10
+    rotationStep: 3
+  - cell: {x: 5, y: 0, z: 4}
+    materialId: 10
+    rotationStep: 3
+  - cell: {x: 5, y: 1, z: 4}
+    materialId: 10
+    rotationStep: 3
   - cell: {x: 1, y: 0, z: 2}
     materialId: 9
-    rotationStep: 0
+    rotationStep: 3
   - cell: {x: 1, y: 1, z: 2}
     materialId: 9
-    rotationStep: 0
-  - cell: {x: 2, y: 0, z: 2}
+    rotationStep: 3
+  - cell: {x: 1, y: 0, z: 3}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 1, y: 1, z: 3}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 1, y: 0, z: 4}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 1, y: 1, z: 4}
+    materialId: 9
+    rotationStep: 3
+  - cell: {x: 1, y: 0, z: 5}
     materialId: 9
     rotationStep: 0
-  - cell: {x: 2, y: 1, z: 2}
+  - cell: {x: 1, y: 1, z: 5}
     materialId: 9
     rotationStep: 0
+  - cell: {x: 2, y: 0, z: 5}
+    materialId: 9
+    rotationStep: 0
+  - cell: {x: 2, y: 1, z: 5}
+    materialId: 9
+    rotationStep: 0
+  - cell: {x: 3, y: 0, z: 5}
+    materialId: 9
+    rotationStep: 0
+  - cell: {x: 3, y: 1, z: 5}
+    materialId: 9
+    rotationStep: 0
+  - cell: {x: 4, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 4, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 3, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 2, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 2, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 2, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 2, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 2, z: 2}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 3, z: 5}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 3, z: 4}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 3, z: 3}
+    materialId: 11
+    rotationStep: 2
+  - cell: {x: 1, y: 3, z: 2}
+    materialId: 11
+    rotationStep: 2
   - cell: {x: 0, y: 0, z: 0}
     materialId: 9
     rotationStep: 0
@@ -66,120 +186,6 @@ MonoBehaviour:
     materialId: 9
     rotationStep: 0
   - cell: {x: 2, y: 1, z: 0}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 6, y: 2, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 2, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 2, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 2, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 3, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 3, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 3, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 6, y: 3, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 2, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 2, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 2, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 2, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 3, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 3, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 3, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 5, y: 3, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 2, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 2, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 2, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 2, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 3, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 3, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 3, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 4, y: 3, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 2, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 2, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 2, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 2, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 3, z: 4}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 3, z: 3}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 3, z: 2}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 3, z: 1}
-    materialId: 11
-    rotationStep: 2
-  - cell: {x: 3, y: 0, z: 0}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 3, y: 1, z: 0}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 4, y: 0, z: 0}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 4, y: 1, z: 0}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 5, y: 0, z: 0}
-    materialId: 9
-    rotationStep: 0
-  - cell: {x: 5, y: 1, z: 0}
     materialId: 9
     rotationStep: 0
   m_PresetCells: []
