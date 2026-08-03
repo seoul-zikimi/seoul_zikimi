@@ -51,6 +51,8 @@ MonoBehaviour:
     - Lofelt.NiceVibrations
     - Lofelt.NiceVibrations.Demo
     - MoreMountains.Tools
+    - SeoulZikimi.Gameplay
+    - SeoulZikimi.Weather
     - unity-websocket-sharp
     - Whinarn.UnityMeshSimplifier.Runtime
     - Wingman

@@ -15,7 +15,7 @@ MonoBehaviour:
   m_DisplayName: "\uD29C\uD1A0\uB9AC\uC5BC"
   m_BackgroundPrefab: {fileID: 5495699232571850440, guid: d24983d0c3a5b65488bf7e8841fc2f2e, type: 3}
   m_Answers:
-  - {fileID: 11400000, guid: f301b25449fad834aa4a105cbc4cbc02, type: 2}
+  - {fileID: 11400000, guid: b86703932a0aa514f88aae3e15d8588c, type: 2}
   m_Thumbnail: {fileID: 0}
   m_GridSize: {x: 10, y: 6, z: 8}
   m_AvailableMaterials:
