@@ -58,6 +58,13 @@ namespace GridSystem
             if (depot != null) depot.SetAvailableMaterials(def.AvailableMaterials);
 
             ApplySpots(m_Spawned, m_Loop.IsVersus);   // 맵 마커(Spot_*)대로 배치/스폰 — 후처리·플레이어 배치보다 먼저
+
+            // 마커로 그리드 원점이 바뀌었을 수 있다 — 이미 그려진 정답 고스트·미리보기를 새 원점으로 다시 그린다.
+            // (안 하면 고스트는 옛 원점, 실블록은 새 원점 기준이라 미묘하게 어긋나 보인다)
+            {
+                var gm2 = FindFirstObjectByType<GridManager>();
+                if (gm2 != null) gm2.NotifyAnswerVisualsDirty();
+            }
             if (m_Loop.IsVersus) SetupVersusBackground(m_Spawned);   // 2vs2: 대칭 처리(전용 맵이면 통과)
             Pending = false;
             BackgroundSpawned?.Invoke(m_Spawned);   // 시야가림 페이드 콜라이더 등 후처리 트리거
@@ -121,7 +128,10 @@ namespace GridSystem
                 var gm = target.GetComponent<GridManager>();
                 if (gm != null)
                 {
-                    target.transform.position = t.position;
+                    // 그리드 원점은 셀 격자에 스냅(XZ 반올림) — 마커를 대충 놓아도 0.08유닛 같은 어긋남이 안 생긴다.
+                    float gu = GridContract.Unit;
+                    var p = t.position;
+                    target.transform.position = new Vector3(Mathf.Round(p.x / gu) * gu, p.y, Mathf.Round(p.z / gu) * gu);
                     GridContract.Origin = gm.transform.position;
                 }
                 else
