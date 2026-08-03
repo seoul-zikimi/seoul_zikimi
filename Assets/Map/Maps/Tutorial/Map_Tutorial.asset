@@ -17,7 +17,7 @@ MonoBehaviour:
   m_Answers:
   - {fileID: 11400000, guid: f301b25449fad834aa4a105cbc4cbc02, type: 2}
   m_Thumbnail: {fileID: 0}
-  m_GridSize: {x: 6, y: 5, z: 6}
+  m_GridSize: {x: 10, y: 6, z: 8}
   m_AvailableMaterials:
   - {fileID: 11400000, guid: 079bb6fcd121db041b8052ef200d9b10, type: 2}
   - {fileID: 11400000, guid: 16fb60e2759dd00469fe745ca42a57e4, type: 2}
