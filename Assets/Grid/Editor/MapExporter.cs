@@ -86,6 +86,8 @@ public static class MapExporter
         Vector3Int size = mgr.GridSize;
         var occupied = new Dictionary<Vector3Int, AnswerCell>();   // 칸 → 어떤 블록이 차지(겹침 자동 검출)
         var unmapped = new Dictionary<string, int>();
+        var oobList = new List<string>();       // 그리드 밖 블록(어디인지 알려주기)
+        var overlapList = new List<string>();   // 겹친 블록
         int oobBlocks = 0, overlaps = 0, placed = 0, blocks = 0;
 
         foreach (var layer in grid.TileLayers)
@@ -117,13 +119,15 @@ public static class MapExporter
                     { anyOob = true; break; }
                     fcells.Add(fc);
                 }
-                if (anyOob) { oobBlocks++; continue; }
+                if (anyOob) { oobBlocks++; oobList.Add($"{node.TileName} @ {anchor}"); continue; }
 
+                int blockOverlap = 0;
                 foreach (var fc in fcells)
                 {
-                    if (occupied.ContainsKey(fc)) { overlaps++; continue; }   // 먼저 칠한 블록 우선
+                    if (occupied.ContainsKey(fc)) { overlaps++; blockOverlap++; continue; }   // 먼저 칠한 블록 우선
                     occupied[fc] = new AnswerCell { cell = fc, materialId = matId, rotationStep = (byte)rot };
                 }
+                if (blockOverlap > 0) overlapList.Add($"{node.TileName} @ {anchor} ({blockOverlap}칸 겹침)");
                 blocks++;
             }
         }
@@ -144,6 +148,40 @@ public static class MapExporter
         {
             Debug.LogError($"[Grid] 익스포트할 매핑된 타일이 0개입니다(배치 {placed}). 'Print Autotiles3D Tile IDs'로 타일을 확인하세요.");
             return;
+        }
+
+        // ★ 핵심 안전장치: 하나라도 빠지면 '조용히 성공'하지 않는다.
+        // 화면에 보이는 것과 저장되는 것이 다르면, 뭐가 왜 빠졌는지 보여주고 저장 여부를 묻는다.
+        int skippedTotal = unmapped.Values.Sum() + oobBlocks;
+        if ((skippedTotal > 0 || overlaps > 0) && !Application.isBatchMode)
+        {
+            var msg = new StringBuilder();
+            msg.AppendLine($"칠한 블록 {placed}개 중 {blocks}개만 저장됩니다!");
+            msg.AppendLine("(화면에 보이는 것과 정답 데이터가 달라집니다)");
+            msg.AppendLine();
+            if (unmapped.Count > 0)
+            {
+                msg.AppendLine("■ 재료를 못 찾은 타일(팔레트/카탈로그 불일치):");
+                foreach (var kv in unmapped) msg.AppendLine($"   {kv.Key} x{kv.Value}");
+            }
+            if (oobList.Count > 0)
+            {
+                msg.AppendLine($"■ 그리드 범위({size}) 밖으로 삐져나간 블록:");
+                foreach (var s2 in oobList.Take(8)) msg.AppendLine($"   {s2}");
+            }
+            if (overlapList.Count > 0)
+            {
+                msg.AppendLine("■ 다른 블록과 겹친 블록(겹친 칸은 무시됨):");
+                foreach (var s2 in overlapList.Take(8)) msg.AppendLine($"   {s2}");
+            }
+            msg.AppendLine();
+            msg.AppendLine("[취소]하고 위 블록들을 고친 뒤 다시 내보내는 것을 권장합니다.");
+
+            if (!EditorUtility.DisplayDialog("⚠ 어서링과 다르게 저장됩니다", msg.ToString(), "그래도 내보내기", "취소(권장)"))
+            {
+                Debug.LogWarning("[Grid] 익스포트 취소 — 문제 블록을 고친 뒤 다시 실행하세요.");
+                return;
+            }
         }
 
         const string path = "Assets/Grid/Data/ExportedAnswer.asset";
