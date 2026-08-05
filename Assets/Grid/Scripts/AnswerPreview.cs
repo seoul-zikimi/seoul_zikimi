@@ -63,6 +63,15 @@ namespace GridSystem
                 m_Visible = !m_Visible;
 
             bool show = Show();
+
+            // 2vs2: 팀B의 인월드 고스트는 자기 구역(x+구역폭)에 보여야 한다 — 채점 오프셋(GridNetwork.ScoreAgainst)과 동일 기준.
+            // 팀 배정(NetworkList)이 Build보다 늦게 복제될 수 있어 재생성 대신 루트 이동으로 매 프레임 반영한다.
+            if (m_GhostRoot != null)
+                m_GhostRoot.transform.position =
+                    (m_Loop != null && m_Loop.IsVersus && m_Loop.LocalTeam == 1)
+                        ? new Vector3(m_Manager.ZoneSize.x * GridContract.Unit, 0f, 0f)
+                        : Vector3.zero;
+
             if (m_GhostRoot != null) m_GhostRoot.SetActive(show);
             if (show)
             {

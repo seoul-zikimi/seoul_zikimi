@@ -496,9 +496,10 @@ namespace Player
             {
                 var c = GridCoordinates.WorldToCell(ray.GetPoint(d));
                 c.y = m_BuildHeight;
-                var s = m_Grid.GridSize;
+                var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배 — GridSize(한 팀 폭)로 재면 팀B 구역이 그리드 밖 판정
+                var (xMin, xMax) = PlaceableXRange(s);
                 m_Target = c;
-                m_HasTarget = c.x >= 0 && c.x < s.x && c.z >= 0 && c.z < s.z
+                m_HasTarget = c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
 
                 // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸.
@@ -781,14 +782,27 @@ namespace Player
             m_NetTool.Value = 0;
         }
 
+        // 배치 허용 X 범위 [min, max) — 2vs2는 자기 팀 구역만(서버 GridNetwork.ZoneAllowed와 동일 기준).
+        // 클라에서 먼저 거르지 않으면 분할벽 근처에서 상대 구역에 놓는 요청이 서버 거부돼 재료만 사라진다.
+        private (int xMin, int xMax) PlaceableXRange(Vector3Int effective)
+        {
+            if (m_Loop == null || !m_Loop.IsVersus || m_Grid == null) return (0, effective.x);
+            int w = m_Grid.ZoneSize.x;
+            int team = m_Loop.LocalTeam;
+            if (team == 0) return (0, w);
+            if (team == 1) return (w, effective.x);
+            return (0, effective.x);   // 팀 미배정 과도기 — 서버가 최종 검증
+        }
+
         private void TryPlace()
         {
             if (m_Loop != null && !m_Loop.IsBuilding) return;
             if (!m_HasTarget || m_Net == null || m_Grid == null) return;
-            var s = m_Grid.GridSize;
+            var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배(팀B 구역 포함)
+            var (xMin, xMax) = PlaceableXRange(s);
             foreach (var cell in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
             {
-                if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
+                if (cell.x < xMin || cell.x >= xMax || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
                 if (!m_Net.IsCellFree(cell)) { ShakePreview(); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
