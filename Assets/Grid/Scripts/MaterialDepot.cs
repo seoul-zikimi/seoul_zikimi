@@ -21,7 +21,9 @@ namespace GridSystem
 
         private GridManager m_Grid;
         private MaterialDropField m_Drop;
+        private GameLoopManager m_Loop;
         private GameObject m_Marker;
+        private GameObject m_MarkerB;   // 2vs2: 팀B 배송 지점 표시(분할벽 점대칭)
 
         // UI는 별도 어셈블리(UIManager)라 직접 못 부름 → 이벤트로 알리고 Assembly-CSharp 드라이버가 HUD 연결.
         public static event System.Action<MaterialDepot> Spawned;
@@ -60,6 +62,7 @@ namespace GridSystem
         {
             m_Grid = GetComponent<GridManager>();
             m_Drop = GetComponent<MaterialDropField>();
+            m_Loop = GetComponent<GameLoopManager>();
         }
 
         // 노란 바닥 표시를 현재 배송 지점에 맞춘다(스폰·마커 이동 공용).
@@ -68,6 +71,17 @@ namespace GridSystem
             if (m_Marker == null) return;
             var z = ZonePos;
             m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
+
+            // 2vs2: 팀B의 실제 배송 지점(OrderRpc의 점대칭 미러와 동일 계산)에도 노란 판을 그린다 —
+            // 안 그리면 팀B는 재료가 어디 떨어지는지 표시가 없다.
+            bool versus = m_Loop != null && m_Loop.IsVersus && m_Grid != null;
+            if (versus)
+            {
+                if (m_MarkerB == null) m_MarkerB = MakeMarker("~DeliveryZone_B");
+                var pivot = VersusBackground.MirrorPivot(m_Grid.ZoneSize, m_Grid.EffectiveSize);
+                m_MarkerB.transform.position = new Vector3(2f * pivot.x - z.x, z.y + 0.05f, 2f * pivot.z - z.z);
+            }
+            else if (m_MarkerB != null) { Destroy(m_MarkerB); m_MarkerB = null; }
         }
 
         private Transform m_Spot;
@@ -94,21 +108,28 @@ namespace GridSystem
         public override void OnNetworkSpawn()
         {
             // 배송 구역 바닥 마커(로컬 비주얼, 모든 클라) — 어디서 줍는지 보이게
-            m_Marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            m_Marker.name = "~DeliveryZone";
-            m_Marker.transform.localScale = new Vector3(3f, 0.1f, 3f);
+            m_Marker = MakeMarker("~DeliveryZone");
             SyncMarker();
-            var col = m_Marker.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-            SetColor(m_Marker, new Color(0.95f, 0.8f, 0.2f));
 
             Spawned?.Invoke(this);   // 드라이버가 주문 HUD 띄움
+        }
+
+        private static GameObject MakeMarker(string name)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.transform.localScale = new Vector3(3f, 0.1f, 3f);
+            var col = go.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            SetColor(go, new Color(0.95f, 0.8f, 0.2f));
+            return go;
         }
 
         public override void OnNetworkDespawn()
         {
             Despawned?.Invoke(this);   // 드라이버가 주문 HUD 숨김
             if (m_Marker != null) Destroy(m_Marker);
+            if (m_MarkerB != null) Destroy(m_MarkerB);
         }
 
         public void RequestOrder(int materialId) => OrderRpc(materialId);
@@ -142,6 +163,14 @@ namespace GridSystem
             // 배송 비행: 하늘 저편(랜덤 방향)에서 포물선으로 날아와 배송 구역에 착지.
             // ServerThrow의 던지기 비행(포물선+텀블 회전+착지음)을 그대로 재활용.
             var zone = ZonePos;   // 마커 위치(높이 포함)
+
+            // 2vs2: 배송 마커는 팀A 쪽에 하나뿐 — 팀B 주문은 분할벽 중심 점대칭 지점(자기 구역)에 배송한다.
+            // 안 하면 팀B 재료가 벽 너머 팀A 구역에 떨어져 주울 수 없다.
+            if (loop != null && loop.IsVersus && m_Grid != null && loop.GetTeam(rpc.Receive.SenderClientId) == 1)
+            {
+                var pivot = VersusBackground.MirrorPivot(m_Grid.ZoneSize, m_Grid.EffectiveSize);
+                zone = new Vector3(2f * pivot.x - zone.x, zone.y, 2f * pivot.z - zone.z);
+            }
             Debug.Log($"[Depot] 배송 지점 = {zone} (출처: {(m_Spot != null ? kSpotName : "마커 없음 — 그리드 기준 폴백")})");
             var to = new Vector3(
                 zone.x + Random.Range(-1.3f, 1.3f),
