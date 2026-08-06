@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c324634611a0b7d458d3cd2765878347, type: 3}
+  m_Name: NamsanGimmickConfig_Namsan
+  m_EditorClassIdentifier: GridSystem::GridSystem.NamsanGimmickConfig
+  CarCount: 3
+  CarFetchSeconds: 5
+  CarGapSeconds: 3
+  CarCloseSeconds: 2
+  CarTimeoutSeconds: 20
+  CarDispatchGapSeconds: 1
+  ObservatoryMinY: 11
+  ObservatoryMaxY: 13
+  GustMinInterval: 12
+  GustMaxInterval: 18
+  GustWarnSeconds: 3
+  GustDurationSeconds: 3
+  WeakWindMinHeight: 10
+  StrongWindMinHeight: 15
+  WeakPushCells: 2
+  StrongPushCells: 4
+  StunSeconds: 2
