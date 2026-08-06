@@ -11,11 +11,20 @@ namespace GridSystem.Tests
     /// </summary>
     public class MapAuthoringValidationTests
     {
-        // MapLoader.ApplySpots가 인식하는 마커 이름 — 여기 없는 이름은 오타로 간주(조용히 무시되면 못 찾음)
-        static readonly string[] kKnownSpots =
+        // 모든 맵에 반드시 있어야 하는 마커 5종
+        static readonly string[] kRequiredSpots =
         {
             "GridManager", "PaintStation", "HammerStation", "PlayerSpawnPoint", "DeliveryZone",
         };
+
+        // 특정 맵에서만 쓰는 선택 마커(남산 기믹 등) — 없어도 되지만 이름은 정확해야 한다
+        static readonly string[] kOptionalSpots =
+        {
+            "CableCarStation", "CableCarOrigin", "ElevatorLower", "ElevatorUpper",
+        };
+
+        // 인식되는 전체 마커 이름 — 여기 없는 이름은 오타로 간주(조용히 무시되면 못 찾음)
+        static readonly string[] kKnownSpots = kRequiredSpots.Concat(kOptionalSpots).ToArray();
 
         static MapCatalog Catalog() => Resources.Load<MapCatalog>("MapCatalog");
 
@@ -172,9 +181,17 @@ namespace GridSystem.Tests
                 foreach (var t in m.BackgroundPrefab.GetComponentsInChildren<Transform>(true))
                     if (t.name.StartsWith("Spot_")) found.Add(t.name.Substring("Spot_".Length));
 
-                foreach (var need in kKnownSpots)
+                // 남산 기믹 맵은 배송 지점 대신 케이블카 하차장을 쓴다.
+                bool namsan = m.NamsanGimmicks != null;
+                foreach (var need in kRequiredSpots)
+                {
+                    if (namsan && need == "DeliveryZone") continue;
                     Assert.IsTrue(found.Contains(need),
                         $"[{m.name}] Spot_{need} 마커가 없음 — 이 맵에서는 해당 오브젝트가 안 나오거나 공용 위치에 남습니다.");
+                }
+                if (namsan)
+                    Assert.IsTrue(found.Contains("CableCarStation"),
+                        $"[{m.name}] 남산 기믹 맵인데 Spot_CableCarStation(케이블카 하차장) 마커가 없음 — 재료를 받을 곳이 없습니다.");
             }
         }
 

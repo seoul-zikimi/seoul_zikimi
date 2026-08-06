@@ -69,6 +69,13 @@ namespace GridSystem
         private void SyncMarker()
         {
             if (m_Marker == null) return;
+
+            // 남산 맵: 배송 지점이 없다(케이블카 하차장이 대신) — 노란 판 숨김.
+            var cable = GetComponent<CableCarNetwork>();
+            bool cableActive = cable != null && cable.Active;
+            if (m_Marker.activeSelf == cableActive) m_Marker.SetActive(!cableActive);
+            if (cableActive) return;
+
             var z = ZonePos;
             m_Marker.transform.position = new Vector3(z.x, z.y + 0.05f, z.z);
 
@@ -102,7 +109,8 @@ namespace GridSystem
                     Debug.Log($"[Depot] {kSpotName} 연결 — 배송 지점 = {m_Spot.position}");
                 }
             }
-            if (m_Spot != null) SyncMarker();   // 마커를 끌면서 조정 가능하게 라이브 추적
+            // 마커를 끌면서 조정 가능하게 라이브 추적. 마커가 없어도 호출 — 남산(케이블카) 맵에서 노란 판 숨김 처리.
+            SyncMarker();
         }
 
         public override void OnNetworkSpawn()
@@ -153,10 +161,23 @@ namespace GridSystem
             }
 
             var cat = m_Grid != null ? m_Grid.Catalog : null;
-            if (cat == null || cat.GetById(materialId) == null) return;
+            if (cat == null || cat.GetById(materialId) == null)
+            {
+                // 맵의 AvailableMaterials가 전역 카탈로그에 없는 재료를 팔면 여기서 걸린다 — 조용히 죽지 말고 알린다.
+                Debug.LogWarning($"[Depot] 전역 MaterialCatalog에 없는 재료 주문: id {materialId} — 맵의 Available Materials와 카탈로그를 맞추세요.");
+                return;
+            }
             if (!IsOrderable(materialId))   // 이 맵에서 안 파는 재료(조작된 요청 포함)
             {
                 Debug.LogWarning($"[Depot] 이 맵에서 주문할 수 없는 재료: id {materialId}");
+                return;
+            }
+
+            // 남산 맵: 하늘 배송 대신 케이블카가 나른다 — 검증은 위에서 끝났으니 대기열로 넘기고 끝.
+            var cable = GetComponent<CableCarNetwork>();
+            if (cable != null && cable.Active)
+            {
+                cable.ServerEnqueue(materialId);
                 return;
             }
 

@@ -631,6 +631,9 @@ namespace Player
             OnPlace?.Invoke();
         }
 
+        /// <summary>외부 시스템(돌풍 스턴 등)이 든 것을 강제로 떨어뜨릴 때 — 발밑 픽업으로 떨어져 분실 없음. 오너 로컬 전용.</summary>
+        public void ForceDrop() => Drop();
+
         // ── [07/26 기획] G 차징 던지기: 꾹 누를수록 멀리, 화살표로 방향·거리 미리보기 ──
         private float m_ThrowHold = -1f;   // <0 = 충전 안 함
         private GameObject m_ThrowAim;     // 조준 화살표(오너 로컬 비주얼)
