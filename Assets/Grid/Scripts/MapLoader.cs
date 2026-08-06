@@ -119,6 +119,8 @@ namespace GridSystem
 
                 // 배송 지점은 옮길 씬 오브젝트가 없다 — MaterialDepot이 이 마커를 직접 추적한다(라이브 반영).
                 if (targetName == "DeliveryZone") continue;
+                // 남산 기믹 마커(케이블카·엘리베이터)도 같은 체계 — 각 기믹 시스템이 직접 추적한다.
+                if (NamsanSpots.IsMarkerOnly(t.name)) continue;
 
                 var target = GameObject.Find(targetName);
                 if (target == null) target = SpawnSystemObject(targetName);   // 씬에 없으면 마커 자리에 새로 만든다

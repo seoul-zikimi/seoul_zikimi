@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20201acce871a3c45b510babe7f8bb03, type: 3}
+  m_Name: Map_NamsanTest
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
+  m_DisplayName: "\uB0A8\uC0B0 \uAE30\uBBF9 \uD14C\uC2A4\uD2B8"
+  m_BackgroundPrefab: {fileID: 1624732195237349646, guid: b0a3c6bcc3c35a7478353163161055ee, type: 3}
+  m_Answers:
+  - {fileID: 11400000, guid: ea359b47b3f0cb143bb776d15d7d5b33, type: 2}
+  m_Thumbnail: {fileID: 21300000, guid: b8be0983359625f45a8878a558667a81, type: 3}
+  m_GridSize: {x: 9, y: 14, z: 9}
+  m_AvailableMaterials:
+  - {fileID: 11400000, guid: d3efc3979c47a1542b6e09394c4385ae, type: 2}
+  m_NamsanGimmicks: {fileID: 11400000, guid: 325d1abcb5b02a044903cf03816d94d7, type: 2}

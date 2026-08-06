@@ -18,6 +18,8 @@ namespace GridSystem
         [SerializeField] private Vector3Int m_GridSize;        // (0,0,0) = 미설정
         [Tooltip("이 맵에서 주문할 수 있는 재료. 비워두면 MaterialCatalog 전체가 나옵니다.")]
         [SerializeField] private List<MaterialDef> m_AvailableMaterials = new();
+        [Tooltip("남산타워 전용 기믹(케이블카·엘리베이터·돌풍) 설정. 비워두면 기믹 없음 — 일반 맵은 그대로 두세요.")]
+        [SerializeField] private NamsanGimmickConfig m_NamsanGimmicks;
 
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
         public GameObject BackgroundPrefab => m_BackgroundPrefab;
@@ -26,6 +28,9 @@ namespace GridSystem
 
         /// <summary>이 맵에서 주문 가능한 재료(비면 카탈로그 전체). 카탈로그 자체는 전역 그대로다.</summary>
         public IReadOnlyList<MaterialDef> AvailableMaterials => m_AvailableMaterials;
+
+        /// <summary>남산타워 기믹 설정(null이면 이 맵엔 기믹 없음).</summary>
+        public NamsanGimmickConfig NamsanGimmicks => m_NamsanGimmicks;
 
         /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
         public Vector3Int GridSize => m_GridSize;

@@ -81,16 +81,36 @@ namespace GridSystem
             });
         }
 
-        /// <summary>배송(보급소 주문): 던지기와 같지만 착지 높이를 배송 지점 높이로 존중한다(높은 곳에 배송 지점을 둘 수 있게).</summary>
-        public void ServerDeliver(int materialId, Vector3 fromPos, Vector3 toPos)
+        /// <summary>배송(보급소 주문): 던지기와 같지만 착지 높이를 배송 지점 높이로 존중한다(높은 곳에 배송 지점을 둘 수 있게).
+        /// 반환: 발급된 pickupId(추적용 — 케이블카가 미수령 회수에 쓴다). 실패 시 0.</summary>
+        public ulong ServerDeliver(int materialId, Vector3 fromPos, Vector3 toPos)
         {
-            if (!IsServer || materialId < 0) return;
+            if (!IsServer || materialId < 0) return 0;
             var rest = new Vector3(toPos.x, toPos.y + 0.5f, toPos.z);
             ClampToFloor(ref rest);
             m_Pickups.Add(new PickupEntry
             {
                 pickupId = ++m_Counter, materialId = materialId, pos = rest, fromPos = fromPos
             });
+            return m_Counter;
+        }
+
+        /// <summary>서버: 특정 픽업의 현재 위치(권위값). 없으면 false — 이미 주워갔다는 뜻.</summary>
+        public bool TryGetPickupPos(ulong pickupId, out Vector3 pos)
+        {
+            foreach (var p in m_Pickups)
+                if (p.pickupId == pickupId) { pos = p.pos; return true; }
+            pos = default;
+            return false;
+        }
+
+        /// <summary>서버: 특정 픽업 제거(케이블카 미수령 회수 등). 있었으면 true.</summary>
+        public bool ServerRemove(ulong pickupId)
+        {
+            if (!IsServer) return false;
+            for (int i = 0; i < m_Pickups.Count; i++)
+                if (m_Pickups[i].pickupId == pickupId) { m_Pickups.RemoveAt(i); return true; }
+            return false;
         }
 
         public void RequestThrow(int materialId, Vector3 fromPos, Vector3 toPos) => ThrowRpc(materialId, fromPos, toPos);

@@ -15,6 +15,13 @@ namespace Player
         private float m_ClimbCooldown;    // 벽점프 직후 즉시 재부착 방지
         public bool IsClimbing => m_IsClimbing;
 
+        /// <summary>외력 채널(남산 돌풍 등) — Move/Climb가 매 틱 입력 속도에 합산한다.
+        /// Move가 linearVelocity를 통째로 덮어쓰므로 AddForce로는 지속 밀림이 불가능해 만든 통로.</summary>
+        public Vector3 ExternalPush { get; set; }
+
+        /// <summary>공중 최대 낙하 속도(착지 판정용 — 돌풍 추락 스턴이 읽는다).</summary>
+        public float FallSpeed => m_FallSpeed;
+
         public void Init(PlayerConfigSO config)
         {
             m_Config = config; m_Rb = GetComponent<Rigidbody>();
@@ -44,7 +51,11 @@ namespace Player
                     GridSystem.GridJuice.GroundHit(transform.position, 0.55f);
                     SquishLandedOn();
                     if (!m_Rb.isKinematic)   // 원격(kinematic)은 남의 착지 — 내 카메라는 내 착지에만 반응
+                    {
                         GridSystem.GridJuice.FovPunch(Camera.main, -Mathf.Min(1.5f + m_FallSpeed * 0.45f, 6f));
+                        var stun = GetComponent<PlayerStun>();   // 남산 돌풍: 밀린 채 추락했으면 착지 스턴
+                        if (stun != null) stun.NotifyHardLanding(m_FallSpeed);
+                    }
                 }
                 m_FallSpeed = 0f;
             }
@@ -83,7 +94,7 @@ namespace Player
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             Vector3 v = dir * speed;
-            m_Rb.linearVelocity = new Vector3(v.x, m_Rb.linearVelocity.y, v.z);   // Y 보존(중력·점프가 담당)
+            m_Rb.linearVelocity = new Vector3(v.x + ExternalPush.x, m_Rb.linearVelocity.y, v.z + ExternalPush.z);   // Y 보존(중력·점프가 담당)
         }
 
         // 접지 상태에서만 위로 임펄스. WASD를 같이 누르면 수평속도가 살아 있어 '방향 점프'가 됨.
@@ -149,7 +160,8 @@ namespace Player
             float vy      = input.y * m_Config.ClimbSpeed;            // W=↑ / S=↓
             Vector3 along = right * (input.x * m_Config.ClimbSpeed);  // A/D 좌우
             Vector3 into  = inDir * 0.5f;                            // 벽에 약하게 밀착(마찰로 못 오르는 것 방지)
-            m_Rb.linearVelocity = new Vector3(along.x + into.x, vy, along.z + into.z);
+            // 돌풍은 매달린 상태에도 작용 — 벽에서 밀려나면 다음 틱 WallInFront가 실패해 자연스럽게 떨어진다.
+            m_Rb.linearVelocity = new Vector3(along.x + into.x + ExternalPush.x, vy, along.z + into.z + ExternalPush.z);
         }
 
         // 벽에서 점프 탈출: 벽 반대로 + 위로.

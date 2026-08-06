@@ -8,6 +8,7 @@
 |---|---|
 | 새 맵 추가하기 | [MAP_ADD_GUIDE_기획자용.md](MAP_ADD_GUIDE_기획자용.md) |
 | 2vs2 대결용 맵 만들기 | [MAP_2VS2_GUIDE_기획자용.md](MAP_2VS2_GUIDE_기획자용.md) |
+| 남산타워 기믹 맵 만들기 | [MAP_NAMSAN_GUIDE_기획자용.md](MAP_NAMSAN_GUIDE_기획자용.md) |
 | 맵에 소품 배치하기 | [MAP_PROPS_GUIDE_기획자용.md](MAP_PROPS_GUIDE_기획자용.md) |
 | 블록·정답 구조물 그리기 | [Grid/AUTHORING_GUIDE.md](Grid/AUTHORING_GUIDE.md) |
 | 물길(강·개천) 만들기 | [Water/물길_제작_가이드.md](Water/물길_제작_가이드.md) |
@@ -40,4 +41,5 @@
 | Tools ▸ Map ▸ 시스템 오브젝트 프리팹 만들기 | 작업대(망치·페인트) 프리팹 생성 |
 | Tools ▸ Test ▸ 샌드박스 테스트 씬 | 아이템 FX·사거리·배송 확인 |
 | Tools ▸ Test ▸ 2vs2 배경 미리보기 | 2vs2 대칭·투명벽 확인 |
+| Tools ▸ Map ▸ ★ 남산 기믹 테스트 맵 생성 | 케이블카·엘리베이터·돌풍 바로 테스트 |
 | Window ▸ General ▸ Test Runner | 맵 데이터·규칙 자동 검사 |
