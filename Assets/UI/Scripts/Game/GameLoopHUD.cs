@@ -184,7 +184,9 @@ public sealed class GameLoopHUD : UIHUD
             m_Loop = FindFirstObjectByType<GameLoopManager>();
 
         bool ready = m_Loop != null && m_Loop.IsSpawned;
-        SetVisible(ready);
+        // 시간제한이 없는 모드(자유 모드/튜토리얼)는 TimeLeft가 사실상 무한대라 숫자가 의미 없다 — 타이머 박스(베이지 배경 포함) 자체를 숨긴다.
+        bool timeLimited = ready && m_Loop.ModeDef.TimeLimitPolicy != SeoulZikimi.Gameplay.TimeLimitPolicy.Unlimited;
+        SetVisible(ready, timeLimited);
         if (!ready)
             return;
 
@@ -219,16 +221,9 @@ public sealed class GameLoopHUD : UIHUD
             }
         }
 
-        // 시간제한이 없는 모드(자유 모드/튜토리얼)는 TimeLeft가 사실상 무한대라 숫자가 의미 없다 — 타이머 자체를 숨긴다.
-        bool timeLimited = m_Loop.ModeDef.TimeLimitPolicy != SeoulZikimi.Gameplay.TimeLimitPolicy.Unlimited;
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
-        if (m_TimerText != null && !timeLimited)
+        if (m_TimerText != null && timeLimited)
         {
-            m_TimerText.gameObject.SetActive(false);
-        }
-        else if (m_TimerText != null)
-        {
-            m_TimerText.gameObject.SetActive(true);
             string timer = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
             // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
             if (m_Loop.IsVersus && m_Loop.IsBuilding)
@@ -299,9 +294,9 @@ public sealed class GameLoopHUD : UIHUD
             }
     }
 
-    private void SetVisible(bool visible)
+    private void SetVisible(bool visible, bool timeLimited)
     {
-        if (m_TopBar != null) m_TopBar.SetActive(visible);
+        if (m_TopBar != null) m_TopBar.SetActive(visible && timeLimited);   // TopBar = 타이머 베이지 박스 자체(자식이 Timer 텍스트뿐)
         if (m_ConsentBar != null) m_ConsentBar.SetActive(visible);
         if (m_SettingsButton != null) m_SettingsButton.gameObject.SetActive(visible);
         if (!visible)

@@ -40,13 +40,13 @@ public class TutorialQuestSequence : MonoBehaviour
 
     private static readonly string[] kIntroLines =
     {
-        "반갑습니다. 당신은 건축업을 하는 민달팽이입니다. 당신의 목표는 열심히 일해 달팽이집을 마련하는 것입니다.",
-        "건축은 혼자 진행할 수도 있지만, 다른 민달팽이들과 협동한다면 더욱 수월할 것입니다.",
+        "반갑습니다.\n당신은 건축업을 하는 민달팽이입니다.\n당신의 목표는 열심히 일해 달팽이집을 마련하는 것입니다.",
+        "건축은 혼자 진행할 수도 있지만,\n다른 민달팽이들과 협동한다면 더욱 수월할 것입니다.",
     };
 
     private static readonly string[] kOutroLines =
     {
-        "튜토리얼을 마쳤습니다. 이후 튜토리얼을 다시 진행할 수 있고, 게임 내에서 툴팁 UI를 통해 조작키를 확인할 수 있습니다.",
+        "튜토리얼을 마쳤습니다.\n이후 튜토리얼을 다시 진행할 수 있고,\n게임 내에서 툴팁 UI를 통해 조작키를 확인할 수 있습니다.",
         "등껍질을 장만하는 그날까지 열심히 건축합시다!",
     };
 
@@ -215,7 +215,7 @@ public class TutorialQuestSequence : MonoBehaviour
             new(new[]
             {
                 "우선, w / a / s / d 를 눌러 움직여 볼까요?",
-                "shift 키를 누르며 이동하면 달릴 수 있고, space 키를 누르면 점프합니다.",
+                "shift 키를 누르며 이동하면 달릴 수 있고,\nspace 키를 누르면 점프합니다.",
             }, () =>
             {
                 if (AnyMoveKeyHeld()) m_MoveHeldTime += Time.deltaTime;
@@ -224,8 +224,8 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "마우스 우클릭을 누른 채 화면을 드래그하면, 카메라를 돌릴 수 있습니다.",
-                "스크롤을 통해 카메라를 확대/축소할 수 있습니다. 주변을 둘러보세요!",
+                "마우스 우클릭을 누른 채 화면을 드래그하면,\n카메라를 돌릴 수 있습니다.",
+                "스크롤을 통해 카메라를 확대/축소할 수 있습니다.\n주변을 둘러보세요!",
             }, () =>
             {
                 if (m_LocalInput != null && !AnswerPanelFocus.Active)
@@ -235,8 +235,8 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "좌측 하단엔, 오늘 지어야 하는 건물의 완성된 모습이 표시됩니다.",
-                "정답 UI에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다. 주변을 둘러보세요!",
+                "좌측 하단엔,\n오늘 지어야 하는 건물의 완성된 모습이 표시됩니다.",
+                "정답 UI에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다.\n주변을 둘러보세요!",
             }, () =>
             {
                 if (m_LocalInput != null && AnswerPanelFocus.Active)
@@ -247,7 +247,7 @@ public class TutorialQuestSequence : MonoBehaviour
             new(new[]
             {
                 "건축에 필요한 재료들은 우측 드로어 UI에서 주문할 수 있습니다.",
-                "드로어 UI는 화살표 버튼을 눌러 접거나 열 수 있습니다. '벽' 재료를 주문해보세요!",
+                "드로어 UI는 화살표 버튼을 눌러 접거나 열 수 있습니다.\n'벽' 재료를 주문해보세요!",
             }, AnyWallPickupExists),
 
             new(new[]
@@ -259,35 +259,35 @@ public class TutorialQuestSequence : MonoBehaviour
             new(new[]
             {
                 "이제 벽을 건축할 곳으로 운반해 배치해봅시다.",
-                "투명 답안의 맞는 위치에 클릭해 배치하세요! 우선 왼쪽 벽부터 배치해봅시다.",
+                "투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.",
                 "오브젝트를 든 채로 R버튼을 누르면 회전시킬 수 있습니다.",
             }, () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
             {
                 "답안은 Tab키를 눌러 보이거나 보이지 않게 할 수 있습니다.",
-                "배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요? 해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.",
+                "배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요?\n해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.",
                 "망치 도구를 클릭해 들어보세요.",
             }, () => m_LocalCarry.IsHoldingTool),
 
             new(new[]
             {
-                "망치를 든 채로, 왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.",
-                "이런 식으로, 공정이 필요한 오브젝트들이 있습니다. 두 개의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.",
-                "공정을 잘못 진행했을 경우, z키를 꾹 누르면 공정 취소가 가능합니다.",
+                "망치를 든 채로,\n왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.",
+                "이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 개의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.",
+                "공정을 잘못 진행했을 경우,\nz키를 꾹 누르면 공정 취소가 가능합니다.",
             }, () => CellsFixed(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
             {
-                "어떤 맵은 이미 약간의 건축이 되어 있거나, 일부 재료들이 맵 곳곳에 존재하는 경우가 있습니다.",
+                "어떤 맵은 이미 약간의 건축이 되어 있거나,\n일부 재료들이 맵 곳곳에 존재하는 경우가 있습니다.",
                 "이제 오른쪽 벽과 앞쪽 벽을 알맞게 배치하고 고정해 보세요.",
             }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_DoorWallMaterialId)),
 
             new(new[]
             {
                 "마지막으로, 이제 지붕이 남았습니다.",
-                "민달팽이는 원하는 벽 앞에서 w키를 누르면 벽을 기어오를 수 있습니다. 하지만 벽을 기어올라가 건축하기에 공간이 부족할 때가 있습니다.",
-                "그럴 때를 대비해 '비계' 오브젝트를 제공합니다. 비계 오브젝트는 무제한으로 제공되며, 스페이스바를 2번 연타하면 자동으로 바닥에 깔립니다.",
+                "민달팽이는 원하는 벽 앞에서 w키를 누르면 벽을 기어오를 수 있습니다.\n하지만 벽을 기어올라가 건축하기에 공간이 부족할 때가 있습니다.",
+                "그럴 때를 대비해 '비계' 오브젝트를 제공합니다.\n비계 오브젝트는 무제한으로 제공되며, 스페이스바를 2번 연타하면 자동으로 바닥에 깔립니다.",
                 "비계 깔기를 통해 3층까지 올라가보세요!",
             }, () =>
             {
@@ -297,7 +297,7 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "지붕을 들고, 비계 깔기를 통해 한 층 올라가 지붕을 설치해보세요!",
+                "지붕을 들고,\n비계 깔기를 통해 한 층 올라가 지붕을 설치해보세요!",
             }, () => CellsPlaced(m_RoofCells, m_RoofMaterialId)),
         };
         return steps;
@@ -328,7 +328,7 @@ public class TutorialQuestSequence : MonoBehaviour
         if (index > 0)
             displayLines.Add($"✅ 퀘스트 {index} 완료!");
         for (int i = 0; i < step.Lines.Length; i++)
-            displayLines.Add(i == 0 ? $"[퀘스트 {index + 1}/{m_Steps.Count}] {step.Lines[i]}" : step.Lines[i]);
+            displayLines.Add(i == 0 ? $"[퀘스트 {index + 1}/{m_Steps.Count}]\n{step.Lines[i]}" : step.Lines[i]);
 
         UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, null);
     }
