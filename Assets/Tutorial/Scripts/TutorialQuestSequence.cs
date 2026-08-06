@@ -14,19 +14,29 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class TutorialQuestSequence : MonoBehaviour
 {
-    private const string kWallMaterialName = "Mat_TutorialWall";
-    private const string kRoofMaterialName = "Mat_TutorialRoof";
+    // main 병합 후 실제 튜토리얼 정답(Assets/Grid/Data/Ans_Tutorial.asset, Map_Tutorial이 참조)이 쓰는 재료명.
+    // 앞쪽 벽은 문이 뚫린 별도 재료(entrance)라 왼쪽/오른쪽 벽과 재료가 다르다.
+    private const string kWallMaterialName = "벽";
+    private const string kDoorWallMaterialName = "문이 있는 벽";
+    private const string kRoofMaterialName = "지붕";
     private const float kRotateThreshold = 720f;   // 카메라/정답 회전 누적 판정(느슨한 목측 기준 — 필요시 조정)
 
-    // TutorialContentSetup.cs(에디터 툴)가 굽는 Answer_Tutorial의 좌표와 반드시 같은 값으로 유지해야 한다.
-    // 벽 4개가 빈틈없이 붙은 2×1×2 정사각형 + 그 위 지붕(2×1×2).
-    private static readonly Vector3Int kLeftWallCell  = new(0, 0, 1);
-    private static readonly Vector3Int kRightWallCell = new(1, 0, 0);
-    private static readonly Vector3Int kFrontWallCell = new(1, 0, 1);
-    private static readonly Vector3Int[] kRoofCellsStatic =
+    // 벽/지붕이 3×2×1 이상의 다칸 오브젝트라 칸 하나가 아니라 차지하는 칸 전부를 검사해야 한다.
+    // Ans_Tutorial.asset의 실제 배치 좌표와 반드시 같은 값으로 유지해야 한다(정답 데이터 갱신 시 같이 수정).
+    private static List<Vector3Int> Box(int x0, int x1, int y0, int y1, int z0, int z1)
     {
-        new(0, 1, 0), new(1, 1, 0), new(0, 1, 1), new(1, 1, 1),
-    };
+        var cells = new List<Vector3Int>();
+        for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++)
+                    cells.Add(new Vector3Int(x, y, z));
+        return cells;
+    }
+
+    private static List<Vector3Int> LeftWallCells()  => Box(0, 0, 0, 1, 1, 3);   // 왼쪽 벽 — x=0, z 1~3
+    private static List<Vector3Int> RightWallCells() => Box(3, 3, 0, 1, 1, 3);   // 오른쪽 벽 — x=3, z 1~3
+    private static List<Vector3Int> FrontWallCells() => Box(0, 3, 0, 1, 0, 0);   // 앞쪽(문) 벽 — z=0, x 0~3
+    private static List<Vector3Int> RoofCells()      => Box(0, 3, 2, 3, 0, 3);   // 지붕 — y 2~3 전체
 
     private static readonly string[] kIntroLines =
     {
@@ -69,6 +79,7 @@ public class TutorialQuestSequence : MonoBehaviour
     private PlayerInputHandler m_LocalInput;
 
     private int m_WallMaterialId = MaterialCatalog.NoMaterial;
+    private int m_DoorWallMaterialId = MaterialCatalog.NoMaterial;
     private int m_RoofMaterialId = MaterialCatalog.NoMaterial;
     private List<Vector3Int> m_LeftCells = new();
     private List<Vector3Int> m_RightCells = new();
@@ -107,15 +118,19 @@ public class TutorialQuestSequence : MonoBehaviour
             yield break;
         }
 
+        // GameLoopManager.OnNetworkSpawn()이 이미 자유 모드(시간제한 없음)를 반영했으니, 다음 일반 게임에
+        // 영향 주지 않도록 로비 모드 선택값을 원래대로 되돌려 놓는다(TutorialFlowController 참고).
+        TutorialFlowController.RestorePreTutorialMode();
+
         // GameLoopManager.OnNetworkSpawn()이 정답 선택(SelectAnswer)까지 끝냈는지 여유를 두고 확인.
         yield return null;
         yield return null;
 
         ResolveMaterialIds();
-        m_LeftCells = new List<Vector3Int> { kLeftWallCell };
-        m_RightCells = new List<Vector3Int> { kRightWallCell };
-        m_FrontCells = new List<Vector3Int> { kFrontWallCell };
-        m_RoofCells = new List<Vector3Int>(kRoofCellsStatic);
+        m_LeftCells = LeftWallCells();
+        m_RightCells = RightWallCells();
+        m_FrontCells = FrontWallCells();
+        m_RoofCells = RoofCells();
         m_Steps = BuildSteps();
 
         m_Active = true;
@@ -146,11 +161,12 @@ public class TutorialQuestSequence : MonoBehaviour
         {
             if (def == null) continue;
             if (def.name == kWallMaterialName) m_WallMaterialId = def.Id;
+            else if (def.name == kDoorWallMaterialName) m_DoorWallMaterialId = def.Id;
             else if (def.name == kRoofMaterialName) m_RoofMaterialId = def.Id;
         }
 
-        if (m_WallMaterialId == MaterialCatalog.NoMaterial || m_RoofMaterialId == MaterialCatalog.NoMaterial)
-            Debug.LogWarning($"[TutorialQuestSequence] MaterialCatalog에서 '{kWallMaterialName}'/'{kRoofMaterialName}'을(를) 찾지 못했습니다 — MaterialCatalog.asset 등록을 확인하세요.");
+        if (m_WallMaterialId == MaterialCatalog.NoMaterial || m_DoorWallMaterialId == MaterialCatalog.NoMaterial || m_RoofMaterialId == MaterialCatalog.NoMaterial)
+            Debug.LogWarning($"[TutorialQuestSequence] MaterialCatalog에서 '{kWallMaterialName}'/'{kDoorWallMaterialName}'/'{kRoofMaterialName}'을(를) 찾지 못했습니다 — MaterialCatalog.asset 등록을 확인하세요.");
     }
 
     private bool CellsPlaced(List<Vector3Int> cells, int materialId)
@@ -265,7 +281,7 @@ public class TutorialQuestSequence : MonoBehaviour
             {
                 "어떤 맵은 이미 약간의 건축이 되어 있거나, 일부 재료들이 맵 곳곳에 존재하는 경우가 있습니다.",
                 "이제 오른쪽 벽과 앞쪽 벽을 알맞게 배치하고 고정해 보세요.",
-            }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_WallMaterialId)),
+            }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_DoorWallMaterialId)),
 
             new(new[]
             {

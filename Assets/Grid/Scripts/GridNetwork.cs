@@ -53,13 +53,22 @@ namespace GridSystem
             return true;
         }
 
-        /// <summary>해당 셀이 '미고정 하중부재'(고정 전)면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)</summary>
+        /// <summary>해당 셀의 블록을 좌클릭으로 다시 집을 수 있으면 true(자리를 잘못 잡았을 때 회수용).
+        /// 하중부재(망치 필요)는 고정 전까지만. 지붕처럼 배치 즉시 자동고정되는 재료는 애초에 플레이어가
+        /// 손대는 공정이 없으므로, 잘못 놓았을 때 되돌릴 수 있게 고정 여부와 무관하게 항상 허용한다.
+        /// (복제 상태 기준, 클라/UI도 호출)</summary>
         public bool IsPickupable(Vector3Int cell)
         {
             if (!TryGetCell(cell, out int matId, out int completed)) return false;
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
+            return CanReclaim(def, completed);
+        }
+
+        private static bool CanReclaim(MaterialDef def, int completedMask)
+        {
             if (def == null) return false;
-            return def.MustBeFixed && (completed & (int)ProcessType.Fixed) == 0;
+            if (!def.MustBeFixed) return true;   // 자동고정 재료 — 언제든 회수 가능
+            return (completedMask & (int)ProcessType.Fixed) == 0;
         }
 
         private GridManager m_Manager;
@@ -252,9 +261,9 @@ namespace GridSystem
             var cs = m_ServerGrid.GetCell(cell);
             if (!cs.occupied) return false;
 
-            // 서버 권위 재검증: 미고정 하중부재만(고정 완료 블록은 C로만)
+            // 서버 권위 재검증: IsPickupable과 같은 기준(미고정 하중부재 / 자동고정 재료는 항상 허용).
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
-            if (def == null || !def.MustBeFixed || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
+            if (!CanReclaim(def, cs.completedProcessMask))
                 return false;
 
             ulong owner = cs.ownerObjectId;

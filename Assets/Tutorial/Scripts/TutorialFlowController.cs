@@ -1,5 +1,6 @@
 using System.Collections;
 using GridSystem;
+using SeoulZikimi.Gameplay;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
@@ -23,6 +24,7 @@ public class TutorialFlowController : MonoBehaviour
 
     private static TutorialFlowController s_Instance;
     private static bool s_TutorialPending;
+    private static int s_PreTutorialMode = (int)GameModeKind.TimeAttack;   // 튜토리얼 진입 전 로비 모드 — 복귀 시 되돌려줌
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -103,6 +105,10 @@ public class TutorialFlowController : MonoBehaviour
         return true;
     }
 
+    /// <summary>GameLoopManager.OnNetworkSpawn이 자유 모드를 이미 반영한 뒤(=m_Loop.IsSpawned 확인 후) 호출.
+    /// 다음에 로비에서 여는 일반 게임까지 자유 모드로 남지 않도록 원래 모드로 되돌린다.</summary>
+    public static void RestorePreTutorialMode() => GameLoopManager.HostSelectedMode = s_PreTutorialMode;
+
     private IEnumerator StartTutorialRoutine()
     {
         if (NetworkManager.Singleton == null)
@@ -132,6 +138,11 @@ public class TutorialFlowController : MonoBehaviour
 
         int mapIndex = ResolveTutorialMapIndex();
         GameLoopManager.HostSelectedMap = mapIndex;
+
+        // 튜토리얼은 시간제한이 없어야 한다(기획서 "시간제한 X") — 자유 모드(Unlimited)로 강제.
+        // 로비가 마지막으로 골랐던 모드는 TutorialQuestSequence가 시작될 때 되돌려 놓는다.
+        s_PreTutorialMode = GameLoopManager.HostSelectedMode;
+        GameLoopManager.HostSelectedMode = (int)GameModeKind.FreeBuild;
 
         // 이전 세션의 Relay 할당 정보가 남아있어도 순수 로컬 호스트로 강제(오프라인에서도 항상 동작).
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
