@@ -443,10 +443,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b21a251144d6a24398bf5c18fcb8bd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.GridManager
-  m_GridSize: {x: 16, y: 8, z: 16}
+  m_GridSize: {x: 16, y: 10, z: 16}
   m_Catalog: {fileID: 11400000, guid: b117a5dd7ba826b4a85c32745fd4eea9, type: 2}
-  m_Answers:
-  - {fileID: 11400000, guid: 6e284a00050152841a14f5778a3d31a5, type: 2}
+  m_Answers: []
   m_DrawGizmos: 1
 --- !u!114 &980356705
 MonoBehaviour:
@@ -481,7 +480,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 980356698}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -11, y: 0, z: -7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -697,5 +696,5 @@ SceneRoots:
   - {fileID: 593838316}
   - {fileID: 819110677}
   - {fileID: 1438780228}
-  - {fileID: 980356706}
   - {fileID: 94459379}
+  - {fileID: 980356706}

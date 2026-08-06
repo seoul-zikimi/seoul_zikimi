@@ -74,6 +74,57 @@ namespace GridSystem.Tests
         }
 
         [Test]
+        public void 주문가능_재료_목록에_빈칸이_없다()
+        {
+            foreach (var m in Maps())
+                for (int i = 0; i < m.AvailableMaterials.Count; i++)
+                    Assert.IsNotNull(m.AvailableMaterials[i],
+                        $"[{m.name}] Available Materials {i}번 칸이 비었음(None) — 지우거나 재료를 넣으세요. " +
+                        "목록 전체를 비우면 카탈로그의 모든 재료가 주문 가능해집니다.");
+        }
+
+        [Test]
+        public void 정답에_쓰인_재료가_주문가능_목록에_다_있다()
+        {
+            foreach (var m in Maps())
+            {
+                if (m.AvailableMaterials.Count == 0) continue;   // 비면 카탈로그 전체 주문 가능 → 검사 불필요
+
+                var orderable = new HashSet<int>();
+                foreach (var d in m.AvailableMaterials) if (d != null) orderable.Add(d.Id);
+
+                foreach (var ans in m.Answers)
+                {
+                    if (ans == null) continue;
+                    foreach (var cell in ans.Cells)
+                        Assert.IsTrue(orderable.Contains(cell.materialId),
+                            $"[{m.name}] 정답 '{ans.name}'이 재료 id {cell.materialId}를 쓰는데 Available Materials에 없음 " +
+                            "— 그 맵은 정답을 완성할 수 없습니다.");
+                }
+            }
+        }
+
+        [Test]
+        public void 정답이_맵_건축영역_안에_들어간다()
+        {
+            foreach (var m in Maps())
+            {
+                if (!m.HasGridSize) continue;   // 씬 기본 크기 사용 → 여기선 검사 불가
+                var gs = m.GridSize;
+                foreach (var ans in m.Answers)
+                {
+                    if (ans == null) continue;
+                    foreach (var c in ans.Cells)
+                        Assert.IsTrue(c.cell.x >= 0 && c.cell.x < gs.x &&
+                                      c.cell.y >= 0 && c.cell.y < gs.y &&
+                                      c.cell.z >= 0 && c.cell.z < gs.z,
+                            $"[{m.name}] 정답 '{ans.name}'의 셀 {c.cell}이 Grid Size {gs} 밖 — 그 자리는 지을 수 없어 만점이 불가능합니다. " +
+                            "Grid Size를 키우거나 정답을 옮기세요.");
+                }
+            }
+        }
+
+        [Test]
         public void 맵_표시이름이_서로_겹치지_않는다()
         {
             var dup = Maps().GroupBy(m => m.DisplayName).Where(g => g.Count() > 1).Select(g => g.Key).ToList();

@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: MapCatalog
   m_EditorClassIdentifier: GridSystem::GridSystem.MapCatalog
   m_Maps:
+  - {fileID: 11400000, guid: 014e0b29739a9204b83d01ad7a09a258, type: 2}
   - {fileID: 11400000, guid: a1eee3911a3d2df48bd93a76a08e273f, type: 2}
   - {fileID: 11400000, guid: 7d33727bf4f16c641bc06f45bafdf474, type: 2}
