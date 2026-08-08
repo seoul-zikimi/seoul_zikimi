@@ -20,7 +20,9 @@ namespace GridSystem
         private Camera m_Cam;
         private RenderTexture m_RT;
         private CameraOrbit m_Orbit;       // 정답 카메라 오빗(플레이어와 동일 로직)
-        private Vector3 m_PivotCenter;     // 오빗 중심 = 모델 바운드 중심
+        private Vector3 m_PivotCenter;     // 오빗 중심 = 모델 바운드 중심(팬으로 이동 가능)
+        private Vector3 m_HomeCenter;      // 팬 기준점(모델 중심) — 팬 반경 제한용
+        private float m_PanLimit;          // 팬 최대 반경
         private GameObject m_Root;        // 미리보기 렌더용(멀리 떨어진 미니씬)
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
@@ -143,6 +145,8 @@ namespace GridSystem
             float radius = Mathf.Max(1.5f, b.extents.magnitude + 1f);
             Vector3 dir = new Vector3(0.8f, 0.9f, -0.8f).normalized;   // 기준 쿼터뷰 방향
             m_PivotCenter = b.center;
+            m_HomeCenter = b.center;
+            m_PanLimit = radius * 1.2f;
             m_Orbit = new CameraOrbit
             {
                 Pitch    = Mathf.Asin(dir.y) * Mathf.Rad2Deg,           // ≈38.5°
@@ -172,6 +176,17 @@ namespace GridSystem
         {
             if (!m_Built) return;
             m_Orbit.Integrate(rotDelta, zoom);
+            RepositionCam();
+        }
+
+        /// <summary>좌클릭 드래그 = 상하좌우 이동(팬). 화면 축 기준으로 시점 중심을 옮긴다(줌 비례 감도).</summary>
+        public void DrivePan(Vector2 pixelDelta)
+        {
+            if (!m_Built || m_Cam == null) return;
+            float k = m_Orbit.Distance * 0.0016f;   // 픽셀 → 월드 이동량(멀리서 볼수록 크게)
+            Vector3 move = (-m_Cam.transform.right * pixelDelta.x - m_Cam.transform.up * pixelDelta.y) * k;
+            // 모델에서 너무 멀어지지 않게 홈 중심 기준 반경 제한
+            m_PivotCenter = m_HomeCenter + Vector3.ClampMagnitude(m_PivotCenter + move - m_HomeCenter, m_PanLimit);
             RepositionCam();
         }
 

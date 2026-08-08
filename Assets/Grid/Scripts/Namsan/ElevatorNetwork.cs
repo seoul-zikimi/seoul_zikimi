@@ -113,6 +113,7 @@ namespace GridSystem
                 GridJuice.WorldToast(upper.position + Vector3.up * 2.2f, "엘리베이터 개통!", new Color(0.4f, 1f, 0.55f));
                 GridJuice.PlacePuff(upper.position, 1f);
             }
+            m_DoorAnim = 1.2f;   // 개통 순간에도 한 번 열렸다 닫힘
         }
 
         // ── 탑승(로컬 플레이어) ───────────────────────────────────────────────
@@ -150,6 +151,7 @@ namespace GridSystem
             Physics.SyncTransforms();
             GridJuice.PlacePuff(from.position, 0.6f);
             GridJuice.PlacePuff(dest, 0.6f);
+            m_DoorAnim = 1.2f;   // 문 열렸다 닫히는 연출
             m_RideCooldown = 0.4f;
         }
 
@@ -163,8 +165,12 @@ namespace GridSystem
         // ── 문 비주얼(로컬) ──────────────────────────────────────────────────
         private GameObject m_Root;
         private GameObject m_DoorLower, m_DoorUpper;
+        private GameObject m_UpperPlatform;   // 배경의 상부 발판(개통 시 등장)
         private TextMesh m_PromptLower, m_PromptUpper;
+        private Transform m_PanelLowerL, m_PanelLowerR, m_PanelUpperL, m_PanelUpperR;
+        private float m_DoorAnim;        // 탑승/개통 시 문 열렸다 닫히는 연출 타이머
         private bool m_TintedOpen;
+        private const float kPanelX = 0.22f;   // 문짝 기본 위치(닫힘)
 
         private void UpdateVisuals()
         {
@@ -177,15 +183,39 @@ namespace GridSystem
                 m_Root = new GameObject("~NamsanElevator");
                 m_DoorLower = MakeDoor(lower.position, lower.rotation, out m_PromptLower);
                 m_DoorUpper = MakeDoor(upper.position, upper.rotation, out m_PromptUpper);
+                m_PanelLowerL = m_DoorLower.transform.Find("panelL");
+                m_PanelLowerR = m_DoorLower.transform.Find("panelR");
+                m_PanelUpperL = m_DoorUpper.transform.Find("panelL");
+                m_PanelUpperR = m_DoorUpper.transform.Find("panelR");
                 m_TintedOpen = false;
                 TintDoors(false);
             }
+
+            // 문 열렸다 닫히는 연출(탑승·개통 시): 0.25초 열림 → 잠깐 유지 → 닫힘
+            if (m_DoorAnim > 0f)
+            {
+                m_DoorAnim -= Time.deltaTime;
+                float amt = Mathf.Clamp01(Mathf.Min((1.2f - m_DoorAnim) / 0.25f, m_DoorAnim / 0.45f));
+                SetPanels(amt);
+            }
+            else SetPanels(0f);
 
             if (m_TintedOpen != m_Open.Value)
             {
                 m_TintedOpen = m_Open.Value;
                 TintDoors(m_TintedOpen);
             }
+
+            // 상부 문·발판은 '개통 전엔 없다' — 전망대(4번) 완성 순간 개통 연출과 함께 등장
+            if (m_DoorUpper != null && m_DoorUpper.activeSelf != m_Open.Value)
+                m_DoorUpper.SetActive(m_Open.Value);
+            if (m_UpperPlatform == null)
+            {
+                var plat = GameObject.Find("UpperDoorPlatform");   // 비활성화 전에 1회 캐시(Find는 활성만 찾음)
+                if (plat != null) m_UpperPlatform = plat;
+            }
+            if (m_UpperPlatform != null && m_UpperPlatform.activeSelf != m_Open.Value)
+                m_UpperPlatform.SetActive(m_Open.Value);
 
             // 프롬프트: 개통 + 로컬 플레이어가 근처일 때만
             var nm = NetworkManager.Singleton;
@@ -207,26 +237,30 @@ namespace GridSystem
             root.transform.SetParent(m_Root.transform);
             root.transform.SetPositionAndRotation(pos, rot);
 
+            // 진짜 건물 엘리베이터 느낌: 작은 프레임 + 좌우 슬라이딩 문짝 2개
             var frame = GameObject.CreatePrimitive(PrimitiveType.Cube);
             frame.name = "frame";
             frame.transform.SetParent(root.transform, false);
-            frame.transform.localPosition = new Vector3(0f, 1.1f, 0f);
-            frame.transform.localScale = new Vector3(1.6f, 2.2f, 0.25f);
+            frame.transform.localPosition = new Vector3(0f, 0.95f, 0f);
+            frame.transform.localScale = new Vector3(1.2f, 1.9f, 0.22f);
             var fcol = frame.GetComponent<Collider>();
             if (fcol != null) Destroy(fcol);
             Tint(frame, new Color(0.25f, 0.27f, 0.3f));
 
-            var panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            panel.name = "panel";
-            panel.transform.SetParent(root.transform, false);
-            panel.transform.localPosition = new Vector3(0f, 1.05f, 0.08f);
-            panel.transform.localScale = new Vector3(1.2f, 1.9f, 0.15f);
-            var pcol = panel.GetComponent<Collider>();
-            if (pcol != null) Destroy(pcol);
+            foreach (int side in new[] { -1, 1 })
+            {
+                var panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                panel.name = side < 0 ? "panelL" : "panelR";
+                panel.transform.SetParent(root.transform, false);
+                panel.transform.localPosition = new Vector3(side * kPanelX, 0.9f, 0.07f);
+                panel.transform.localScale = new Vector3(0.44f, 1.6f, 0.12f);
+                var pcol = panel.GetComponent<Collider>();
+                if (pcol != null) Destroy(pcol);
+            }
 
             var tgo = new GameObject("prompt");
             tgo.transform.SetParent(root.transform, false);
-            tgo.transform.localPosition = new Vector3(0f, 2.6f, 0f);
+            tgo.transform.localPosition = new Vector3(0f, 2.15f, 0f);
             prompt = tgo.AddComponent<TextMesh>();
             prompt.text = "E 탑승";
             prompt.fontSize = 48;
@@ -256,8 +290,18 @@ namespace GridSystem
         private void TintDoors(bool open)
         {
             var c = open ? new Color(0.35f, 0.95f, 0.5f) : new Color(0.45f, 0.45f, 0.5f);
-            if (m_DoorLower != null) Tint(m_DoorLower.transform.Find("panel").gameObject, c);
-            if (m_DoorUpper != null) Tint(m_DoorUpper.transform.Find("panel").gameObject, c);
+            foreach (var p in new[] { m_PanelLowerL, m_PanelLowerR, m_PanelUpperL, m_PanelUpperR })
+                if (p != null) Tint(p.gameObject, c);
+        }
+
+        // 문짝 열림량 적용(0=닫힘, 1=활짝) — 양쪽 문 동시에
+        private void SetPanels(float amt)
+        {
+            float x = kPanelX + 0.30f * amt;
+            if (m_PanelLowerL != null) m_PanelLowerL.localPosition = new Vector3(-x, 0.9f, 0.07f);
+            if (m_PanelLowerR != null) m_PanelLowerR.localPosition = new Vector3(x, 0.9f, 0.07f);
+            if (m_PanelUpperL != null) m_PanelUpperL.localPosition = new Vector3(-x, 0.9f, 0.07f);
+            if (m_PanelUpperR != null) m_PanelUpperR.localPosition = new Vector3(x, 0.9f, 0.07f);
         }
 
         private static Font BuiltinFont()

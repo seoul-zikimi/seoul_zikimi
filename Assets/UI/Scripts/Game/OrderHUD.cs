@@ -35,8 +35,14 @@ public class OrderHUD : UIHUD
         if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        const float rowH = 44f, pad = 12f, titleH = 32f;
-        float h = pad * 2 + titleH + items.Count * rowH;
+        // ── 2열 카드 그리드: 큰 썸네일이 곧 주문 버튼, 이름은 밑에 작게. 길어지면 스크롤 ──
+        const float pad = 12f, titleH = 32f, cardGap = 8f, kMaxPanelH = 480f;
+        float cardW = (kPanelW - pad * 3) / 2f;          // 2열
+        float thumbSize = cardW - 16f;                    // 카드 폭에 꽉 차는 썸네일
+        float cardH = thumbSize + 26f;                    // 썸네일 + 이름 줄
+        int rows = Mathf.CeilToInt(items.Count / 2f);
+        float contentH = pad * 2 + titleH + rows * (cardH + cardGap);
+        float h = Mathf.Min(contentH, kMaxPanelH);        // 재료가 많으면 높이 고정 + 스크롤
 
         m_PanelH = h;
         // ── 콘텐츠 패널 (우하단 고정, Y 오프셋으로 잘림 방지) ──
@@ -44,17 +50,37 @@ public class OrderHUD : UIHUD
                           new Vector2(-10, 80), new Vector2(kPanelW, h));   // 우하단 기준, 80px 위부터 시작
         m_Panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.7f);
 
-        MakeText(m_Panel.transform, "재료 주문 (배송 → 좌클릭으로 줍기)",
+        // 뷰포트(마스크) + 콘텐츠 — 카드가 넘치면 휠로 스크롤
+        var viewport = NewRect("Viewport", m_Panel.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var vrt = viewport.GetComponent<RectTransform>();
+        vrt.pivot = new Vector2(0.5f, 0.5f); vrt.offsetMin = vrt.offsetMax = Vector2.zero;
+        viewport.AddComponent<RectMask2D>();
+
+        var content = NewRect("Content", viewport.transform, new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, new Vector2(0, contentH));
+        var crt = content.GetComponent<RectTransform>();
+        crt.pivot = new Vector2(0.5f, 1f); crt.anchoredPosition = Vector2.zero;
+
+        MakeText(content.transform, "재료 주문 (카드 클릭 = 주문)",
                  new Vector2(8, -6), new Vector2(kPanelW - 16, titleH), 17, TextAnchor.MiddleLeft);
 
         for (int i = 0; i < items.Count; i++)
         {
-            float y = -(pad + titleH + i * rowH);
-            var e = items[i];
-            MakeThumb(m_Panel.transform, e.Prefab, new Vector2(8, y - 2), 34f);   // 무슨 블록인지 미리보기
-            MakeText(m_Panel.transform, e.Name, new Vector2(50, y), new Vector2(kPanelW - 154, 30), 17, TextAnchor.MiddleLeft);
-            int id = e.Id;   // 클로저 캡처 고정
-            MakeButton(m_Panel.transform, "주문", new Vector2(kPanelW - 100, y), new Vector2(90, 30), () => onOrder(id));
+            int col = i % 2, row = i / 2;
+            float x = pad + col * (cardW + pad);
+            float y = -(pad + titleH + row * (cardH + cardGap));
+            int id = items[i].Id;   // 클로저 캡처 고정
+            MakeCard(content.transform, items[i], new Vector2(x, y), cardW, cardH, thumbSize, () => onOrder(id));
+        }
+
+        if (contentH > h)
+        {
+            var sr = m_Panel.AddComponent<ScrollRect>();
+            sr.content = crt;
+            sr.viewport = vrt;
+            sr.horizontal = false;
+            sr.vertical = true;
+            sr.movementType = ScrollRect.MovementType.Clamped;
+            sr.scrollSensitivity = 24f;
         }
 
         // ── 토글 버튼 (항상 표시, 패널 왼쪽 가장자리의 손잡이) ──
@@ -100,14 +126,24 @@ public class OrderHUD : UIHUD
         return go;
     }
 
-    // 주문 행의 블록 썸네일(프리팹 1회 렌더 → 캐시). 프리팹 없으면 옅은 박스.
-    private static void MakeThumb(Transform parent, GameObject prefab, Vector2 pos, float size)
+    // 주문 카드: 카드 전체가 버튼, 위엔 큰 썸네일·아래엔 작은 이름 (한눈에 무슨 블록인지 보이게)
+    private static void MakeCard(Transform parent, Entry e, Vector2 pos, float w, float h, float thumbSize, Action onClick)
     {
-        var go = NewRect("Thumb", parent, new Vector2(0, 1), new Vector2(0, 1), pos, new Vector2(size, size));
-        var ri = go.AddComponent<RawImage>();
-        var tex = prefab != null ? BlockThumbnail.Get(prefab, 96) : null;
+        var card = NewRect("Card", parent, new Vector2(0, 1), new Vector2(0, 1), pos, new Vector2(w, h));
+        var img = card.AddComponent<Image>(); img.color = new Color(1f, 1f, 1f, 0.10f);
+        var btn = card.AddComponent<Button>(); btn.targetGraphic = img;
+        btn.onClick.AddListener(() => onClick());
+        JuicyButton.Attach(btn);
+
+        var thumb = NewRect("Thumb", card.transform, new Vector2(0, 1), new Vector2(0, 1),
+                            new Vector2((w - thumbSize) * 0.5f, -4f), new Vector2(thumbSize, thumbSize));
+        var ri = thumb.AddComponent<RawImage>();
+        var tex = e.Prefab != null ? BlockThumbnail.Get(e.Prefab, 256) : null;   // 큰 카드니까 고해상 렌더
         if (tex != null) ri.texture = tex;
         else ri.color = new Color(1f, 1f, 1f, 0.15f);
+        ri.raycastTarget = false;   // 클릭은 카드가 받는다
+
+        MakeText(card.transform, e.Name, new Vector2(4, -(4f + thumbSize)), new Vector2(w - 8, 18), 13, TextAnchor.MiddleCenter);
     }
 
     private static void MakeText(Transform parent, string s, Vector2 pos, Vector2 size, int fontSize, TextAnchor anchor)
