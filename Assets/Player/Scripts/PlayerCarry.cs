@@ -304,7 +304,7 @@ namespace Player
                 return;
             }
 
-            if (m_Target != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
+            if (m_AimedProcessCell != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_AimedProcessCell; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
             m_ProcessKind = m_HeldTool;
             bool strokeStart = m_ProcessHold <= 0f;
             m_ProcessHold += Time.deltaTime * GridSystem.ItemNetwork.LocalProcessMultiplier();   // 2vs2 공정 버프/디버프
@@ -374,7 +374,7 @@ namespace Player
                 m_RevertHold = 0f; m_RevertCell = s_NoCell;
                 return;
             }
-            if (m_Target != m_RevertCell) { m_RevertCell = m_Target; m_RevertHold = 0f; }
+            if (m_AimedRevertCell != m_RevertCell) { m_RevertCell = m_AimedRevertCell; m_RevertHold = 0f; }
             m_RevertHold += Time.deltaTime;
             if (m_RevertHold >= m_ProcessSeconds)
             {
@@ -384,30 +384,58 @@ namespace Player
             }
         }
 
-        // 되돌릴 게 있나: 건축 중 + 유효 셀 + 완료된 공정 비트가 하나라도 있으면.
+        // 되돌릴 게 있나: 건축 중 + 조준 XZ 내 층 ±2에 완료된 공정 비트가 있는 블록(공정과 같은 완화 규칙).
+        private Vector3Int m_AimedRevertCell = s_NoCell;
         private bool RevertReadyOnTarget()
         {
+            m_AimedRevertCell = s_NoCell;
             if (m_Loop != null && !m_Loop.IsBuilding) return false;
+            if (!TryFindNearbyCell(c => m_Net.TryGetCell(c, out _, out int completed) && completed != 0, out var cell))
+                return false;
+            m_AimedRevertCell = cell;
+            return true;
+        }
+
+        // 공정·되돌리기 층 완화: 조준 XZ에서 내 층 ±2 안의 블록(가까운 층 우선)을 대상으로 삼는다.
+        // "같은 층이어야만 망치질 가능"이던 답답함 완화 — 배치는 층 안내(고스트)와 강결합이라 그대로 둔다.
+        private static readonly int[] s_FloorSlack = { 0, 1, -1, 2, -2 };
+        private Vector3Int m_AimedProcessCell = s_NoCell;   // 이번 프레임 공정 대상(ToolReadyOnTarget이 갱신)
+
+        private bool TryFindNearbyCell(System.Func<Vector3Int, bool> ok, out Vector3Int cell)
+        {
+            cell = s_NoCell;
             if (!m_HasTarget || m_Net == null) return false;
-            if (!m_Net.TryGetCell(m_Target, out _, out int completed)) return false;
-            return completed != 0;
+            foreach (int dy in s_FloorSlack)
+            {
+                var c = new Vector3Int(m_Target.x, m_Target.y + dy, m_Target.z);
+                if (c.y < 0) continue;
+                if (ok(c)) { cell = c; return true; }
+            }
+            return false;
+        }
+
+        // 조준 XZ의 내 층 ±2에서 '든 도구가 지금 필요한' 블록 찾기(가까운 층 우선) — 공정·호버 테두리 공용.
+        private bool TryAimProcessCell(out Vector3Int cell)
+        {
+            cell = s_NoCell;
+            if (!HasTool || m_Net == null) return false;
+            if (m_Loop != null && !m_Loop.IsBuilding) return false;
+            return TryFindNearbyCell(c =>
+                {
+                    if (!m_Net.TryGetCell(c, out int matId, out int completed)) return false;   // 빈 칸이면 공정 없음
+                    if (m_PendingCell == c && (completed & (int)m_PendingKind) == 0) return false;   // 복제 대기 중
+                    var d = Catalog() != null ? Catalog().GetById(matId) : null;
+                    return NextNeeded(d != null ? d.RequiredMask : 0, completed) == m_HeldTool;
+                }, out cell);
         }
 
         // 든 도구의 공정이 조준 블록의 '지금 필요한 다음 공정'과 일치하면 true. (서버 수락 조건과 동일 판단)
         private bool ToolReadyOnTarget()
         {
-            if (!HasTool) return false;                                  // 도구를 들어야 공정 가능
-            if (m_Loop != null && !m_Loop.IsBuilding) return false;
-            if (!m_HasTarget || m_Net == null) return false;
-            if (!m_Net.TryGetCell(m_Target, out int matId, out int completed)) return false;   // 빈 칸이면 공정 없음
-
-            // 방금 보낸 공정이 아직 복제 안 됨 → 잠깐 대기(바 멈춤, 중복 적용 방지)
-            if (m_PendingCell == m_Target && (completed & (int)m_PendingKind) == 0) return false;
+            if (!TryAimProcessCell(out var cell)) { m_AimedProcessCell = s_NoCell; return false; }
             m_PendingCell = s_NoCell; m_PendingKind = ProcessType.None;   // 반영됨/다른셀 → 대기 해제
-
-            var def = Catalog() != null ? Catalog().GetById(matId) : null;
-            int req = def != null ? def.RequiredMask : 0;
-            return NextNeeded(req, completed) == m_HeldTool;   // 든 도구가 지금 필요한 공정과 같아야
+            m_AimedProcessCell = cell;
+            return true;
         }
 
         // 고정 → 페인트 순서대로 '첫 미완료 필수 공정'(없으면 None).
@@ -464,17 +492,68 @@ namespace Player
 
         // 플레이어가 점유 셀에 들어가면 서버에 충격 전송(서버가 하중부재·미고정만 무너뜨림).
         // 콜라이더 없이 통과하므로 '셀 진입 = 부딪힘'으로 근사. 같은 셀 안에선 1회만.
+        // 단, '내가 서 있던 빈 칸이 방금 점유됨' = 블록이 내 위에 배치된 것 — 이때는 블록을 부수지 않고
+        // 나를 블록 밖으로 밀어낸다(큰 블록을 유저 근처에 놓아도 억울하게 안 부서지게).
+        private Vector3Int m_PrevStandCell = s_NoCell;
+        private bool m_PrevStandFree;
+
         private void TryBumpCollapse()
         {
             if (m_Net == null) return;
             if (m_Loop != null && !m_Loop.IsBuilding) return;
 
             var pc = GridCoordinates.WorldToCell(transform.position);
-            if (!m_Net.IsCellFree(pc))
+            bool free = m_Net.IsCellFree(pc);
+            if (!free)
             {
-                if (pc != m_LastShockCell) { m_LastShockCell = pc; m_Net.RequestShock(pc); }
+                bool placedOnMe = pc == m_PrevStandCell && m_PrevStandFree;   // 서 있던 자리에 블록이 생김
+                if (placedOnMe)
+                {
+                    PushOutOfBlock(pc);
+                    m_LastShockCell = pc;   // 밀려나는 동안 이 셀에 충격 안 보냄(블록 유지)
+                }
+                else if (pc != m_LastShockCell) { m_LastShockCell = pc; m_Net.RequestShock(pc); }
             }
             else m_LastShockCell = s_NoCell;
+            m_PrevStandCell = pc;
+            m_PrevStandFree = free;
+        }
+
+        // 블록 발자국 바깥 가장 가까운 지점으로 밀어낸다(수평 유지 — 떨어지면 중력이 알아서).
+        private readonly System.Collections.Generic.List<Vector3Int> m_PushCells = new();
+        private void PushOutOfBlock(Vector3Int cell)
+        {
+            float u = GridContract.Unit;
+            Vector3 min, max;
+            if (m_Net.TryGetBlockCells(cell, m_PushCells) && m_PushCells.Count > 0)
+            {
+                min = GridCoordinates.CellToWorld(m_PushCells[0]);
+                max = min + Vector3.one * u;
+                foreach (var c in m_PushCells)
+                {
+                    var w = GridCoordinates.CellToWorld(c);
+                    min = Vector3.Min(min, w);
+                    max = Vector3.Max(max, w + Vector3.one * u);
+                }
+            }
+            else
+            {
+                min = GridCoordinates.CellToWorld(cell);
+                max = min + Vector3.one * u;
+            }
+
+            var center = (min + max) * 0.5f;
+            var dir = transform.position - center; dir.y = 0f;
+            if (dir.sqrMagnitude < 1e-4f) dir = Vector3.right;   // 정중앙이면 아무 방향
+            dir.Normalize();
+            float extent = Mathf.Max(max.x - min.x, max.z - min.z) * 0.5f;
+            var dest = new Vector3(center.x, transform.position.y, center.z) + dir * (extent + 0.7f);
+
+            transform.position = dest;
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null && !rb.isKinematic) { rb.position = dest; rb.linearVelocity = Vector3.zero; }
+            Physics.SyncTransforms();
+            GridJuice.GroundHit(dest, 0.45f);   // 툭 밀려난 느낌
         }
 
         private void UpdateTarget()
@@ -494,7 +573,16 @@ namespace Player
             var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
             if (plane.Raycast(ray, out float d))
             {
-                var c = GridCoordinates.WorldToCell(ray.GetPoint(d));
+                // 커서 = 블록 '중앙'이 되도록 앵커(min-corner)를 반칸씩 당긴다 — 좌하단 기준이던 어색함 제거.
+                var aim = ray.GetPoint(d);
+                if (HasMaterial && m_HeldMaterial != null)
+                {
+                    var fp = m_HeldMaterial.Footprint;
+                    bool swap = ((m_Rotation % 4) + 4) % 4 % 2 == 1;   // 90°/270° 회전 시 x/z 치수 스왑
+                    aim -= new Vector3(((swap ? fp.z : fp.x) - 1) * 0.5f * GridContract.Unit, 0f,
+                                       ((swap ? fp.x : fp.z) - 1) * 0.5f * GridContract.Unit);
+                }
+                var c = GridCoordinates.WorldToCell(aim);
                 c.y = m_BuildHeight;
                 var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배 — GridSize(한 팀 폭)로 재면 팀B 구역이 그리드 밖 판정
                 var (xMin, xMax) = PlaceableXRange(s);
@@ -551,19 +639,36 @@ namespace Player
                     var pb = h.collider.GetComponentInParent<PickupBody>();   // 바닥 픽업 우선
                     if (pb != null && pb.Owner != null)
                     {
-                        if ((pb.transform.position - transform.position).sqrMagnitude > reach2) continue;   // 손 닿는 거리
+                        // 손 닿는 거리는 수평(XZ)만 판정 — 높이 차로 범위를 다 까먹어 "같은 층이어야만
+                        // 집히는" 답답함 제거(배치처럼 층 제한 없이, 곤돌라 안 화물도 아래에서 집힌다).
+                        var dp = pb.transform.position - transform.position; dp.y = 0f;
+                        if (dp.sqrMagnitude > reach2) continue;
                         if (h.distance < best) { best = h.distance; m_GrabBody = pb; m_GrabStation = null; hitGo = pb.gameObject; }
                         continue;
                     }
                     var ws = h.collider.GetComponentInParent<Workstation>();  // 도구함(도구 집기)
                     if (ws != null)
                     {
-                        if ((ws.transform.position - transform.position).sqrMagnitude > reach2) continue;
+                        var dw = ws.transform.position - transform.position; dw.y = 0f;
+                        if (dw.sqrMagnitude > reach2) continue;
                         if (h.distance < best) { best = h.distance; m_GrabStation = ws; m_GrabBody = null; hitGo = ws.gameObject; }
                     }
                 }
             }
             m_GrabValid = m_GrabBody != null || m_GrabStation != null;
+
+            // 바닥 픽업·도구함이 아니면: ① 도구 들고 공정 가능한 블록 ② 빈손으로 회수 가능한(미고정) 배치 블록에
+            // 초록 테두리 — "지금 이 블록이 대상"을 노란 큐브 대신 실루엣으로 보여준다.
+            if (hitGo == null && m_Net != null)
+            {
+                var kb = Keyboard.current;
+                if (kb != null && kb.zKey.isPressed && RevertReadyOnTarget())
+                    hitGo = m_Net.VisualAt(m_AimedRevertCell);          // Z 되돌리기 대상
+                else if (HasTool && TryAimProcessCell(out var pc))
+                    hitGo = m_Net.VisualAt(pc);                          // 공정 대상
+                else if (!HasMaterial && !HasTool && m_HasTarget && m_Net.IsPickupable(m_Target))
+                    hitGo = m_Net.VisualAt(m_Target);                    // 회수 가능(미고정)
+            }
 
             SetGrabHighlight(hitGo);   // 가리킨 대상에 테두리(대상 바뀌면 이전 건 끔)
         }
@@ -1182,21 +1287,19 @@ namespace Player
                 return;
             }
 
-            // 폴백(프리팹 없는 재료 / 도구 공정 대상) → 반투명 박스.
+            // 도구 공정 대상은 노란 박스 대신 블록 테두리(UpdateGrabTarget)로 보여준다 — 박스는 배치 폴백 전용.
+            if (HasTool)
+            {
+                if (m_Preview != null && m_Preview.activeSelf) m_Preview.SetActive(false);
+                return;
+            }
+
+            // 폴백(프리팹 없는 재료) → 반투명 박스.
             if (m_Preview == null || m_PreviewKey != -1) BuildBoxPreview();
 
             Vector3 center, size; Color col;
-            if (HasMaterial)
-            {
-                HeldPlacementBox(out center, out size);
-                col = new Color(0.25f, 0.9f, 1f, 0.32f);    // 시안: 배치 자리
-            }
-            else
-            {
-                center = GridCoordinates.CellToWorld(m_Target) + Vector3.one * (0.5f * u);
-                size   = Vector3.one * u;
-                col = new Color(1f, 0.95f, 0.25f, 0.32f);   // 노랑: 공정 대상
-            }
+            HeldPlacementBox(out center, out size);
+            col = new Color(0.25f, 0.9f, 1f, 0.32f);    // 시안: 배치 자리
             m_Preview.transform.SetPositionAndRotation(center, Quaternion.identity);
             m_Preview.transform.localScale = size;
             m_PreviewMat.SetColor(s_PvBase, col);

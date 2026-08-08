@@ -19,7 +19,7 @@ MonoBehaviour:
   CarTimeoutSeconds: 20
   CarDispatchGapSeconds: 1
   ObservatoryMinY: 11
-  ObservatoryMaxY: 13
+  ObservatoryMaxY: 12
   GustMinInterval: 12
   GustMaxInterval: 18
   GustWarnSeconds: 3

@@ -257,7 +257,10 @@ namespace GridSystem
                 go.transform.SetParent(m_Root.transform, true);
                 var tbody = go.AddComponent<PickupBody>();
                 tbody.SetIdentity(this, p.pickupId, p.materialId, p.toolBit);
-                AddPickupTrigger(go, Vector3.one * 0.6f);   // 레이캐스트 집기용
+                // 집기 판정 후하게: 루트 스케일(도구 모델 축소)이 로컬 콜라이더에 곱해져 실제 판정이
+                // 0.3m급으로 쪼그라들던 문제 — 스케일을 역보정하고 월드 1.3m 박스로 키운다.
+                float rootScale = Mathf.Max(0.01f, go.transform.localScale.x);
+                AddPickupTrigger(go, Vector3.one * (1.3f / rootScale));   // 레이캐스트 집기용(넉넉하게)
                 if (animate) tbody.Init(p.fromPos, p.pos); else tbody.Snap(p.pos);
                 return go;
             }

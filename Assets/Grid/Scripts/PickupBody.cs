@@ -118,6 +118,15 @@ namespace GridSystem
         /// <summary>집기 조준 대상 표시(PlayerCarry가 호출) — 두근두근 펄스.</summary>
         public void SetTargeted(bool on) => m_Targeted = on;
 
+        /// <summary>비주얼 기준 스케일 압축(곤돌라 안 같은 좁은 공간용). 숨쉬기·펄스와 자연 합성.
+        /// 같은 인스턴스에 두 번 호출하면 중첩되니 호출부가 1회만 적용할 것.</summary>
+        public void SetVisualScale(float factor)
+        {
+            if (!m_VisInit) { m_VisBase = transform.localScale; m_VisInit = true; m_BreathPhase = Random.value * Mathf.PI * 2f; }
+            m_VisBase *= factor;
+            transform.localScale = m_VisBase;
+        }
+
         private const float kKickSquashDur = 0.22f;
         private float m_KickT;   // 킥 움찔 잔여시간
 

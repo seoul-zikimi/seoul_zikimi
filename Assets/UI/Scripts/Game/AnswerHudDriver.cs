@@ -60,17 +60,24 @@ public class AnswerHudDriver : MonoBehaviour
         bool over = m_Visible && rect != null &&
             RectTransformUtility.RectangleContainsScreenPoint(rect, Mouse.current.position.ReadValue(), null);
 
+        // 좌클릭·우클릭 어느 쪽이든 패널 위에서 드래그 시작 → 회전(좌클릭이 더 직관적이라는 피드백 반영).
+        // 패널 위에서 시작한 좌클릭은 AnswerPanelFocus 덕에 게임 줍기로 안 새어나간다(PlayerCarry가 양보).
         var rmb = Mouse.current.rightButton;
-        if (rmb.wasPressedThisFrame && over) m_Dragging = true;   // 패널 위에서 우클릭 시작 → 캡처
-        if (!rmb.isPressed || !m_Visible)    m_Dragging = false;  // 버튼 떼거나 패널 숨기면 해제
+        var lmb = Mouse.current.leftButton;
+        bool anyPressed = rmb.isPressed || lmb.isPressed;
+        if ((rmb.wasPressedThisFrame || lmb.wasPressedThisFrame) && over) m_Dragging = true;
+        if (!anyPressed || !m_Visible) m_Dragging = false;   // 버튼 떼거나 패널 숨기면 해제
 
         bool focus = over || m_Dragging;   // 캡처 중이면 패널 밖이어도 정답 카메라가 입력 소유
         AnswerPanelFocus.Active = focus;   // 플레이어 카메라·게임 클릭이 read해서 양보
         if (focus)
         {
-            Vector2 rot  = rmb.isPressed ? Mouse.current.delta.ReadValue() : Vector2.zero;
-            float   zoom = over ? Mouse.current.scroll.ReadValue().y : 0f;   // 줌은 패널 위에서만
-            if (rot != Vector2.zero || zoom != 0f) m_Preview.DriveOrbit(rot, zoom);
+            // 우클릭 드래그 = 회전 · 좌클릭 드래그 = 상하좌우 이동(팬) · 휠 = 줌
+            Vector2 delta = m_Dragging ? Mouse.current.delta.ReadValue() : Vector2.zero;
+            float   zoom  = over ? Mouse.current.scroll.ReadValue().y : 0f;   // 줌은 패널 위에서만
+            if (rmb.isPressed && delta != Vector2.zero) m_Preview.DriveOrbit(delta, 0f);
+            else if (lmb.isPressed && delta != Vector2.zero) m_Preview.DrivePan(delta);
+            if (zoom != 0f) m_Preview.DriveOrbit(Vector2.zero, zoom);
         }
     }
 }

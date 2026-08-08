@@ -50,6 +50,10 @@ namespace Player
             Vector2 rot  = m_Input.CameraRotate;
             float   zoom = m_Input.CameraZoom;
 
+            // 커서가 UI(주문 패널 등) 위면 휠은 그 UI의 스크롤 몫 — 카메라 줌이 같이 먹지 않게
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es != null && es.IsPointerOverGameObject()) zoom = 0f;
+
             // ── 수평 회전: yaw는 CameraArm에 그대로(이동이 카메라 상대라 보존) ──
             float sens = SensitivityMul;
             m_CameraArm.Rotate(Vector3.up, rot.x * m_RotateSpeed * sens, Space.World);

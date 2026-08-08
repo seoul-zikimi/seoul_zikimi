@@ -96,10 +96,10 @@ MonoBehaviour:
     materialId: 13
     rotationStep: 0
   - cell: {x: 5, y: 3, z: 5}
-    materialId: 13
+    materialId: 14
     rotationStep: 0
   - cell: {x: 5, y: 4, z: 5}
-    materialId: 13
+    materialId: 14
     rotationStep: 0
   - cell: {x: 5, y: 5, z: 5}
     materialId: 13
@@ -114,10 +114,10 @@ MonoBehaviour:
     materialId: 13
     rotationStep: 0
   - cell: {x: 5, y: 9, z: 5}
-    materialId: 14
+    materialId: 13
     rotationStep: 0
   - cell: {x: 5, y: 10, z: 5}
-    materialId: 14
+    materialId: 13
     rotationStep: 0
   - cell: {x: 4, y: 11, z: 4}
     materialId: 15
