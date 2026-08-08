@@ -25,6 +25,15 @@ namespace GridSystem
         private float m_PanLimit;          // 팬 최대 반경
         private GameObject m_Root;        // 미리보기 렌더용(멀리 떨어진 미니씬)
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
+
+        // 미니 프리뷰 호버 픽킹: 오브젝트 단위 AABB(미니씬 월드 좌표) + 재료 정의 + 대상 오브젝트.
+        // 콜라이더 없이 수학 픽킹(Bounds.IntersectRay) — 물리 레이캐스트에 안 걸려 게임플레이 무간섭.
+        private readonly List<(MaterialDef def, Bounds bounds, GameObject go)> m_PickTargets = new();
+        // 호버 테두리: 게임 집기 하이라이트(OutlineHighlight)와 같은 인버티드 헐 셰이더 재사용.
+        // 반투명 박스는 RT 알파를 깎아 패널 뒤 월드가 비쳐 보였음 — 불투명 실루엣이라 그 문제가 없다.
+        private GameObject m_HoverGo;                                // 현재 테두리 대상(미니씬)
+        private readonly List<GameObject> m_HoverOutlines = new();
+        private static Material s_OutlineMat;                        // 전 인스턴스 공유 — 누수 없음
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
         private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
         private bool m_Visible = true;
@@ -50,6 +59,8 @@ namespace GridSystem
         {
             if (m_Root != null) { Destroy(m_Root); m_Root = null; }
             if (m_GhostRoot != null) { Destroy(m_GhostRoot); m_GhostRoot = null; }
+            m_PickTargets.Clear();
+            m_HoverGo = null; m_HoverOutlines.Clear();   // m_Root 자식이라 같이 파괴됨
             m_GhostFloors.Clear();
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
@@ -129,9 +140,10 @@ namespace GridSystem
             {
                 Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
-                MakeBlockVisual(o, m_Root.transform, pos, rot, u, ghost: false);
+                var go = MakeBlockVisual(o, m_Root.transform, pos, rot, u, ghost: false);
                 var bb = new Bounds(pos + Vector3.up * (0.5f * o.dims.y * u), new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);
                 if (first) { b = bb; first = false; } else b.Encapsulate(bb);
+                m_PickTargets.Add((o.def, RendererBounds(go, bb), go));   // 픽킹은 렌더러 실측 AABB(피벗 규약 무관)
             }
 
             m_RT = new RenderTexture(512, 512, 16);
@@ -195,6 +207,70 @@ namespace GridSystem
             if (m_Cam == null) return;
             m_Cam.transform.position = m_Orbit.WorldPosition(m_PivotCenter);
             m_Cam.transform.LookAt(m_PivotCenter);
+        }
+
+        // ── 호버 픽킹(로컬) — 정답 패널 라우터가 커서 위치(패널 뷰포트 0~1)로 호출 ──
+
+        /// <summary>커서 아래 블록을 찾아 하이라이트. 잡히면 true + 재료 def(프리팹 없는 블록은 null일 수 있음).</summary>
+        public bool TryHover(Vector2 viewportUV, out MaterialDef def)
+        {
+            def = null;
+            if (!m_Built || m_Cam == null) { ClearHover(); return false; }
+
+            var ray = m_Cam.ViewportPointToRay(viewportUV);
+            int best = -1; float bestD = float.MaxValue;
+            for (int i = 0; i < m_PickTargets.Count; i++)
+                if (m_PickTargets[i].bounds.IntersectRay(ray, out float d) && d < bestD)
+                { bestD = d; best = i; }
+
+            if (best < 0) { ClearHover(); return false; }
+
+            def = m_PickTargets[best].def;
+            SetHoverOutline(m_PickTargets[best].go);
+            return true;
+        }
+
+        public void ClearHover()
+        {
+            m_HoverGo = null;
+            for (int i = 0; i < m_HoverOutlines.Count; i++)
+                if (m_HoverOutlines[i] != null) Destroy(m_HoverOutlines[i]);
+            m_HoverOutlines.Clear();
+        }
+
+        // 게임 집기 테두리(OutlineHighlight)와 동일한 인버티드 헐: 메쉬를 법선으로 살짝 키워 실루엣만 그린다.
+        // OutlineHighlight는 Player 어셈블리(역참조 불가)라 같은 셰이더로 패턴만 복제.
+        private void SetHoverOutline(GameObject go)
+        {
+            if (go == m_HoverGo) return;
+            ClearHover();
+            m_HoverGo = go;
+            if (go == null) return;
+
+            if (s_OutlineMat == null)
+            {
+                var sh = Shader.Find("Hidden/PickupOutline");
+                if (sh == null) return;
+                s_OutlineMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            }
+            foreach (var f in go.GetComponentsInChildren<MeshFilter>())
+            {
+                if (f.sharedMesh == null) continue;
+                var o = new GameObject("~Outline") { layer = kPreviewLayer };   // 미니씬 카메라만 렌더
+                o.transform.SetParent(f.transform, false);   // 부모 메쉬에 정확히 겹침
+                o.AddComponent<MeshFilter>().sharedMesh = f.sharedMesh;
+                o.AddComponent<MeshRenderer>().sharedMaterial = s_OutlineMat;
+                m_HoverOutlines.Add(o);
+            }
+        }
+
+        private static Bounds RendererBounds(GameObject go, Bounds fallback)
+        {
+            var rs = go.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return fallback;
+            var b = rs[0].bounds;
+            for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+            return b;
         }
 
         private static void SetLayerRecursive(GameObject go, int layer)

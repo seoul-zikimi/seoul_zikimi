@@ -31,6 +31,65 @@ namespace GridSystem
         /// <summary>주문 목록이 바뀜(맵 로드/교체) — HUD 다시 그리기.</summary>
         public static event System.Action<MaterialDepot> MaterialsChanged;
 
+        /// <summary>주문 누적이 바뀜(주문 성공/라운드 리셋) — HUD 잔량 배지 갱신.</summary>
+        public static event System.Action<MaterialDepot> OrdersChanged;
+
+        // ── 주문 수량 제한(MaterialDef.MaxSpawnCount) ─────────────────────
+        // 라운드 누적 주문 수(서버 권위). NetworkList로 전 클라 복제 → HUD가 잔량을 그린다.
+        // 붕괴/철거된 재료는 바닥에 되돌아오므로(GridNetwork.RemoveCollapsed → ServerDrop)
+        // 한도를 다 써도 회수로 계속 지을 수 있다 — 소프트락 없음.
+        public struct OrderCount : INetworkSerializable, System.IEquatable<OrderCount>
+        {
+            public int Team; public int MaterialId; public int Ordered;
+            public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
+            {
+                s.SerializeValue(ref Team);
+                s.SerializeValue(ref MaterialId);
+                s.SerializeValue(ref Ordered);
+            }
+            public bool Equals(OrderCount o) => Team == o.Team && MaterialId == o.MaterialId && Ordered == o.Ordered;
+        }
+        private readonly NetworkList<OrderCount> m_Ordered = new();
+
+        // 한도는 팀 단위(협동/솔로 = 팀 0 공유). 2vs2에서 전역으로 세면 한 팀이 상대 몫까지 소진할 수 있다.
+        private int TeamOf(ulong clientId) => (m_Loop != null && m_Loop.IsVersus) ? m_Loop.GetTeam(clientId) : 0;
+        private int LocalTeam => (m_Loop != null && m_Loop.IsVersus) ? m_Loop.LocalTeam : 0;
+
+        private int OrderedFor(int team, int materialId)
+        {
+            for (int i = 0; i < m_Ordered.Count; i++)
+                if (m_Ordered[i].Team == team && m_Ordered[i].MaterialId == materialId)
+                    return m_Ordered[i].Ordered;
+            return 0;
+        }
+
+        /// <summary>HUD용: 로컬 팀 기준 남은 주문 가능 수. 무제한 재료면 -1.</summary>
+        public int RemainingFor(int materialId)
+        {
+            var def = Catalog != null ? Catalog.GetById(materialId) : null;
+            if (def == null || def.MaxSpawnCount < 0) return -1;
+            return Mathf.Max(0, def.MaxSpawnCount - OrderedFor(LocalTeam, materialId));
+        }
+
+        private void ServerCountOrder(int team, int materialId)
+        {
+            for (int i = 0; i < m_Ordered.Count; i++)
+                if (m_Ordered[i].Team == team && m_Ordered[i].MaterialId == materialId)
+                {
+                    var e = m_Ordered[i]; e.Ordered++; m_Ordered[i] = e;
+                    return;
+                }
+            m_Ordered.Add(new OrderCount { Team = team, MaterialId = materialId, Ordered = 1 });
+        }
+
+        /// <summary>새 라운드 — 주문 누적 초기화. GameLoopManager.Restart가 호출(서버).</summary>
+        public void ServerResetOrders()
+        {
+            for (int i = m_Ordered.Count - 1; i >= 0; i--) m_Ordered.RemoveAt(i);
+        }
+
+        private void OnOrderedChanged(NetworkListEvent<OrderCount> _) => OrdersChanged?.Invoke(this);
+
         public MaterialCatalog Catalog => m_Grid != null ? m_Grid.Catalog : null;
 
         // 맵별 주문 가능 목록(MapDef.AvailableMaterials). 비면 카탈로그 전체를 쓴다 — 카탈로그는 전역 그대로.
@@ -119,6 +178,7 @@ namespace GridSystem
             m_Marker = MakeMarker("~DeliveryZone");
             SyncMarker();
 
+            m_Ordered.OnListChanged += OnOrderedChanged;   // 잔량 복제 → HUD 배지 갱신
             Spawned?.Invoke(this);   // 드라이버가 주문 HUD 띄움
         }
 
@@ -135,6 +195,7 @@ namespace GridSystem
 
         public override void OnNetworkDespawn()
         {
+            m_Ordered.OnListChanged -= OnOrderedChanged;
             Despawned?.Invoke(this);   // 드라이버가 주문 HUD 숨김
             if (m_Marker != null) Destroy(m_Marker);
             if (m_MarkerB != null) Destroy(m_MarkerB);
@@ -173,6 +234,17 @@ namespace GridSystem
                 return;
             }
 
+            // 주문 한도(MaxSpawnCount, 라운드 누적): 초과면 거절 + 주문자에게만 안내.
+            // HUD가 잔량 0에서 카드를 잠그지만, 동시 주문 레이스로 새는 요청은 여기서 막힌다.
+            var def = cat.GetById(materialId);
+            int orderTeam = TeamOf(rpc.Receive.SenderClientId);
+            if (def.MaxSpawnCount >= 0 && OrderedFor(orderTeam, materialId) >= def.MaxSpawnCount)
+            {
+                OrderDeniedRpc(RpcTarget.Single(rpc.Receive.SenderClientId, RpcTargetUse.Temp));
+                return;
+            }
+            ServerCountOrder(orderTeam, materialId);
+
             // 남산 맵: 하늘 배송 대신 케이블카가 나른다 — 검증은 위에서 끝났으니 대기열로 넘기고 끝.
             var cable = GetComponent<CableCarNetwork>();
             if (cable != null && cable.Active)
@@ -200,6 +272,15 @@ namespace GridSystem
             float ang = Random.Range(0f, Mathf.PI * 2f);
             var from = to + new Vector3(Mathf.Cos(ang) * 12f, 6f, Mathf.Sin(ang) * 12f);
             m_Drop.ServerDeliver(materialId, from, to);   // 배송 지점 높이 그대로 착지
+        }
+
+        [Rpc(SendTo.SpecifiedInParams)]
+        private void OrderDeniedRpc(RpcParams rpc = default)
+        {
+            var po = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClient?.PlayerObject : null;
+            Vector3 pos = po != null ? po.transform.position + Vector3.up * 1.6f
+                                     : ZonePos + Vector3.up * 1f;
+            GridJuice.WorldToast(pos, "품절! 더는 주문할 수 없어요", new Color(0.95f, 0.45f, 0.15f));
         }
 
         private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)
