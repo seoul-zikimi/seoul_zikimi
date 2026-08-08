@@ -42,6 +42,7 @@ public class GameHudDriver : MonoBehaviour
         MaterialDepot.Spawned   += OnDepotSpawned;
         MaterialDepot.Despawned += OnDepotDespawned;
         MaterialDepot.MaterialsChanged += OnDepotSpawned;   // 맵 로드로 목록이 확정되면 HUD 다시 구성
+        MaterialDepot.OrdersChanged    += OnOrdersChanged;  // 주문 누적 복제 → 잔량 배지 갱신
     }
 
     // 모든 버튼 쫀득 통일: 씬 배치·프리팹·코드빌드 가리지 않고 1초마다 훑어 JuicyButton 부착.
@@ -83,7 +84,10 @@ public class GameHudDriver : MonoBehaviour
         MaterialDepot.Spawned   -= OnDepotSpawned;
         MaterialDepot.Despawned -= OnDepotDespawned;
         MaterialDepot.MaterialsChanged -= OnDepotSpawned;
+        MaterialDepot.OrdersChanged    -= OnOrdersChanged;
     }
+
+    private OrderHUD m_OrderHud;   // 잔량 배지 갱신용(숨김 상태에서 ShowHUDUI로 되살리지 않게 참조 유지)
 
     private void OnDepotSpawned(MaterialDepot depot)
     {
@@ -92,13 +96,24 @@ public class GameHudDriver : MonoBehaviour
         // 맵이 정한 주문 목록(MapDef.AvailableMaterials). 비어 있으면 카탈로그 전체가 온다.
         var items = new List<OrderHUD.Entry>();
         foreach (var d in depot.OrderableMaterials)
-            if (d != null) items.Add(new OrderHUD.Entry(d.Id, d.name, d.Prefab));
+            if (d != null) items.Add(new OrderHUD.Entry(d.Id, d.name, d.Prefab, d.MaxSpawnCount));
 
-        UIManager.Instance.ShowHUDUI<OrderHUD>().Build(items, depot.RequestOrder);
+        m_OrderHud = UIManager.Instance.ShowHUDUI<OrderHUD>();
+        m_OrderHud.Build(items, depot.RequestOrder);
+        OnOrdersChanged(depot);   // 재접속/맵 교체 시 이미 복제된 누적치 즉시 반영
+    }
+
+    private void OnOrdersChanged(MaterialDepot depot)
+    {
+        if (m_OrderHud == null) return;
+        foreach (var d in depot.OrderableMaterials)
+            if (d != null && d.MaxSpawnCount >= 0)
+                m_OrderHud.SetRemaining(d.Id, depot.RemainingFor(d.Id));
     }
 
     private void OnDepotDespawned(MaterialDepot depot)
     {
+        m_OrderHud = null;
         if (UIManager.Instance != null) UIManager.Instance.HideHUDUI<OrderHUD>();
     }
 }

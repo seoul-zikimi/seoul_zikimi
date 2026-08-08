@@ -13,8 +13,14 @@ public class OrderHUD : UIHUD
     public readonly struct Entry
     {
         public readonly int Id; public readonly string Name; public readonly GameObject Prefab;
-        public Entry(int id, string name, GameObject prefab) { Id = id; Name = name; Prefab = prefab; }
+        public readonly int Limit;   // MaxSpawnCount (-1 = 무제한 → 배지 없음)
+        public Entry(int id, string name, GameObject prefab, int limit = -1)
+        { Id = id; Name = name; Prefab = prefab; Limit = limit; }
     }
+
+    // 수량 제한 재료의 잔량 배지/카드 잠금용 위젯 참조 (id → 카드)
+    private struct CardWidgets { public Button Btn; public RawImage Thumb; public Text Badge; }
+    private readonly Dictionary<int, CardWidgets> m_Cards = new();
 
     private const float kPanelW = 360f;   // 콘텐츠 패널 너비(접힘 계산에 사용)
     private const float kBtn    = 48f;    // 토글 버튼 한 변
@@ -32,6 +38,7 @@ public class OrderHUD : UIHUD
     {
         if (m_Panel != null)  Destroy(m_Panel);
         if (m_Toggle != null) Destroy(m_Toggle);
+        m_Cards.Clear();
         if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
@@ -127,7 +134,7 @@ public class OrderHUD : UIHUD
     }
 
     // 주문 카드: 카드 전체가 버튼, 위엔 큰 썸네일·아래엔 작은 이름 (한눈에 무슨 블록인지 보이게)
-    private static void MakeCard(Transform parent, Entry e, Vector2 pos, float w, float h, float thumbSize, Action onClick)
+    private void MakeCard(Transform parent, Entry e, Vector2 pos, float w, float h, float thumbSize, Action onClick)
     {
         var card = NewRect("Card", parent, new Vector2(0, 1), new Vector2(0, 1), pos, new Vector2(w, h));
         var img = card.AddComponent<Image>(); img.color = new Color(1f, 1f, 1f, 0.10f);
@@ -144,6 +151,39 @@ public class OrderHUD : UIHUD
         ri.raycastTarget = false;   // 클릭은 카드가 받는다
 
         MakeText(card.transform, e.Name, new Vector2(4, -(4f + thumbSize)), new Vector2(w - 8, 18), 13, TextAnchor.MiddleCenter);
+
+        // 수량 제한 재료: 우상단 잔량 배지. 실제 값은 SetRemaining이 채운다(NetworkList 복제 후).
+        Text badge = null;
+        if (e.Limit >= 0)
+        {
+            var bg = NewRect("BadgeBg", card.transform, new Vector2(1, 1), new Vector2(1, 1),
+                             new Vector2(-4, -4), new Vector2(46, 22));
+            var bimg = bg.AddComponent<Image>(); bimg.color = new Color(0f, 0f, 0f, 0.65f); bimg.raycastTarget = false;
+            var bt = NewRect("Badge", bg.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var brt = bt.GetComponent<RectTransform>();
+            brt.pivot = new Vector2(0.5f, 0.5f); brt.offsetMin = brt.offsetMax = Vector2.zero;
+            badge = bt.AddComponent<Text>();
+            badge.font = s_Font; badge.fontSize = 15; badge.fontStyle = FontStyle.Bold;
+            badge.color = Color.white; badge.alignment = TextAnchor.MiddleCenter;
+            badge.text = $"×{e.Limit}";
+            badge.raycastTarget = false;
+        }
+        m_Cards[e.Id] = new CardWidgets { Btn = btn, Thumb = ri, Badge = badge };
+    }
+
+    /// <summary>수량 제한 재료의 잔량 반영 — 배지 갱신 + 0이면 카드 잠금/어둡게. remaining &lt; 0(무제한)은 무시.</summary>
+    public void SetRemaining(int id, int remaining)
+    {
+        if (remaining < 0 || !m_Cards.TryGetValue(id, out var c)) return;
+        bool sold = remaining == 0;
+        if (c.Badge != null)
+        {
+            c.Badge.text = sold ? "품절" : $"×{remaining}";
+            c.Badge.color = sold ? new Color(1f, 0.55f, 0.45f) : Color.white;
+        }
+        if (c.Btn != null) c.Btn.interactable = !sold;
+        if (c.Thumb != null && c.Thumb.texture != null)
+            c.Thumb.color = sold ? new Color(0.4f, 0.4f, 0.4f, 1f) : Color.white;
     }
 
     private static void MakeText(Transform parent, string s, Vector2 pos, Vector2 size, int fontSize, TextAnchor anchor)

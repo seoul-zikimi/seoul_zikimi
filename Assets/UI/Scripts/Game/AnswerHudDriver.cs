@@ -79,5 +79,53 @@ public class AnswerHudDriver : MonoBehaviour
             else if (lmb.isPressed && delta != Vector2.zero) m_Preview.DrivePan(delta);
             if (zoom != 0f) m_Preview.DriveOrbit(Vector2.zero, zoom);
         }
+
+        UpdateHover(rect, over && !anyPressed);   // 드래그 중엔 호버 끔(회전하다 라벨이 튀지 않게)
+    }
+
+    // ── 호버 픽킹: 커서 아래 블럭 하이라이트 + 이름/필요 공정 표시 ──
+    private void UpdateHover(RectTransform rect, bool active)
+    {
+        if (!active)
+        {
+            m_Preview.ClearHover();
+            m_Hud.SetHoverInfo(null, null);
+            m_Hud.HideTip();
+            return;
+        }
+
+        // 패널 스크린 좌표 → RawImage 로컬 → 뷰포트 UV(0~1). 오버레이 캔버스라 카메라 null.
+        var screenPos = Mouse.current.position.ReadValue();
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(rect, screenPos, null, out var local);
+        var r = rect.rect;
+        var uv = new Vector2((local.x - r.xMin) / r.width, (local.y - r.yMin) / r.height);
+
+        if (m_Preview.TryHover(uv, out var def))
+        {
+            string name = def != null ? def.name : "블럭";
+            string sub  = ProcLine(def);
+            m_Hud.SetHoverInfo(name, sub);
+            // 말풍선: 주문 카드와 같은 썸네일 렌더 재사용 → "정답의 이 블럭 = 저 카드" 매칭이 눈에 보인다
+            m_Hud.ShowTip(screenPos, name, sub,
+                          def != null && def.Prefab != null ? BlockThumbnail.Get(def.Prefab, 256) : null);
+        }
+        else
+        {
+            m_Hud.SetHoverInfo(null, null);
+            m_Hud.HideTip();
+        }
+    }
+
+    // 필요 공정을 공정 고유색(망치=파랑, 페인트=초록)의 리치텍스트로 — 없으면 "놓기만 하면 완성".
+    private static string ProcLine(MaterialDef def)
+    {
+        if (def == null) return "";
+        string s = "";
+        foreach (var p in def.RequiredProcesses)
+            s += (s.Length > 0 ? "  " : "")
+               + (p == ProcessType.Fixed
+                    ? "<color=#5C9AFF>망치로 고정 필요</color>"
+                    : "<color=#4DD966>페인트칠 필요</color>");
+        return s.Length > 0 ? s : "놓기만 하면 완성";
     }
 }
