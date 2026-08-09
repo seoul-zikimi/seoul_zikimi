@@ -16,4 +16,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0f567a52a39099b41867541d7ef4be63, type: 2}
   - {fileID: 11400000, guid: e3fcb6f1573a5f24f99d311a761410f7, type: 2}
   - {fileID: 11400000, guid: c5183db02dd2e5a4a91a72a113ebcae9, type: 2}
+  - {fileID: 11400000, guid: 9c10ae539f693624e802858e9f22c04f, type: 2}
+  - {fileID: 11400000, guid: e8a3e431f7a065345865c819f461c7c3, type: 2}
+  - {fileID: 11400000, guid: 67f7b53cb7f649a4e8101bf67ef48632, type: 2}
   m_TileIdMap: []

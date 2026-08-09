@@ -14,36 +14,7 @@ public class MyPageSceneController : MonoBehaviour
 
     private void Start()
     {
-        // 캐릭터 프리뷰 스폰 — 씬에 "CharacterSpot" 빈 오브젝트가 있으면 그 위치·방향으로(직접 조정용)
-        if (m_CharacterPrefab != null)
-        {
-            var spot = GameObject.Find("CharacterSpot");
-            Vector3 pos = spot != null ? spot.transform.position : Vector3.zero;
-            Quaternion rot = spot != null ? spot.transform.rotation : Quaternion.Euler(0f, 180f, 0f);
-            var ch = Instantiate(m_CharacterPrefab, pos, rot);
-            ch.name = "~PreviewCharacter";
-            // idle 재생(착지해 서 있는 모습). 아웃핏은 루트 기준 포즈로 붙어 본을 따라다니므로 애니메이션과 공존 OK
-            var anim = ch.GetComponentInChildren<Animator>();
-            if (anim != null)
-            {
-#if UNITY_EDITOR
-                if (m_IdleController == null)
-                    m_IdleController = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Player/Animations/PlayerAnim.controller");
-#endif
-                if (m_IdleController != null)
-                {
-                    anim.runtimeAnimatorController = m_IdleController;
-                    anim.applyRootMotion = false;
-                    anim.Play("Idle", 0, 0f);
-                    anim.Update(0f);        // idle 첫 프레임만 샘플하고
-                    anim.enabled = false;   // 정지 — 프리뷰는 정적(옷장에서 본 모습 그대로 유지)
-                }
-            }
-
-            // 저장된 아웃핏 입히기(본 부착 — 프리뷰·인게임 동일 로직)
-            s_Preview = ch;
-            CodiOutfit.Apply(ch, SaveService.EquippedOutfit);
-        }
+        BuildPreview();
 
         // UI 표시(팝업 재활용 — 닫으면 메인으로 복귀)
         if (UIManager.Instance != null)
@@ -52,12 +23,63 @@ public class MyPageSceneController : MonoBehaviour
             Debug.LogWarning("[MyPage] UIManager 없음 — Bootstrap을 거치지 않고 씬을 직접 실행했나요?");
     }
 
+    // 프리뷰 캐릭터 스폰 — 선택 캐릭터(SaveService.EquippedCharacter)에 따라 모델이 달라진다.
+    // 씬에 "CharacterSpot" 빈 오브젝트가 있으면 그 위치·방향으로(직접 조정용).
+    private void BuildPreview()
+    {
+        if (s_Preview != null) Destroy(s_Preview);
+
+        string charId = SaveService.EquippedCharacter;
+        GameObject prefab = CharacterCatalog.LoadPrefab(charId);
+        bool isDefault = prefab == null;   // 빈 id·프리팹 미생성 → 달팽이
+        if (isDefault) prefab = m_CharacterPrefab;
+        if (prefab == null) return;
+
+        var spot = GameObject.Find("CharacterSpot");
+        Vector3 pos = spot != null ? spot.transform.position : Vector3.zero;
+        Quaternion rot = spot != null ? spot.transform.rotation : Quaternion.Euler(0f, 180f, 0f);
+        var ch = Instantiate(prefab, pos, rot);
+        ch.name = "~PreviewCharacter";
+        // idle 재생(착지해 서 있는 모습). 아웃핏은 루트 기준 포즈로 붙어 본을 따라다니므로 애니메이션과 공존 OK
+        var anim = ch.GetComponentInChildren<Animator>();
+        if (anim != null)
+        {
+#if UNITY_EDITOR
+            if (m_IdleController == null)
+                m_IdleController = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Player/Animations/PlayerAnim.controller");
+#endif
+            // 달팽이만 공용 컨트롤러 주입 — 대체 캐릭터는 프리팹에 자기 컨트롤러가 이미 있다
+            if (isDefault && m_IdleController != null)
+                anim.runtimeAnimatorController = m_IdleController;
+            if (anim.runtimeAnimatorController != null)
+            {
+                anim.applyRootMotion = false;
+                anim.Play("Idle", 0, 0f);
+                anim.Update(0f);        // idle 첫 프레임만 샘플하고
+                anim.enabled = false;   // 정지 — 프리뷰는 정적(옷장에서 본 모습 그대로 유지)
+            }
+        }
+
+        // 저장된 아웃핏 입히기(본 부착 — 프리뷰·인게임 동일 로직). 아웃핏은 달팽이 본 기준이라 달팽이만.
+        s_Preview = ch;
+        if (isDefault) CodiOutfit.Apply(ch, SaveService.EquippedOutfit);
+    }
+
     private static GameObject s_Preview;
+    private static MyPageSceneController s_Instance;
+    private void Awake() => s_Instance = this;
 
     /// <summary>옷장에서 착용이 바뀌면 프리뷰 캐릭터 갈아입히기.</summary>
     public static void RefreshEquip()
     {
-        if (s_Preview != null) CodiOutfit.Apply(s_Preview, SaveService.EquippedOutfit);
+        if (s_Preview != null && !CharacterSwap.IsNonDefault(s_Preview))
+            CodiOutfit.Apply(s_Preview, SaveService.EquippedOutfit);
+    }
+
+    /// <summary>캐릭터 선택이 바뀌면 프리뷰를 새 모델로 다시 세운다.</summary>
+    public static void RefreshCharacter()
+    {
+        if (s_Instance != null) s_Instance.BuildPreview();
     }
 
     /// <summary>메인 화면으로 복귀(MyPageUI 닫기에서 호출).</summary>

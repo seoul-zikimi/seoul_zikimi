@@ -59,8 +59,13 @@ namespace GridSystem
         {
             if (!TryGetCell(cell, out int matId, out int completed)) return false;
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
+            return CanReclaim(def, completed);
+        }
+
+        private static bool CanReclaim(MaterialDef def, int completedMask)
+        {
             if (def == null) return false;
-            return (completed & (int)ProcessType.Fixed) == 0;
+            return (completedMask & (int)ProcessType.Fixed) == 0;
         }
 
         private GridManager m_Manager;

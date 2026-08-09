@@ -59,6 +59,13 @@ public static class SaveService
         set => ES3.Save("equippedOutfit", value ?? "", kFile);
     }
 
+    // ── 선택 중 캐릭터 — 빈 문자열 = 기본(달팽이). 예: char_turtle ──
+    public static string EquippedCharacter
+    {
+        get => ES3.Load("equippedCharacter", kFile, "");
+        set => ES3.Save("equippedCharacter", value ?? "", kFile);
+    }
+
     // ── 보유 캐릭터 스킨 (구매 시 저장) — 선행조건(캐릭터 보유 등) 검사는 상점 쪽 책임 ──
     public static List<string> Skins => ES3.Load(kSkins, kFile, new List<string>());
     public static bool HasSkin(string id) => Skins.Contains(id);

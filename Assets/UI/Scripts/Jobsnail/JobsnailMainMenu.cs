@@ -173,6 +173,12 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             doneImage.color = new Color(1f, 0.78f, 0.44f, 1f);   // 주 액션 = 주황(팔레트 통일)
         MakeButtonText(done.transform, "완료", 20, Color.black);
 
+        var tutorialBtn = JobsnailUiKit.Button("TutorialReplayButton", panel, null, new Vector2(0.25f, 0.205f), new Vector2(0.75f, 0.285f), Vector2.zero, Vector2.zero, () => TutorialFlowController.ReplayTutorial());
+        var tutorialImage = tutorialBtn.GetComponent<Image>();
+        if (tutorialImage != null)
+            tutorialImage.color = new Color(0.62f, 0.80f, 0.95f, 1f);
+        MakeButtonText(tutorialBtn.transform, "튜토리얼 다시 보기", 18, Color.black);
+
         var close = JobsnailUiKit.Button("SettingsCloseButton", panel, null, new Vector2(0.86f, 0.86f), new Vector2(0.96f, 0.96f), Vector2.zero, Vector2.zero, ToggleSettings);
         MakeButtonText(close.transform, "×", 26, Color.black);
 
