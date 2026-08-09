@@ -19,6 +19,7 @@ public static class CharacterCatalog
     {
         new("", "달팽이"),
         new("char_turtle", "거북이"),
+        new("char_crab", "게"),
     };
 
     public static GameObject LoadPrefab(string id)
