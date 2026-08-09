@@ -87,19 +87,23 @@ public class GameHudDriver : MonoBehaviour
         MaterialDepot.OrdersChanged    -= OnOrdersChanged;
     }
 
-    private OrderHUD m_OrderHud;   // 잔량 배지 갱신용(숨김 상태에서 ShowHUDUI로 되살리지 않게 참조 유지)
+    private AnswerPanelHUD m_OrderHud;   // '시공도면 폰'(정답+주문 통합). 잔량 배지 갱신용 참조 유지
 
     private void OnDepotSpawned(MaterialDepot depot)
     {
         if (UIManager.Instance == null || depot.Catalog == null) return;
 
         // 맵이 정한 주문 목록(MapDef.AvailableMaterials). 비어 있으면 카탈로그 전체가 온다.
-        var items = new List<OrderHUD.Entry>();
+        var items = new List<AnswerPanelHUD.OrderEntry>();
         foreach (var d in depot.OrderableMaterials)
-            if (d != null) items.Add(new OrderHUD.Entry(d.Id, d.name, d.Prefab, d.MaxSpawnCount));
+            if (d != null) items.Add(new AnswerPanelHUD.OrderEntry
+            {
+                Id = d.Id, Name = d.name, Prefab = d.Prefab, Limit = d.MaxSpawnCount,
+                Sub = AnswerHudDriver.ProcLine(d),
+            });
 
-        m_OrderHud = UIManager.Instance.ShowHUDUI<OrderHUD>();
-        m_OrderHud.Build(items, depot.RequestOrder);
+        m_OrderHud = UIManager.Instance.ShowHUDUI<AnswerPanelHUD>();
+        m_OrderHud.BuildOrders(items, depot.RequestOrder);
         OnOrdersChanged(depot);   // 재접속/맵 교체 시 이미 복제된 누적치 즉시 반영
     }
 
@@ -114,6 +118,6 @@ public class GameHudDriver : MonoBehaviour
     private void OnDepotDespawned(MaterialDepot depot)
     {
         m_OrderHud = null;
-        if (UIManager.Instance != null) UIManager.Instance.HideHUDUI<OrderHUD>();
+        if (UIManager.Instance != null) UIManager.Instance.HideHUDUI<AnswerPanelHUD>();
     }
 }

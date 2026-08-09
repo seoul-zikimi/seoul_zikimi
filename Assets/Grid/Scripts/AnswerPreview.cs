@@ -34,6 +34,10 @@ namespace GridSystem
         private GameObject m_HoverGo;                                // 현재 테두리 대상(미니씬)
         private readonly List<GameObject> m_HoverOutlines = new();
         private static Material s_OutlineMat;                        // 전 인스턴스 공유 — 누수 없음
+
+        // 선택(클릭) 테두리: 호버와 별개로 유지. 같은 재료의 모든 인스턴스를 감싸 개수 파악을 돕는다.
+        private MaterialDef m_SelectedDef;
+        private readonly List<GameObject> m_SelOutlines = new();
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
         private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
         private bool m_Visible = true;
@@ -61,6 +65,7 @@ namespace GridSystem
             if (m_GhostRoot != null) { Destroy(m_GhostRoot); m_GhostRoot = null; }
             m_PickTargets.Clear();
             m_HoverGo = null; m_HoverOutlines.Clear();   // m_Root 자식이라 같이 파괴됨
+            m_SelectedDef = null; m_SelOutlines.Clear();
             m_GhostFloors.Clear();
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
@@ -245,8 +250,55 @@ namespace GridSystem
             if (go == m_HoverGo) return;
             ClearHover();
             m_HoverGo = go;
-            if (go == null) return;
+            if (go != null) AddOutlines(go, m_HoverOutlines);
+        }
 
+        // ── 선택(클릭) — HUD 카드/화면 클릭에서 호출. 같은 재료 전체에 테두리 유지 ──
+
+        /// <summary>커서 아래 블록을 선택. 잡히고 재료 정의가 있으면 true(같은 재료 전체 테두리).</summary>
+        public bool TrySelectAt(Vector2 viewportUV, out MaterialDef def)
+        {
+            def = null;
+            if (!m_Built || m_Cam == null) return false;
+            var ray = m_Cam.ViewportPointToRay(viewportUV);
+            int best = -1; float bestD = float.MaxValue;
+            for (int i = 0; i < m_PickTargets.Count; i++)
+                if (m_PickTargets[i].bounds.IntersectRay(ray, out float d) && d < bestD)
+                { bestD = d; best = i; }
+            if (best < 0 || m_PickTargets[best].def == null) return false;
+            def = m_PickTargets[best].def;
+            SelectMaterial(def);
+            return true;
+        }
+
+        /// <summary>재료 ID로 선택(HUD 카드 클릭 → 드라이버 경유). 없는 ID면 해제.</summary>
+        public void SelectMaterialById(int id)
+        {
+            for (int i = 0; i < m_PickTargets.Count; i++)
+                if (m_PickTargets[i].def != null && m_PickTargets[i].def.Id == id)
+                { SelectMaterial(m_PickTargets[i].def); return; }
+            ClearSelection();
+        }
+
+        private void SelectMaterial(MaterialDef def)
+        {
+            if (def == m_SelectedDef) return;
+            ClearSelection();
+            m_SelectedDef = def;
+            for (int i = 0; i < m_PickTargets.Count; i++)
+                if (m_PickTargets[i].def == def) AddOutlines(m_PickTargets[i].go, m_SelOutlines);
+        }
+
+        public void ClearSelection()
+        {
+            m_SelectedDef = null;
+            for (int i = 0; i < m_SelOutlines.Count; i++)
+                if (m_SelOutlines[i] != null) Destroy(m_SelOutlines[i]);
+            m_SelOutlines.Clear();
+        }
+
+        private void AddOutlines(GameObject go, List<GameObject> into)
+        {
             if (s_OutlineMat == null)
             {
                 var sh = Shader.Find("Hidden/PickupOutline");
@@ -256,11 +308,12 @@ namespace GridSystem
             foreach (var f in go.GetComponentsInChildren<MeshFilter>())
             {
                 if (f.sharedMesh == null) continue;
+                if (f.gameObject.name.StartsWith("~")) continue;   // 기존 테두리 헐을 다시 헐 뜨는 것 방지
                 var o = new GameObject("~Outline") { layer = kPreviewLayer };   // 미니씬 카메라만 렌더
                 o.transform.SetParent(f.transform, false);   // 부모 메쉬에 정확히 겹침
                 o.AddComponent<MeshFilter>().sharedMesh = f.sharedMesh;
                 o.AddComponent<MeshRenderer>().sharedMaterial = s_OutlineMat;
-                m_HoverOutlines.Add(o);
+                into.Add(o);
             }
         }
 
