@@ -142,6 +142,9 @@ public class MyPageUI : UIHUD
         var coin = Get<TextMeshProUGUI>((int)Texts.CoinText);
         if (coin != null) coin.text = $"보유 코인  {SaveService.Coins}";
 
+        // 캐릭터 탭 = 아웃핏이 아니라 캐릭터 카탈로그로 채운다
+        if (m_Filter == "char_") { RefreshCharacterSlots(); return; }
+
         // 아웃핏 카탈로그에서 현재 카테고리(접두사)만
         var items = new System.Collections.Generic.List<CodiOutfit>();
         foreach (var o in CodiOutfit.Catalog())
@@ -218,6 +221,56 @@ public class MyPageUI : UIHUD
         }
 
         SetClosetList(items.Count == 0 ? "이 카테고리엔 아이템이 없어요." : "");
+    }
+
+    // 캐릭터 선택 탭 — 슬롯 = CharacterCatalog 순서(0번 = 달팽이 기본). 무료, 클릭 = 즉시 선택.
+    private void RefreshCharacterSlots()
+    {
+        var chars = CharacterCatalog.All;
+        string selected = SaveService.EquippedCharacter;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            var (btn, thumb, lockIcon, label, labelBg) = m_Slots[i];
+            btn.onClick.RemoveAllListeners();
+
+            if (i >= chars.Length)
+            {
+                if (thumb != null) thumb.enabled = false;
+                if (lockIcon != null) lockIcon.enabled = false;
+                if (labelBg != null) labelBg.enabled = false;
+                if (label != null) label.text = "";
+                btn.interactable = false;
+                continue;
+            }
+
+            var entry = chars[i];
+            bool on = selected == entry.Id;
+            if (thumb != null)
+            {
+                var sp = CharacterCatalog.LoadThumbnail(entry.Id);
+                thumb.enabled = sp != null;
+                thumb.sprite = sp;
+                thumb.color = Color.white;
+            }
+            if (lockIcon != null) lockIcon.enabled = false;   // 전 캐릭터 무료
+            if (labelBg != null) labelBg.enabled = true;
+            if (label != null)
+            {
+                label.alignment = TextAlignmentOptions.Bottom;
+                label.text = on ? $"{entry.DisplayName}\n[선택중]" : entry.DisplayName;
+            }
+            btn.interactable = true;
+            string id = entry.Id;
+            btn.onClick.AddListener(() =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+                SaveService.EquippedCharacter = id;
+                MyPageSceneController.RefreshCharacter();
+                RefreshCloset();
+            });
+        }
+
+        SetClosetList("캐릭터를 누르면 바로 바뀌어요. (게임엔 다음 판부터 적용)");
     }
 
     private void OnClickItem(CodiOutfit item)
