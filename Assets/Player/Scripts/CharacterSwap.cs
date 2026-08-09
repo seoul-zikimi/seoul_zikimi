@@ -67,6 +67,8 @@ public static class CharacterSwap
         {
             var mirror = clone.GetComponent<CharacterMirror>();
             if (mirror == null) mirror = clone.AddComponent<CharacterMirror>();
+            mirror.ClimbFlip = true;   // 믹사모 사다리 클립은 전부 정면을 봐서 뒤집기 필요
+            // (사다리 클립은 믹사모 In Place로 받는 게 정답 — 루트모션 잔재가 있으면 몸이 옆·위로 튄다)
             mirror.Init(carrier, selfAnim);
         }
     }
