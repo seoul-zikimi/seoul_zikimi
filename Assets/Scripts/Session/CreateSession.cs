@@ -232,15 +232,17 @@ public class CreateSession : MonoBehaviour
         }
     }
 
-    public void RequestCreateSession(string sessionName, bool privateRoom, string password, int maxPlayers)
+    public void RequestCreateSession(string sessionName, bool privateRoom, string password)
     {
         Initialize();
 
         sessionName ??= "";
         password ??= "";
 
+        // 인원은 더 이상 받지 않는다. 방 정원은 고정(RoomCapacity)이고,
+        // 시작은 방에 들어온 팀원이 모두 준비하면 가능하다.
         if (SessionSettings != null)
-            SessionSettings.maxPlayers = Mathf.Clamp(maxPlayers, 1, 4);
+            SessionSettings.maxPlayers = LobbyRoomNet.RoomCapacity;
 
         if (sessionNameField != null)
             sessionNameField.text = sessionName;

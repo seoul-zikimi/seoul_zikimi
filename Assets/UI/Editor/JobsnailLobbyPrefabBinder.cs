@@ -30,6 +30,7 @@ public static class JobsnailLobbyPrefabBinder
             var so = new SerializedObject(view);
             SetEnum(so, "m_Kind", JobsnailLobbyPrefabView.OverlayKind.SessionList);
             SetRef(so, "m_PcRoot", FindComponent<RectTransform>(root, "PcRoot"));
+            SetRef(so, "m_SessionListScroll", FindComponent<ScrollRect>(root, "SessionListScroll"));
             SetRef(so, "m_CustomSessionListRoot", FindComponent<RectTransform>(root, "CustomSessionListRoot"));
             SetRef(so, "m_SessionStatus", FindComponent<Text>(root, "SessionStatus"));
 
@@ -61,8 +62,12 @@ public static class JobsnailLobbyPrefabBinder
             SetRef(so, "m_RoomNameInput", FindComponent<InputField>(root, "RoomNameInput"));
             SetRef(so, "m_PasswordInput", FindComponent<InputField>(root, "PasswordInput"));
             SetRef(so, "m_CreateStatus", FindComponent<Text>(root, "CreateStatus"));
-            SetRef(so, "m_MaxPlayersLabel", FindComponent<Text>(root, "MaxPlayersLabel"));
-            SetRef(so, "m_MaxPlayersOptions", FindObject(root, "MaxPlayersOptions"));
+            SetRef(so, "m_MapSelectLabel", FindComponentInSelfOrChildren<Text>(root, "MapSelectButton"));
+            SetRef(so, "m_MapOptions", FindComponent<RectTransform>(root, "MapOptions"));
+            SetRef(so, "m_ModeSelectLabel", FindComponentInSelfOrChildren<Text>(root, "ModeSelectButton"));
+            SetRef(so, "m_ModeOptions", FindComponent<RectTransform>(root, "ModeOptions"));
+            SetRef(so, "m_WeatherToggleLabel", FindComponentInSelfOrChildren<Text>(root, "WeatherToggleButton"));
+            SetRef(so, "m_WeatherToggleImage", FindComponent<Image>(root, "WeatherToggleButton"));
             SetRef(so, "m_PrivateRoomButtonImage", FindComponent<Image>(root, "PrivateRoomButton"));
             SetRef(so, "m_PublicRoomButtonImage", FindComponent<Image>(root, "PublicRoomButton"));
             SetRef(so, "m_PasswordLabel", FindObject(root, "PasswordLabel"));
@@ -71,11 +76,9 @@ public static class JobsnailLobbyPrefabBinder
 
             SetClick(FindComponent<Button>(root, "CloseButton"), view.OnCloseCreateClicked);
             SetClick(FindComponent<Button>(root, "SubmitButton"), view.OnSubmitCreateClicked);
-            SetClick(FindComponent<Button>(root, "MaxPlayersButton"), view.OnToggleMaxPlayersClicked);
-            SetClick(FindComponent<Button>(root, "MaxPlayersOption1"), view.OnSelectMaxPlayers1Clicked);
-            SetClick(FindComponent<Button>(root, "MaxPlayersOption2"), view.OnSelectMaxPlayers2Clicked);
-            SetClick(FindComponent<Button>(root, "MaxPlayersOption3"), view.OnSelectMaxPlayers3Clicked);
-            SetClick(FindComponent<Button>(root, "MaxPlayersOption4"), view.OnSelectMaxPlayers4Clicked);
+            SetClick(FindComponent<Button>(root, "MapSelectButton"), view.OnToggleMapClicked);
+            SetClick(FindComponent<Button>(root, "ModeSelectButton"), view.OnToggleModeClicked);
+            SetClick(FindComponent<Button>(root, "WeatherToggleButton"), view.OnWeatherToggleClicked);
             SetClick(FindComponent<Button>(root, "PrivateRoomButton"), view.OnPrivateRoomClicked);
             SetClick(FindComponent<Button>(root, "PublicRoomButton"), view.OnPublicRoomClicked);
         });
@@ -169,7 +172,7 @@ public static class JobsnailLobbyPrefabBinder
             var rt = (RectTransform)go.transform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = new Vector2(360, 118);
+            rt.sizeDelta = new Vector2(300, 116);   // GridLayoutGroup 셀 크기와 동일
 
             var image = go.GetComponent<Image>();
             image.sprite = JobsnailLobbyUiPrefabGenerator.Sprite("UI_pngs/2.sesh/SessionList_Unit");
@@ -178,16 +181,27 @@ public static class JobsnailLobbyPrefabBinder
             image.raycastTarget = true;
             go.GetComponent<Button>().targetGraphic = image;
 
-            JobsnailLobbyUiPrefabGenerator.Text("SessionCardName", go.transform, "이름 없는 방", 17, Color.black,
-                new Vector2(0, 25), new Vector2(300, 32), TextAnchor.MiddleCenter);
-            JobsnailLobbyUiPrefabGenerator.Text("SessionCardTag", go.transform, "공개방", 14, Color.black,
-                new Vector2(-90, -28), new Vector2(90, 26), TextAnchor.MiddleCenter, new Color(0.58f, 1f, 0.54f, 1f));
-            JobsnailLobbyUiPrefabGenerator.Text("SessionCardCount", go.transform, "인원 0 / 4", 14, Color.black,
-                new Vector2(105, -28), new Vector2(110, 26), TextAnchor.MiddleCenter);
+            var mapModeColor = new Color(0.30f, 0.20f, 0.12f, 1f);
+            JobsnailLobbyUiPrefabGenerator.Text("SessionCardName", go.transform, "이름 없는 방", 16, Color.black,
+                new Vector2(0, 34), new Vector2(280, 30), TextAnchor.MiddleCenter);
+            // 왼쪽: 공개/비밀 태그 + 그 아래 맵 이름
+            JobsnailLobbyUiPrefabGenerator.Text("SessionCardTag", go.transform, "공개방", 13, Color.black,
+                new Vector2(-72, 0), new Vector2(96, 26), TextAnchor.MiddleCenter, new Color(0.58f, 1f, 0.54f, 1f));
+            JobsnailLobbyUiPrefabGenerator.Text("SessionCardMap", go.transform, "", 13, mapModeColor,
+                new Vector2(-72, -28), new Vector2(120, 22), TextAnchor.MiddleCenter);
+            // 오른쪽: 인원 + 그 아래 모드
+            JobsnailLobbyUiPrefabGenerator.Text("SessionCardCount", go.transform, "인원 0 / 4", 13, Color.black,
+                new Vector2(74, 0), new Vector2(120, 26), TextAnchor.MiddleCenter);
+            JobsnailLobbyUiPrefabGenerator.Text("SessionCardMode", go.transform, "", 12, mapModeColor,
+                new Vector2(74, -28), new Vector2(130, 22), TextAnchor.MiddleCenter);
 
             go.SetActive(false);
             existing = go.transform;
         }
+
+        // 재바인딩(재생성 없이)일 때도 맵/모드 줄이 없으면 만들어 준다.
+        EnsureCardText(existing, "SessionCardMap", new Vector2(-72, -28), new Vector2(120, 22), 13);
+        EnsureCardText(existing, "SessionCardMode", new Vector2(74, -28), new Vector2(130, 22), 12);
 
         if (card == null)
             card = existing.gameObject.GetComponent<JobsnailSessionCardView>()
@@ -199,10 +213,22 @@ public static class JobsnailLobbyPrefabBinder
         SetRef(cardSo, "m_NameText", FindComponentInSelfOrChildren<Text>(existing.gameObject, "SessionCardName"));
         SetRef(cardSo, "m_TagText", tagText);
         SetRef(cardSo, "m_TagBackground", FindComponent<Image>(existing.gameObject, "SessionCardTag"));
+        SetRef(cardSo, "m_MapText", FindComponentInSelfOrChildren<Text>(existing.gameObject, "SessionCardMap"));
         SetRef(cardSo, "m_CountText", FindComponentInSelfOrChildren<Text>(existing.gameObject, "SessionCardCount"));
+        SetRef(cardSo, "m_ModeText", FindComponentInSelfOrChildren<Text>(existing.gameObject, "SessionCardMode"));
         cardSo.ApplyModifiedPropertiesWithoutUndo();
 
         return card;
+    }
+
+    /// <summary>카드 템플릿에 특정 텍스트 줄(맵/모드)이 없으면 만들어 준다(재바인딩 대비).</summary>
+    private static void EnsureCardText(Transform card, string name, Vector2 anchored, Vector2 size, int fontSize)
+    {
+        if (card == null || Find(card, name) != null)
+            return;
+
+        JobsnailLobbyUiPrefabGenerator.Text(name, card, "", fontSize,
+            new Color(0.30f, 0.20f, 0.12f, 1f), anchored, size, TextAnchor.MiddleCenter);
     }
 
     /// <summary>비밀방 입장용 비밀번호 팝업.</summary>

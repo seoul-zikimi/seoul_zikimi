@@ -28,6 +28,16 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private const string DefaultPassword = "abcdefgh";
 
     private static readonly string[] kModeLabels = { "모드 · 타임어택", "모드 · 2vs2 대결", "모드 · 자유 건축" };
+    // 세션 목록 카드에 뿌릴 짧은 모드 이름(kModeLabels와 인덱스 동일).
+    private static readonly string[] kModeShortLabels = { "타임어택", "2vs2 대결", "자유 건축" };
+
+    // 세션 프로퍼티 키 — 목록 카드/필터가 읽는 값.
+    private const string kMapPropertyKey = "Map";
+    private const string kModePropertyKey = "Mode";
+    private const string kStatePropertyKey = "State";
+    private const string kWeatherPropertyKey = "Weather";
+    private const string kStateLobby = "Lobby";
+    private const string kStateInGame = "InGame";
 
     // 구 씬에 남아 있는 레거시 HUD들 — 프리팹 UI와 겹치므로 항상 꺼둔다.
     private static readonly string[] kLegacyHudNames =
@@ -47,11 +57,21 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private ISession m_ActiveSession;
     private string m_ActiveSessionHostId;
 
-    private int m_SelectedMaxPlayers = 1;
     private bool m_IsPrivateRoom;
     private bool m_IsStartingGame;
-    private int m_CurrentRoomMaxPlayers = 1;
+    private int m_CurrentRoomMaxPlayers = LobbyRoomNet.RoomCapacity;
     private string m_CurrentRoomName = DefaultRoomName;
+
+    // 방 생성 화면에서 고른 맵/모드/날씨(생성 시 초기값. 맵·모드는 로비에서 계속 변경 가능).
+    private int m_SelectedMap;
+    private int m_SelectedMode;              // 0=타임어택, 1=2vs2, 2=자유 (kModeLabels 인덱스)
+    private bool m_SelectedWeatherEnabled = true;
+
+    // 호스트가 세션에 마지막으로 써넣은 메타데이터(맵/모드/상태). 값이 바뀔 때만 저장한다.
+    private int m_LastSavedMapIndex = int.MinValue;
+    private int m_LastSavedModeIndex = int.MinValue;
+    private string m_LastSavedState;
+    private bool m_IsSavingSessionMetadata;
 
     // ────────────────────────── 수명 주기 ──────────────────────────
 
@@ -230,9 +250,70 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             JobsnailLobbyPrefabView.OverlayKind.CreateRoom);
 
         if (m_CreateView != null)
-            m_CreateView.InitCreateForm(DefaultRoomName, DefaultPassword, m_SelectedMaxPlayers, m_IsPrivateRoom);
+        {
+            m_CreateView.InitCreateForm(DefaultRoomName, DefaultPassword, m_IsPrivateRoom);
+            InitCreateFormSelectors();
+        }
 
         return m_CreateView;
+    }
+
+    /// <summary>방 생성 화면의 맵/모드 드롭다운과 날씨 토글을 현재 선택값으로 채운다.</summary>
+    private void InitCreateFormSelectors()
+    {
+        var view = m_CreateView;
+        if (view == null)
+            return;
+
+        // 기본값을 현재 static 선택값에 맞춘다.
+        m_SelectedMode = Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMode, 0, kModeLabels.Length - 1);
+        m_SelectedWeatherEnabled = GridSystem.GameLoopManager.HostWeatherEnabled;
+
+        var catalog = GridSystem.MapCatalog.Instance;
+        int mapCount = catalog != null ? catalog.Count : 0;
+        m_SelectedMap = mapCount > 0 ? Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMap, 0, mapCount - 1) : 0;
+
+        var mapLabels = new List<string>(mapCount);
+        for (int i = 0; i < mapCount; i++)
+        {
+            var def = catalog.Get(i);
+            mapLabels.Add(def != null ? def.DisplayName : $"맵 {i + 1}");
+        }
+        view.BuildMapOptions(mapLabels, OnCreateMapSelected);
+        view.SetMapLabel(mapCount > 0 ? mapLabels[m_SelectedMap] : "맵 없음");
+
+        view.BuildModeOptions(new List<string>(kModeLabels), OnCreateModeSelected);
+        view.SetModeLabel(kModeLabels[m_SelectedMode]);
+
+        view.ApplyWeather(m_SelectedWeatherEnabled);
+    }
+
+    private void OnCreateMapSelected(int index)
+    {
+        PlayUIClick();
+        var catalog = GridSystem.MapCatalog.Instance;
+        int mapCount = catalog != null ? catalog.Count : 0;
+        if (mapCount <= 0)
+            return;
+
+        m_SelectedMap = Mathf.Clamp(index, 0, mapCount - 1);
+        var def = catalog.Get(m_SelectedMap);
+        if (m_CreateView != null)
+        {
+            m_CreateView.SetMapLabel(def != null ? def.DisplayName : $"맵 {m_SelectedMap + 1}");
+            m_CreateView.SetMapOptionsOpen(false);
+        }
+    }
+
+    private void OnCreateModeSelected(int index)
+    {
+        PlayUIClick();
+        m_SelectedMode = Mathf.Clamp(index, 0, kModeLabels.Length - 1);
+        if (m_CreateView != null)
+        {
+            m_CreateView.SetModeLabel(kModeLabels[m_SelectedMode]);
+            m_CreateView.SetModeOptionsOpen(false);
+        }
     }
 
     private JobsnailLobbyPrefabView EnsureLobbyRoomView()
@@ -297,6 +378,12 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             foreach (var session in result.Sessions)
                 m_Sessions.Add(session);
 
+            // 게임 플레이 중인 방은 목록에서 제외한다(기획서: "게임 플레이중인 방 제외").
+            m_Sessions.RemoveAll(IsSessionInPlay);
+
+            // 세션이 생긴 순서대로(오름차순) 정렬 — 목록 첫 칸(왼쪽 위)이 가장 먼저 만들어진 방.
+            m_Sessions.Sort((a, b) => a.Created.CompareTo(b.Created));
+
             PublishSessionCards();
         }
         catch (System.Exception ex)
@@ -326,7 +413,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                 Name = session.Name,
                 HasPassword = HasPassword(session),
                 Joined = Mathf.Max(0, session.MaxPlayers - session.AvailableSlots),
-                MaxPlayers = session.MaxPlayers
+                MaxPlayers = session.MaxPlayers,
+                MapName = MapNameFromSession(session),
+                ModeLabel = ModeLabelFromSession(session)
             });
         }
 
@@ -359,6 +448,111 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private static bool HasPassword(ISessionInfo session)
     {
         return session.Properties != null && session.Properties.ContainsKey("PasswordHash");
+    }
+
+    /// <summary>세션 프로퍼티에서 문자열 값을 읽는다(맵·모드·상태 등). 값이 없으면 빈 문자열.
+    /// 목록 화면에서는 방 생성/변경 시 세션에 저장된 값만 볼 수 있으므로,
+    /// 저장돼 있지 않은 경우 카드에서 해당 줄은 표시되지 않는다.</summary>
+    private static string ReadSessionProperty(ISessionInfo session, string key)
+    {
+        if (session.Properties != null && session.Properties.TryGetValue(key, out var property) && property != null)
+            return property.Value ?? string.Empty;
+        return string.Empty;
+    }
+
+    /// <summary>게임이 시작돼 플레이 중인 방인지. State=InGame 프로퍼티로 판단.</summary>
+    private static bool IsSessionInPlay(ISessionInfo session)
+    {
+        return ReadSessionProperty(session, kStatePropertyKey) == kStateInGame;
+    }
+
+    /// <summary>세션에 저장된 맵 인덱스를 카탈로그의 표시 이름으로 바꾼다. 저장돼 있지 않으면 빈 문자열.</summary>
+    private static string MapNameFromSession(ISessionInfo session)
+    {
+        if (!int.TryParse(ReadSessionProperty(session, kMapPropertyKey), out int mapIndex))
+            return string.Empty;
+
+        var catalog = GridSystem.MapCatalog.Instance;
+        var mapDef = catalog != null ? catalog.Get(mapIndex) : null;
+        return mapDef != null ? mapDef.DisplayName : string.Empty;
+    }
+
+    /// <summary>세션에 저장된 모드 인덱스를 짧은 모드 이름으로 바꾼다. 저장돼 있지 않으면 빈 문자열.</summary>
+    private static string ModeLabelFromSession(ISessionInfo session)
+    {
+        if (!int.TryParse(ReadSessionProperty(session, kModePropertyKey), out int modeIndex))
+            return string.Empty;
+
+        return modeIndex >= 0 && modeIndex < kModeShortLabels.Length ? kModeShortLabels[modeIndex] : string.Empty;
+    }
+
+    /// <summary>호스트일 때 현재 맵/모드/상태를 세션 프로퍼티에 반영한다.
+    /// 값이 실제로 바뀐 항목만 저장하며, 매 프레임 호출돼도 변화 없으면 네트워크 요청을 보내지 않는다.
+    /// 이 값들이 다른 플레이어의 세션 목록 카드(맵 이름·모드)와 "게임 중 방 제외" 필터의 근거가 된다.</summary>
+    private async void SyncHostSessionMetadata(int mapIndex, int modeIndex, string state, bool force = false)
+    {
+        if (m_ActiveSession == null || !m_ActiveSession.IsHost)
+            return;
+
+        string effectiveState = state ?? m_LastSavedState ?? kStateLobby;
+        bool changed = mapIndex != m_LastSavedMapIndex
+                       || modeIndex != m_LastSavedModeIndex
+                       || effectiveState != m_LastSavedState;
+
+        // 값이 그대로거나(불필요한 요청 방지), 저장이 진행 중이면(다음 프레임에 재시도) 건너뛴다.
+        // 단, 게임 시작 표시(force)는 진행 중이어도 반드시 내보낸다.
+        if (!changed || (m_IsSavingSessionMetadata && !force))
+            return;
+
+        IHostSession host;
+        try
+        {
+            host = m_ActiveSession.AsHost();
+        }
+        catch (System.Exception)
+        {
+            return;   // 호스트가 아니면 조용히 무시
+        }
+
+        // 저장 성공을 전제로 트래커를 먼저 갱신하고, 실패하면 되돌려 다음 프레임에 재시도한다.
+        int prevMap = m_LastSavedMapIndex;
+        int prevMode = m_LastSavedModeIndex;
+        string prevState = m_LastSavedState;
+        m_LastSavedMapIndex = mapIndex;
+        m_LastSavedModeIndex = modeIndex;
+        m_LastSavedState = effectiveState;
+
+        host.SetProperty(kMapPropertyKey, new SessionProperty(mapIndex.ToString()));
+        host.SetProperty(kModePropertyKey, new SessionProperty(modeIndex.ToString()));
+        host.SetProperty(kStatePropertyKey, new SessionProperty(effectiveState));
+        // 날씨는 생성 시 정해지고 로비에서 바뀌지 않지만, 선택값 보관 차원에서 함께 저장한다.
+        host.SetProperty(kWeatherPropertyKey, new SessionProperty(GridSystem.GameLoopManager.HostWeatherEnabled ? "1" : "0"));
+
+        m_IsSavingSessionMetadata = true;
+        try
+        {
+            await host.SavePropertiesAsync();
+        }
+        catch (System.Exception ex)
+        {
+            m_LastSavedMapIndex = prevMap;
+            m_LastSavedModeIndex = prevMode;
+            m_LastSavedState = prevState;
+            Debug.LogWarning($"[JobsnailLobbySkinner] 세션 메타데이터 저장 실패: {ex.Message}");
+        }
+        finally
+        {
+            m_IsSavingSessionMetadata = false;
+        }
+    }
+
+    /// <summary>게임 시작 직전에 방을 '플레이 중'으로 표시해 세션 목록에서 빠지게 한다.</summary>
+    private void MarkSessionInPlay()
+    {
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        int mapIndex = readyNet != null && readyNet.IsSpawned ? readyNet.SelectedMap : 0;
+        int modeIndex = Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMode, 0, 2);
+        SyncHostSessionMetadata(mapIndex, modeIndex, kStateInGame, force: true);
     }
 
     // ────────────────────────── 세션 입장 ──────────────────────────
@@ -448,9 +642,14 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         m_CreateSession = createSession;
         SubscribeCreateSession(createSession);
 
+        // 생성 화면에서 고른 맵/모드/날씨를 게임·로비에 반영(로비에서 맵/모드는 계속 변경 가능).
+        GridSystem.GameLoopManager.HostSelectedMode = Mathf.Clamp(m_SelectedMode, 0, kModeLabels.Length - 1);
+        GridSystem.GameLoopManager.HostSelectedMap = m_SelectedMap;
+        GridSystem.GameLoopManager.HostWeatherEnabled = m_SelectedWeatherEnabled;
+
         view.SetCreateStatus("방 생성 중...");
         m_CurrentRoomName = roomName;
-        createSession.RequestCreateSession(roomName, m_IsPrivateRoom, m_IsPrivateRoom ? password : "", m_SelectedMaxPlayers);
+        createSession.RequestCreateSession(roomName, m_IsPrivateRoom, m_IsPrivateRoom ? password : "");
     }
 
     private void SubscribeCreateSession(CreateSession createSession)
@@ -485,20 +684,14 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         SetViewVisible(m_SessionView, false);
         HideLegacyLobbyHuds();
 
-        m_CurrentRoomMaxPlayers = Mathf.Clamp(m_SelectedMaxPlayers, 1, 4);
+        m_CurrentRoomMaxPlayers = LobbyRoomNet.RoomCapacity;
         if (m_CreateView != null && !string.IsNullOrWhiteSpace(m_CreateView.RoomNameText))
             m_CurrentRoomName = m_CreateView.RoomNameText;
-        LobbyRoomNet.RequiredTotalPlayers = m_CurrentRoomMaxPlayers;
+        LobbyRoomNet.RequiredTotalPlayers = LobbyRoomNet.RoomCapacity;
         EnsureHostStarted();
 
-        if (m_SelectedMaxPlayers <= 1)
-        {
-            m_IsStartingGame = true;
-            SetViewVisible(m_LobbyRoomView, false);
-            StartCoroutine(StartSinglePlayerGameAfterHostReady());
-            return;
-        }
-
+        // 인원을 받지 않으므로 항상 대기방으로 진입한다. 방장은 혼자여도 바로 시작 가능하고,
+        // 팀원이 있으면 전원이 준비를 눌렀을 때 [게임 시작]이 활성화된다.
         ShowLobbyRoom();
     }
 
@@ -597,16 +790,12 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         bool isNetworkServer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer;
         bool hasReadyNet = readyNet != null && readyNet.IsSpawned;
 
-        int maxPlayers = hasReadyNet && readyNet.MaxPlayers > 1
-            ? Mathf.Clamp(readyNet.MaxPlayers, 1, 4)
-            : Mathf.Clamp(m_CurrentRoomMaxPlayers, 1, 4);
-        int expectedReadyCount = Mathf.Max(0, maxPlayers - 1);
+        int maxPlayers = LobbyRoomNet.RoomCapacity;   // 정원(슬롯 표시용). 시작 조건과는 무관.
         int joinedCount = hasReadyNet ? Mathf.Clamp(readyNet.ConnectedCount, 1, maxPlayers) : 1;
-        int targetReadyCount = Mathf.Max(expectedReadyCount, hasReadyNet ? readyNet.TargetReadyCount : 0);
+        int targetReadyCount = hasReadyNet ? readyNet.TargetReadyCount : Mathf.Max(0, joinedCount - 1);
         int readyCount = hasReadyNet ? readyNet.ReadyCount : 0;
-        bool roomIsFullEnough = joinedCount >= maxPlayers;
-        bool singlePlayerRoom = maxPlayers <= 1;
-        bool allReady = hasReadyNet && roomIsFullEnough && (singlePlayerRoom || readyNet.IsAllReady);
+        // 새 규칙: 방에 들어온 팀원(호스트 제외)이 모두 준비하면 시작 가능(서버가 IsAllReady로 판정).
+        bool allReady = hasReadyNet && readyNet.IsAllReady;
 
         var catalog = GridSystem.MapCatalog.Instance;
         int mapIndex = hasReadyNet ? readyNet.SelectedMap : 0;
@@ -617,15 +806,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var state = new JobsnailLobbyRoomState
         {
             RoomName = m_CurrentRoomName,
-            RoomIsFull = roomIsFullEnough,
+            RoomIsFull = joinedCount >= maxPlayers,
             ShowStartButton = isHost,
             StartInteractable = hasReadyNet && allReady && isNetworkServer,
             ShowReadyButton = !isHost,
             ReadyInteractable = hasReadyNet,
             IsLocallyReady = hasReadyNet && readyNet.IsLocallyReady,
             AllReady = allReady,
-            StartHint = BuildStartHint(hasReadyNet, readyNet, isHost, isNetworkServer, singlePlayerRoom, allReady, joinedCount, maxPlayers),
-            ReadyStatus = BuildReadyStatus(hasReadyNet, singlePlayerRoom, targetReadyCount, joinedCount, maxPlayers, readyCount, expectedReadyCount),
+            StartHint = BuildStartHint(hasReadyNet, readyNet, isHost, isNetworkServer, allReady, joinedCount, maxPlayers),
+            ReadyStatus = BuildReadyStatus(hasReadyNet, targetReadyCount, joinedCount, maxPlayers, readyCount),
             JoinedCount = joinedCount,
             ReadyCount = readyCount,
             MaxPlayers = maxPlayers,
@@ -637,10 +826,13 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         };
 
         view.ApplyLobbyRoomState(state);
+
+        // 방장이면 현재 맵/모드를 세션에 반영해 다른 플레이어의 목록 카드에 보이게 한다.
+        SyncHostSessionMetadata(mapIndex, mode, kStateLobby);
     }
 
     private static string BuildStartHint(bool hasReadyNet, LobbyRoomNet readyNet, bool isHost, bool isNetworkServer,
-        bool singlePlayerRoom, bool allReady, int joinedCount, int maxPlayers)
+        bool allReady, int joinedCount, int maxPlayers)
     {
         if (!hasReadyNet)
             return "레디 시스템 연결 중...";
@@ -650,24 +842,24 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (isHost)
         {
-            if (singlePlayerRoom)
-                return "혼자 플레이 시작 가능!";
-            return allReady ? "모든 팀원 준비 완료!" : $"팀원을 기다리는 중 ({joinedCount}/{maxPlayers})";
+            if (joinedCount <= 1)
+                return "혼자서도 바로 시작할 수 있어요!";
+            return allReady ? "모든 팀원 준비 완료!" : "팀원들이 준비하길 기다리는 중";
         }
 
         return readyNet.IsLocallyReady ? "방장이 시작하기를 기다리는 중" : "준비 완료를 눌러줘";
     }
 
-    private static string BuildReadyStatus(bool hasReadyNet, bool singlePlayerRoom, int targetReadyCount,
-        int joinedCount, int maxPlayers, int readyCount, int expectedReadyCount)
+    private static string BuildReadyStatus(bool hasReadyNet, int targetReadyCount,
+        int joinedCount, int maxPlayers, int readyCount)
     {
         if (!hasReadyNet)
             return "준비 상태를 불러오는 중...";
 
-        if (singlePlayerRoom || targetReadyCount <= 0)
-            return "입장 1/1 · 시작 가능";
+        if (targetReadyCount <= 0)
+            return $"입장 {joinedCount}/{maxPlayers} · 바로 시작 가능";
 
-        return $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{expectedReadyCount}";
+        return $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{targetReadyCount}";
     }
 
     // ────────────────────────── 준비 / 게임 시작 ──────────────────────────
@@ -688,49 +880,13 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (readyNet != null && readyNet.IsSpawned)
         {
+            MarkSessionInPlay();   // 목록에서 이 방을 제외
             readyNet.OnStartGameButtonClicked();
             return;
         }
 
         if (m_LobbyRoomView != null)
             m_LobbyRoomView.SetLobbyStartHint("레디 시스템 연결 후 시작할 수 있어요.");
-    }
-
-    private IEnumerator StartSinglePlayerGameAfterHostReady()
-    {
-        SetViewVisible(m_LobbyRoomView, false);
-
-        float timeout = Time.unscaledTime + 6f;
-        while (Time.unscaledTime < timeout)
-        {
-            EnsureHostStarted();
-
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && NetworkManager.Singleton.IsServer)
-                break;
-
-            yield return null;
-        }
-
-        yield return null;
-        yield return null;
-
-        StartGameFromLobby();
-    }
-
-    private static void StartGameFromLobby()
-    {
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
-            return;
-
-        PlayUIClick();
-
-        if (NetworkManager.Singleton.SceneManager != null && NetworkManager.Singleton.NetworkConfig.EnableSceneManagement)
-        {
-            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
-            return;
-        }
-
-        SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
     }
 
     // ────────────────────────── View → 컨트롤러 (프리팹 버튼 바인딩 대상) ──────────────────────────
@@ -783,22 +939,26 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         SubmitCreateSession();
     }
 
-    internal void PrefabToggleMaxPlayersOptions()
+    internal void PrefabToggleMapOptions()
     {
         PlayUIClick();
         if (m_CreateView != null)
-            m_CreateView.ToggleMaxPlayersOptions();
+            m_CreateView.ToggleMapOptions();
     }
 
-    internal void PrefabSelectMaxPlayers(int value)
+    internal void PrefabToggleModeOptions()
     {
         PlayUIClick();
-        m_SelectedMaxPlayers = Mathf.Clamp(value, 1, 4);
         if (m_CreateView != null)
-        {
-            m_CreateView.SetMaxPlayersLabel(m_SelectedMaxPlayers);
-            m_CreateView.SetMaxPlayersOptionsOpen(false);
-        }
+            m_CreateView.ToggleModeOptions();
+    }
+
+    internal void PrefabToggleWeather()
+    {
+        PlayUIClick();
+        m_SelectedWeatherEnabled = !m_SelectedWeatherEnabled;
+        if (m_CreateView != null)
+            m_CreateView.ApplyWeather(m_SelectedWeatherEnabled);
     }
 
     internal void PrefabSetRoomType(bool isPrivate)

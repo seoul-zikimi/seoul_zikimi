@@ -11,7 +11,9 @@ public sealed class JobsnailSessionCardView : MonoBehaviour
     [SerializeField] private Text m_NameText;
     [SerializeField] private Text m_TagText;
     [SerializeField] private Image m_TagBackground;
+    [SerializeField] private Text m_MapText;
     [SerializeField] private Text m_CountText;
+    [SerializeField] private Text m_ModeText;
 
     private static readonly Color kLockedTag = new(1f, 0.55f, 0.55f, 1f);
     private static readonly Color kOpenTag = new(0.58f, 1f, 0.54f, 1f);
@@ -27,8 +29,24 @@ public sealed class JobsnailSessionCardView : MonoBehaviour
         if (m_TagBackground != null)
             m_TagBackground.color = data.HasPassword ? kLockedTag : kOpenTag;
 
+        // 공개/비밀 태그 아래 → 맵 이름
+        if (m_MapText != null)
+        {
+            bool hasMap = !string.IsNullOrWhiteSpace(data.MapName);
+            m_MapText.text = hasMap ? data.MapName : string.Empty;
+            m_MapText.gameObject.SetActive(hasMap);
+        }
+
         if (m_CountText != null)
             m_CountText.text = $"인원 {data.Joined} / {data.MaxPlayers}";
+
+        // 인원 표시 아래 → 게임 모드
+        if (m_ModeText != null)
+        {
+            bool hasMode = !string.IsNullOrWhiteSpace(data.ModeLabel);
+            m_ModeText.text = hasMode ? data.ModeLabel : string.Empty;
+            m_ModeText.gameObject.SetActive(hasMode);
+        }
 
         var button = m_Button != null ? m_Button : GetComponent<Button>();
         if (button == null)
