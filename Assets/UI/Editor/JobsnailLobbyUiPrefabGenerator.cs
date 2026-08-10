@@ -127,14 +127,14 @@ public static class JobsnailLobbyUiPrefabGenerator
         Text($"LobbySlotStatus{index}", slot.transform, status, 17, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(45, -21), new Vector2(165, 30), TextAnchor.MiddleRight);
     }
 
-    private static GameObject Root(string name)
+    internal static GameObject Root(string name)
     {
         var go = new GameObject(name, typeof(RectTransform));
         Stretch((RectTransform)go.transform);
         return go;
     }
 
-    private static RectTransform Rect(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size)
+    internal static RectTransform Rect(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size)
     {
         var go = new GameObject(name, typeof(RectTransform));
         go.transform.SetParent(parent, false);
@@ -151,7 +151,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return rt;
     }
 
-    private static Image Image(string name, Transform parent, Sprite sprite, Color color)
+    internal static Image Image(string name, Transform parent, Sprite sprite, Color color)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
@@ -162,7 +162,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return image;
     }
 
-    private static Image Box(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size, Color color)
+    internal static Image Box(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size, Color color)
     {
         var image = Image(name, parent, null, color);
         var rt = image.rectTransform;
@@ -178,7 +178,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return image;
     }
 
-    private static Button Button(string name, Transform parent, string label, Vector2 anchored, Vector2 size, int fontSize, Color? color = null)
+    internal static Button Button(string name, Transform parent, string label, Vector2 anchored, Vector2 size, int fontSize, Color? color = null)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(parent, false);
@@ -201,7 +201,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return button;
     }
 
-    private static InputField Input(string name, Transform parent, string value, Vector2 anchored, Vector2 size)
+    internal static InputField Input(string name, Transform parent, string value, Vector2 anchored, Vector2 size)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(InputField));
         go.transform.SetParent(parent, false);
@@ -226,7 +226,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return input;
     }
 
-    private static Text Text(string name, Transform parent, string value, int size, Color color, Vector2 anchored, Vector2 sizeDelta, TextAnchor anchor, Color? background = null)
+    internal static Text Text(string name, Transform parent, string value, int size, Color color, Vector2 anchored, Vector2 sizeDelta, TextAnchor anchor, Color? background = null)
     {
         var root = new GameObject(name, typeof(RectTransform));
         root.transform.SetParent(parent, false);
@@ -258,7 +258,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return label;
     }
 
-    private static void Stretch(RectTransform rt)
+    internal static void Stretch(RectTransform rt)
     {
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
@@ -266,7 +266,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         rt.offsetMax = Vector2.zero;
     }
 
-    private static Transform Find(Transform root, string name)
+    internal static Transform Find(Transform root, string name)
     {
         if (root == null)
             return null;
@@ -281,7 +281,7 @@ public static class JobsnailLobbyUiPrefabGenerator
         return null;
     }
 
-    private static Sprite Sprite(string resourcesPath)
+    internal static Sprite Sprite(string resourcesPath)
     {
         return Resources.Load<Sprite>(resourcesPath);
     }
