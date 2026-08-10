@@ -102,6 +102,10 @@ namespace GridSystem
         /// <summary>로비에서 호스트가 고른 맵(게임 시작 전 세팅). 서버 스폰 시 m_MapIndex로 복제됨.</summary>
         public static int HostSelectedMap = 0;
 
+        /// <summary>방 생성 시 호스트가 고른 날씨 ON/OFF. 현재는 선택값만 보관하며(세션 프로퍼티에도 저장),
+        /// 실제 인게임 날씨 적용은 날씨 시스템을 게임 루프에 연결하는 별도 작업에서 사용한다.</summary>
+        public static bool HostWeatherEnabled = true;
+
         private void Awake()
         {
             m_Grid = GetComponent<GridManager>();

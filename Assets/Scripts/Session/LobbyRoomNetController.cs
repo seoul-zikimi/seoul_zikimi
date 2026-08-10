@@ -7,7 +7,11 @@ using UnityEngine.SceneManagement;
 
 public class LobbyRoomNet : NetworkBehaviour
 {
-    public static int RequiredTotalPlayers { get; set; } = 1;
+    /// <summary>방 정원(세션 최대 인원). 더 이상 생성 시 인원을 받지 않으므로 고정값을 쓴다.</summary>
+    public const int RoomCapacity = 4;
+
+    // 예전 "생성 시 정한 최대 인원" 값. 더 이상 시작 조건에 쓰지 않고 정원(RoomCapacity)으로 통일한다.
+    public static int RequiredTotalPlayers { get; set; } = RoomCapacity;
 
     [Header("UI 연결")]
     public Button readyButton;      // 클라이언트 화면에만 뜰 [준비] 버튼
@@ -63,9 +67,15 @@ public class LobbyRoomNet : NetworkBehaviour
     public void HostSelectMap(int index)
     {
         if (!IsServer) return;
+        m_MapIndex.Value = WrapMapIndex(index);
+    }
+
+    /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다.</summary>
+    private static int WrapMapIndex(int index)
+    {
         int n = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Count : 1;
         if (n <= 0) n = 1;
-        m_MapIndex.Value = ((index % n) + n) % n;
+        return ((index % n) + n) % n;
     }
 
     private void OnMapChanged(int _, int now)
@@ -80,7 +90,11 @@ public class LobbyRoomNet : NetworkBehaviour
         m_IsLocallyReady = false;
 
         if (IsServer)
-            m_MaxPlayers.Value = Mathf.Clamp(RequiredTotalPlayers, 1, 4);
+        {
+            m_MaxPlayers.Value = RoomCapacity;
+            // 방 생성 시 고른 맵으로 초기화(기본 0 대신). 로비에서 방장이 ◀▶로 계속 바꿀 수 있다.
+            m_MapIndex.Value = WrapMapIndex(GridSystem.GameLoopManager.HostSelectedMap);
+        }
 
         // 네트워크 변수 값이 변경될 때 실행할 이벤트 연결
         m_IsAllReady.OnValueChanged += OnAllReadyStatusChanged;
@@ -187,35 +201,17 @@ public class LobbyRoomNet : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        int requiredTotal = Mathf.Clamp(RequiredTotalPlayers, 1, 4);
-
         // 현재 서버에 접속한 총 인원수 (호스트 포함)
         int totalConnected = NetworkManager.Singleton != null ? NetworkManager.Singleton.ConnectedClients.Count : 1;
-        m_ConnectedCount.Value = Mathf.Clamp(totalConnected, 1, requiredTotal);
-        
-        // 목표 준비 인원은 "현재 접속한 팀원"이 아니라 방 생성 시 정한 최대 인원 기준.
-        // 4인방에 방장 혼자 있으면 target=3이어야 하므로, 사람이 덜 찬 상태에서는 시작 불가.
-        int targetCount = Mathf.Max(totalConnected - 1, requiredTotal - 1);
-        m_TargetReadyCount.Value = Mathf.Max(0, targetCount);
-        m_ReadyCount.Value = Mathf.Min(m_ReadyClients.Count, m_TargetReadyCount.Value);
+        m_ConnectedCount.Value = Mathf.Clamp(totalConnected, 1, RoomCapacity);
 
-        // 1인 방은 준비할 팀원이 없으므로, 호스트가 바로 다시 시작할 수 있어야 한다.
-        // 첫 판 생성 직후에는 자동 시작 루틴이 처리하지만, 한 판 종료 후 로비로 돌아왔을 때는
-        // 이 ready 상태가 true여야 [게임 시작] 버튼이 다시 활성화된다.
-        if (requiredTotal <= 1)
-        {
-            m_IsAllReady.Value = true;
-            return;
-        }
+        // 더 이상 방 정원 기준으로 기다리지 않는다. "지금 방에 들어와 있는 팀원(호스트 제외)"이
+        // 전부 준비를 누르면 시작 가능. 방장 혼자면 기다릴 팀원이 없으므로 바로 시작 가능.
+        int target = Mathf.Max(0, totalConnected - 1);
+        m_TargetReadyCount.Value = target;
+        m_ReadyCount.Value = Mathf.Min(m_ReadyClients.Count, target);
 
-        if (targetCount <= 0)
-        {
-            m_IsAllReady.Value = false; // 혼자 있을 때는 시작 불가
-            return;
-        }
-
-        // 실제로 준비 완료 버튼을 누른 인원수와 목표 인원수가 같으면 true가 됨!
-        m_IsAllReady.Value = m_ReadyClients.Count >= targetCount;
+        m_IsAllReady.Value = m_ReadyClients.Count >= target;
     }
 
     private void OnClientConnected(ulong clientId)
@@ -259,9 +255,8 @@ public class LobbyRoomNet : NetworkBehaviour
         {
             if (JobsnailUiKit.TmpFont != null)
                 readyStatusText.font = JobsnailUiKit.TmpFont;
-            bool singlePlayerRoom = Mathf.Clamp(RequiredTotalPlayers, 1, 4) <= 1;
-            if (singlePlayerRoom)
-                readyStatusText.text = "혼자 플레이 준비 완료. 시작 가능.";
+            if (m_TargetReadyCount.Value <= 0)
+                readyStatusText.text = "바로 시작할 수 있어요. (대기 중인 팀원 없음)";
             else if (isAllReady)
                 readyStatusText.text = "모든 플레이어가 준비되었습니다! 시작 가능.";
             else

@@ -10,6 +10,8 @@ public struct JobsnailSessionCardData
     public bool HasPassword;
     public int Joined;
     public int MaxPlayers;
+    public string MapName;
+    public string ModeLabel;
 }
 
 /// <summary>대기방 화면 한 프레임 분량의 표시 상태. 네트워크 값 해석은 컨트롤러가 끝낸 뒤 넘긴다.</summary>
@@ -52,6 +54,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
 
     [Header("Session List")]
     [SerializeField] private RectTransform m_PcRoot;
+    [SerializeField] private ScrollRect m_SessionListScroll;
     [SerializeField] private RectTransform m_CustomSessionListRoot;
     [SerializeField] private Text m_SessionStatus;
     [SerializeField] private JobsnailSessionCardView m_SessionCardTemplate;
@@ -64,8 +67,12 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
     [SerializeField] private InputField m_RoomNameInput;
     [SerializeField] private InputField m_PasswordInput;
     [SerializeField] private Text m_CreateStatus;
-    [SerializeField] private Text m_MaxPlayersLabel;
-    [SerializeField] private GameObject m_MaxPlayersOptions;
+    [SerializeField] private Text m_MapSelectLabel;
+    [SerializeField] private RectTransform m_MapOptions;
+    [SerializeField] private Text m_ModeSelectLabel;
+    [SerializeField] private RectTransform m_ModeOptions;
+    [SerializeField] private Text m_WeatherToggleLabel;
+    [SerializeField] private Image m_WeatherToggleImage;
     [SerializeField] private Image m_PrivateRoomButtonImage;
     [SerializeField] private Image m_PublicRoomButtonImage;
     [SerializeField] private GameObject m_PasswordLabel;
@@ -89,12 +96,6 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
     [SerializeField] private Text m_MapNameText;
     [SerializeField] private Button m_MapPrevButton;
     [SerializeField] private Button m_MapNextButton;
-
-    // 세션 카드 그리드(2열) 배치 상수 — 프리팹 좌표계 기준.
-    private const int kMaxSessionCards = 6;
-    private const float kCardColumnX = 210f;
-    private const float kCardTopY = 135f;
-    private const float kCardRowStep = 135f;
 
     private static readonly Color kAccent = new(1f, 0.78f, 0.44f, 1f);
     private static readonly Color kDisabled = new(0.78f, 0.78f, 0.78f, 1f);
@@ -124,8 +125,10 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             m_SessionCardTemplate.gameObject.SetActive(false);
         if (m_JoinPasswordOverlay != null)
             m_JoinPasswordOverlay.SetActive(false);
-        if (m_MaxPlayersOptions != null)
-            m_MaxPlayersOptions.SetActive(false);
+        if (m_MapOptions != null)
+            m_MapOptions.gameObject.SetActive(false);
+        if (m_ModeOptions != null)
+            m_ModeOptions.gameObject.SetActive(false);
 
         JuicyButton.AttachAll(gameObject);   // 프리팹에서 만든 버튼도 쫀득(중복 부착 안전)
     }
@@ -171,22 +174,22 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         if (cards == null)
             return;
 
-        int count = Mathf.Min(cards.Count, kMaxSessionCards);
-        for (int i = 0; i < count; i++)
+        // 배치(2열, 왼→오, 위→아래)와 6개 초과 시 스크롤은 프리팹의
+        // GridLayoutGroup + ScrollRect가 담당한다. 여기서는 순서대로 붙이기만 한다.
+        for (int i = 0; i < cards.Count; i++)
         {
             var card = Instantiate(m_SessionCardTemplate, m_CustomSessionListRoot, false);
             card.name = $"SessionCard{i}";
             card.gameObject.SetActive(true);
-
-            var rt = (RectTransform)card.transform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = new Vector2(
-                i % 2 == 0 ? -kCardColumnX : kCardColumnX,
-                kCardTopY - (i / 2) * kCardRowStep);
+            card.transform.SetAsLastSibling();
 
             card.Apply(cards[i], i, onSelect);
             m_SpawnedCards.Add(card);
         }
+
+        // 목록을 새로 채우면 스크롤은 맨 위(첫 방)로 되돌린다.
+        if (m_SessionListScroll != null)
+            m_SessionListScroll.verticalNormalizedPosition = 1f;
     }
 
     public void ShowJoinPasswordPrompt()
@@ -212,23 +215,25 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
 
     // ────────────────────────── 방 생성 ──────────────────────────
 
-    public void InitCreateForm(string defaultRoomName, string defaultPassword, int defaultMaxPlayers, bool isPrivate)
+    public void InitCreateForm(string defaultRoomName, string defaultPassword, bool isPrivate)
     {
         if (m_RoomNameInput != null)
         {
-            m_RoomNameInput.characterLimit = 15;
+            m_RoomNameInput.characterLimit = 15;   // 방 이름: 최대 15자, 모든 문자 허용
             m_RoomNameInput.text = defaultRoomName;
         }
 
         if (m_PasswordInput != null)
         {
-            m_PasswordInput.characterLimit = 32;
+            m_PasswordInput.characterLimit = 8;    // 비밀번호: 최대 8자
             m_PasswordInput.contentType = InputField.ContentType.Standard;
+            // 공백만 제외하고 모든 문자 허용 → 입력 단계에서 공백 문자를 걸러낸다.
+            m_PasswordInput.onValidateInput = (text, index, ch) => char.IsWhiteSpace(ch) ? '\0' : ch;
             m_PasswordInput.text = defaultPassword;
         }
 
-        SetMaxPlayersLabel(defaultMaxPlayers);
-        SetMaxPlayersOptionsOpen(false);
+        SetMapOptionsOpen(false);
+        SetModeOptionsOpen(false);
         ApplyRoomType(isPrivate);
         SetCreateStatus(string.Empty);
     }
@@ -238,25 +243,129 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         SetText(m_CreateStatus, message);
     }
 
-    public void SetMaxPlayersLabel(int value)
+    // ── 맵 / 모드 선택(‘사람 수’와 같은 버튼+드롭다운 방식, 옵션은 런타임 생성) ──
+
+    public void SetMapLabel(string mapName)
     {
-        SetText(m_MaxPlayersLabel, $"{value}명 ▼");
+        SetText(m_MapSelectLabel, $"{(string.IsNullOrWhiteSpace(mapName) ? "맵 선택" : mapName)} ▼");
     }
 
-    public void SetMaxPlayersOptionsOpen(bool open)
+    public void SetModeLabel(string modeLabel)
     {
-        if (m_MaxPlayersOptions == null)
+        SetText(m_ModeSelectLabel, $"{(string.IsNullOrWhiteSpace(modeLabel) ? "모드 선택" : modeLabel)} ▼");
+    }
+
+    public void BuildMapOptions(IReadOnlyList<string> labels, Action<int> onSelect)
+    {
+        BuildOptionButtons(m_MapOptions, labels, onSelect);
+    }
+
+    public void BuildModeOptions(IReadOnlyList<string> labels, Action<int> onSelect)
+    {
+        BuildOptionButtons(m_ModeOptions, labels, onSelect);
+    }
+
+    public void SetMapOptionsOpen(bool open)
+    {
+        SetOptionsOpen(m_MapOptions, open);
+        if (open)
+            SetOptionsOpen(m_ModeOptions, false);   // 한 번에 하나만 펼침
+    }
+
+    public void ToggleMapOptions()
+    {
+        if (m_MapOptions != null)
+            SetMapOptionsOpen(!m_MapOptions.gameObject.activeSelf);
+    }
+
+    public void SetModeOptionsOpen(bool open)
+    {
+        SetOptionsOpen(m_ModeOptions, open);
+        if (open)
+            SetOptionsOpen(m_MapOptions, false);
+    }
+
+    public void ToggleModeOptions()
+    {
+        if (m_ModeOptions != null)
+            SetModeOptionsOpen(!m_ModeOptions.gameObject.activeSelf);
+    }
+
+    private static void SetOptionsOpen(RectTransform panel, bool open)
+    {
+        if (panel == null)
             return;
 
-        m_MaxPlayersOptions.SetActive(open);
+        panel.gameObject.SetActive(open);
         if (open)
-            m_MaxPlayersOptions.transform.SetAsLastSibling();
+            panel.SetAsLastSibling();
     }
 
-    public void ToggleMaxPlayersOptions()
+    /// <summary>옵션 패널 아래에 세로로 버튼을 런타임 생성한다(맵 카탈로그 등 개수가 가변이라 코드 생성).</summary>
+    private void BuildOptionButtons(RectTransform panel, IReadOnlyList<string> labels, Action<int> onSelect)
     {
-        if (m_MaxPlayersOptions != null)
-            SetMaxPlayersOptionsOpen(!m_MaxPlayersOptions.activeSelf);
+        if (panel == null)
+            return;
+
+        for (int i = panel.childCount - 1; i >= 0; i--)
+            Destroy(panel.GetChild(i).gameObject);
+
+        int count = labels != null ? labels.Count : 0;
+        const float rowH = 26f;
+        const float pad = 4f;
+
+        float width = panel.rect.width;
+        if (width < 40f)
+            width = 200f;
+        float btnW = width - pad * 2f;
+
+        panel.sizeDelta = new Vector2(panel.sizeDelta.x, count * rowH + pad * 2f);
+
+        for (int i = 0; i < count; i++)
+        {
+            int index = i;
+            var go = new GameObject($"Option{i}", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(panel, false);
+
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.sizeDelta = new Vector2(btnW, rowH - 3f);
+            rt.anchoredPosition = new Vector2(0f, -pad - i * rowH);
+
+            var img = go.GetComponent<Image>();
+            img.color = Color.white;
+
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = img;
+            button.onClick.AddListener(() => onSelect?.Invoke(index));
+
+            var textGo = new GameObject("Label", typeof(RectTransform));
+            textGo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)textGo.transform;
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero;
+            trt.offsetMax = Vector2.zero;
+
+            var text = textGo.AddComponent<Text>();
+            text.font = JobsnailUiKit.LegacyFont;
+            text.fontSize = 14;
+            text.color = Color.black;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.text = labels[index];
+
+            JuicyButton.Attach(button);
+        }
+    }
+
+    // ── 날씨 ON/OFF 토글 ──
+
+    public void ApplyWeather(bool enabled)
+    {
+        SetText(m_WeatherToggleLabel, enabled ? "날씨 ON" : "날씨 OFF");
+        if (m_WeatherToggleImage != null)
+            m_WeatherToggleImage.color = enabled ? kPublic : kNeutral;
     }
 
     public void ApplyRoomType(bool isPrivate)
@@ -385,11 +494,9 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
     public void OnJoinPasswordCancelClicked() => Owner?.PrefabCancelJoinPassword();
     public void OnCloseCreateClicked() => Owner?.PrefabCloseCreateOverlay();
     public void OnSubmitCreateClicked() => Owner?.PrefabSubmitCreateSession();
-    public void OnToggleMaxPlayersClicked() => Owner?.PrefabToggleMaxPlayersOptions();
-    public void OnSelectMaxPlayers1Clicked() => Owner?.PrefabSelectMaxPlayers(1);
-    public void OnSelectMaxPlayers2Clicked() => Owner?.PrefabSelectMaxPlayers(2);
-    public void OnSelectMaxPlayers3Clicked() => Owner?.PrefabSelectMaxPlayers(3);
-    public void OnSelectMaxPlayers4Clicked() => Owner?.PrefabSelectMaxPlayers(4);
+    public void OnToggleMapClicked() => Owner?.PrefabToggleMapOptions();
+    public void OnToggleModeClicked() => Owner?.PrefabToggleModeOptions();
+    public void OnWeatherToggleClicked() => Owner?.PrefabToggleWeather();
     public void OnPrivateRoomClicked() => Owner?.PrefabSetRoomType(true);
     public void OnPublicRoomClicked() => Owner?.PrefabSetRoomType(false);
     public void OnLobbyLeaveClicked() => Owner?.PrefabLeaveLobbyRoom();
