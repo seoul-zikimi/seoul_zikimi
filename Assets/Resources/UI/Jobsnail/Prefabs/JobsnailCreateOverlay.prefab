@@ -587,6 +587,9 @@ MonoBehaviour:
   m_PcRoot: {fileID: 0}
   m_CustomSessionListRoot: {fileID: 0}
   m_SessionStatus: {fileID: 0}
+  m_SessionCardTemplate: {fileID: 0}
+  m_JoinPasswordOverlay: {fileID: 0}
+  m_JoinPasswordInput: {fileID: 0}
   m_RoomNameInput: {fileID: 3631209737962602161}
   m_PasswordInput: {fileID: 360530135407978278}
   m_CreateStatus: {fileID: 4239631156131307930}
@@ -601,11 +604,16 @@ MonoBehaviour:
   m_LobbyStatusBadgeImage: {fileID: 0}
   m_LobbyStartButton: {fileID: 0}
   m_LobbyReadyButton: {fileID: 0}
+  m_LobbyModeButton: {fileID: 0}
   m_LobbyStartHint: {fileID: 0}
   m_LobbyReadyStatus: {fileID: 0}
   m_LobbySlotRoots: []
   m_LobbySlotNames: []
   m_LobbySlotStatuses: []
+  m_MapThumbnail: {fileID: 0}
+  m_MapNameText: {fileID: 0}
+  m_MapPrevButton: {fileID: 0}
+  m_MapNextButton: {fileID: 0}
 --- !u!1 &2397502736774249439
 GameObject:
   m_ObjectHideFlags: 0
