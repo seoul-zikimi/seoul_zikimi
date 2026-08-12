@@ -9,6 +9,7 @@ public class CodiOutfit : MonoBehaviour
 {
     [Tooltip("옷장에 표시될 이름")] public string DisplayName = "의상";
     [Tooltip("가격(코인). 0 = 무료")] public int Price = 100;
+    [Tooltip("대상 캐릭터 id — 빈 문자열 = 달팽이, char_turtle / char_crab 등")] public string TargetCharacter = "";
     [Tooltip("옷장 슬롯 바닥에 깔릴 썸네일(비면 UI_pngs/MyPage/Thumb_<id> 자동 탐색)")] public Sprite Thumbnail;
     [Tooltip("착용 시 크기 여유 — 애니메이션 스쿼시로 몸이 옷을 뚫고 나오는 것 방지"), Range(1f, 1.3f)] public float ScaleMargin = 1.06f;
 
@@ -18,17 +19,23 @@ public class CodiOutfit : MonoBehaviour
 
     private const string kMark = "~Outfit_";
 
-    /// <summary>캐릭터에 아웃핏 입히기(기존 아웃핏은 벗김). id 비면 벗기만 함.</summary>
-    public static void Apply(GameObject character, string id)
+    /// <summary>캐릭터에 아웃핏 입히기(기존 아웃핏은 벗김). id 비면 벗기만 함.
+    /// characterId = 이 캐릭터의 선택 캐릭터(빈 문자열=달팽이, null=플레이어에서 자동 감지).
+    /// 아웃핏의 TargetCharacter와 다르면 입히지 않는다(본 구조가 달라 허공에 뜨는 것 방지).</summary>
+    public static void Apply(GameObject character, string id, string characterId = null)
     {
         RemoveAll(character);
         if (character == null || string.IsNullOrEmpty(id)) return;
-        if (CharacterSwap.IsNonDefault(character)) return;   // 대체 캐릭터(거북이 등)는 달팽이 본이 숨겨져 있어 아웃핏이 허공에 뜬다 — 스킵
         var prefab = Resources.Load<GameObject>("CodiOutfits/" + id);
         if (prefab == null) { Debug.LogWarning($"[Outfit] 프리팹 없음: Resources/CodiOutfits/{id}"); return; }
 
-        // 루트 = Animator 노드(마이페이지 프리뷰·PreviewSnail·PlayerUnit 모두 여기가 model.fbx 루트)
-        var anim = character.GetComponentInChildren<Animator>(true);
+        characterId ??= CharacterSwap.CurrentId(character);
+        var target = prefab.GetComponent<CodiOutfit>();
+        if ((target != null ? target.TargetCharacter : "") != characterId) return;   // 다른 캐릭터용 아웃핏 — 벗기만 함
+
+        // 루트 = "현재 보이는 모델"의 Animator 노드 — 인게임에서 대체 캐릭터(거북/게)가 활성일 때
+        // 숨은 달팽이 캐리어를 잡으면 루트 스케일이 어긋나 아웃핏 크기가 틀어진다.
+        var anim = CharacterSwap.ActiveAnimator(character);
         Transform root = anim != null ? anim.transform : character.transform;
         var meta = prefab.GetComponent<CodiOutfit>();
         float margin = meta != null ? Mathf.Max(1f, meta.ScaleMargin) : 1f;
