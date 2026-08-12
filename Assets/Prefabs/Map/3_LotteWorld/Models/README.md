@@ -28,7 +28,16 @@
 | `롯데_자이로드롭.glb` | 섬 동쪽 놀이기구 | gyro drop tower ride, tall pole with ring gondola, amusement park, stylized lowpoly |
 | `롯데_회전목마.glb` | 섬 서쪽 놀이기구 | carousel merry-go-round with ornate roof and horses, amusement park, stylized lowpoly |
 | `롯데_대관람차.glb` | 서쪽 원경 | ferris wheel, amusement park, colorful cabins, stylized lowpoly |
-| `롯데_풍선.glb` | 호수 상공 열기구(4개 배치) | hot air balloon ride, red and white striped canopy, small basket, stylized lowpoly |
+| `롯데_풍선.glb` | 섬 주변 상공 열기구(4개 배치) | hot air balloon ride, red and white striped canopy, small basket, stylized lowpoly |
+| `롯데_섬지형.glb` | 매직아일랜드 지형(석재 호안 옆면만 사용 — 상판은 타일 데크가 덮음) | flat-topped island terrain, stone embankment sides, stylized |
+| `롯데_나무.glb` | (보류 — 기획 결정으로 현재 미배치, 파일만 보관) | round ornamental garden tree, stylized cartoon |
+| `롯데_대관람차.glb` | (보류 — 기획 결정으로 현재 미배치, 파일만 보관) | giant ferris wheel, white lattice, pastel cabins, stylized cartoon |
+
+## 텍스처(적용됨)
+
+`텍스처_광장바닥.png`(광장·섬 상판 공용 타일 포장) / `텍스처_퍼레이드길.png`(퍼레이드 길) —
+모델 적용 툴이 지형 머티리얼에 타일링으로 입힌다. 교체하려면 같은 이름으로 덮어쓰고 툴 재실행.
+(`텍스처_잔디섬.png`은 잔디 제거 결정으로 현재 미사용.)
 
 ## 텍스처(선택)
 
