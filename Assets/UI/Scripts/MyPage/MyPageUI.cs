@@ -145,10 +145,11 @@ public class MyPageUI : UIHUD
         // 캐릭터 탭 = 아웃핏이 아니라 캐릭터 카탈로그로 채운다
         if (m_Filter == "char_") { RefreshCharacterSlots(); return; }
 
-        // 아웃핏 카탈로그에서 현재 카테고리(접두사)만
+        // 아웃핏 카탈로그에서 현재 카테고리(접두사) + 선택 캐릭터용만
+        string charId = SaveService.EquippedCharacter;
         var items = new System.Collections.Generic.List<CodiOutfit>();
         foreach (var o in CodiOutfit.Catalog())
-            if (o.name.StartsWith(m_Filter)) items.Add(o);
+            if (o.name.StartsWith(m_Filter) && o.TargetCharacter == charId) items.Add(o);
 
         string equipped = SaveService.EquippedOutfit;
         for (int i = 0; i < m_Slots.Count; i++)
