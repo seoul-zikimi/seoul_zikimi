@@ -224,7 +224,6 @@ namespace GridSystem.EditorTools
             var root = new GameObject("MapBg_LotteWorld");
 
             var water  = EnsureMaterial("Mat_LotteLake",    new Color(0.20f, 0.47f, 0.74f));
-            var island = EnsureMaterial("Mat_LotteIsland",  new Color(0.68f, 0.80f, 0.52f));
             var stoneW = EnsureMaterial("Mat_LotteStoneWhite", new Color(0.92f, 0.91f, 0.87f));
             var road   = EnsureMaterial("Mat_LotteParade",  new Color(0.98f, 0.88f, 0.55f));
             var plaza  = EnsureMaterial("Mat_LottePlaza",   new Color(0.86f, 0.83f, 0.80f));
@@ -232,67 +231,83 @@ namespace GridSystem.EditorTools
             var glass  = EnsureMaterial("Mat_LotteGlass",   new Color(0.70f, 0.83f, 0.92f));
 
             // 석촌호수 — 거대한 수면(비주얼 겸 낙하 방지 바닥)
-            AddBox(root, "Lake", new Vector3(6.5f, -0.75f, 2f), new Vector3(160f, 0.3f, 160f), water).isStatic = true;
+            AddBox(root, "Lake", new Vector3(6.5f, -0.75f, 2f), new Vector3(140f, 0.3f, 140f), water).isStatic = true;
 
-            // 매직아일랜드(북) — 건축 그리드가 올라가는 섬. 상판 y=0.
-            // 성(그리드 x0~13, z0~13) 주변은 비워 두고, 어트랙션은 섬 양끝 모서리로 밀어낸다.
-            AddBox(root, "Island", new Vector3(6.5f, -0.5f, 9f), new Vector3(38f, 1f, 22f), island).isStatic = true;
-            // 섬 가장자리 흰 석재 테두리(호수와 경계가 또렷하게)
-            AddBox(root, "IslandRim_S", new Vector3(6.5f, -0.12f, -1.9f), new Vector3(38f, 0.28f, 0.7f), stoneW).isStatic = true;
-            AddBox(root, "IslandRim_W", new Vector3(-12.3f, -0.12f, 9f), new Vector3(0.7f, 0.28f, 22f), stoneW).isStatic = true;
-            AddBox(root, "IslandRim_E", new Vector3(25.3f, -0.12f, 9f), new Vector3(0.7f, 0.28f, 22f), stoneW).isStatic = true;
-            AddBox(root, "IslandRim_N", new Vector3(6.5f, -0.12f, 19.9f), new Vector3(38f, 0.28f, 0.7f), stoneW).isStatic = true;
+            // 매직아일랜드(북) — 건축 그리드가 올라가는 섬. 상판 y=0. 남산 정도 크기(30×20)로 압축.
+            // 실제 매직아일랜드처럼 상판은 잔디가 아니라 '광장과 같은 타일 포장'.
+            // VARCO 섬 지형이 있으면 석축 옆면은 지형 메시가, 상판은 타일 데크가, 충돌은 투명 박스가 담당.
+            var islandBox = AddBox(root, "Island", new Vector3(6.5f, -0.5f, 8f), new Vector3(30f, 1f, 20f), plaza);
+            islandBox.isStatic = true;
+            // 상판을 살짝 낮춰(잔디 윗면 숨김) 그 위에 타일 데크를 얹는다
+            bool hasIslandMesh = TryPlaceProp(root, "롯데_섬지형", new Vector3(6.5f, -3.08f, 8f));
+            if (hasIslandMesh)
+            {
+                islandBox.GetComponent<MeshRenderer>().enabled = false;   // 충돌체만 남긴다
+                AddBox(root, "IslandDeck", new Vector3(6.5f, -0.05f, 8f), new Vector3(30f, 0.1f, 20f), plaza).isStatic = true;
+            }
+            else
+            {
+                // 폴백: 흰 석재 테두리(호수와 경계) — 지형 메시가 오면 자동 제거
+                AddBox(root, "IslandRim_S", new Vector3(6.5f, -0.12f, -1.9f), new Vector3(30f, 0.28f, 0.7f), stoneW).isStatic = true;
+                AddBox(root, "IslandRim_W", new Vector3(-8.3f, -0.12f, 8f), new Vector3(0.7f, 0.28f, 20f), stoneW).isStatic = true;
+                AddBox(root, "IslandRim_E", new Vector3(21.3f, -0.12f, 8f), new Vector3(0.7f, 0.28f, 20f), stoneW).isStatic = true;
+                AddBox(root, "IslandRim_N", new Vector3(6.5f, -0.12f, 17.9f), new Vector3(30f, 0.28f, 0.7f), stoneW).isStatic = true;
+            }
 
             // 광장(남) — 배송존·작업대·스폰. 상판 y=0.
             AddBox(root, "Plaza", new Vector3(6.5f, -0.5f, -8f), new Vector3(26f, 1f, 8f), plaza).isStatic = true;
 
             // 퍼레이드 길 — 섬과 광장 사이(z=-3)를 동서로 관통. 양쪽 어디서든 건널 수 있는 평지.
-            AddBox(root, "ParadeRoad", new Vector3(6.5f, -0.485f, -3.2f), new Vector3(40f, 1.03f, 2.6f), road).isStatic = true;
+            AddBox(root, "ParadeRoad", new Vector3(6.5f, -0.485f, -3.2f), new Vector3(36f, 1.03f, 2.6f), road).isStatic = true;
 
-            // 다리(광장 남쪽 → 호수 건너) — 흰 석재 배경 장식
-            AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -17f), new Vector3(4f, 0.4f, 10f), stoneW).isStatic = true;
+            // 성 앞 다리(광장 남쪽 → 호수 건너, 실제 롯데월드 매직아일랜드 입구 다리) — 넓은 석재 다리
+            AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(6f, 0.4f, 7f), stoneW).isStatic = true;
+            // 다리 입구 양옆 게이트 타워 — 광장 타일 '안쪽'(남단 z-12보다 안)에 세워 바닥에 딱 붙게.
+            // (다리 폭 6 밖 = 호수 위 허공이라 바깥에 세우면 떠 보인다)
+            PlaceGateTower(root, new Vector3(2.6f, 0f, -11f));
+            PlaceGateTower(root, new Vector3(10.4f, 0f, -11f));
 
             // ── 원경 프롭: VARCO _Fit 우선, 없으면 그레이박스 폴백 ──
 
-            // 롯데월드타워(북동 원경, 555m 랜드마크) — 성과 겹쳐 보이지 않게 호수 건너 멀리
-            if (!TryPlaceProp(root, "롯데_롯데월드타워", new Vector3(38f, -0.6f, 48f)))
+            // 롯데월드타워(북동, 호수 바로 건너 — 랜드마크가 화면에 늘 보이게)
+            if (!TryPlaceProp(root, "롯데_롯데월드타워", new Vector3(27f, -0.6f, 30f)))
             {
-                AddBox(root, "TowerBase", new Vector3(38f, 7f, 48f), new Vector3(7f, 16f, 7f), glass).isStatic = true;
-                AddBox(root, "TowerMid",  new Vector3(38f, 20f, 48f), new Vector3(5f, 10f, 5f), glass).isStatic = true;
-                AddBox(root, "TowerTop",  new Vector3(38f, 28.5f, 48f), new Vector3(2.6f, 7f, 2.6f), glass).isStatic = true;
+                AddBox(root, "TowerBase", new Vector3(27f, 7f, 30f), new Vector3(7f, 16f, 7f), glass).isStatic = true;
+                AddBox(root, "TowerMid",  new Vector3(27f, 20f, 30f), new Vector3(5f, 10f, 5f), glass).isStatic = true;
+                AddBox(root, "TowerTop",  new Vector3(27f, 28.5f, 30f), new Vector3(2.6f, 7f, 2.6f), glass).isStatic = true;
             }
 
-            // ── 어트랙션: 성(그리드)에서 떨어진 섬 양끝 모서리에, 전용 받침 패드와 함께 ──
+            // ── 어트랙션: 성(그리드 x0~13, z0~13) 북쪽 라인에 아기자기하게 — 간격 압축 ──
 
-            // 자이로드롭(섬 북동쪽 끝) — 패드 + 모델(없으면 그레이박스 기둥)
-            AddCylinder(root, "GyroPad", new Vector3(21f, -0.05f, 16.5f), new Vector3(6.5f, 0.12f, 6.5f), stoneW);
-            if (!TryPlaceProp(root, "롯데_자이로드롭", new Vector3(21f, 0f, 16.5f)))
+            // 배치 컨셉: 정답(성) = 중앙, 회전목마 = 왼쪽 아래(배송존 근처), 자이로드롭 = 오른쪽 뒤 — 일렬 배치 회피.
+
+            // 자이로드롭(성 오른쪽 뒤, 동쪽 플랭크에서 북쪽으로) — 패드 + 모델(없으면 그레이박스 기둥)
+            AddCylinder(root, "GyroPad", new Vector3(18f, -0.05f, 12.5f), new Vector3(5.5f, 0.12f, 5.5f), stoneW);
+            if (!TryPlaceProp(root, "롯데_자이로드롭", new Vector3(18f, 0f, 12.5f)))
             {
-                AddCylinder(root, "GyroPole", new Vector3(21f, 5.5f, 16.5f), new Vector3(0.8f, 5.5f, 0.8f), steel);
-                AddCylinder(root, "GyroRing", new Vector3(21f, 7.5f, 16.5f), new Vector3(2.6f, 0.5f, 2.6f), stoneW);
+                AddCylinder(root, "GyroPole", new Vector3(18f, 5.5f, 12.5f), new Vector3(0.8f, 5.5f, 0.8f), steel);
+                AddCylinder(root, "GyroRing", new Vector3(18f, 7.5f, 12.5f), new Vector3(2.6f, 0.5f, 2.6f), stoneW);
             }
 
-            // 회전목마(섬 북서쪽 끝) — 패드 + 모델(없으면 그레이박스 원통)
-            AddCylinder(root, "CarouselPad", new Vector3(-8f, -0.05f, 15.5f), new Vector3(9f, 0.12f, 9f), stoneW);
-            if (!TryPlaceProp(root, "롯데_회전목마", new Vector3(-8f, 0f, 15.5f)))
+            // 회전목마(광장 왼쪽 '끝 모서리' — 자이로드롭처럼 구석에 딱) — 패드 + 모델(없으면 그레이박스 원통)
+            AddCylinder(root, "CarouselPad", new Vector3(-3.4f, -0.05f, -8.9f), new Vector3(6f, 0.12f, 6f), stoneW);
+            if (!TryPlaceProp(root, "롯데_회전목마", new Vector3(-3.4f, 0f, -8.9f)))
             {
-                AddCylinder(root, "CarouselBody", new Vector3(-8f, 1f, 15.5f), new Vector3(3.4f, 1f, 3.4f), stoneW);
-                AddCylinder(root, "CarouselRoof", new Vector3(-8f, 2.6f, 15.5f), new Vector3(4f, 0.6f, 4f), glass);
+                AddCylinder(root, "CarouselBody", new Vector3(-3.4f, 1f, -8.9f), new Vector3(3.4f, 1f, 3.4f), stoneW);
+                AddCylinder(root, "CarouselRoof", new Vector3(-3.4f, 2.6f, -8.9f), new Vector3(4f, 0.6f, 4f), glass);
             }
 
-            // 대관람차(서쪽 호수 건너 원경) — 모델 있을 때만(그레이박스 원판은 정체불명으로 보여서 생략)
-            TryPlaceProp(root, "롯데_대관람차", new Vector3(-26f, -0.6f, 24f), 90f);
-
-            // 열기구 풍선(호수 상공 장식) — 모델(롯데_풍선_Fit) 있을 때만 배치. 폴백 없음(색 구체는 오히려 어색).
+            // 열기구 풍선(섬 주변 상공 장식) — 모델(롯데_풍선_Fit) 있을 때만 배치. 폴백 없음(색 구체는 오히려 어색).
             (Vector3 p, float rot, float sc)[] balloonSpots =
             {
-                (new Vector3(-18f, 5.5f, 6f), 20f, 1.0f),
-                (new Vector3(-15f, 7.5f, 26f), 140f, 0.85f),
-                (new Vector3(30f, 6.5f, 26f), 250f, 1.1f),
-                (new Vector3(33f, 8f, 4f), 70f, 0.9f),
+                (new Vector3(-9f, 4.5f, 3f), 20f, 1.0f),
+                (new Vector3(22f, 5.5f, 6f), 250f, 0.9f),
+                (new Vector3(15f, 6f, 20f), 140f, 1.05f),
+                (new Vector3(-2f, 5f, -13f), 70f, 0.85f),   // 다리 옆 호수 위
             };
             foreach (var (p, rot, sc) in balloonSpots)
                 TryPlaceProp(root, "롯데_풍선", p, rot, sc);
+
 
             // ── 마커: 필수 5종 + 퍼레이드 경로 4점 ──
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));                // 짓는 곳(섬)
@@ -318,6 +333,25 @@ namespace GridSystem.EditorTools
                 AssetDatabase.CreateAsset(asset, path);
             }
             return asset;
+        }
+
+        // 다리 입구 게이트 타워: 코너타워_Fit(1×4×1)만 세운다(지붕 없음 — 기획 확정).
+        // 파츠 _Fit은 min-corner 피벗이라 중심 배치 시 절반만큼 당긴다. 모델이 아직 없으면 조용히 통과(폴백 없음).
+        private static void PlaceGateTower(GameObject root, Vector3 centerPos, float scale = 1.3f)
+        {
+            var tower = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/롯데_코너타워_Fit.prefab");
+            if (tower == null) return;
+
+            var half = 0.5f * scale;
+            var t = (GameObject)PrefabUtility.InstantiatePrefab(tower, root.transform);
+            t.name = "GateTower";
+            t.transform.localPosition = centerPos + new Vector3(-half, 0f, -half);
+            t.transform.localScale *= scale;
+
+            // 기대 서기용 콜라이더(몸통만) — 다리 옆 장식이지만 부딪히면 통과 안 되게
+            var bc = t.AddComponent<BoxCollider>();
+            bc.center = new Vector3(0.5f, 2f, 0.5f);
+            bc.size = new Vector3(1f, 4f, 1f);
         }
 
         // VARCO 배경 소품(_Fit 프리팹, 바닥 피벗) 배치 시도 — 모델을 적용해둔 경우에만 true.
