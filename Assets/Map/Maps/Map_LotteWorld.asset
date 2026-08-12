@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20201acce871a3c45b510babe7f8bb03, type: 3}
+  m_Name: Map_LotteWorld
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
+  m_DisplayName: "\uB86F\uB370\uC6D4\uB4DC"
+  m_BackgroundPrefab: {fileID: 2006527475874833567, guid: a1497fd60c1d21746a67750f6b4754a4, type: 3}
+  m_Answers:
+  - {fileID: 11400000, guid: 12c338b88f890aa439905559da3823b7, type: 2}
+  m_Thumbnail: {fileID: 21300000, guid: cec08b38391209c4c9a351b5510fa1d3, type: 3}
+  m_GridSize: {x: 13, y: 12, z: 13}
+  m_AvailableMaterials:
+  - {fileID: 11400000, guid: b2561db523d378843bfc759f45c8da79, type: 2}
+  - {fileID: 11400000, guid: 0b9441bc73a35a4438fe21869e7b2be0, type: 2}
+  - {fileID: 11400000, guid: 0d63a784b54f5ae498899dc1b01632fc, type: 2}
+  - {fileID: 11400000, guid: c4344819eab86b240bde8060fd0623ca, type: 2}
+  - {fileID: 11400000, guid: 88c3a14f69704e243a1c53487ab8aac2, type: 2}
+  - {fileID: 11400000, guid: 486048712d02c8a4dac0cf66f7783e3c, type: 2}
+  - {fileID: 11400000, guid: 7a1e2909f10f46548a73dd07e6e13892, type: 2}
+  - {fileID: 11400000, guid: 2a89e2e50fdf3c34b8801ba804a18e91, type: 2}
+  m_NamsanGimmicks: {fileID: 0}
+  m_LotteGimmicks: {fileID: 11400000, guid: 81bc8c0b9048050418f634efa2af3282, type: 2}

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c9502f08cc24a78a50bfd3f09a6f79e, type: 3}
+  m_Name: "\uB86F\uB370_\uC131\uC0C1\uB2E8_Def"
+  m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
+  m_Id: 23
+  m_Footprint: {x: 3, y: 1, z: 3}
+  m_Prefab: {fileID: 8229207927224265829, guid: 888a97cfd964ee94fa7bc193afbb0472, type: 3}
+  m_RequiredProcesses: 
+  m_MustBeFixed: 0
+  m_Walkable: 0
+  m_IsBreakable: 0
+  m_MaxSpawnCount: -1

@@ -149,6 +149,7 @@ namespace GridSystem.Tests
                 foreach (var t in m.BackgroundPrefab.GetComponentsInChildren<Transform>(true))
                 {
                     if (!t.name.StartsWith("Spot_")) continue;
+                    if (LotteSpots.IsMarkerOnly(t.name)) continue;   // 퍼레이드 웨이포인트(Spot_ParadePoint0…N) — 번호가 붙어 접두사로 판정
                     string target = t.name.Substring("Spot_".Length);
                     Assert.Contains(target, kKnownSpots,
                         $"[{m.name}] 마커 '{t.name}' 은(는) 인식되지 않는 이름 — 오타면 아무 일도 안 일어납니다. " +
