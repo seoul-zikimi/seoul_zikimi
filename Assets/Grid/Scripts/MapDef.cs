@@ -20,6 +20,8 @@ namespace GridSystem
         [SerializeField] private List<MaterialDef> m_AvailableMaterials = new();
         [Tooltip("남산타워 전용 기믹(케이블카·엘리베이터·돌풍) 설정. 비워두면 기믹 없음 — 일반 맵은 그대로 두세요.")]
         [SerializeField] private NamsanGimmickConfig m_NamsanGimmicks;
+        [Tooltip("롯데월드 전용 기믹(퍼레이드) 설정. 비워두면 기믹 없음 — 일반 맵은 그대로 두세요.")]
+        [SerializeField] private LotteGimmickConfig m_LotteGimmicks;
 
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
         public GameObject BackgroundPrefab => m_BackgroundPrefab;
@@ -31,6 +33,9 @@ namespace GridSystem
 
         /// <summary>남산타워 기믹 설정(null이면 이 맵엔 기믹 없음).</summary>
         public NamsanGimmickConfig NamsanGimmicks => m_NamsanGimmicks;
+
+        /// <summary>롯데월드 기믹 설정(null이면 이 맵엔 기믹 없음).</summary>
+        public LotteGimmickConfig LotteGimmicks => m_LotteGimmicks;
 
         /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
         public Vector3Int GridSize => m_GridSize;

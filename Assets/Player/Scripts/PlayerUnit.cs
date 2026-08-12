@@ -147,9 +147,13 @@ namespace Player
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
 
-            // 남산 돌풍: 외력 채널 갱신 + 밀림 추락 스턴(기믹 없는 맵에선 push=0, 스턴 없음)
-            var push = GridSystem.GustNetwork.CurrentPushAt(transform);
+            // 남산 돌풍 + 롯데월드 퍼레이드: 외력 채널 갱신(기믹 없는 맵에선 둘 다 zero)
+            var push = GridSystem.GustNetwork.CurrentPushAt(transform)
+                     + GridSystem.ParadeNetwork.CurrentPushAt(transform);
             m_Movement.ExternalPush = push;
+            // 퍼레이드에 치인 뒤 예약된 스턴(경로 밖으로 밀려난 순간) — 든 재료도 떨어진다
+            float paradeStun = GridSystem.ParadeNetwork.ConsumePendingStun();
+            if (paradeStun > 0f && m_Stun != null) m_Stun.Stun(paradeStun);
             if (m_Stun != null)
             {
                 m_Stun.Tick(m_Movement.IsGrounded(), push.sqrMagnitude > 1e-6f);

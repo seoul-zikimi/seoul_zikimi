@@ -1,0 +1,78 @@
+using UnityEditor;
+using UnityEngine;
+
+namespace GridSystem.EditorTools
+{
+    /// <summary>
+    /// 롯데월드 맵 자동 셋업 — 에디터 로드(컴파일) 직후:
+    /// ① 맵 카드(Map_LotteWorld.asset)가 없으면 LotteWorldMapTool.Generate() 실행.
+    /// ② Models 폴더에 아직 _Fit으로 변환 안 된 GLB가 있으면 LotteModelApplyTool.Apply()
+    ///    + 맵 재생성(배경 소품 반영)까지 자동 실행.
+    /// 할 일이 없으면 아무것도 안 함(수동 실행: Tools ▸ Map ▸ ★ 롯데월드 …).
+    /// </summary>
+    [InitializeOnLoad]
+    public static class LotteWorldAutoSetup
+    {
+        private const string kMapDefPath = "Assets/Map/Maps/Map_LotteWorld.asset";
+        private const string kDir = "Assets/Prefabs/Map/3_LotteWorld";
+        private const string kModelDir = kDir + "/Models";
+
+        static LotteWorldAutoSetup()
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+                bool mapMissing = AssetDatabase.LoadAssetAtPath<MapDef>(kMapDefPath) == null;
+                if (mapMissing)
+                {
+                    Debug.Log("[롯데월드] 맵 카드가 없어 자동 생성 실행 (Tools ▸ Map ▸ ★ 롯데월드 맵 생성)");
+                    LotteWorldMapTool.Generate();
+                }
+
+                if (HasUnappliedModels())
+                {
+                    Debug.Log("[롯데월드] 적용 안 된 VARCO 모델 발견 — 자동 적용 실행 (Tools ▸ Map ▸ ★ 롯데월드 VARCO 모델 적용)");
+                    LotteModelApplyTool.Apply();
+                    LotteWorldMapTool.Generate();   // 배경 소품 _Fit 반영(멱등 — 재실행 안전)
+                }
+
+                // 프리팹 규약(피벗 min-corner + footprint 크기) 어긋난 def가 있으면 공식 칸맞춤 실행
+                // — MaterialPrefabContractTests가 요구하는 바로 그 수정 경로(어긋난 것만 골라 고침).
+                if (AnyDefOutOfContract())
+                {
+                    Debug.Log("[롯데월드] 규약 어긋난 재료 프리팹 발견 — 칸 맞춤 실행 (Tools ▸ Grid ▸ 재료 프리팹 칸 맞춤(전체))");
+                    MaterialPrefabFitTool.FitAll();
+                }
+            };
+        }
+
+        private static bool AnyDefOutOfContract()
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:MaterialDef"))
+            {
+                var def = AssetDatabase.LoadAssetAtPath<MaterialDef>(AssetDatabase.GUIDToAssetPath(guid));
+                if (def != null && def.Prefab != null && MaterialPrefabFitTool.Check(def) != null) return true;
+            }
+            return false;
+        }
+
+        // Models 폴더의 GLB 중 대응 _Fit.prefab(퍼레이드카는 Resources 프리팹)이 없는 것이 하나라도 있는가.
+        // ⚠ FindAssets("t:Model")은 glTFast(ScriptedImporter)로 임포트된 .glb를 못 찾는다 — 파일 기준으로 훑는다.
+        private static bool HasUnappliedModels()
+        {
+            if (!System.IO.Directory.Exists(kModelDir)) return false;
+            foreach (var file in System.IO.Directory.GetFiles(kModelDir))
+            {
+                string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+                if (ext != ".glb" && ext != ".fbx" && ext != ".obj") continue;
+                string name = System.IO.Path.GetFileNameWithoutExtension(file);
+                string fitPath = name == "롯데_퍼레이드카"
+                    ? "Assets/Resources/LotteWorld/ParadeCar.prefab"
+                    : $"{kDir}/{name}_Fit.prefab";
+                if (AssetDatabase.LoadAssetAtPath<GameObject>(fitPath) == null) return true;
+            }
+            return false;
+        }
+    }
+}

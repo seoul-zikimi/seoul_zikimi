@@ -125,6 +125,9 @@ namespace GridSystem
                 gameObject.AddComponent<ElevatorNetwork>();
             if (!TryGetComponent<GustNetwork>(out _))
                 gameObject.AddComponent<GustNetwork>();
+            // 롯데월드 기믹 호스트 — 맵 카드에 LotteGimmickConfig가 없으면 스스로 잠잔다
+            if (!TryGetComponent<ParadeNetwork>(out _))
+                gameObject.AddComponent<ParadeNetwork>();
         }
 
         public override void OnNetworkSpawn()
@@ -374,6 +377,7 @@ namespace GridSystem
             if (TryGetComponent<CableCarNetwork>(out var cable)) cable.ServerReset();   // 남산: 곤돌라·대기열 정리
             if (TryGetComponent<ElevatorNetwork>(out var elev)) elev.ServerReset();     // 남산: 엘리베이터 재잠금
             if (TryGetComponent<GustNetwork>(out var gust)) gust.ServerReset();         // 남산: 돌풍 주기 리셋
+            if (TryGetComponent<ParadeNetwork>(out var parade)) parade.ServerReset();   // 롯데월드: 퍼레이드 주기 리셋
             if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);

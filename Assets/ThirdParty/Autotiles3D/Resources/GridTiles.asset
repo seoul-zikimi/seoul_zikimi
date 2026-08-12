@@ -14,23 +14,44 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_TileGroup
   Tiles:
   - _group: GridTiles
-    _tileID: 1588145018
-    Default: {fileID: 6665910196767419125, guid: d34b28a87566968448728da53791ef45, type: 3}
+    _tileID: -1226774226
+    Default: {fileID: 6183417374891312481, guid: f0f04ad6f43916a4684f5885567c7a63, type: 3}
     Randoms: []
     Random: 0
-    _name: "\uBCBD"
+    _name: Mat_Floor
     Rules: []
   - _group: GridTiles
-    _tileID: 783249535
-    Default: {fileID: 4213422942284485284, guid: 820fe2071d9f5b243968fffb85fdeeee, type: 3}
+    _tileID: 162926020
+    Default: {fileID: 4148459695742954089, guid: 1144dfc981731f94e9565a0fe98a103c, type: 3}
     Randoms: []
     Random: 0
-    _name: "\uBB38\uC774 \uC788\uB294 \uBCBD"
+    _name: Mat_Pillar
     Rules: []
   - _group: GridTiles
-    _tileID: 628770470
-    Default: {fileID: 5091052921140091443, guid: 7ed6b84034be59c4b864f0884670b83a, type: 3}
+    _tileID: 635994681
+    Default: {fileID: 4952158151466359443, guid: b092ffdc909935747a0f39b6ad054dd5, type: 3}
     Randoms: []
     Random: 0
-    _name: "\uC9C0\uBD95"
+    _name: Mat_Wall
+    Rules: []
+  - _group: GridTiles
+    _tileID: -245925913
+    Default: {fileID: 3469079517067247479, guid: 126cbafd0b86f0f4793bc58ac7bf98a7, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Mat_TutorialWall
+    Rules: []
+  - _group: GridTiles
+    _tileID: 650903199
+    Default: {fileID: 6573205645674548701, guid: 63a966ad47503bb44a28fec5582a5773, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Mat_TutorialWallDoor
+    Rules: []
+  - _group: GridTiles
+    _tileID: 1923376476
+    Default: {fileID: 5379361371936762059, guid: 31a069808a716aa48a0c5e840a1389e3, type: 3}
+    Randoms: []
+    Random: 0
+    _name: Mat_TutorialRoof
     Rules: []
