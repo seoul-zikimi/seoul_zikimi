@@ -106,6 +106,11 @@ namespace GridSystem
         /// 실제 인게임 날씨 적용은 날씨 시스템을 게임 루프에 연결하는 별도 작업에서 사용한다.</summary>
         public static bool HostWeatherEnabled = true;
 
+        /// <summary>2vs2 대전에서 경쟁 아이템 사용 여부(true=아이템전, false=순수 타임어택전).
+        /// 로비 모드 4종 중 2vs2 두 변형을 구분하는 플래그. 실제 인게임 아이템 스폰 On/Off 연결은
+        /// GameplayFramework의 아이템 시스템을 붙일 때 이 값을 참조한다(현재는 선택값 보관).</summary>
+        public static bool HostVersusUsesItems = true;
+
         private void Awake()
         {
             m_Grid = GetComponent<GridManager>();

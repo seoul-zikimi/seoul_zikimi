@@ -31,6 +31,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     // 세션 목록 카드에 뿌릴 짧은 모드 이름(kModeLabels와 인덱스 동일).
     private static readonly string[] kModeShortLabels = { "타임어택", "2vs2 대결", "자유 건축" };
 
+    // 로비 우측 패널에 표시할 4종 모드 라벨(LobbyRoomNet.SelectedLobbyMode 인덱스와 동일).
+    private static readonly string[] kLobbyModeLabels =
+        { "타임어택", "2VS2 대전(아이템)", "2VS2 대전(타임어택)", "자유건축" };
+
     // 세션 프로퍼티 키 — 목록 카드/필터가 읽는 값.
     private const string kMapPropertyKey = "Map";
     private const string kModePropertyKey = "Mode";
@@ -61,6 +65,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private bool m_IsStartingGame;
     private int m_CurrentRoomMaxPlayers = LobbyRoomNet.RoomCapacity;
     private string m_CurrentRoomName = DefaultRoomName;
+
+    // 대기방 슬롯 표시용 재사용 버퍼(매 프레임 갱신, GC 방지).
+    private readonly JobsnailLobbySlot[] m_SlotBuffer = new JobsnailLobbySlot[4];
+
+    // 기록 텍스트 캐시(파일 읽기라 입력 바뀔 때만 재계산).
+    private int m_RecordCacheMode = -1;
+    private int m_RecordCacheMap = -1;
+    private int m_RecordCachePlayers = -1;
+    private string m_RecordCacheText = string.Empty;
 
     // 방 생성 화면에서 고른 맵/모드/날씨(생성 시 초기값. 맵·모드는 로비에서 계속 변경 가능).
     private int m_SelectedMap;
@@ -371,7 +384,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
             var result = await MultiplayerService.Instance.QuerySessionsAsync(new QuerySessionsOptions
             {
-                SortOptions = new List<SortOption> { new(SortOrder.Descending, SortField.Name) }
+                // 기획: 방이 생긴 순서대로(오름차순) 정렬.
+                SortOptions = new List<SortOption> { new(SortOrder.Ascending, SortField.CreationTime) }
             });
 
             m_Sessions.Clear();
@@ -802,9 +816,46 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var mapDef = catalog != null ? catalog.Get(mapIndex) : null;
         int mapCount = catalog != null ? catalog.Count : 0;
         int mode = Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMode, 0, 2);
+        // 로비 4종 모드(네트워크 동기화 → 방장 아닌 사람도 현재 모드가 보인다).
+        int lobbyMode = hasReadyNet ? Mathf.Clamp(readyNet.SelectedLobbyMode, 0, kLobbyModeLabels.Length - 1) : 0;
+        bool weatherOn = hasReadyNet ? readyNet.WeatherOn : GridSystem.GameLoopManager.HostWeatherEnabled;
+
+        // 기록 텍스트는 세이브 파일(ES3)을 읽으므로 매 프레임 재계산하지 않는다.
+        // 입력(모드/맵/인원)이 바뀔 때만 갱신 — 매 프레임 파일 접근(+ MPPM 동시 접근 IOException) 방지.
+        if (lobbyMode != m_RecordCacheMode || mapIndex != m_RecordCacheMap || joinedCount != m_RecordCachePlayers)
+        {
+            m_RecordCacheMode = lobbyMode;
+            m_RecordCacheMap = mapIndex;
+            m_RecordCachePlayers = joinedCount;
+            m_RecordCacheText = BuildRecordText(lobbyMode, mapDef, joinedCount);
+        }
+        string recordText = m_RecordCacheText;
+
+        // 네트워크 로스터 → 슬롯 표시 데이터(입장 순서 고정, 빈칸 유지).
+        if (hasReadyNet && readyNet.SlotCount > 0)
+        {
+            for (int i = 0; i < m_SlotBuffer.Length; i++)
+            {
+                m_SlotBuffer[i] = new JobsnailLobbySlot
+                {
+                    Occupied = readyNet.IsSlotOccupied(i),
+                    Name = readyNet.GetSlotName(i),
+                    IsHost = readyNet.IsSlotHost(i),
+                    Ready = readyNet.IsSlotReady(i),
+                    CharacterId = readyNet.GetSlotCharacterId(i),
+                    OutfitId = readyNet.GetSlotOutfitId(i)
+                };
+            }
+        }
+        else
+        {
+            for (int i = 0; i < m_SlotBuffer.Length; i++)
+                m_SlotBuffer[i] = default;
+        }
 
         var state = new JobsnailLobbyRoomState
         {
+            Slots = hasReadyNet && readyNet.SlotCount > 0 ? m_SlotBuffer : null,
             RoomName = m_CurrentRoomName,
             RoomIsFull = joinedCount >= maxPlayers,
             ShowStartButton = isHost,
@@ -819,10 +870,13 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             ReadyCount = readyCount,
             MaxPlayers = maxPlayers,
             ShowModeButton = isHost,
-            ModeLabel = kModeLabels[mode],
+            ModeLabel = kLobbyModeLabels[lobbyMode],
             MapName = mapDef != null ? mapDef.DisplayName : string.Empty,
             MapThumbnail = mapDef != null ? mapDef.Thumbnail : null,
-            ShowMapArrows = isHost && isNetworkServer && mapCount > 1
+            ShowMapArrows = isHost && isNetworkServer && mapCount > 1,
+            WeatherOn = weatherOn,
+            ShowWeatherToggle = isHost,
+            RecordText = recordText
         };
 
         view.ApplyLobbyRoomState(state);
@@ -860,6 +914,47 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return $"입장 {joinedCount}/{maxPlayers} · 바로 시작 가능";
 
         return $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{targetReadyCount}";
+    }
+
+    // 로비 우측 패널 기록: 타임어택=개인 N인 최고기록, 2vs2=맵 승패, 자유건축=없음.
+    private static string BuildRecordText(int lobbyMode, GridSystem.MapDef mapDef, int playerCount)
+    {
+        int players = Mathf.Clamp(playerCount, 1, 4);
+        switch (lobbyMode)
+        {
+            case 0: // 타임어택
+                return $"({players}인) 최고 기록 : {BestAcrossAnswers(mapDef, players)}";
+            case 1:
+            case 2: // 2VS2 대전
+                return mapDef != null ? $"전적 : {SaveService.FormatVersus(mapDef.DisplayName)}" : "전적 : 0승 0패";
+            default: // 자유건축
+                return string.Empty;
+        }
+    }
+
+    // 저장 키는 '정답 구조물 이름' 단위 → 이 맵의 정답들 전체에서 최고를 합산(완성도 우선, 동률 시 시간).
+    private static string BestAcrossAnswers(GridSystem.MapDef def, int players)
+    {
+        int bestPct = -1;
+        float bestSec = 0f;
+        void Consider(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (!SaveService.TryGetBest(key, players, out int pct, out float sec)) return;
+            if (pct > bestPct || (pct == bestPct && sec < bestSec)) { bestPct = pct; bestSec = sec; }
+        }
+
+        if (def != null)
+        {
+            Consider(def.DisplayName);
+            if (def.Answers != null)
+                foreach (var a in def.Answers)
+                    if (a != null) Consider(a.DisplayName);
+        }
+
+        if (bestPct < 0) return "-";
+        int s = Mathf.RoundToInt(bestSec);
+        return $"{bestPct}%  {s / 60}분 {s % 60:00}초";
     }
 
     // ────────────────────────── 준비 / 게임 시작 ──────────────────────────
@@ -972,6 +1067,16 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     internal async void PrefabLeaveLobbyRoom()
     {
         PlayUIClick();
+
+        // 준비 상태의 팀원은 나갈 수 없다. '준비'를 해제해야 나갈 수 있음.
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null && readyNet.IsSpawned && !IsLocalSessionHost() && readyNet.IsLocallyReady)
+        {
+            if (m_LobbyRoomView != null)
+                m_LobbyRoomView.SetLobbyStartHint("준비 상태에서는 나갈 수 없어요. '준비'를 먼저 해제해줘.");
+            return;
+        }
+
         await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
     }
 
@@ -990,7 +1095,18 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     internal void PrefabCycleGameMode()
     {
         PlayUIClick();
-        GridSystem.GameLoopManager.HostSelectedMode = (GridSystem.GameLoopManager.HostSelectedMode + 1) % 3;
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null && readyNet.IsSpawned)
+            readyNet.HostCycleMode();   // 서버가 4종 모드 순환 + GameLoopManager 정적값 반영(전원 동기화)
+        UpdateLobbyRoomView();
+    }
+
+    internal void PrefabToggleLobbyWeather()
+    {
+        PlayUIClick();
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null && readyNet.IsSpawned)
+            readyNet.HostToggleWeather();
         UpdateLobbyRoomView();
     }
 
@@ -1000,6 +1116,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
         if (readyNet != null)
             readyNet.HostSelectMap(readyNet.SelectedMap + direction);
+
+        // 맵 변경을 뷰와 세션 property에 즉시 반영.
+        UpdateLobbyRoomView();
     }
 
     // ────────────────────────── UGS / Netcode 유틸 ──────────────────────────

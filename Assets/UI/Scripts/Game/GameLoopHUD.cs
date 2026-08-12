@@ -381,6 +381,13 @@ public sealed class GameLoopHUD : UIHUD
             if (m_CoinRewardText != null)
                 m_CoinRewardText.text = (newBest ? "신기록!  " : "") + $"+{coins}코인  (보유 {SaveService.Coins}코인)";
 
+            // 2vs2: 내 팀 기준 승/패를 맵별 전적에 기록(무승부 제외). 키는 로비 전적 표시와 동일하게 맵 DisplayName.
+            if (versus && m_Loop.WinnerTeam >= 0)
+            {
+                var mapDef = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Get(m_Loop.MapIndex) : null;
+                SaveService.ReportVersus(mapDef != null ? mapDef.DisplayName : map, m_Loop.WinnerTeam == myTeam);
+            }
+
             // 정산서 이미지 = 내가 실제로 지은 구조물(미니씬 렌더). 실패 시 정답 미리보기로 폴백.
             if (m_ResultImage != null)
             {
