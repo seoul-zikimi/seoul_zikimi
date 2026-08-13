@@ -11,7 +11,8 @@ public static class CharacterCatalog
     {
         public readonly string Id;          // "" = 기본(달팽이, 프리팹 교체 없음)
         public readonly string DisplayName;
-        public Entry(string id, string display) { Id = id; DisplayName = display; }
+        public readonly int Price;          // 옷장 해금 가격(코인) — 인트로에서 고른 캐릭터는 무료 지급
+        public Entry(string id, string display, int price = 300) { Id = id; DisplayName = display; Price = price; }
     }
 
     // 새 캐릭터 추가 시 여기에 한 줄 + Resources/Characters 프리팹만 만들면 옷장에 뜬다.

@@ -23,6 +23,13 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         if (scene.name != SceneNames.BootstrapScene)
             return;
 
+        // 최초 실행 = 인트로 컷씬(상경 연출 + 초기 캐릭터 선택) 먼저, 완료 후 메인 메뉴
+        if (!SaveService.IntroSeen)
+        {
+            IntroCutscene.Show(Show);
+            return;
+        }
+
         Show();
     }
 
