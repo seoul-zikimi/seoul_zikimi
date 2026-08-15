@@ -16,7 +16,7 @@ MonoBehaviour:
   m_BackgroundPrefab: {fileID: 9012943349204021915, guid: 59b619c108b875c4f81bf86540b8f6a1, type: 3}
   m_Answers:
   - {fileID: 11400000, guid: 6e284a00050152841a14f5778a3d31a5, type: 2}
-  m_Thumbnail: {fileID: 0}
+  m_Thumbnail: {fileID: 21300000, guid: 802a028e5d07eb843922bcfa97078ae7, type: 3}
   m_GridSize: {x: 0, y: 0, z: 0}
   m_AvailableMaterials:
   - {fileID: 11400000, guid: d8d195fafca16df4dafe2896841375ca, type: 2}
@@ -27,3 +27,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8768761caa061914c88811def6d1f361, type: 2}
   - {fileID: 11400000, guid: e5f9a035aa89bc94aaf47c04065fedaf, type: 2}
   - {fileID: 11400000, guid: d3efc3979c47a1542b6e09394c4385ae, type: 2}
+  m_NamsanGimmicks: {fileID: 0}

@@ -84,9 +84,16 @@ namespace GridSystem
         }
 
         // 이 판에 쓸 건축 영역 크기 — 호스트가 고른 맵이 전용 크기를 갖고 있으면 그걸, 아니면 씬 값.
+        // 2vs2는 배경과 마찬가지로 공터(경기장) 맵의 그리드 크기를 쓴다(MapLoader와 정합).
         private Vector3Int ServerGridSize()
         {
             var catalog = MapCatalog.Instance;
+            if (GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus && catalog != null)
+            {
+                var arena = catalog.FindVersusArena();
+                if (arena != null && arena.HasGridSize) return arena.GridSize;
+            }
+
             var def = catalog != null ? catalog.Get(GameLoopManager.HostSelectedMap) : null;
             return def != null && def.HasGridSize ? def.GridSize : m_Manager.GridSize;
         }
