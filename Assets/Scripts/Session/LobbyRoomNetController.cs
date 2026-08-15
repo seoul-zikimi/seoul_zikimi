@@ -158,11 +158,13 @@ public class LobbyRoomNet : NetworkBehaviour
             OutfitId.Equals(other.OutfitId) && Ready == other.Ready && Team == other.Team;
     }
 
-    /// <summary>방장 전용: 맵 선택(카탈로그 인덱스, 순환). 클라가 부르면 무시.</summary>
+    /// <summary>방장 전용: 맵 선택(카탈로그 인덱스, 순환). 클라가 부르면 무시.
+    /// 공터(2vs2 경기장)는 선택지가 아니므로 건너뛴다 — ◀▶로 순환 시 방향 유지.</summary>
     public void HostSelectMap(int index)
     {
         if (!IsServer) return;
-        m_MapIndex.Value = WrapMapIndex(index);
+        int dir = index >= m_MapIndex.Value ? 1 : -1;
+        m_MapIndex.Value = SkipVersusArena(WrapMapIndex(index), dir);
     }
 
     /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다.</summary>
@@ -171,6 +173,20 @@ public class LobbyRoomNet : NetworkBehaviour
         int n = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Count : 1;
         if (n <= 0) n = 1;
         return ((index % n) + n) % n;
+    }
+
+    /// <summary>index가 공터(경기장) 맵이면 dir 방향으로 다음 일반 맵까지 넘긴다(전부 공터면 그대로).</summary>
+    private static int SkipVersusArena(int index, int dir)
+    {
+        var catalog = GridSystem.MapCatalog.Instance;
+        if (catalog == null || catalog.Count == 0) return index;
+        for (int step = 0; step < catalog.Count; step++)
+        {
+            var def = catalog.Get(index);
+            if (def == null || !def.IsVersusArena) return index;
+            index = WrapMapIndex(index + dir);
+        }
+        return index;
     }
 
     private void OnMapChanged(int _, int now)
