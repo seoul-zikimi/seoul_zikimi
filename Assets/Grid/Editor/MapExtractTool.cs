@@ -153,6 +153,7 @@ namespace GridSystem.EditorTools
                 AssetDatabase.ImportAsset(pngPath);
                 var imp = (TextureImporter)AssetImporter.GetAtPath(pngPath);
                 imp.textureType = TextureImporterType.Sprite;
+                imp.spriteImportMode = SpriteImportMode.Single;   // Multiple로 잡히면 스프라이트 서브에셋이 안 생겨 썸네일 연결이 빈다
                 imp.SaveAndReimport();
                 return AssetDatabase.LoadAssetAtPath<Sprite>(pngPath);
             }

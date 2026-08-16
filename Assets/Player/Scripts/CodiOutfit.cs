@@ -23,6 +23,7 @@ public class CodiOutfit : MonoBehaviour
     {
         RemoveAll(character);
         if (character == null || string.IsNullOrEmpty(id)) return;
+        if (CharacterSwap.IsNonDefault(character)) return;   // 대체 캐릭터(거북이 등)는 달팽이 본이 숨겨져 있어 아웃핏이 허공에 뜬다 — 스킵
         var prefab = Resources.Load<GameObject>("CodiOutfits/" + id);
         if (prefab == null) { Debug.LogWarning($"[Outfit] 프리팹 없음: Resources/CodiOutfits/{id}"); return; }
 

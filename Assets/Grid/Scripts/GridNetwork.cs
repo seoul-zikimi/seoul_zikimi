@@ -53,13 +53,19 @@ namespace GridSystem
             return true;
         }
 
-        /// <summary>해당 셀이 '미고정 하중부재'(고정 전)면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)</summary>
+        /// <summary>해당 셀이 '아직 망치 고정 전'이면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)
+        /// 고정 필요 여부(MustBeFixed)와 무관 — 망치질로 고정한 블록만 회수 불가(C 철거로만).</summary>
         public bool IsPickupable(Vector3Int cell)
         {
             if (!TryGetCell(cell, out int matId, out int completed)) return false;
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
+            return CanReclaim(def, completed);
+        }
+
+        private static bool CanReclaim(MaterialDef def, int completedMask)
+        {
             if (def == null) return false;
-            return def.MustBeFixed && (completed & (int)ProcessType.Fixed) == 0;
+            return (completedMask & (int)ProcessType.Fixed) == 0;
         }
 
         private GridManager m_Manager;
@@ -252,9 +258,9 @@ namespace GridSystem
             var cs = m_ServerGrid.GetCell(cell);
             if (!cs.occupied) return false;
 
-            // 서버 권위 재검증: 미고정 하중부재만(고정 완료 블록은 C로만)
+            // 서버 권위 재검증: 아직 망치 고정 전이면 회수 가능(고정 완료 블록은 C 철거로만) — IsPickupable과 동일 규칙
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
-            if (def == null || !def.MustBeFixed || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
+            if (def == null || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
                 return false;
 
             ulong owner = cs.ownerObjectId;

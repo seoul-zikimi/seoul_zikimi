@@ -11,11 +11,20 @@ namespace GridSystem.Tests
     /// </summary>
     public class MapAuthoringValidationTests
     {
-        // MapLoader.ApplySpots가 인식하는 마커 이름 — 여기 없는 이름은 오타로 간주(조용히 무시되면 못 찾음)
-        static readonly string[] kKnownSpots =
+        // 모든 맵에 반드시 있어야 하는 마커 5종
+        static readonly string[] kRequiredSpots =
         {
             "GridManager", "PaintStation", "HammerStation", "PlayerSpawnPoint", "DeliveryZone",
         };
+
+        // 특정 맵에서만 쓰는 선택 마커(남산 기믹 등) — 없어도 되지만 이름은 정확해야 한다
+        static readonly string[] kOptionalSpots =
+        {
+            "CableCarStation", "CableCarOrigin", "ElevatorLower", "ElevatorUpper",
+        };
+
+        // 인식되는 전체 마커 이름 — 여기 없는 이름은 오타로 간주(조용히 무시되면 못 찾음)
+        static readonly string[] kKnownSpots = kRequiredSpots.Concat(kOptionalSpots).ToArray();
 
         static MapCatalog Catalog() => Resources.Load<MapCatalog>("MapCatalog");
 
@@ -105,6 +114,26 @@ namespace GridSystem.Tests
         }
 
         [Test]
+        public void 정답이_맵_건축영역_안에_들어간다()
+        {
+            foreach (var m in Maps())
+            {
+                if (!m.HasGridSize) continue;   // 씬 기본 크기 사용 → 여기선 검사 불가
+                var gs = m.GridSize;
+                foreach (var ans in m.Answers)
+                {
+                    if (ans == null) continue;
+                    foreach (var c in ans.Cells)
+                        Assert.IsTrue(c.cell.x >= 0 && c.cell.x < gs.x &&
+                                      c.cell.y >= 0 && c.cell.y < gs.y &&
+                                      c.cell.z >= 0 && c.cell.z < gs.z,
+                            $"[{m.name}] 정답 '{ans.name}'의 셀 {c.cell}이 Grid Size {gs} 밖 — 그 자리는 지을 수 없어 만점이 불가능합니다. " +
+                            "Grid Size를 키우거나 정답을 옮기세요.");
+                }
+            }
+        }
+
+        [Test]
         public void 맵_표시이름이_서로_겹치지_않는다()
         {
             var dup = Maps().GroupBy(m => m.DisplayName).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
@@ -152,9 +181,17 @@ namespace GridSystem.Tests
                 foreach (var t in m.BackgroundPrefab.GetComponentsInChildren<Transform>(true))
                     if (t.name.StartsWith("Spot_")) found.Add(t.name.Substring("Spot_".Length));
 
-                foreach (var need in kKnownSpots)
+                // 남산 기믹 맵은 배송 지점 대신 케이블카 하차장을 쓴다.
+                bool namsan = m.NamsanGimmicks != null;
+                foreach (var need in kRequiredSpots)
+                {
+                    if (namsan && need == "DeliveryZone") continue;
                     Assert.IsTrue(found.Contains(need),
                         $"[{m.name}] Spot_{need} 마커가 없음 — 이 맵에서는 해당 오브젝트가 안 나오거나 공용 위치에 남습니다.");
+                }
+                if (namsan)
+                    Assert.IsTrue(found.Contains("CableCarStation"),
+                        $"[{m.name}] 남산 기믹 맵인데 Spot_CableCarStation(케이블카 하차장) 마커가 없음 — 재료를 받을 곳이 없습니다.");
             }
         }
 

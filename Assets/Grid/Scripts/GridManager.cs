@@ -40,6 +40,10 @@ namespace GridSystem
             Rebuild();
         }
 
+        /// <summary>그리드 원점/크기가 바뀐 뒤 정답 비주얼(고스트·미리보기) 재생성 통지.
+        /// 고스트는 생성 시점의 GridContract.Origin으로 그려지므로, 맵 마커로 그리드가 이동하면 반드시 다시 그려야 한다.</summary>
+        public void NotifyAnswerVisualsDirty() => OnAnswerChanged?.Invoke();
+
         /// <summary>맵 전용 건축 영역 크기 적용(MapDef.GridSize). 배경 스폰과 함께 모든 클라가 같은 값으로 호출한다.
         /// 비어 있거나 같은 값이면 아무 것도 하지 않는다.</summary>
         public void ApplyMapGridSize(Vector3Int size)

@@ -17,3 +17,13 @@ MonoBehaviour:
   m_Answers:
   - {fileID: 11400000, guid: 6e284a00050152841a14f5778a3d31a5, type: 2}
   m_Thumbnail: {fileID: 0}
+  m_GridSize: {x: 0, y: 0, z: 0}
+  m_AvailableMaterials:
+  - {fileID: 11400000, guid: d8d195fafca16df4dafe2896841375ca, type: 2}
+  - {fileID: 11400000, guid: ec6591becebd2ad47bc80e2dd971479d, type: 2}
+  - {fileID: 11400000, guid: fbfd83b2a8234104dac87d0c904ac8ec, type: 2}
+  - {fileID: 11400000, guid: 886e3596d6c3a0f4c9e9f13d3cb4388d, type: 2}
+  - {fileID: 11400000, guid: eb55a7d1dd555af4fa5b53e9d2e3b4c1, type: 2}
+  - {fileID: 11400000, guid: 8768761caa061914c88811def6d1f361, type: 2}
+  - {fileID: 11400000, guid: e5f9a035aa89bc94aaf47c04065fedaf, type: 2}
+  - {fileID: 11400000, guid: d3efc3979c47a1542b6e09394c4385ae, type: 2}

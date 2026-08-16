@@ -14,58 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Autotiles3D.Autotiles3D_TileGroup
   Tiles:
   - _group: GridTiles
-    _tileID: -349959188
-    Default: {fileID: 1887469075001577258, guid: 026a4092daea1a247ab759ad74afa8ee, type: 3}
+    _tileID: 1588145018
+    Default: {fileID: 6665910196767419125, guid: d34b28a87566968448728da53791ef45, type: 3}
     Randoms: []
     Random: 0
-    _name: 1_LowerPillar
+    _name: "\uBCBD"
     Rules: []
   - _group: GridTiles
-    _tileID: 2025810381
-    Default: {fileID: 8391025224284902483, guid: cd080ffc050b8a34199cdf0f20c4d324, type: 3}
+    _tileID: 783249535
+    Default: {fileID: 4213422942284485284, guid: 820fe2071d9f5b243968fffb85fdeeee, type: 3}
     Randoms: []
     Random: 0
-    _name: 2_UpperPillar
+    _name: "\uBB38\uC774 \uC788\uB294 \uBCBD"
     Rules: []
   - _group: GridTiles
-    _tileID: 1734270179
-    Default: {fileID: 7309153541407950982, guid: 3a75160edc163e1438fb1c7538f1b43f, type: 3}
+    _tileID: 628770470
+    Default: {fileID: 5091052921140091443, guid: 7ed6b84034be59c4b864f0884670b83a, type: 3}
     Randoms: []
     Random: 0
-    _name: 3_Pier
-    Rules: []
-  - _group: GridTiles
-    _tileID: 1315905558
-    Default: {fileID: 624811965546752978, guid: 69eb28210989889408f03ffb43868ee7, type: 3}
-    Randoms: []
-    Random: 0
-    _name: 4_Floor44
-    Rules: []
-  - _group: GridTiles
-    _tileID: 51576239
-    Default: {fileID: 624811965546752978, guid: 4e3c871b7138b6f4a878280d579406d3, type: 3}
-    Randoms: []
-    Random: 0
-    _name: 5_Floor64
-    Rules: []
-  - _group: GridTiles
-    _tileID: -964946323
-    Default: {fileID: 1593461715113577070, guid: 568d0070416207f45976ebc50c098714, type: 3}
-    Randoms: []
-    Random: 0
-    _name: 6_hatch
-    Rules: []
-  - _group: GridTiles
-    _tileID: -898345380
-    Default: {fileID: 3513822841861358522, guid: 3a126406c095f424486de5921e5c35a2, type: 3}
-    Randoms: []
-    Random: 0
-    _name: 7_LongPost
-    Rules: []
-  - _group: GridTiles
-    _tileID: 1431757438
-    Default: {fileID: 2231575165527779503, guid: 63bfe4f713af8b942892b26377660ebd, type: 3}
-    Randoms: []
-    Random: 0
-    _name: 8_ShortPost
+    _name: "\uC9C0\uBD95"
     Rules: []
