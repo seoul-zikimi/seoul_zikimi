@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20201acce871a3c45b510babe7f8bb03, type: 3}
+  m_Name: Map_VersusField
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
+  m_DisplayName: "\uACF5\uD130 \uB300\uACB0\uC7A5"
+  m_BackgroundPrefab: {fileID: 7872802193577534633, guid: 85be6c493cd461443b3a84d1b9a62217, type: 3}
+  m_Answers:
+  - {fileID: 11400000, guid: 6e284a00050152841a14f5778a3d31a5, type: 2}
+  m_Thumbnail: {fileID: 21300000, guid: 947537248510866478350db205a273b4, type: 3}
+  m_GridSize: {x: 16, y: 8, z: 16}
+  m_AvailableMaterials:
+  - {fileID: 11400000, guid: d8d195fafca16df4dafe2896841375ca, type: 2}
+  - {fileID: 11400000, guid: ec6591becebd2ad47bc80e2dd971479d, type: 2}
+  - {fileID: 11400000, guid: fbfd83b2a8234104dac87d0c904ac8ec, type: 2}
+  - {fileID: 11400000, guid: 886e3596d6c3a0f4c9e9f13d3cb4388d, type: 2}
+  - {fileID: 11400000, guid: eb55a7d1dd555af4fa5b53e9d2e3b4c1, type: 2}
+  - {fileID: 11400000, guid: 8768761caa061914c88811def6d1f361, type: 2}
+  - {fileID: 11400000, guid: e5f9a035aa89bc94aaf47c04065fedaf, type: 2}
+  - {fileID: 11400000, guid: d3efc3979c47a1542b6e09394c4385ae, type: 2}

@@ -184,7 +184,9 @@ public sealed class GameLoopHUD : UIHUD
             m_Loop = FindFirstObjectByType<GameLoopManager>();
 
         bool ready = m_Loop != null && m_Loop.IsSpawned;
-        SetVisible(ready);
+        // 시간제한이 없는 모드(자유 모드/튜토리얼)는 TimeLeft가 사실상 무한대라 숫자가 의미 없다 — 타이머 박스(베이지 배경 포함) 자체를 숨긴다.
+        bool timeLimited = ready && m_Loop.ModeDef.TimeLimitPolicy != SeoulZikimi.Gameplay.TimeLimitPolicy.Unlimited;
+        SetVisible(ready, timeLimited);
         if (!ready)
             return;
 
@@ -220,7 +222,7 @@ public sealed class GameLoopHUD : UIHUD
         }
 
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
-        if (m_TimerText != null)
+        if (m_TimerText != null && timeLimited)
         {
             string timer = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
             // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
@@ -292,9 +294,9 @@ public sealed class GameLoopHUD : UIHUD
             }
     }
 
-    private void SetVisible(bool visible)
+    private void SetVisible(bool visible, bool timeLimited)
     {
-        if (m_TopBar != null) m_TopBar.SetActive(visible);
+        if (m_TopBar != null) m_TopBar.SetActive(visible && timeLimited);   // TopBar = 타이머 베이지 박스 자체(자식이 Timer 텍스트뿐)
         if (m_ConsentBar != null) m_ConsentBar.SetActive(visible);
         if (m_SettingsButton != null) m_SettingsButton.gameObject.SetActive(visible);
         if (!visible)
@@ -378,6 +380,13 @@ public sealed class GameLoopHUD : UIHUD
             if (coins > 0) SaveService.AddCoins(coins);
             if (m_CoinRewardText != null)
                 m_CoinRewardText.text = (newBest ? "신기록!  " : "") + $"+{coins}코인  (보유 {SaveService.Coins}코인)";
+
+            // 2vs2: 내 팀 기준 승/패를 맵별 전적에 기록(무승부 제외). 키는 로비 전적 표시와 동일하게 맵 DisplayName.
+            if (versus && m_Loop.WinnerTeam >= 0)
+            {
+                var mapDef = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Get(m_Loop.MapIndex) : null;
+                SaveService.ReportVersus(mapDef != null ? mapDef.DisplayName : map, m_Loop.WinnerTeam == myTeam);
+            }
 
             // 정산서 이미지 = 내가 실제로 지은 구조물(미니씬 렌더). 실패 시 정답 미리보기로 폴백.
             if (m_ResultImage != null)

@@ -15,9 +15,11 @@ public static class BlockThumbnail
         if (prefab == null) return null;
         if (s_Cache.TryGetValue(prefab, out var cached) && cached != null) return cached;
 
-        // 멀리 떨어진 임시 위치에 인스턴스(메인 씬 간섭 0)
+        // 멀리 떨어진 임시 위치에 인스턴스(메인 씬 간섭 0).
+        // 호출마다 자리를 띄운다 — Destroy는 프레임 끝 지연이라, 같은 프레임에 여러 장 찍으면
+        // 이전 인스턴스가 같은 자리에 남아 겹쳐 찍힌다(재료 여러 개가 섞여 보이던 버그).
         var root = new GameObject("~ThumbRoot") { hideFlags = HideFlags.HideAndDontSave };
-        root.transform.position = new Vector3(0f, -5000f, 0f);
+        root.transform.position = new Vector3(s_Slot++ * 200f, -5000f, 0f);
         var inst = Object.Instantiate(prefab, root.transform);
         inst.transform.localPosition = Vector3.zero;
         inst.transform.localRotation = Quaternion.Euler(0f, 35f, 0f);   // 살짝 돌려 입체감
@@ -41,7 +43,7 @@ public static class BlockThumbnail
         cam.fieldOfView = 32f;
         cam.nearClipPlane = 0.05f;
         cam.farClipPlane = radius * 12f + 50f;
-        Vector3 dir = new Vector3(0.5f, 0.55f, -0.85f).normalized;       // 살짝 위·옆 쿼터뷰
+        Vector3 dir = new Vector3(0.7f, 0.65f, -0.7f).normalized;        // 깔끔한 쿼터뷰(45° 대각 + 위)
         cam.transform.position = b.center + dir * (radius * 3.2f);
         cam.transform.LookAt(b.center);
 
@@ -65,7 +67,8 @@ public static class BlockThumbnail
         cam.targetTexture = null;
         RenderTexture.ReleaseTemporary(rt);
 
-        // 정리
+        // 정리 — Destroy는 지연되므로 즉시 꺼서 다음 렌더에 안 비치게
+        root.SetActive(false);
         Object.Destroy(lightGO);
         Object.Destroy(camGO);
         Object.Destroy(root);
@@ -73,6 +76,8 @@ public static class BlockThumbnail
         s_Cache[prefab] = tex;
         return tex;
     }
+
+    private static int s_Slot;   // 같은 프레임 연속 렌더 자리 분리용
 
     private static void SetLayer(GameObject go, int layer)
     {

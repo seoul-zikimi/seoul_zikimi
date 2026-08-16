@@ -102,6 +102,15 @@ namespace GridSystem
         /// <summary>로비에서 호스트가 고른 맵(게임 시작 전 세팅). 서버 스폰 시 m_MapIndex로 복제됨.</summary>
         public static int HostSelectedMap = 0;
 
+        /// <summary>방 생성 시 호스트가 고른 날씨 ON/OFF. 현재는 선택값만 보관하며(세션 프로퍼티에도 저장),
+        /// 실제 인게임 날씨 적용은 날씨 시스템을 게임 루프에 연결하는 별도 작업에서 사용한다.</summary>
+        public static bool HostWeatherEnabled = true;
+
+        /// <summary>2vs2 대전에서 경쟁 아이템 사용 여부(true=아이템전, false=순수 타임어택전).
+        /// 로비 모드 4종 중 2vs2 두 변형을 구분하는 플래그. 실제 인게임 아이템 스폰 On/Off 연결은
+        /// GameplayFramework의 아이템 시스템을 붙일 때 이 값을 참조한다(현재는 선택값 보관).</summary>
+        public static bool HostVersusUsesItems = true;
+
         private void Awake()
         {
             m_Grid = GetComponent<GridManager>();
@@ -114,6 +123,13 @@ namespace GridSystem
             // 2vs2 경쟁 아이템 호스트(런타임 보장 — 씬 수정 불필요, 서버/클라 동일 순서로 부착)
             if (!TryGetComponent<ItemNetwork>(out _))
                 gameObject.AddComponent<ItemNetwork>();
+            // 남산 기믹 호스트들 — 맵 카드에 NamsanGimmickConfig가 없으면 스스로 잠잔다(다른 맵 영향 0)
+            if (!TryGetComponent<CableCarNetwork>(out _))
+                gameObject.AddComponent<CableCarNetwork>();
+            if (!TryGetComponent<ElevatorNetwork>(out _))
+                gameObject.AddComponent<ElevatorNetwork>();
+            if (!TryGetComponent<GustNetwork>(out _))
+                gameObject.AddComponent<GustNetwork>();
         }
 
         public override void OnNetworkSpawn()
@@ -139,8 +155,12 @@ namespace GridSystem
 
         private void OnAnswerIndexChanged(int _, int v) => m_Grid.SelectAnswer(v);
 
+        /// <summary>페이즈 변경 통지(전 클라 로컬 호출) — 맵 기믹·HUD 등이 폴링 없이 반응할 수 있게.</summary>
+        public static event System.Action<GamePhase> PhaseChanged;
+
         private void OnPhaseChanged(int _, int next)
         {
+            PhaseChanged?.Invoke((GamePhase)next);
             if ((GamePhase)next == GamePhase.Building)
             {
                 m_UrgentBgmStarted = false;
@@ -356,6 +376,10 @@ namespace GridSystem
         {
             m_Winner.Value = -2;                       // 2vs2 승패 초기화
             if (TryGetComponent<ItemNetwork>(out var items)) items.ServerReset();   // 경쟁 아이템 정리
+            if (TryGetComponent<CableCarNetwork>(out var cable)) cable.ServerReset();   // 남산: 곤돌라·대기열 정리
+            if (TryGetComponent<ElevatorNetwork>(out var elev)) elev.ServerReset();     // 남산: 엘리베이터 재잠금
+            if (TryGetComponent<GustNetwork>(out var gust)) gust.ServerReset();         // 남산: 돌풍 주기 리셋
+            if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리

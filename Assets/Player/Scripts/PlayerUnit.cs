@@ -24,6 +24,7 @@ namespace Player
         private Coroutine          m_SpawnRoutine;
         private float              m_NextFallRecoveryTime;
         private bool               m_DbgMoving;   // 진단용(원격 먼지 복제 로그 throttle)
+        private PlayerStun         m_Stun;        // 남산 돌풍 추락 스턴
         
 
         [Header("비계 (더블탭 Space)")]
@@ -66,6 +67,9 @@ namespace Player
 
             if (GetComponent<PlayerSplat>() == null)   // 착지 철푸덕(래퍼 스케일 — 리깅과 무관하게 적용)
                 gameObject.AddComponent<PlayerSplat>();
+
+            m_Stun = GetComponent<PlayerStun>();       // 남산 돌풍 추락 스턴(기믹 없는 맵에선 잠잠)
+            if (m_Stun == null) m_Stun = gameObject.AddComponent<PlayerStun>();
 
             if (!IsOwner)
             {
@@ -142,6 +146,21 @@ namespace Player
             m_KinematicFrames = 0;
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
+
+            // 남산 돌풍: 외력 채널 갱신 + 밀림 추락 스턴(기믹 없는 맵에선 push=0, 스턴 없음)
+            var push = GridSystem.GustNetwork.CurrentPushAt(transform);
+            m_Movement.ExternalPush = push;
+            if (m_Stun != null)
+            {
+                m_Stun.Tick(m_Movement.IsGrounded(), push.sqrMagnitude > 1e-6f);
+                if (m_Stun.IsStunned)
+                {
+                    // 행동 불능: 수평 정지(중력·낙하는 그대로), 이동·점프·비계 전부 차단
+                    m_Rb.useGravity = true;
+                    m_Rb.linearVelocity = new Vector3(0f, m_Rb.linearVelocity.y, 0f);
+                    return;
+                }
+            }
 
             RecoverIfFallingThroughStage();
 
