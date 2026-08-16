@@ -1,0 +1,10 @@
+﻿fileFormatVersion: 2
+guid: f45b84b46ee1493d8f5688f8f0a187b8
+timeCreated: 1751490364
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Runtime/Ballistics/SpawnConstraints/IBallisticProjectileSpawnConstraint.cs
+  uploadId: 955000

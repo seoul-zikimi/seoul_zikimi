@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 3fe8d5916c7dd3a46bdd282d53ed89a2
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Runtime/Material/ProjectileLineRenderer.mat
+  uploadId: 955000

@@ -23,6 +23,11 @@ public static class JobsnailUiKit
             if (s_LegacyFont != null)
                 return s_LegacyFont;
 
+            // 폰트 통일: Resources의 서울한강 장체M을 최우선(에디터·빌드 동일 — OS 폰트 편차 제거)
+            s_LegacyFont = Resources.Load<Font>("Fonts/서울한강 장체M");
+            if (s_LegacyFont != null)
+                return s_LegacyFont;
+
 #if UNITY_EDITOR
             s_LegacyFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Font/서울한강 장체M.ttf");
             if (s_LegacyFont != null)
@@ -88,6 +93,21 @@ public static class JobsnailUiKit
         return image;
     }
 
+    /// <summary>배경 이미지를 화면에 꽉 채운다(비율 유지 + 넘치는 부분 크롭). 레터박스 여백 제거용.</summary>
+    public static void CoverFill(Image image)
+    {
+        if (image == null || image.sprite == null) return;
+        image.preserveAspect = false;                       // 종횡비는 Fitter가 담당
+        var rt = image.rectTransform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        var fitter = image.GetComponent<AspectRatioFitter>();
+        if (fitter == null) fitter = image.gameObject.AddComponent<AspectRatioFitter>();
+        fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;   // 부모를 덮도록 확대(크롭)
+        var s = image.sprite.rect;
+        fitter.aspectRatio = s.height > 0f ? s.width / s.height : 1.777f;
+    }
+
     public static Image Box(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size, Color color)
     {
         var rt = Rect(name, parent, anchorMin, anchorMax, anchored, size);
@@ -110,6 +130,7 @@ public static class JobsnailUiKit
         button.onClick.AddListener(PlayUIClick);
         if (onClick != null)
             button.onClick.AddListener(onClick);
+        JuicyButton.Attach(button);   // 모든 킷 버튼 = 쫀득(호버·눌림·복귀)
 
         if (!string.IsNullOrEmpty(fallbackText) && sprite == null)
         {

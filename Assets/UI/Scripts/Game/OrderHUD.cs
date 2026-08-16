@@ -62,6 +62,8 @@ public class OrderHUD : UIHUD
         var timg = m_Toggle.AddComponent<Image>(); timg.color = new Color(0f, 0f, 0f, 0.85f);
         var tbtn = m_Toggle.AddComponent<Button>(); tbtn.targetGraphic = timg;
         tbtn.onClick.AddListener(Toggle);
+        JuicyButton.Attach(tbtn);
+        m_Panel.AddComponent<UiPopIn>();   // 펼칠 때마다 뽁 등장
 
         var arrow = NewRect("Arrow", m_Toggle.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         var art = arrow.GetComponent<RectTransform>();
@@ -122,6 +124,7 @@ public class OrderHUD : UIHUD
         var img = go.AddComponent<Image>(); img.color = new Color(0.25f, 0.42f, 0.72f, 1f);
         var btn = go.AddComponent<Button>(); btn.targetGraphic = img;
         btn.onClick.AddListener(() => onClick());
+        JuicyButton.Attach(btn);
 
         var lbl = NewRect("Label", go.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         var lrt = lbl.GetComponent<RectTransform>();

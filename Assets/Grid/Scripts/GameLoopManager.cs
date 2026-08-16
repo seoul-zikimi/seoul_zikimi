@@ -1,3 +1,4 @@
+using SeoulZikimi.Gameplay;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -25,13 +26,25 @@ namespace GridSystem
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<int> m_AnswerIndex =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<int> m_MapIndex =
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 배경 맵(MapCatalog 인덱스)
         private readonly NetworkList<ulong> m_Consents = new();   // 동의한 clientId (건축중=종료동의 / 종료중=재시작동의, 서버 관리)
         private readonly NetworkList<NameEntry> m_Names = new();   // 접속 플레이어 표시 이름(서버 관리, 정산서 명단용)
 
+        // ── 게임 모드(GameplayFramework 통합 1단계) ──
+        /// <summary>로비에서 방장이 고른 모드(0=타임어택, 1=2vs2, 2=자유). 서버 스폰 시 m_Mode로 복제.</summary>
+        public static int HostSelectedMode = (int)GameModeKind.TimeAttack;
+
+        private readonly NetworkVariable<int> m_Mode =
+            new((int)GameModeKind.TimeAttack, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkList<TeamEntry> m_Teams = new();   // 2vs2 팀 배정(서버 관리, 접속순 번갈아)
+        private readonly NetworkVariable<int> m_Winner =
+            new(-2, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // -2=미정 -1=무승부 0/1=승리 팀
+        private GameModeCatalog m_Modes;
+        private int m_SurrenderWinner = -2;   // 서버: 항복으로 확정된 승자(-2=없음)
+
         private GridManager m_Grid;
         private GridNetwork m_Net;
-        private GUIStyle m_Big, m_Mid, m_Small;
-        [SerializeField] private bool m_UseLegacyOnGUI;
         private bool m_UrgentBgmStarted;
 
         public GamePhase Phase => (GamePhase)m_Phase.Value;
@@ -44,9 +57,50 @@ namespace GridSystem
         // 정산서용: 접속 플레이어 이름(서버가 NetworkList로 복제) / 소요시간 / 구조물 이름
         public int NameCount => m_Names.Count;
         public string GetName(int i) => (i >= 0 && i < m_Names.Count) ? m_Names[i].Name.ToString() : "";
-        public float TimeLimit => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 0f;
+        /// <summary>clientId로 표시 이름 조회(캐릭터 위 네임태그용). 없으면 빈 문자열.</summary>
+        public string GetNameFor(ulong clientId)
+        {
+            for (int i = 0; i < m_Names.Count; i++)
+                if (m_Names[i].Id == clientId) return m_Names[i].Name.ToString();
+            return "";
+        }
+
+        // ── 모드 조회(전 클라 동일) ──
+        public GameModeKind Mode => (GameModeKind)m_Mode.Value;
+        public GameModeDefinition ModeDef => (m_Modes ??= GameModeCatalog.CreateDefault()).Get(Mode);
+        public bool IsVersus => Mode == GameModeKind.TeamVersus;
+
+        /// <summary>clientId의 팀(0=A, 1=B). 미배정/협동 모드는 -1.</summary>
+        public int GetTeam(ulong clientId)
+        {
+            for (int i = 0; i < m_Teams.Count; i++)
+                if (m_Teams[i].Id == clientId) return m_Teams[i].Team;
+            return -1;
+        }
+
+        public int LocalTeam =>
+            (IsSpawned && NetworkManager.Singleton != null) ? GetTeam(NetworkManager.Singleton.LocalClientId) : -1;
+
+        /// <summary>2vs2 승자 팀(-2=미정, -1=무승부, 0/1). 종료 시 확정.</summary>
+        public int WinnerTeam => m_Winner.Value;
+
+        public float TimeLimit
+        {
+            get
+            {
+                var def = ModeDef;
+                if (def.TimeLimitPolicy == TimeLimitPolicy.Fixed) return def.FixedTimeLimitSeconds;        // 2vs2 = 7분 고정
+                if (def.TimeLimitPolicy == TimeLimitPolicy.Unlimited) return 0f;                            // 자유모드 = 무제한
+                return (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 0f;     // 타임어택 = 정답별
+            }
+        }
         public float Elapsed => Mathf.Max(0f, TimeLimit - TimeLeft);
         public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";
+
+        /// <summary>현재 맵(MapCatalog 인덱스). 서버가 정하고 전 클라 동기화 — MapLoader가 이걸 보고 배경 스폰.</summary>
+        public int MapIndex => m_MapIndex.Value;
+        /// <summary>로비에서 호스트가 고른 맵(게임 시작 전 세팅). 서버 스폰 시 m_MapIndex로 복제됨.</summary>
+        public static int HostSelectedMap = 0;
 
         private void Awake()
         {
@@ -57,12 +111,19 @@ namespace GridSystem
             // 어댑터는 별도 상태 머신을 실행하지 않으며 종료 동의/나가기 전달과 상태 조회만 담당한다.
             if (!TryGetComponent<CurrentCoopGameplayAdapter>(out _))
                 gameObject.AddComponent<CurrentCoopGameplayAdapter>();
+            // 2vs2 경쟁 아이템 호스트(런타임 보장 — 씬 수정 불필요, 서버/클라 동일 순서로 부착)
+            if (!TryGetComponent<ItemNetwork>(out _))
+                gameObject.AddComponent<ItemNetwork>();
         }
 
         public override void OnNetworkSpawn()
         {
             m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
+            if (IsServer) m_MapIndex.Value = HostSelectedMap;   // 배경 맵 확정(전원 동기화)
+            if (IsServer) m_Mode.Value = Mathf.Clamp(HostSelectedMode, 0, 2);   // 모드 확정(전원 동기화)
+            ApplyMapAnswers();                         // 맵 전용 정답 세트가 있으면 교체(서버 랜덤픽 전에!)
+            m_Grid.ConfigureVersus(IsVersus);          // 2vs2: 그리드 X 2배 + 분할벽(전 피어, 블록 배치 전)
             if (IsServer) PickRandomAnswer();          // 서버: 랜덤 정답 선택(전원 동기화)
             m_Grid.SelectAnswer(m_AnswerIndex.Value);  // 모든 클라(늦참 포함) 동일 정답 적용
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
@@ -92,6 +153,16 @@ namespace GridSystem
             }
         }
 
+        // 선택된 맵(MapDef)이 전용 정답 세트를 가지면 GridManager 목록을 교체.
+        // 서버·클라 모두 같은 MapDef를 로드하므로 이후 인덱스 동기화가 그대로 유효하다.
+        private void ApplyMapAnswers()
+        {
+            var catalog = MapCatalog.Instance;
+            var def = catalog != null ? catalog.Get(m_MapIndex.Value) : null;
+            if (def != null && def.Answers != null && def.Answers.Count > 0)
+                m_Grid.SetAnswers(def.Answers);
+        }
+
         // 서버: 정답 목록에서 랜덤으로 하나 고른다(1개뿐이면 0). 코스메틱 아님 — 인덱스를 복제.
         private void PickRandomAnswer()
         {
@@ -101,10 +172,27 @@ namespace GridSystem
 
         private void ResetTimerAndPhase()
         {
-            float t = (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 180f;
+            var def = ModeDef;
+            float t;
+            if (def.TimeLimitPolicy == TimeLimitPolicy.Fixed) t = def.FixedTimeLimitSeconds;          // 2vs2 = 7분 고정
+            else if (def.TimeLimitPolicy == TimeLimitPolicy.Unlimited) t = float.MaxValue;            // 자유모드
+            else t = (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 180f;
             m_TimeLeft.Value = Mathf.Max(1f, t);
             m_Phase.Value = (int)GamePhase.Building;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);
+        }
+
+        // 서버: 2vs2 팀 배정 — 미배정 접속자를 인원 적은 팀에 순서대로. 협동 모드는 배정 안 함.
+        private void AssignTeams(System.Collections.Generic.IReadOnlyList<ulong> ids)
+        {
+            if (!IsVersus) return;
+            for (int k = 0; k < ids.Count; k++)
+            {
+                if (GetTeam(ids[k]) >= 0) continue;
+                int a = 0, b = 0;
+                for (int i = 0; i < m_Teams.Count; i++) { if (m_Teams[i].Team == 0) a++; else b++; }
+                m_Teams.Add(new TeamEntry { Id = ids[k], Team = a <= b ? 0 : 1 });
+            }
         }
 
         private void Update()
@@ -131,7 +219,14 @@ namespace GridSystem
                 if (!Contains(ids, m_Consents[i])) m_Consents.RemoveAt(i);
             for (int i = m_Names.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Names[i].Id)) m_Names.RemoveAt(i);
-            if (ids.Count > 0 && m_Consents.Count >= ids.Count)
+            for (int i = m_Teams.Count - 1; i >= 0; i--)
+                if (!Contains(ids, m_Teams[i].Id)) m_Teams.RemoveAt(i);
+            AssignTeams(ids);   // 2vs2: 새 접속자 팀 배정(협동 모드는 no-op)
+            if (IsBuilding && IsVersus)
+            {
+                TryTeamSurrender(ids);   // 2vs2 건축중: 팀 전원 동의 = 그 팀 항복(즉시 패배)
+            }
+            else if (ids.Count > 0 && m_Consents.Count >= ids.Count)
             {
                 if (IsBuilding) Finish();   // 건축 전원동의 → 종료
                 else            Restart();  // 종료 전원동의 → 재시작
@@ -156,8 +251,49 @@ namespace GridSystem
             if (!IsBuilding) return;
             if (IsServer && m_Net != null)
                 m_Net.RecomputeScore();
+
+            // 2vs2: 승패 확정 — 항복이 있으면 그대로, 아니면 완성도(점수) 비교. 동점=무승부.
+            if (IsServer && IsVersus && m_Net != null)
+            {
+                if (m_SurrenderWinner >= 0) m_Winner.Value = m_SurrenderWinner;
+                else
+                {
+                    int a = m_Net.ScoreFor(0).score, b = m_Net.ScoreFor(1).score;
+                    m_Winner.Value = a == b ? -1 : (a > b ? 0 : 1);
+                }
+            }
+            m_SurrenderWinner = -2;
+
             m_Phase.Value = (int)GamePhase.Finished;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);   // 종료 진입 → 동의 초기화(재시작 동의는 새로 받음)
+        }
+
+        // 서버: 2vs2 조기 종료 = 항복(기획). 해당 팀 전원이 동의하면 그 팀 패배로 즉시 종료.
+        private bool TryTeamSurrender(System.Collections.Generic.IReadOnlyList<ulong> ids)
+        {
+            for (int team = 0; team <= 1; team++)
+            {
+                int members = 0, agreed = 0;
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    if (GetTeam(ids[i]) != team) continue;
+                    members++;
+                    if (Contains2(m_Consents, ids[i])) agreed++;
+                }
+                if (members > 0 && agreed >= members)
+                {
+                    m_SurrenderWinner = 1 - team;
+                    Finish();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool Contains2(NetworkList<ulong> list, ulong id)
+        {
+            for (int i = 0; i < list.Count; i++) if (list[i] == id) return true;
+            return false;
         }
 
         // Enter = 동의 토글(건축중=종료 동의 / 종료화면=재시작 동의). 두 페이즈 모두 유효.
@@ -191,6 +327,18 @@ namespace GridSystem
             m_Names.Add(new NameEntry { Id = sender, Name = name });
         }
 
+        private struct TeamEntry : INetworkSerializable, System.IEquatable<TeamEntry>
+        {
+            public ulong Id;
+            public int Team;   // 0=A, 1=B
+            public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+            {
+                serializer.SerializeValue(ref Id);
+                serializer.SerializeValue(ref Team);
+            }
+            public bool Equals(TeamEntry other) => Id == other.Id && Team == other.Team;
+        }
+
         private struct NameEntry : INetworkSerializable, System.IEquatable<NameEntry>
         {
             public ulong Id;
@@ -206,6 +354,8 @@ namespace GridSystem
         // 종료 화면에서 접속 전원이 재시작 동의 → 새 랜덤 정답으로 다음 라운드(서버 전용, 전원동의 검사에서만 호출).
         private void Restart()
         {
+            m_Winner.Value = -2;                       // 2vs2 승패 초기화
+            if (TryGetComponent<ItemNetwork>(out var items)) items.ServerReset();   // 경쟁 아이템 정리
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리
@@ -271,59 +421,5 @@ namespace GridSystem
                 SceneManager.LoadScene(SceneNames.Lobby);
         }
 
-        private void OnGUI()
-        {
-            if (!m_UseLegacyOnGUI) return;
-            if (!Application.isPlaying || !IsSpawned) return;
-            if (m_Big == null)
-            {
-                m_Big   = new GUIStyle(GUI.skin.label) { fontSize = 38, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-                m_Mid   = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-                m_Small = new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            }
-
-            int secs = Mathf.CeilToInt(TimeLeft);
-            string timer = $"{secs / 60}:{secs % 60:00}";
-
-            var tRect = new Rect(Screen.width / 2f - 110f, 8f, 220f, 48f);
-            DrawBox(tRect, 0.55f);
-            GUI.Label(tRect, IsBuilding ? timer : "종료", m_Big);
-
-            if (IsBuilding)
-            {
-                string consent = $"건축종료 동의 {m_Consents.Count}/{m_PlayerCount.Value}";
-                string hint = LocalConsented() ? "Enter = 동의 취소" : "Enter = 건축 종료 동의";
-                GUI.Label(new Rect(Screen.width / 2f - 140f, 56f, 280f, 22f), consent, m_Mid);
-                GUI.Label(new Rect(Screen.width / 2f - 140f, 78f, 280f, 20f), hint, m_Small);
-            }
-            else
-            {
-                var sc = m_Net != null ? m_Net.Score : default;
-                var box = new Rect(Screen.width / 2f - 220f, Screen.height / 2f - 110f, 440f, 220f);
-                DrawBox(box, 0.82f);
-                GUI.Label(new Rect(box.x, box.y + 20f, box.width, 48f), "건축 종료!", m_Big);
-                GUI.Label(new Rect(box.x, box.y + 78f, box.width, 30f), $"점수 {sc.Percent:F0}%  ({sc.score}/{sc.maxScore})", m_Mid);
-                GUI.Label(new Rect(box.x, box.y + 112f, box.width, 24f), $"배치 정확 {sc.placedCorrect}/{sc.answerCells}", m_Small);
-                GUI.Label(new Rect(box.x, box.y + 134f, box.width, 24f), $"공정 완료 {sc.processCorrect}/{sc.answerCells}", m_Small);
-                GUI.Label(new Rect(box.x, box.y + 166f, box.width, 26f), $"재시작 동의 {m_Consents.Count}/{m_PlayerCount.Value}", m_Mid);
-                GUI.Label(new Rect(box.x, box.y + 192f, box.width, 22f), LocalConsented() ? "Enter = 동의 취소" : "Enter = 재시작 동의", m_Small);
-            }
-
-            // 나가기(채점 없이 세션 이탈) → 연결 끊고 Bootstrap(메뉴)으로 복귀.
-            // 좌하단(빈 공간)에 둠 — 우하단은 정답 미리보기 박스와 겹침.
-            if (GUI.Button(new Rect(12f, Screen.height - 46f, 100f, 34f), "나가기"))
-            {
-                if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
-                SceneManager.LoadScene(SceneNames.BootstrapScene);   // 메뉴로 복귀(다시 Host/Client)
-            }
-        }
-
-        private static void DrawBox(Rect r, float a)
-        {
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, a);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
-        }
     }
 }

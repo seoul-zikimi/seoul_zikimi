@@ -20,6 +20,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Docs/Player/PlayerTest_YujinScene.unity
     guid: 1c554816ef1be8840ab5f848c75f57c9
+  - enabled: 1
+    path: Assets/Scenes/MyPage.unity
+    guid: d3dc860c446d0b74c805678453b59fab
+  - enabled: 1
+    path: Assets/Scenes/SandboxTest.unity
+    guid: 8ba9b9f08c905af449c3891c2d21a14e
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

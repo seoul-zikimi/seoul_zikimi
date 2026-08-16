@@ -1,0 +1,34 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace GridSystem
+{
+    /// <summary>
+    /// 맵 1개 정의(배경 + 정답 세트 + 로비 표시 정보). 씬을 늘리지 않고 배경 프리팹 스왑으로 맵을 추가한다.
+    /// 생성: Tools ▸ Map ▸ Extract Background To Prefab (배경 프리팹화 + MapDef + 카탈로그 등록 자동).
+    /// </summary>
+    [CreateAssetMenu(menuName = "Jobsnail/Map Def", fileName = "Map_")]
+    public class MapDef : ScriptableObject
+    {
+        [SerializeField] private string m_DisplayName;         // 로비 표시 이름(비우면 에셋 파일명)
+        [SerializeField] private GameObject m_BackgroundPrefab; // 환경(배경) 통째 프리팹 — MapLoader가 스폰
+        [SerializeField] private List<MapAnswerData> m_Answers = new();   // 이 맵 전용 정답 세트(비우면 GridManager 기본 목록 사용)
+        [SerializeField] private Sprite m_Thumbnail;           // 로비 "선택된 맵 이미지"용(선택)
+        [Tooltip("이 맵의 건축 영역 크기(칸). 비워두면(0) GameScene의 GridManager 값을 씁니다. 2vs2에서는 가로가 2배가 됩니다.")]
+        [SerializeField] private Vector3Int m_GridSize;        // (0,0,0) = 미설정
+        [Tooltip("이 맵에서 주문할 수 있는 재료. 비워두면 MaterialCatalog 전체가 나옵니다.")]
+        [SerializeField] private List<MaterialDef> m_AvailableMaterials = new();
+
+        public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
+        public GameObject BackgroundPrefab => m_BackgroundPrefab;
+        public IReadOnlyList<MapAnswerData> Answers => m_Answers;
+        public Sprite Thumbnail => m_Thumbnail;
+
+        /// <summary>이 맵에서 주문 가능한 재료(비면 카탈로그 전체). 카탈로그 자체는 전역 그대로다.</summary>
+        public IReadOnlyList<MaterialDef> AvailableMaterials => m_AvailableMaterials;
+
+        /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
+        public Vector3Int GridSize => m_GridSize;
+        public bool HasGridSize => m_GridSize.x > 0 && m_GridSize.y > 0 && m_GridSize.z > 0;
+    }
+}

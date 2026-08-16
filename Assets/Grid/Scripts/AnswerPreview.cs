@@ -25,7 +25,6 @@ namespace GridSystem
         private GameObject m_GhostRoot;   // 실제 그리드 위 반투명 고스트
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
         private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
-        private GUIStyle m_LabelStyle;
         private bool m_Visible = true;
         private bool m_Built;
         private bool m_LastShow;          // Show() 변화 감지 → VisibilityChanged 1회 발화
@@ -70,6 +69,15 @@ namespace GridSystem
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
                 for (int i = 0; i < m_GhostFloors.Count; i++)
                     if (m_GhostFloors[i].go != null) m_GhostFloors[i].go.SetActive(m_GhostFloors[i].baseY == f);
+
+                float ga = 0.34f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 살아있는 청사진 숨쉬기
+                for (int i = 0; i < m_GhostMats.Count; i++)
+                    if (m_GhostMats[i] != null)
+                    {
+                        var c = m_GhostMats[i].GetColor(s_BaseColor); c.a = ga;
+                        m_GhostMats[i].SetColor(s_BaseColor, c);
+                        m_GhostMats[i].SetColor(s_Color, c);
+                    }
             }
             if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
 
@@ -168,23 +176,6 @@ namespace GridSystem
         private static void SetLayerRecursive(GameObject go, int layer)
         {
             foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
-        }
-
-        private void OnGUI()
-        {
-            if (!Application.isPlaying || !Show()) return;
-            if (m_LabelStyle == null)
-                m_LabelStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
-
-            // ③ 2D 정답 이미지 제거됨(요청). 3D 미니맵(좌하단 AnswerPanelHUD)만 사용.
-        }
-
-        private static void Box(Rect r, float a)
-        {
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, a);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
         }
 
         // 에디터 Scene 뷰용(플레이 중엔 위 ① 고스트가 대체)

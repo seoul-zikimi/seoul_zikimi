@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 0796c3133c5dac04b92c703fae5d6b42
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/BallisticDemos/BallisticDemo3D/AlignLookLerp.cs
+  uploadId: 955000

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 408bc7586c09f9740adce1cf20ccf9c4
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/BallisticDemos/_BallisticSimpleVisualScriptingDemo3D/BallisticSimpleVisualScriptingDemo3DGraph.asset
+  uploadId: 955000

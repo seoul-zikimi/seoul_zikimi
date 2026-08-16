@@ -76,6 +76,8 @@ public class WindingWaterAuthoring : MonoBehaviour
     [ContextMenu("Rebuild Now")]
     public void Rebuild()
     {
+        if (!gameObject.scene.IsValid()) return;   // 프리팹 '에셋' 내부에선 리빌드 금지(씬 인스턴스에서만) — 데이터 손상 방지
+
         var prev = transform.Find(kGenName);
         if (prev != null) DestroyImmediateSafe(prev.gameObject);
 

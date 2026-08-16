@@ -18,6 +18,59 @@ namespace Player
         public void Init(PlayerConfigSO config)
         {
             m_Config = config; m_Rb = GetComponent<Rigidbody>();
+            m_Splat = GetComponent<PlayerSplat>();   // 점프 발구름 스트레치용(스폰 시 부착됨)
+        }
+
+        private PlayerSplat m_Splat;
+        private void JumpStretch()   // 이륙 순간 쭉 늘어남(착지 철푸덕과 짝) — 점프 아치 완성
+        {
+            if (m_Splat == null) m_Splat = GetComponent<PlayerSplat>();
+            if (m_Splat != null) m_Splat.AddImpulse(2.5f);   // 착지 철푸덕(~2.0)과 짝 맞춤
+        }
+
+        // ── 착지 쫀득: 낙하 후 접지 순간 흙 팡 + '밟힌 것'이 디용(비계/블록) ──
+        private bool m_WasGrounded = true;
+        private float m_FallSpeed;   // 공중에서의 최대 낙하 속도
+
+        private void Update()
+        {
+            if (m_Rb == null) return;
+            bool g = IsGrounded();
+            if (!g) m_FallSpeed = Mathf.Max(m_FallSpeed, -m_Rb.linearVelocity.y);
+            else
+            {
+                if (!m_WasGrounded && m_FallSpeed > 4f)   // 어느 정도 떨어졌을 때만(계단 오르내림 제외)
+                {
+                    GridSystem.GridJuice.GroundHit(transform.position, 0.55f);
+                    SquishLandedOn();
+                    if (!m_Rb.isKinematic)   // 원격(kinematic)은 남의 착지 — 내 카메라는 내 착지에만 반응
+                        GridSystem.GridJuice.FovPunch(Camera.main, -Mathf.Min(1.5f + m_FallSpeed * 0.45f, 6f));
+                }
+                m_FallSpeed = 0f;
+            }
+            m_WasGrounded = g;
+        }
+
+        // 밟힌 대상 디용: 비계면 그 비주얼, 그리드 블록(~Solid)이면 그 셀의 블록 비주얼.
+        private void SquishLandedOn()
+        {
+            foreach (var h in Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
+                                                 0.5f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                var t = h.collider.transform;
+                if (t == transform || t.IsChildOf(transform)) continue;
+                var go = h.collider.gameObject;
+                if (go.name.StartsWith("~Scaffold"))
+                    GridSystem.GridJuice.Squish(go, 0.10f);
+                else if (go.name == "~Solid")
+                {
+                    var net = FindFirstObjectByType<GridSystem.GridNetwork>();
+                    if (net != null)
+                        GridSystem.GridJuice.Squish(
+                            net.VisualAt(GridSystem.GridCoordinates.WorldToCell(h.point + Vector3.down * 0.05f)), 0.08f);
+                }
+                break;   // 첫 유효 대상만
+            }
         }
 
         // 카메라 forward 기준 이동 (FixedUpdate에서 호출)
@@ -28,6 +81,7 @@ namespace Player
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
+            speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             Vector3 v = dir * speed;
             m_Rb.linearVelocity = new Vector3(v.x, m_Rb.linearVelocity.y, v.z);   // Y 보존(중력·점프가 담당)
         }
@@ -38,6 +92,7 @@ namespace Player
             if (!IsGrounded()) return;
             float jumpV = Mathf.Sqrt(2f * Physics.gravity.magnitude * kJumpHeight);
             m_Rb.linearVelocity = new Vector3(m_Rb.linearVelocity.x, jumpV, m_Rb.linearVelocity.z);
+            JumpStretch();   // 발구름 쭉
             if (SoundManager.Instance != null)
                 SoundManager.Instance.PlaySFX(SFXType.Jump);
         }
@@ -103,6 +158,7 @@ namespace Player
             Vector3 inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             float jumpV = Mathf.Sqrt(2f * Physics.gravity.magnitude * kJumpHeight);
             m_Rb.linearVelocity = -inDir * m_Config.MoveSpeed + Vector3.up * jumpV;
+            JumpStretch();   // 벽차기도 발구름 쭉
             m_IsClimbing = false;
             m_ClimbCooldown = 0.35f;
         }

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c7aa9fd2c42eb394c9896d16d2ff5e7e
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/Materials/Yellow.mat
+  uploadId: 955000

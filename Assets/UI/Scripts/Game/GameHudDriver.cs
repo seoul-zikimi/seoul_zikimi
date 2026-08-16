@@ -41,19 +41,57 @@ public class GameHudDriver : MonoBehaviour
     {
         MaterialDepot.Spawned   += OnDepotSpawned;
         MaterialDepot.Despawned += OnDepotDespawned;
+        MaterialDepot.MaterialsChanged += OnDepotSpawned;   // 맵 로드로 목록이 확정되면 HUD 다시 구성
+    }
+
+    // 모든 버튼 쫀득 통일: 씬 배치·프리팹·코드빌드 가리지 않고 1초마다 훑어 JuicyButton 부착.
+    // (Attach는 중복 방지라 멱등 — 새로 생긴 버튼만 실제로 붙음)
+    private float m_JuicySweep;
+    private void Update()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // [개발자 치트] 0 = 10배속 토글(타이머 빨리감기 등 테스트용). 릴리즈 빌드엔 미포함.
+        // 주의: 멀티에선 호스트에서 눌러야 서버 타이머도 빨라짐(클라는 로컬 물리만 가속).
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.digit0Key.wasPressedThisFrame)
+        {
+            Time.timeScale = Time.timeScale >= 10f ? 1f : 10f;
+            Debug.Log($"[DevCheat] timeScale = {Time.timeScale}x");
+        }
+        if (kb != null && kb.digit9Key.wasPressedThisFrame)   // 9 = 정답 즉시 100% 완성(완성 연출 테스트)
+        {
+            var net = FindFirstObjectByType<GridSystem.GridNetwork>();
+            if (net != null) net.RequestCheatComplete();
+            Debug.Log("[DevCheat] 정답 100% 완성");
+        }
+        if (kb != null && kb.digit8Key.wasPressedThisFrame)   // 8 = 1개 빼고 완성(≈99%) — 폭죽 오발화 검증
+        {
+            var net = FindFirstObjectByType<GridSystem.GridNetwork>();
+            if (net != null) net.RequestCheatAlmost();
+            Debug.Log("[DevCheat] 1개 빼고 완성(≈99%)");
+        }
+#endif
+
+        m_JuicySweep -= Time.unscaledDeltaTime;
+        if (m_JuicySweep > 0f) return;
+        m_JuicySweep = 1f;
+        foreach (var b in FindObjectsByType<UnityEngine.UI.Button>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            JuicyButton.Attach(b);
     }
     private void OnDisable()
     {
         MaterialDepot.Spawned   -= OnDepotSpawned;
         MaterialDepot.Despawned -= OnDepotDespawned;
+        MaterialDepot.MaterialsChanged -= OnDepotSpawned;
     }
 
     private void OnDepotSpawned(MaterialDepot depot)
     {
         if (UIManager.Instance == null || depot.Catalog == null) return;
 
+        // 맵이 정한 주문 목록(MapDef.AvailableMaterials). 비어 있으면 카탈로그 전체가 온다.
         var items = new List<OrderHUD.Entry>();
-        foreach (var d in depot.Catalog.Materials)
+        foreach (var d in depot.OrderableMaterials)
             if (d != null) items.Add(new OrderHUD.Entry(d.Id, d.name, d.Prefab));
 
         UIManager.Instance.ShowHUDUI<OrderHUD>().Build(items, depot.RequestOrder);

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 88d3076b0a8595e44aaab5b24aeb4fc3
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/AnimationDemos/AnimationWithPhysicsDemo3D/AnimationWithPhysicsDemo3D.unity
+  uploadId: 955000

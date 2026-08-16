@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95e66c6366d904e98bc83428217d4fd7, type: 3}
+  m_Name: BallisticSimpleVisualScriptingDemo3DGraph
+  m_EditorClassIdentifier: 
+  _data:
+    _json: '{"graph":{"variables":{"Kind":"Flow","collection":{"$content":[],"$version":"A"},"$version":"A"},"controlInputDefinitions":[],"controlOutputDefinitions":[],"valueInputDefinitions":[],"valueOutputDefinitions":[],"title":null,"summary":null,"pan":{"x":-81.0,"y":-27.0},"zoom":1.0,"elements":[{"coroutine":false,"defaultValues":{},"position":{"x":-277.0,"y":-138.0},"guid":"3b3cb813-d519-4dec-9ce1-7d7d09970349","$version":"A","$type":"Unity.VisualScripting.Start","$id":"9"},{"Projectile":{"unit":{"$ref":"11"}},"CacheSource":true,"spawn":{"unit":{"$ref":"11"}},"spawned":{"unit":{"$ref":"11"}},"impossible":{"unit":{"$ref":"11"}},"BallisticProjectileSourceIn":{"nullMeansSelf":false,"allowsNull":false,"unit":{"$ref":"11"}},"StartActive":{"nullMeansSelf":false,"allowsNull":false,"unit":{"$ref":"11"}},"Config":{"unit":{"$ref":"11"}},"BallisticProjectileSourceOut":{"unit":{"$ref":"11"}},"defaultValues":{"Projectile
+      Source":null,"Start Active":{"$content":true,"$type":"System.Boolean"}},"position":{"x":-109.0,"y":-104.0},"guid":"70cbc177-4c79-4092-a148-32bd9c2c3f17","$version":"A","$type":"Kamgam.HitMe.Nodes.BallisticProjectileSourceProxyNode","$id":"11"},{"specifyFallback":false,"kind":"Object","defaultValues":{"name":{"$content":"ProjectileSource","$type":"System.String"},"object":null},"position":{"x":-351.0,"y":-25.0},"guid":"cf6744db-6828-4b7c-bee1-65592db2ede4","$version":"A","$type":"Unity.VisualScripting.GetVariable","$id":"21"},{"sourceUnit":{"$ref":"9"},"sourceKey":"trigger","destinationUnit":{"$ref":"11"},"destinationKey":"spawn","guid":"201e8cc3-d648-4f74-bf69-f576f99d893e","$type":"Unity.VisualScripting.ControlConnection"},{"sourceUnit":{"$ref":"21"},"sourceKey":"value","destinationUnit":{"$ref":"11"},"destinationKey":"Projectile
+      Source","guid":"e8910eb4-9785-4989-b07e-72eef179bdd9","$type":"Unity.VisualScripting.ValueConnection"}],"$version":"A"}}'
+    _objectReferences: []

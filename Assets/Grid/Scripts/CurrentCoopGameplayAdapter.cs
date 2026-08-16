@@ -82,6 +82,7 @@ namespace GridSystem
         /// <summary>
         /// 타이머, 접속 인원, 종료 동의, 완성도를 새 UI가 표시할 수 있는 공통 상태로 반환한다.
         /// 현재 기존 게임은 협동 타임어택이므로 Mode는 TimeAttack으로 제공한다.
+        /// Mode는 서버가 동기화한 GameLoopManager.Mode(로비 방장 선택)를 그대로 전달한다.
         /// </summary>
         public GameplayRuntimeStatus CaptureStatus()
         {
@@ -91,7 +92,7 @@ namespace GridSystem
                 : GameplayPhase.Finished;
 
             return new GameplayRuntimeStatus(
-                GameModeKind.TimeAttack,
+                _loop.Mode,
                 phase,
                 _loop.TimeLeft,
                 _loop.PlayerCount,

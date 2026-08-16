@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 72ad067814a6fbb48893af0f3d2b1dcb
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/AnimationDemos/AnimationWithPhysicsDemo3D/Projectile3DWithTail-Physics-AnimationCollision
+    (Blue).prefab
+  uploadId: 955000

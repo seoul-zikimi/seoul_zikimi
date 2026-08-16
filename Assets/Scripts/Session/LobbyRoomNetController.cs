@@ -52,6 +52,28 @@ public class LobbyRoomNet : NetworkBehaviour
     public int ConnectedCount => m_ConnectedCount.Value;
     public int MaxPlayers => m_MaxPlayers.Value;
 
+    // ── 맵 선택(방장이 고르면 방 전원에게 동기화, 게임 시작 시 GameLoopManager로 전달) ──
+    private NetworkVariable<int> m_MapIndex = new NetworkVariable<int>(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    public int SelectedMap => m_MapIndex.Value;
+    public event System.Action<int> MapChanged;   // 로비 UI 갱신용
+
+    /// <summary>방장 전용: 맵 선택(카탈로그 인덱스, 순환). 클라가 부르면 무시.</summary>
+    public void HostSelectMap(int index)
+    {
+        if (!IsServer) return;
+        int n = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Count : 1;
+        if (n <= 0) n = 1;
+        m_MapIndex.Value = ((index % n) + n) % n;
+    }
+
+    private void OnMapChanged(int _, int now)
+    {
+        GridSystem.GameLoopManager.HostSelectedMap = now;   // 게임 씬 진입 시 서버가 이 값을 복제(호스트 외 클라에선 미사용)
+        MapChanged?.Invoke(now);
+    }
+
     public override void OnNetworkSpawn()
     {
         m_ReadyClients.Clear();
@@ -65,6 +87,8 @@ public class LobbyRoomNet : NetworkBehaviour
         m_ReadyCount.OnValueChanged += OnReadyCountChanged;
         m_TargetReadyCount.OnValueChanged += OnReadyCountChanged;
         m_ConnectedCount.OnValueChanged += OnReadyCountChanged;
+        m_MapIndex.OnValueChanged += OnMapChanged;
+        OnMapChanged(0, m_MapIndex.Value);   // 늦참자 초기 반영
 
         if (IsHost)
         {
@@ -109,6 +133,7 @@ public class LobbyRoomNet : NetworkBehaviour
         m_ReadyCount.OnValueChanged -= OnReadyCountChanged;
         m_TargetReadyCount.OnValueChanged -= OnReadyCountChanged;
         m_ConnectedCount.OnValueChanged -= OnReadyCountChanged;
+        m_MapIndex.OnValueChanged -= OnMapChanged;
         if (IsHost && NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;

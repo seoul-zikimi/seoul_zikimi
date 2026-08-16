@@ -33,12 +33,21 @@ public class UIManager : Singleton<UIManager>
             root.AddComponent<Canvas>();
         if (root.GetComponent<GraphicRaycaster>() == null)
             root.AddComponent<GraphicRaycaster>();
+        if (root.GetComponent<CanvasScaler>() == null)
+            root.AddComponent<CanvasScaler>();
 
         // AddComponent 완료 후 fresh ref — stale ref 방지
         var canvas = root.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.overrideSorting = true;
         canvas.sortingOrder = UITypes.GetSortingOrder(type);
+
+        // 모든 해상도·비율에서 동일 레이아웃(1920x1080 기준 비례 스케일). 레터박스 아님.
+        var scaler = root.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
         return root;
     }
 

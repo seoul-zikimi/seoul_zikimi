@@ -24,6 +24,43 @@ namespace GridSystem
         public Vector3Int GridSize => m_GridSize;
         public MaterialCatalog Catalog => m_Catalog;
 
+        // ── 2vs2: X축으로 그리드 2배(A|B 구역) + 중앙 분할벽 ──
+        private bool m_Versus;
+        public bool IsVersusGrid => m_Versus;
+        /// <summary>실제 그리드 크기(2vs2면 X 2배). 서버 그리드·바닥·구역 검사가 이 값을 쓴다.</summary>
+        public Vector3Int EffectiveSize => m_Versus ? new Vector3Int(m_GridSize.x * 2, m_GridSize.y, m_GridSize.z) : m_GridSize;
+        /// <summary>한 팀 구역 크기(=인스펙터 그리드 크기). 팀A: x∈[0,W), 팀B: x∈[W,2W).</summary>
+        public Vector3Int ZoneSize => m_GridSize;
+
+        /// <summary>2vs2 구성 — 스폰 직후(블록 배치 전) GameLoopManager가 호출. 그리드 재생성 + 바닥 확장 + 분할벽.</summary>
+        public void ConfigureVersus(bool on)
+        {
+            if (m_Versus == on) return;
+            m_Versus = on;
+            Rebuild();
+        }
+
+        /// <summary>맵 전용 건축 영역 크기 적용(MapDef.GridSize). 배경 스폰과 함께 모든 클라가 같은 값으로 호출한다.
+        /// 비어 있거나 같은 값이면 아무 것도 하지 않는다.</summary>
+        public void ApplyMapGridSize(Vector3Int size)
+        {
+            if (size.x <= 0 || size.y <= 0 || size.z <= 0) return;   // 미설정 → 씬 값 유지
+            if (m_GridSize == size) return;
+            m_GridSize = size;
+            Rebuild();
+            Debug.Log($"[Grid] 맵 전용 건축 영역 적용: {size}");
+        }
+
+        // 크기·모드가 바뀌면 그리드·바닥·분할벽을 현재 값으로 다시 만든다.
+        private void Rebuild()
+        {
+            Grid = new RuntimeGrid(EffectiveSize);
+            RebuildGround();
+            var oldWall = transform.Find("~VersusWall");
+            if (oldWall != null) Destroy(oldWall.gameObject);
+            if (m_Versus) CreateCenterWall();   // 배경 대칭은 MapLoader가 담당(배경은 런타임 스폰)
+        }
+
         /// <summary>고를 수 있는 정답 개수.</summary>
         public int AnswerCount => m_Answers != null ? m_Answers.Count : 0;
 
@@ -32,6 +69,15 @@ namespace GridSystem
             (m_Answers != null && m_Answers.Count > 0)
                 ? m_Answers[Mathf.Clamp(m_ActiveIndex, 0, m_Answers.Count - 1)]
                 : null;
+
+        /// <summary>맵(MapDef)이 전용 정답 세트를 갖고 있으면 교체 — 모든 클라가 같은 MapDef를 로드하므로 인덱스 동기화 유효.</summary>
+        public void SetAnswers(System.Collections.Generic.IReadOnlyList<MapAnswerData> answers)
+        {
+            if (answers == null || answers.Count == 0) return;   // 비면 씬 기본 목록 유지
+            m_Answers = new List<MapAnswerData>(answers);
+            m_ActiveIndex = 0;
+            OnAnswerChanged?.Invoke();
+        }
 
         /// <summary>정답 선택(서버가 뽑은 인덱스를 전 클라가 적용). 바뀌면 OnAnswerChanged 발생.</summary>
         public void SelectAnswer(int index)
@@ -56,13 +102,53 @@ namespace GridSystem
         {
             float u = GridContract.Unit;
             Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);   // 그리드 min-corner(바닥)
-            float sx = m_GridSize.x * u, sz = m_GridSize.z * u;
+            float sx = EffectiveSize.x * u, sz = EffectiveSize.z * u;
             const float thick = 1f, margin = 4f;
 
             var go = new GameObject("~Ground");
             go.transform.SetParent(transform, false);
             go.transform.position = new Vector3(baseW.x + sx * 0.5f, baseW.y - thick * 0.5f, baseW.z + sz * 0.5f);
             go.AddComponent<BoxCollider>().size = new Vector3(sx + margin, thick, sz + margin);
+        }
+
+        // 그리드 크기가 바뀌면(2vs2) 바닥 콜라이더 재생성.
+        private void RebuildGround()
+        {
+            var old = transform.Find("~Ground");
+            if (old != null) Destroy(old.gameObject);
+            CreateGround();
+        }
+
+        // 2vs2 중앙 분할벽 — 넘어갈 수 없는 물리벽 + 반투명 비주얼. 코스메틱+물리라 각 클라 로컬 생성으로 충분(결정적).
+        private void CreateCenterWall()
+        {
+            float u = GridContract.Unit;
+            var size = EffectiveSize;
+            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
+            float wallH = size.y * u + 6f;
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "~VersusWall";
+            go.transform.SetParent(transform, false);
+            go.transform.position = new Vector3(baseW.x + ZoneSize.x * u, baseW.y + wallH * 0.5f, baseW.z + size.z * 0.5f * u);
+            go.transform.localScale = new Vector3(0.3f, wallH, size.z * u + 10f);
+            var r = go.GetComponent<Renderer>();
+            r.sharedMaterial = MakeTransparent(new Color(0.7f, 0.85f, 1f, 0.15f));   // 투명벽(기획) — 상대 진영 보임
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        // URP Lit 투명 머티리얼(런타임 생성). 빌드 셰이더 스트립 대비 명시 URP Lit.
+        private static Material MakeTransparent(Color color)
+        {
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = color };
+            mat.SetFloat("_Surface", 1f);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return mat;
         }
 
         public void EnsureGrid()

@@ -24,6 +24,7 @@ public class AnswerPanelHUD : UIHUD
         var panel = NewRect("Panel", transform, new Vector2(0, 0), new Vector2(0, 0),
                             new Vector2(14, 14), new Vector2(w, h));   // 좌하단
         var bg = panel.AddComponent<Image>(); bg.color = new Color(0f, 0f, 0f, 0.55f); bg.raycastTarget = false;
+        panel.AddComponent<UiPopIn>();   // 등장 뽁
 
         MakeText(panel.transform, "정답 (TAB · 우클릭 회전 · 스크롤 줌)",
                  new Vector2(2, 0), new Vector2(w - 4, titleH), 16, TextAnchor.MiddleLeft);

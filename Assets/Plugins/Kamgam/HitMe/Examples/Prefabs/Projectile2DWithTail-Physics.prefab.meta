@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: dacb2c35a97f2a745b37541f28b75a98
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/Prefabs/Projectile2DWithTail-Physics.prefab
+  uploadId: 955000

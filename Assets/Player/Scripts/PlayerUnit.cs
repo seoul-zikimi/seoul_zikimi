@@ -61,6 +61,12 @@ namespace Player
             m_NetScaffolds.OnListChanged += OnScaffoldsChanged;
             RebuildScaffoldVisuals();
 
+            CreateSlimeTrail();   // 민달팽이 점액 트레일(트레이드마크). 더스트트레일(발먼지)과 별개 공존.
+            CreateNametag();      // 캐릭터 위 닉네임(월드 텍스트, 모든 클라)
+
+            if (GetComponent<PlayerSplat>() == null)   // 착지 철푸덕(래퍼 스케일 — 리깅과 무관하게 적용)
+                gameObject.AddComponent<PlayerSplat>();
+
             if (!IsOwner)
             {
                 // ClientNetworkTransform이 Transform 직접 이동
@@ -87,6 +93,11 @@ namespace Player
                 {
                     var fader = m_CinemachineCamera.gameObject.AddComponent<CameraObstructionFader>();
                     fader.Init(m_CameraArm);   // 카메라가 바라보는 지점(허리 높이)
+
+                    // FOV 펀치를 vcam 렌즈로 라우팅 — CinemachineBrain이 Camera.main fov를 덮어써서
+                    // 기존 CameraFovPunch(메인캠 직접 수정)는 화면에 안 나왔음.
+                    var punch = m_CinemachineCamera.gameObject.AddComponent<CinemachineFovPunch>();
+                    GridSystem.GridJuice.FovPunchHandler = punch.Add;
                 }
             }
         }
@@ -94,7 +105,10 @@ namespace Player
         public override void OnNetworkDespawn()
         {
             if (IsOwner)
+            {
                 SceneManager.sceneLoaded -= OnSceneLoaded;
+                GridSystem.GridJuice.FovPunchHandler = null;   // vcam 펀치 핸들러 해제(파괴된 컴포넌트 참조 방지)
+            }
             m_NetScaffolds.OnListChanged -= OnScaffoldsChanged;
             ClearScaffoldVisuals();
             base.OnNetworkDespawn();
@@ -113,10 +127,19 @@ namespace Player
                 QueueSpawnOnGrid();
         }
 
+        private int m_KinematicFrames;   // 프리즈 복구용: kinematic 지속 프레임 카운트
+
         private void FixedUpdate()
         {
             if (!IsOwner) return;
-            if (m_Rb != null && m_Rb.isKinematic) return;   // 스폰 위치 대기 중(정지) — 이동 로직 스킵
+            if (m_Rb != null && m_Rb.isKinematic)
+            {
+                // 스폰 대기는 GridManager 찾으면 곧 끝남(보통 <1s). 코루틴이 씬전환/비활성으로 죽어
+                // kinematic이 안 풀리면 영영 프리즈 → 오래 지속되면 강제로 dynamic 복구.
+                if (++m_KinematicFrames > 150) { m_Rb.isKinematic = false; m_KinematicFrames = 0; }
+                return;   // 대기 중(정지) — 이동 로직 스킵
+            }
+            m_KinematicFrames = 0;
             if (m_InputHandler == null || m_Movement == null || m_CameraArm == null) return;
             if (m_Bounce.IsBouncing) return; // bounce impulse 유지
 
@@ -165,7 +188,8 @@ namespace Player
             for (int i = 0; i < 300; i++)
             {
                 var gm = FindFirstObjectByType<GridSystem.GridManager>();
-                if (gm != null)
+                // 맵 마커(Spot_*) 적용 후 + 2vs2 팀 배정 복제 후 배치
+                if (gm != null && !GridSystem.MapLoader.Pending && TeamReady(gm))
                 {
                     yield return null;
                     PlaceOnGrid(gm);
@@ -190,6 +214,16 @@ namespace Player
             m_SpawnRoutine = null;
         }
 
+        // 2vs2에서만: 내 팀 배정이 복제됐는지(협동 모드는 항상 true). 300프레임 상한은 기존 루프가 보장.
+        private bool TeamReady(GridSystem.GridManager gm)
+        {
+            var loop = gm.GetComponent<GridSystem.GameLoopManager>();
+            if (loop == null) return true;          // 루프 없는 씬(테스트 등)
+            if (!loop.IsSpawned) return false;      // 모드 확정 전 — 잠시 대기(300프레임 상한)
+            if (!loop.IsVersus) return true;
+            return loop.GetTeam(OwnerClientId) >= 0;
+        }
+
         private void PlaceOnGrid(GridSystem.GridManager gm)
         {
             if (gm == null)
@@ -200,6 +234,18 @@ namespace Player
             float u = GridSystem.GridContract.Unit;
             Vector3Int size = gm.GridSize;
             Vector3 gridCenter = gm.transform.position + new Vector3(size.x * 0.5f, 0f, size.z * 0.5f) * u;
+
+            var loop = gm.GetComponent<GridSystem.GameLoopManager>();
+            bool versus = loop != null && loop.IsVersus;
+
+            // 협동: 씬 PlayerSpawnPoint 마커가 있으면 그 위치 우선(Spot_PlayerSpawnPoint로 맵별 이동)
+            var sp = FindFirstObjectByType<PlayerSpawnPoint>();
+            if (!versus && sp != null) gridCenter = sp.transform.position;
+
+            // 2vs2: 팀B는 오른쪽 구역(x+구역폭) 중앙에 스폰 — 분할벽 너머 자기 진영
+            if (versus && loop.GetTeam(OwnerClientId) == 1)
+                gridCenter += new Vector3(size.x * u, 0f, 0f);
+
             Vector3 spawn = gridCenter + Vector3.up * 2f;
 
             Vector3 rayOrigin = gridCenter + Vector3.up * 20f;
@@ -308,6 +354,131 @@ namespace Player
         // 모든 클라: 네트워크 리스트 변경 시 로컬 비계(콜라이더+외형) 재구성.
         private void OnScaffoldsChanged(NetworkListEvent<Vector3Int> _) => RebuildScaffoldVisuals();
 
+        // 민달팽이 점액: 발밑에 반투명 초록 자국이 스르르 남았다 사라짐(모든 클라, 원격 포함).
+        private void CreateSlimeTrail()
+        {
+            if (transform.Find("~SlimeTrail") != null) return;
+            var go = new GameObject("~SlimeTrail");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+
+            var tr = go.AddComponent<TrailRenderer>();
+            tr.time = 1.6f;
+            tr.startWidth = 0.45f;
+            tr.endWidth = 0.06f;
+            tr.minVertexDistance = 0.12f;
+            tr.alignment = LineAlignment.View;   // 빌보드 → 바닥이든 벽이든 항상 카메라 향해 잘 보임
+            tr.numCapVertices = 4;
+            tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            tr.receiveShadows = false;
+
+            var sh = Shader.Find("Universal Render Pipeline/Lit");   // 빌드 셰이더 스트립 안전 계열
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh != null)
+            {
+                var m = new Material(sh);
+                m.SetFloat("_Surface", 1f);
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                var c = new Color(0.97f, 0.98f, 0.95f, 0.30f);   // 하얀 점액
+                m.SetColor("_BaseColor", c);
+                m.SetColor("_Color", c);
+                tr.material = m;
+            }
+
+            var grad = new Gradient();   // 갈수록 옅어지는 점액
+            grad.SetKeys(
+                new[] { new GradientColorKey(new Color(0.97f, 0.98f, 0.95f), 0f), new GradientColorKey(new Color(0.97f, 0.98f, 0.95f), 1f) },
+                new[] { new GradientAlphaKey(0.35f, 0f), new GradientAlphaKey(0f, 1f) });
+            tr.colorGradient = grad;
+
+            m_SlimeTrail = tr;
+        }
+
+        private TrailRenderer m_SlimeTrail;
+        private PlayerMovement m_MoveForTrail;
+        private Vector3 m_PrevTrailPos;
+
+        // ── 캐릭터 위 닉네임(월드 텍스트) ──
+        private TextMesh m_Nametag;
+        private GridSystem.GameLoopManager m_LoopForName;
+
+        private void CreateNametag()
+        {
+            if (transform.Find("~Nametag") != null) return;
+            var go = new GameObject("~Nametag");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, 1.5f, 0f);   // 머리 바로 위
+
+            var tm = go.AddComponent<TextMesh>();
+            tm.text = "";
+            tm.fontSize = 60;
+            tm.characterSize = 0.05f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.color = Color.white;
+            var font = Resources.Load<Font>("Fonts/서울한강 장체M");   // UI와 같은 폰트
+            if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            tm.font = font;
+            go.GetComponent<MeshRenderer>().material = font.material;
+            go.SetActive(false);
+            m_Nametag = tm;
+        }
+
+        private void UpdateNametag()
+        {
+            if (m_Nametag == null) return;
+            if (m_LoopForName == null) m_LoopForName = FindFirstObjectByType<GridSystem.GameLoopManager>();
+            string nm = m_LoopForName != null ? m_LoopForName.GetNameFor(OwnerClientId) : "";
+            bool show = !string.IsNullOrEmpty(nm);
+            m_Nametag.gameObject.SetActive(show);
+            if (!show) return;
+            if (m_Nametag.text != nm) m_Nametag.text = nm;
+            if (Camera.main != null)   // 항상 카메라 향함(빌보드)
+                m_Nametag.transform.rotation = Camera.main.transform.rotation;
+        }
+
+        private void LateUpdate()
+        {
+            UpdateNametag();
+
+            if (m_SlimeTrail == null) return;
+            if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();
+            // 바닥 위 또는 벽타기 중엔 점액이 나옴(민달팽이니 벽에도 자국 남김). 점프/낙하 공중에선 끊김.
+            bool climbing = m_MoveForTrail != null && m_MoveForTrail.IsClimbing;
+            m_SlimeTrail.emitting = m_MoveForTrail == null || m_MoveForTrail.IsGrounded() || climbing;
+
+            float dt = Time.deltaTime;   // 빨리 갈수록 점액이 굵어짐(스프린트 티)
+            if (dt > 0f)
+            {
+                Vector3 d = transform.position - m_PrevTrailPos;
+                if (!climbing) d.y = 0f;   // 벽타기 땐 수직 이동도 속도로 인정(자국 굵기 유지)
+                float target = Mathf.Lerp(0.32f, 0.62f, Mathf.Clamp01(d.magnitude / dt / 6f));
+                m_SlimeTrail.startWidth = Mathf.Lerp(m_SlimeTrail.startWidth, target, 8f * dt);
+            }
+            m_PrevTrailPos = transform.position;
+        }
+
+        // 스프린트 윈드 트레일(루프 파티클 — 스프린트 중에만 켬)
+        private GameObject m_WindTrail;
+        private void UpdateWindTrail(bool on)
+        {
+            if (on && m_WindTrail == null)
+            {
+                var prefab = Resources.Load<GameObject>("Fx/WindTrails");
+                if (prefab == null) return;
+                m_WindTrail = Instantiate(prefab, transform);
+                m_WindTrail.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+            }
+            if (m_WindTrail != null && m_WindTrail.activeSelf != on)
+                m_WindTrail.SetActive(on);
+        }
+
+        private int m_PrevScaffoldCount;   // 새로 추가된 비계만 팝(재구성 시 전체 재생 방지)
+
         private void RebuildScaffoldVisuals()
         {
             ClearScaffoldVisuals();
@@ -315,6 +486,17 @@ namespace Player
             Vector3 origin = GridSystem.GridContract.Origin;
             for (int i = 0; i < m_NetScaffolds.Count; i++)
                 m_Scaffolds.Add(CreateScaffold(origin + (Vector3)m_NetScaffolds[i] * u, u));
+
+            if (m_NetScaffolds.Count > m_PrevScaffoldCount && m_Scaffolds.Count > 0)
+            {
+                var last = m_Scaffolds[m_Scaffolds.Count - 1];
+                GridSystem.GridJuice.Squish(last, 0.15f);   // 새 비계 뿅
+                GridSystem.GridJuice.GroundHit(             // 설치 흙 팡
+                    last.transform.position - Vector3.up * (0.5f * GridSystem.GridContract.Unit), 0.5f);
+                if (SoundManager.Instance != null)          // 가벼운 설치음(높은 피치 짧게)
+                    SoundManager.Instance.PlayTapAt(SFXType.LandObject, last.transform.position, 1.3f, 0.3f);
+            }
+            m_PrevScaffoldCount = m_NetScaffolds.Count;
         }
 
         private void ClearScaffoldVisuals()
@@ -377,6 +559,7 @@ namespace Player
                 }
             }
             m_DustTrail.Apply(moving, sprinting);
+            UpdateWindTrail(moving && sprinting);   // 스프린트 = 바람 줄기(CFXR4 Wind Trails)
 
             if (IsSpawned && !IsOwner && moving != m_DbgMoving)   // 진단: 원격에서 먼지 상태 복제 + 파티클 상태 확인
             {

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: ac1672f1c8adb59408d9cb42a19267b6
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258386
+  packageName: 'Hit Me: Ballistics, Animated Projectiles, Targeting'
+  packageVersion: 1.2.8
+  assetPath: Assets/Kamgam/HitMe/Examples/BallisticDemos/BallisticTankDemo/BallisticDemoTankController.cs
+  uploadId: 955000

@@ -57,7 +57,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         for (int i = root.childCount - 1; i >= 0; i--)
             Destroy(root.GetChild(i).gameObject);
 
-        JobsnailUiKit.Image("Main_BG", root, JobsnailUiKit.Sprite("UI_pngs/1.main/Main_BG"));
+        JobsnailUiKit.CoverFill(JobsnailUiKit.Image("Main_BG", root, JobsnailUiKit.Sprite("UI_pngs/1.main/Main_BG")));   // 화면 꽉 채움(레터박스 X)
 
         var logo = JobsnailUiKit.Rect("Logo", root, new Vector2(0.08f, 0.76f), new Vector2(0.38f, 0.96f), Vector2.zero, Vector2.zero);
         var logoImage = logo.gameObject.AddComponent<Image>();
@@ -73,10 +73,13 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var nickImage = nick.gameObject.AddComponent<Image>();
         nickImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/UserNicknameTextbox");
         nickImage.preserveAspect = true;
-        m_NicknameInput = MakeInput(nick, "UserNickname", PlayerPrefs.GetString("PlayerNickname", "UserNickname"));
+        m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", SaveService.Nickname);
 
         MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
-            new Vector2(0.70f, 0.31f), new Vector2(0.88f, 0.39f), StartGame);
+            new Vector2(0.70f, 0.41f), new Vector2(0.88f, 0.49f), StartGame);
+
+        MakeMainButton(root, "MyPage_Btn", "UI_pngs/1.main/MyPage_Btn", "마이페이지",
+            new Vector2(0.70f, 0.31f), new Vector2(0.88f, 0.39f), OpenMyPage);
 
         MakeMainButton(root, "Settings_Btn", "UI_pngs/1.main/Settings_Btn", "설정",
             new Vector2(0.70f, 0.21f), new Vector2(0.88f, 0.29f), ToggleSettings);
@@ -85,16 +88,30 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             new Vector2(0.70f, 0.11f), new Vector2(0.88f, 0.19f), Quit);
 
         BuildSettingsPopup(root);
+        JuicyButton.AttachAll(gameObject);   // 메뉴·팝업 전 버튼 호버·프레스 쫀득
+    }
+
+    private void Update()
+    {
+        // ESC = 설정 팝업 닫기
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.escapeKey.wasPressedThisFrame && m_SettingsPopup != null && m_SettingsPopup.activeSelf)
+            ToggleSettings();
+    }
+
+    private void OpenMyPage()
+    {
+        SceneManager.LoadScene(SceneNames.MyPage);   // 마이페이지 = 전용 씬(옷장 3D + HUD)
     }
 
     private void StartGame()
     {
         string nickname = m_NicknameInput != null ? m_NicknameInput.text.Trim() : "";
         if (string.IsNullOrEmpty(nickname))
-            nickname = "UserNickname";
+            nickname = "달팽이";
 
-        PlayerPrefs.SetString("PlayerNickname", nickname);
-        PlayerPrefs.Save();
+        if (SaveService.Nickname != nickname)
+            SaveService.Nickname = nickname;   // 변경 시 자동저장(Easy Save, PlayerPrefs 동시 기록)
         SceneManager.LoadScene(SceneNames.Lobby);
     }
 
@@ -130,40 +147,40 @@ public sealed class JobsnailMainMenu : MonoBehaviour
 
     private void BuildSettingsPopup(Transform root)
     {
-        m_SettingsPopup = JobsnailUiKit.Box("SettingsPopup", root, new Vector2(0.36f, 0.30f), new Vector2(0.64f, 0.72f), Vector2.zero, Vector2.zero, new Color(1f, 0.97f, 0.86f, 0.97f)).gameObject;
+        // 디머(반투명 검정) 전체화면 + 클릭 시 닫힘 → 팝업 집중 + 뒤 버튼 오클릭 방지
+        var overlay = JobsnailUiKit.Button("SettingsPopup", root, null, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, ToggleSettings);
+        var overlayImage = overlay.GetComponent<Image>();
+        if (overlayImage != null) overlayImage.color = new Color(0f, 0f, 0f, 0.45f);
+        m_SettingsPopup = overlay.gameObject;
         m_SettingsPopup.SetActive(false);
 
-        MakeText(m_SettingsPopup.transform, "설정", 28, Color.black, new Vector2(0, 150), new Vector2(320, 60), TextAnchor.MiddleCenter);
-        MakeVolumeSlider(m_SettingsPopup.transform, "BGM", new Vector2(0, 70), PlayerPrefs.GetFloat("BGMVolume", 0.8f), value =>
+        var panel = JobsnailUiKit.Box("Panel", m_SettingsPopup.transform, new Vector2(0.36f, 0.30f), new Vector2(0.64f, 0.72f), Vector2.zero, Vector2.zero, new Color(1f, 0.97f, 0.86f, 0.97f)).transform;
+
+        MakeText(panel, "설정", 28, Color.black, new Vector2(0, 150), new Vector2(320, 60), TextAnchor.MiddleCenter);
+        MakeVolumeSlider(panel, "BGM", new Vector2(0, 70), PlayerPrefs.GetFloat("BGMVolume", 0.8f), value =>
         {
             if (SoundManager.Instance != null) SoundManager.Instance.SetBGMVolume(value);
             else PlayerPrefs.SetFloat("BGMVolume", value);
         });
-        MakeVolumeSlider(m_SettingsPopup.transform, "SFX", new Vector2(0, 5), PlayerPrefs.GetFloat("SFXVolume", 1f), value =>
+        MakeVolumeSlider(panel, "SFX", new Vector2(0, 5), PlayerPrefs.GetFloat("SFXVolume", 1f), value =>
         {
             if (SoundManager.Instance != null) SoundManager.Instance.SetSFXVolume(value);
             else PlayerPrefs.SetFloat("SFXVolume", value);
         });
-        var done = JobsnailUiKit.Button("SettingsDoneButton", m_SettingsPopup.transform, null, new Vector2(0.28f, 0.30f), new Vector2(0.72f, 0.40f), Vector2.zero, Vector2.zero, ToggleSettings);
+        var done = JobsnailUiKit.Button("SettingsDoneButton", panel, null, new Vector2(0.28f, 0.30f), new Vector2(0.72f, 0.40f), Vector2.zero, Vector2.zero, ToggleSettings);
         var doneImage = done.GetComponent<Image>();
         if (doneImage != null)
-            doneImage.color = new Color(0.84f, 0.84f, 0.84f, 1f);
+            doneImage.color = new Color(1f, 0.78f, 0.44f, 1f);   // 주 액션 = 주황(팔레트 통일)
         MakeButtonText(done.transform, "완료", 20, Color.black);
 
-        var close = JobsnailUiKit.Button("SettingsCloseButton", m_SettingsPopup.transform, null, new Vector2(0.86f, 0.86f), new Vector2(0.96f, 0.96f), Vector2.zero, Vector2.zero, ToggleSettings);
+        var close = JobsnailUiKit.Button("SettingsCloseButton", panel, null, new Vector2(0.86f, 0.86f), new Vector2(0.96f, 0.96f), Vector2.zero, Vector2.zero, ToggleSettings);
         MakeButtonText(close.transform, "×", 26, Color.black);
 
-        var leave = JobsnailUiKit.Button("SettingsLeaveButton", m_SettingsPopup.transform, null, new Vector2(0.25f, 0.08f), new Vector2(0.75f, 0.20f), Vector2.zero, Vector2.zero, Quit);
+        var leave = JobsnailUiKit.Button("SettingsLeaveButton", panel, null, new Vector2(0.25f, 0.08f), new Vector2(0.75f, 0.20f), Vector2.zero, Vector2.zero, Quit);
         var image = leave.GetComponent<Image>();
         if (image != null)
             image.color = new Color(1f, 0.70f, 0.70f, 1f);
         MakeButtonText(leave.transform, "게임 나가기", 20, Color.black);
-
-        var ok = JobsnailUiKit.Button("SettingsOkButton", m_SettingsPopup.transform, null, new Vector2(0.38f, 0.22f), new Vector2(0.62f, 0.28f), Vector2.zero, Vector2.zero, ToggleSettings);
-        var okImage = ok.GetComponent<Image>();
-        if (okImage != null)
-            okImage.color = new Color(1f, 0.78f, 0.44f, 1f);
-        MakeButtonText(ok.transform, "확인", 18, Color.black);
     }
 
     private static void Quit()

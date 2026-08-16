@@ -117,6 +117,37 @@ public class SoundManager : Singleton<SoundManager>
         _bgmSource.outputAudioMixerGroup = _mixer.FindMatchingGroups("BGM")[0];
         _bgmSource.loop        = true;
         _bgmSource.playOnAwake = false;
+
+        // 연타 전용 3D 채널: 새 타격이 직전 타격의 잔향을 '끊고' 재생 → 겹침/메아리 원천 차단.
+        var tapGo = new GameObject("SFX3D_Tap");
+        tapGo.transform.SetParent(transform);
+        _tapSrc = tapGo.AddComponent<AudioSource>();
+        _tapSrc.outputAudioMixerGroup = sfxGroup;
+        _tapSrc.spatialBlend = 1f;
+        _tapSrc.playOnAwake  = false;
+    }
+
+    AudioSource _tapSrc;
+
+    /// <summary>연타 효과음(망치질 등): 단일 채널(직전 소리 컷) + maxSeconds로 재생길이 제한.
+    /// SFX_Hammering.mp3처럼 한 클립에 여러 타격이 녹음된 샘플에서 '첫 타격만' 잘라 쓰기 위함(메아리 방지).</summary>
+    public void PlayTapAt(SFXType type, Vector3 worldPos, float pitch, float maxSeconds = 0f)
+    {
+        var clip = PickClip(type);
+        if (clip == null || _tapSrc == null) return;
+        _tapSrc.Stop();
+        _tapSrc.transform.position = worldPos;
+        _tapSrc.pitch = pitch;
+        _tapSrc.clip = clip;
+        _tapSrc.Play();
+        if (maxSeconds > 0f)
+            _tapSrc.SetScheduledEndTime(AudioSettings.dspTime + maxSeconds);   // 첫 타격 이후 컷
+    }
+
+    /// <summary>연타 채널 정지 — 페인트 스트로크 중단 등(로딩바와 소리 동시 종료용).</summary>
+    public void StopTap()
+    {
+        if (_tapSrc != null) _tapSrc.Stop();
     }
 
     void LoadVolumes()
@@ -201,12 +232,18 @@ public class SoundManager : Singleton<SoundManager>
     public void PlaySFXAt(SFXType type, Vector3 worldPos) => PlaySFXAt(PickClip(type), worldPos);
 
     /// <summary>3D 효과음 — 클립 직접 지정. 다음 3D 소스를 그 위치로 옮겨 PlayOneShot(round-robin).</summary>
-    public void PlaySFXAt(AudioClip clip, Vector3 worldPos)
+    public void PlaySFXAt(AudioClip clip, Vector3 worldPos) => PlaySFXAt(clip, worldPos, 1f);
+
+    /// <summary>3D 효과음 + 피치(0.9~1.1 랜덤 등) — 망치질 같은 반복음 단조로움 방지.</summary>
+    public void PlaySFXAt(SFXType type, Vector3 worldPos, float pitch) => PlaySFXAt(PickClip(type), worldPos, pitch);
+
+    public void PlaySFXAt(AudioClip clip, Vector3 worldPos, float pitch)
     {
         if (clip == null) return;
         var src = _sfx3D[_sfx3DIndex];
         _sfx3DIndex = (_sfx3DIndex + 1) % _sfx3D.Length;
         src.transform.position = worldPos;
+        src.pitch = pitch;   // round-robin이라 이전 피치 잔재 방지 위해 매번 지정
         src.PlayOneShot(clip);
     }
 

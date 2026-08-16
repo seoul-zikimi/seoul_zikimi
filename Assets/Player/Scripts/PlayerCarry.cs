@@ -21,6 +21,7 @@ namespace Player
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
         [SerializeField] private float m_GrabRange = 2.5f;
+        private const float kBuildReachCells = 2f;   // [07/26 기획] 배치/회수/공정 사거리(칸) — 완화/폐기 시 여기만
         private bool        m_GrabValid;
         private PickupBody  m_GrabBody;     // 레이캐스트로 가리킨 바닥 픽업(소속·정체 보유)
         private Workstation m_GrabStation;  // 레이캐스트로 가리킨 도구함(있으면 그 도구를 집음)
@@ -28,13 +29,16 @@ namespace Player
         [Tooltip("공정 한 단계를 끝내려고 E를 눌러야 하는 시간(초). 로딩바가 차는 속도.")]
         [SerializeField] private float m_ProcessSeconds = 1.2f;
         [Tooltip("재료를 던질 수 있는 최대 거리(칸). 조준점이 더 멀면 이 거리까지만 날아간다.")]
-        [SerializeField] private float m_ThrowRange = 6f;
+        [SerializeField] private float m_ThrowRange = 12f;   // 풀차지 최대 사거리(칸)
         [Tooltip("든 '망치'(고정 도구) 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
         [SerializeField] private GameObject m_HammerModel;
         [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
         [SerializeField] private GameObject m_PaintCanModel;
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
+        [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
+        [SerializeField] private GameObject m_FixDoneFx;  // 고정 완료 이펙트 프리팹(CFXR Hit D 3D (Yellow))
+        [SerializeField] private GameObject m_PaintFx;    // 페인트 튀김 프리팹(CFXR2 Blood Shape Splash → 주황 틴트)
 
         // 복제 상태(owner write): 든 재료 id(-1=없음) / 든 도구 비트(0=없음)
         private readonly NetworkVariable<int> m_NetMaterialId =
@@ -57,7 +61,11 @@ namespace Player
         private PlayerMovement m_Movement;
         private Vector3Int m_Target;
         private bool m_HasTarget;
-        private GUIStyle m_HudStyle, m_BarLabel;
+        private CarryHudUI m_Hud;   // 프리팹 HUD(UIManager 관리) — 구 OnGUI 대체
+        private bool m_HudMissing;  // 프리팹 미생성 경고 1회용
+        private float m_HitFxTimer; // 망치질 이펙트 간격 타이머
+        private PickupBody m_PrevGrabBody;   // 조준 펄스 on/off 추적
+        private int m_PrevScorePct = -1;     // 완성도 상승 감지(HUD 디용)
         private static readonly Vector3Int s_NoCell = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
         private Vector3Int m_LastShockCell = s_NoCell;   // 같은 셀 안에 있는 동안 충격 중복 전송 방지
 
@@ -103,8 +111,10 @@ namespace Player
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_ThrowAim != null) Destroy(m_ThrowAim);
             DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
+            if (m_Hud != null) m_Hud.gameObject.SetActive(false);   // HUD는 UIManager 캐시 → 숨기기만
         }
 
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
@@ -112,14 +122,42 @@ namespace Player
         // 든 게 블록(재료)이면 머리 안 가리게 더 위로, 도구는 그대로. (복제값 기준 — 원격도 동일)
         private Vector3 HeldOffset() => m_HoldOffset + (m_NetMaterialId.Value >= 0 ? Vector3.up * m_BlockHoldRaise : Vector3.zero);
 
+        private Vector3 m_HeldPrevPos;      // 든 비주얼 바운스/스웨이용 위치 추적
+        private Vector3 m_HeldSwayVel;      // 부드럽게 감쇠한 이동속도(관성 스웨이)
+        private float   m_HeldBobPhase;     // 통통 밥 위상
+
         private void Update()
         {
-            // 모든 클라: 든 비주얼이 플레이어를 따라감
+            // 모든 클라: 든 비주얼이 플레이어를 따라감(+ 걸을 때 통통 밥 + 관성 스웨이)
             if (m_HeldVisual != null)
-                m_HeldVisual.transform.position = transform.position + HeldOffset();
+                UpdateHeldVisual();
 
             if (!IsOwner) return;
             OwnerUpdate();
+        }
+
+        // 든 블록/도구 쫀득 연출: 위치델타 기반이라 owner·원격 동일. 망치질 스윙 중엔 회전 양보.
+        private void UpdateHeldVisual()
+        {
+            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+            Vector3 vel = (transform.position - m_HeldPrevPos) / dt;
+            m_HeldPrevPos = transform.position;
+            Vector3 horiz = vel; horiz.y = 0f;
+            float speed = horiz.magnitude;
+
+            m_HeldBobPhase += dt * (7f + speed * 2f);                                  // 걸을수록 빠르게 통통
+            float bob = Mathf.Sin(m_HeldBobPhase) * 0.06f * Mathf.Clamp01(speed / 2f); // 멈추면 밥 사라짐
+            m_HeldSwayVel = Vector3.Lerp(m_HeldSwayVel, horiz, 8f * dt);               // 가감속 관성
+            Vector3 sway = -m_HeldSwayVel * 0.045f;                                    // 가속 방향 반대로 살짝 처짐
+
+            m_HeldVisual.transform.position = transform.position + HeldOffset() + Vector3.up * bob + sway;
+
+            if (m_SwingCo == null)   // 망치질 스윙 코루틴이 회전을 쓰는 동안은 건드리지 않음
+            {
+                var local = transform.InverseTransformDirection(m_HeldSwayVel);        // 몸 기준 기울임
+                Quaternion tilt = Quaternion.Euler(local.z * 4f, 0f, -local.x * 4f);
+                m_HeldVisual.transform.rotation = Quaternion.Slerp(m_HeldVisual.transform.rotation, transform.rotation * tilt, 10f * dt);
+            }
         }
 
         // ── 소유자 입력 ────────────────────────────────────────────────────
@@ -137,22 +175,27 @@ namespace Player
             if (kb == null || mouse == null) return;
 
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
-            if (kb.qKey.wasPressedThisFrame) Drop();      // Q = 들고 있는 것 버리기(발밑에)
-            if (kb.gKey.wasPressedThisFrame) Throw();     // 든 재료를 조준 방향으로 던지기(협동 전달)
+            UpdateThrowCharge(kb);   // G 탭=짧게 던지기 / 꾹=차징(화살표 미리보기) 후 떼면 멀리
+            // Q(버리기)·C(철거)는 좌클릭에 통합(07/26 기획): 그리드 밖 배치=발밑 버리기, 미고정 블록 좌클릭=회수.
             // Space는 점프(PlayerInputHandler). 집기·배치는 좌클릭. 우클릭은 카메라 회전 전용.
 
             UpdateTarget();
             UpdateGrabTarget();   // 빈손이면 near+aim 집기 대상 산출(하이라이트·집기 공용)
 
-            if (kb.cKey.wasPressedThisFrame) TryRemove();   // C = 철거(현재 조준 칸)
+            if (m_PrevGrabBody != m_GrabBody)   // 조준 대상 두근두근 on/off
+            {
+                if (m_PrevGrabBody != null) m_PrevGrabBody.SetTargeted(false);
+                if (m_GrabBody != null) m_GrabBody.SetTargeted(true);
+                m_PrevGrabBody = m_GrabBody;
+            }
 
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
             if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
             {
                 if (HasMaterial)
                 {
-                    if (m_HasTarget) TryPlace();    // 그리드 위 → 그리드 배치
-                    else             TryFreeDrop(); // 그리드 밖 → 바닥 자유 배치
+                    if (m_HasTarget) TryPlace();   // 그리드 위 → 그리드 배치
+                    else             Drop();       // 그리드 밖 '배치' = 발밑에 버리기(기존 Q 통합)
                 }
                 else if (!HasTool)
                 {
@@ -169,24 +212,9 @@ namespace Player
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
 
             UpdatePreview();     // 배치 미리보기(반투명 박스 GameObject — GL 폐지)
+            UpdateHud();         // 프리팹 HUD 갱신(조작법·공정바·공정힌트)
         }
         
-        private void TryFreeDrop()
-        {
-            if (!HasMaterial || m_Drop == null) return;
-            // 마우스 레이 → Y=0 평면(바닥)과 교점 구하기
-            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-            var plane = new Plane(Vector3.up, Vector3.zero);  // Y=0 바닥
-            if (!plane.Raycast(ray, out float dist)) return;
-            Vector3 dropPos = ray.GetPoint(dist);
-            dropPos.y = 0.5f;  // 바닥 위 약간 뜨게
-            // MaterialDropField의 RequestDrop을 사용해 그 위치에 픽업으로 떨굼
-            m_Drop.RequestDrop(m_HeldMaterial.Id, dropPos);
-            PlaySFX(SFXType.LandObject);
-            ClearHeld();
-            OnPlace?.Invoke();
-        }
-
         // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
         private void TryPickupPlaced()
         {
@@ -226,28 +254,105 @@ namespace Player
 
         // E: 짧게 '톡' 누르면 층 올림, 길게 '꾹' 누르면 공정(로딩바). 한 키에 톡/꾹을 누른 시간으로 구분한다.
         // 꾹: '든 도구'가 조준 블록에 필요할 때만 바가 차고, 다 차면 그 공정을 적용(누른 채로 다음 단계 이어짐).
+        // 페인트 공정 시간 = SFX_Painting.wav 길이(1.31s) → 붓질 사운드·로딩바가 함께 시작해서 함께 끝남.
+        private const float kPaintSeconds = 1.31f;
+        private float ProcessDurationFor(ProcessType kind) => kind == ProcessType.Painted ? kPaintSeconds : m_ProcessSeconds;
+
+        // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
+        // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 완성 파츠 중 무작위로 고른다(기획서).
+        private const float kCannonChargeSeconds = 0.8f;
+        private float m_CannonCharge;
+
+        private void UpdateCannonCharge(Keyboard kb, GridSystem.ItemNetwork items)
+        {
+            if (kb.eKey.isPressed)
+            {
+                m_CannonCharge += Time.deltaTime;
+                return;
+            }
+            if (kb.eKey.wasReleasedThisFrame && m_CannonCharge > 0f)
+            {
+                bool charged = m_CannonCharge >= kCannonChargeSeconds;
+                m_CannonCharge = 0f;
+                if (charged) items.RequestUseHeld();   // 덜 눌렀으면 불발(다시 조준)
+            }
+        }
+
         private void UpdateEKey(Keyboard kb)
         {
+            // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
+            // (도구를 들었다 = 공정할 의도). 대포만 예외로 '꾹 눌렀다 떼면 발사'.
+            var items = GridSystem.ItemNetwork.Instance;
+            if (!HasTool && items != null && items.LocalHasItem)
+            {
+                if (items.LocalHoldsCannon) { UpdateCannonCharge(kb, items); return; }
+                if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }
+            }
+            m_CannonCharge = 0f;
+
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
+                CancelPaintStroke();
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
             }
 
             if (!ToolReadyOnTarget())   // 공정 불가(도구 없음/안 맞음/빈 칸) → 바 안 참
             {
+                CancelPaintStroke();
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
                 return;
             }
 
-            if (m_Target != m_ProcessCell) { m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
+            if (m_Target != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_Target; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
             m_ProcessKind = m_HeldTool;
-            m_ProcessHold += Time.deltaTime;
+            bool strokeStart = m_ProcessHold <= 0f;
+            m_ProcessHold += Time.deltaTime * GridSystem.ItemNetwork.LocalProcessMultiplier();   // 2vs2 공정 버프/디버프
 
-            if (m_ProcessHold >= m_ProcessSeconds)
+            if (strokeStart && m_ProcessKind == ProcessType.Painted)   // 붓질 시작 = 사운드 시작(바와 동시 출발)
+            {
+                Vector3 sp = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
+                PaintStrokeSfx(true, sp);
+                if (IsSpawned) RequestPaintStrokeRpc(true, sp);
+            }
+
+            float dur = ProcessDurationFor(m_ProcessKind);   // 페인트=사운드 길이, 망치=m_ProcessSeconds
+
+            // 공정 이펙트 0.5초 간격(망치=타격 세트 / 페인트=붓질+초록 방울, 소리는 스트로크가 담당) — 로컬 즉시 + 원격 복제.
+            // 완료타와 겹치면 같은 소리가 중복되므로, 완료 직전 틱은 건너뜀.
+            m_HitFxTimer -= Time.deltaTime;
+            if (m_HitFxTimer <= 0f && m_ProcessHold + 0.45f < dur)
+            {
+                m_HitFxTimer = 0.5f;
+                Vector3 hit = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
+                if (m_ProcessKind == ProcessType.Fixed)
+                {
+                    SpawnHammerFx(hit);
+                    if (IsSpawned) RequestHammerFxRpc(hit);
+                }
+                else
+                {
+                    SpawnPaintFx(hit);
+                    if (IsSpawned) RequestPaintFxRpc(hit);
+                }
+            }
+
+            if (m_ProcessHold >= dur)
             {
                 m_Net.RequestProcess(m_ProcessCell, (int)m_HeldTool, true);   // 서버가 점유/순서 재검증
-                PlayProcessSfx(m_HeldTool == ProcessType.Painted);             // 로컬 + 원격 복제(옆 플레이어도 들림)
+
+                Vector3 done = GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 0.9f, 0.5f) * GridContract.Unit;
+                if (m_HeldTool == ProcessType.Fixed)   // 고정 완료 — 스윙 착점에 챙!(소리·별·스퀴시·카메라 전부 싱크)
+                {
+                    SpawnFixDoneFx(done);
+                    if (IsSpawned) RequestFixDoneFxRpc(done);
+                }
+                else                                   // 페인트 완료 — 붓질 착점에 초록 팡
+                {
+                    SpawnPaintDoneFx(done);
+                    if (IsSpawned) RequestPaintDoneFxRpc(done);
+                }
+
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
@@ -395,7 +500,28 @@ namespace Player
                 m_Target = c;
                 m_HasTarget = c.x >= 0 && c.x < s.x && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
+
+                // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸.
+                // 중심점이 아니라 '블록이 차지한 셀 중 가장 가까운 셀'까지의 거리 — 큰 블록도 가장자리에 서면 닿는다.
+                if (m_HasTarget)
+                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(c),
+                                                    GridContract.Origin, GridContract.Unit, kBuildReachCells);
             }
+        }
+
+        // 사거리 판정 대상 셀: 들고 있으면 놓을 자리(풋프린트 전체), 빈손이면 가리킨 블록이 차지한 셀 전체.
+        // 어느 쪽도 아니면 가리킨 칸 하나.
+        private readonly System.Collections.Generic.List<Vector3Int> m_ReachCells = new();
+        private System.Collections.Generic.List<Vector3Int> ReachCells(Vector3Int target)
+        {
+            if (HasMaterial && m_HeldMaterial != null)
+                return GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation);
+
+            if (m_Net != null && m_Net.TryGetBlockCells(target, m_ReachCells)) return m_ReachCells;
+
+            m_ReachCells.Clear();
+            m_ReachCells.Add(target);
+            return m_ReachCells;
         }
 
         // 손 비었을 때 '마우스가 가리킨' 바닥 픽업 또는 도구함을 집는다(테두리=집기 동일 대상).
@@ -504,23 +630,130 @@ namespace Player
             OnPlace?.Invoke();
         }
 
-        // 든 재료 또는 도구를 마우스 조준 지점으로 던진다(협동 전달). 최대 m_ThrowRange까지.
-        private void Throw()
+        // ── [07/26 기획] G 차징 던지기: 꾹 누를수록 멀리, 화살표로 방향·거리 미리보기 ──
+        private float m_ThrowHold = -1f;   // <0 = 충전 안 함
+        private GameObject m_ThrowAim;     // 조준 화살표(오너 로컬 비주얼)
+        private LineRenderer m_AimShaft, m_AimHead;
+        [SerializeField] private Material m_AimLineMat;   // 궤적 선 머티리얼(Hit Me 에셋 점선)
+        private const float kThrowMin = 3f;          // 탭 = 기존 최소 로브
+        private const float kThrowChargeTime = 0.9f; // 이 시간 꾹 = 최대 사거리
+
+        private void UpdateThrowCharge(Keyboard kb)
+        {
+            bool holding = HasMaterial || HasTool;
+            if (kb.gKey.wasPressedThisFrame && holding && m_Drop != null) m_ThrowHold = 0f;
+            if (m_ThrowHold < 0f) return;
+
+            if (!holding) { CancelThrowAim(); return; }   // 충전 중 손이 비면 취소
+
+            m_ThrowHold += Time.deltaTime;
+            float charge = Mathf.Clamp01(m_ThrowHold / kThrowChargeTime);
+            float dist = Mathf.Lerp(kThrowMin, m_ThrowRange, charge);
+            Vector3 dir = AimDir();
+            ShowThrowAim(dir, dist, charge);
+
+            if (kb.gKey.wasReleasedThisFrame)
+            {
+                Throw(dir, dist);
+                CancelThrowAim();
+            }
+        }
+
+        private Vector3 AimDir()
+        {
+            Vector3 flat = AimWorldPoint() - transform.position; flat.y = 0f;
+            return flat.sqrMagnitude > 0.01f ? flat.normalized : transform.forward;
+        }
+
+        // 오버쿡드식 던지기: 조준 '방향'으로 붕~ 포물선 로브. 거리 = 충전량(탭=최소 3, 풀차지=사거리).
+        private void Throw(Vector3 dir, float dist)
         {
             if (m_Drop == null || (!HasMaterial && !HasTool)) return;
-            Vector3 aim = AimWorldPoint();                 // 커서 아래 바닥 지점(y=0.5)
-            Vector3 flat = aim - transform.position; flat.y = 0f;
-            float dist = flat.magnitude;
-            Vector3 to = dist > m_ThrowRange
-                ? transform.position + flat / Mathf.Max(dist, 1e-4f) * m_ThrowRange   // 너무 멀면 사거리까지만
-                : aim;
+            Vector3 to = transform.position + dir * dist;
             to.y = 0.5f;
             Vector3 from = transform.position + Vector3.up * 1.2f;
             if (HasMaterial) m_Drop.RequestThrow(m_HeldMaterial.Id, from, to);
             else             m_Drop.RequestThrowTool((int)m_HeldTool, from, to);
             PlaySFX(SFXType.ThrowObject);
+            GridJuice.FovPunch(m_Cam, 1.6f);   // 던질 때 화면 살짝 벌어졌다 복귀 — 손맛
             ClearHeld();
             OnThrow?.Invoke();
+        }
+
+        // 조준 궤적: 실제 비행(PickupBody.SampleArc)과 같은 수식의 포물선 — 앵그리버드처럼 선 그대로 날아감.
+        private readonly Vector3[] m_ArcPts = new Vector3[24];
+
+        private void ShowThrowAim(Vector3 dir, float dist, float charge)
+        {
+            if (m_ThrowAim == null)
+            {
+                m_ThrowAim = new GameObject("~ThrowAim");
+                m_AimShaft = MakeAimLine(m_ThrowAim.transform, m_ArcPts.Length);
+                m_AimHead  = MakeAimLine(m_ThrowAim.transform, 3);
+            }
+            m_ThrowAim.SetActive(true);
+
+            Vector3 from = transform.position + Vector3.up * 1.2f;              // Throw()의 출발점과 동일
+            Vector3 to = transform.position + dir * dist; to.y = 0.5f;          // Throw()의 목표점과 동일
+            PickupBody.SampleArc(from, to, m_ArcPts);
+
+            var c = Color.Lerp(new Color(1f, 0.75f, 0.2f, 0.9f), new Color(1f, 0.3f, 0.15f, 0.95f), charge);
+            float w = Mathf.Lerp(0.14f, 0.24f, charge);
+
+            m_AimShaft.startColor = m_AimShaft.endColor = c;
+            m_AimShaft.startWidth = w; m_AimShaft.endWidth = w * 0.7f;
+            m_AimShaft.SetPositions(m_ArcPts);
+
+            // 착지점 V자 촉(마지막 구간 접선 방향)
+            Vector3 tang = (m_ArcPts[m_ArcPts.Length - 1] - m_ArcPts[m_ArcPts.Length - 2]).normalized;
+            Vector3 side = Vector3.Cross(Vector3.up, dir);
+            Vector3 tip = m_ArcPts[m_ArcPts.Length - 1];
+            m_AimHead.startColor = m_AimHead.endColor = c;
+            m_AimHead.startWidth = m_AimHead.endWidth = w;
+            m_AimHead.SetPosition(0, tip - tang * 0.5f + side * 0.32f);
+            m_AimHead.SetPosition(1, tip);
+            m_AimHead.SetPosition(2, tip - tang * 0.5f - side * 0.32f);
+        }
+
+        private LineRenderer MakeAimLine(Transform parent, int points)
+        {
+            var go = new GameObject("~AimLine");
+            go.transform.SetParent(parent, false);
+            var lr = go.AddComponent<LineRenderer>();
+            lr.positionCount = points;
+            lr.useWorldSpace = true;
+            lr.numCapVertices = 4;
+            lr.numCornerVertices = 4;
+            lr.alignment = LineAlignment.View;
+            lr.textureMode = LineTextureMode.Tile;   // HitMe 점선 텍스처가 길이 따라 반복
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+
+            if (m_AimLineMat != null)
+            {
+                lr.material = m_AimLineMat;   // Hit Me 에셋의 점선 라인 머티리얼(에셋 참조 → 빌드 안전)
+                return lr;
+            }
+            var sh = Shader.Find("Universal Render Pipeline/Lit");   // 폴백(빌드 셰이더 스트립 안전 계열)
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            if (sh != null)
+            {
+                var m = new Material(sh);
+                m.SetFloat("_Surface", 1f);
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                lr.material = m;
+            }
+            return lr;
+        }
+
+        private void CancelThrowAim()
+        {
+            m_ThrowHold = -1f;
+            if (m_ThrowAim != null) m_ThrowAim.SetActive(false);
         }
 
         // 든 재료가 있으면 발밑 바닥에 떨군다(놓기 외에 손을 떠나는 모든 경로 공통). 다시 주워 재배치 가능.
@@ -555,18 +788,22 @@ namespace Player
             var s = m_Grid.GridSize;
             foreach (var cell in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
             {
-                if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) return;
-                if (!m_Net.IsCellFree(cell)) return;
+                if (cell.x < 0 || cell.x >= s.x || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
+                if (!m_Net.IsCellFree(cell)) { ShakePreview(); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
                     GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation),
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
-                return;
+            { ShakePreview(); return; }
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
-            PlaySFX(SFXType.LandObject);
+            if (SoundManager.Instance != null)   // 놓는 자리서 3D + 피치 랜덤(단조로움 방지)
+                SoundManager.Instance.PlaySFXAt(SFXType.LandObject,
+                    GridCoordinates.CellToWorld(m_Target) + Vector3.one * (0.5f * GridContract.Unit),
+                    Random.Range(0.92f, 1.08f));
+            GridSystem.GridJuice.FovPunch(m_Cam, -1.5f);   // 놓는 순간 카메라 살짝 쿵(owner 즉각 반응)
             ClearHeld();   // 놓으면 손이 빔 → 재고서 다시 집어야(리썰컴퍼니식)
             OnPlace?.Invoke();
         }
@@ -577,25 +814,173 @@ namespace Player
                 SoundManager.Instance.PlaySFX(type);
         }
 
-        // 공정 소리: owner 로컬 즉시 + 서버 경유로 다른 클라에도(옆 플레이어 망치질이 들리게).
-        private void PlayProcessSfx(bool painted)
+        // 망치질 연출(모든 클라): 스윙부터 시작하고, 망치가 '내려찍히는 순간'(kSwingDown)에
+        // 타격 세트(스파크·스퀴시·타격음·카메라펀치)를 재생 → 소리/이펙트가 애니메이션과 싱크.
+        private const float kSwingDown = 0.09f;   // 내려찍기 시간 = 타격 싱크 기준
+        private const float kSwingBack = 0.16f;   // 복귀 시간
+
+        private void SpawnHammerFx(Vector3 pos)
         {
-            PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
-            if (IsSpawned) RequestProcessSfxRpc(painted);
+            SwingHeldTool();                                              // ① 스윙 시작
+            if (isActiveAndEnabled) StartCoroutine(HammerImpactCo(pos, big: false));   // ② 착점에 타격
         }
 
         [Rpc(SendTo.Server)]
-        private void RequestProcessSfxRpc(bool painted) => ProcessSfxRpc(painted);
+        private void RequestHammerFxRpc(Vector3 pos) => HammerFxRpc(pos);
 
         [Rpc(SendTo.NotOwner)]
-        private void ProcessSfxRpc(bool painted)
-            => PlaySFX(painted ? SFXType.Painting : SFXType.Hammering);
+        private void HammerFxRpc(Vector3 pos) { if (!IsOwner) SpawnHammerFx(pos); }   // 오너는 이미 로컬 재생(이중 방지)
 
-        private void TryRemove()
+        // 고정 완료: 같은 싱크로 별 타격 + 큰 스퀴시 + (owner만) 카메라 펀치.
+        private void SpawnFixDoneFx(Vector3 pos)
         {
-            if (m_Loop != null && !m_Loop.IsBuilding) return;
-            if (!m_HasTarget || m_Net == null) return;
-            m_Net.RequestRemove(m_Target);   // 서버가 점유 검증 + 재료를 바닥에 떨굼
+            SwingHeldTool();
+            if (isActiveAndEnabled) StartCoroutine(HammerImpactCo(pos, big: true));
+        }
+
+        // 망치가 닿는 순간의 타격 세트. big = 고정 완료(별·큰 스퀴시·카메라).
+        private System.Collections.IEnumerator HammerImpactCo(Vector3 pos, bool big)
+        {
+            yield return new WaitForSeconds(kSwingDown);   // 내려찍히는 순간에 맞춤
+
+            var prefab = big ? m_FixDoneFx : m_HammerFx;
+            if (prefab != null)
+            {
+                var go = Instantiate(prefab, pos, Quaternion.identity);
+                if (!big)
+                {
+                    go.transform.localScale *= 0.65f;                                  // 블록 스케일에 맞게 축소
+                    foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+                    { var main = ps.main; main.simulationSpeed = 1.5f; }               // 더 빠르게 탁! 튀고 사라짐
+                }
+                Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
+            }
+
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();   // 원격 인스턴스는 m_Net 미탐색
+            if (net != null)
+            {
+                GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), big ? 0.14f : 0.08f);
+                if (big) net.RippleAround(pos, GridContract.Unit * 2.5f, 0.06f);   // 완료 순간 젤리 파동
+            }
+            if (SoundManager.Instance != null)   // 단타 클립(SFX_Hammering.wav) + 연타 전용 채널
+                SoundManager.Instance.PlayTapAt(SFXType.Hammering, pos,
+                    big ? Random.Range(0.72f, 0.80f) : Random.Range(0.9f, 1.1f));
+            if (big) GridJuice.FovPunch(m_Cam, -2.5f);   // 원격 인스턴스는 m_Cam null → 무시됨
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestFixDoneFxRpc(Vector3 pos) => FixDoneFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void FixDoneFxRpc(Vector3 pos) { if (!IsOwner) SpawnFixDoneFx(pos); }   // 오너는 이미 로컬 재생(이중 방지)
+
+        // 페인트질 연출: 붓질 스윙 후 착점에 초록 방울 + 페인트 소리(연타 채널·길이 컷).
+        private void SpawnPaintFx(Vector3 pos)
+        {
+            SwingHeldTool();
+            if (isActiveAndEnabled) StartCoroutine(PaintSplashCo(pos, big: false));
+        }
+
+        private void SpawnPaintDoneFx(Vector3 pos)
+        {
+            SwingHeldTool();
+            if (isActiveAndEnabled) StartCoroutine(PaintSplashCo(pos, big: true));
+        }
+
+        private static readonly Color kPaintOrange = new Color(1f, 0.55f, 0.15f);   // 페인트 튀김 색
+
+        private System.Collections.IEnumerator PaintSplashCo(Vector3 pos, bool big)
+        {
+            yield return new WaitForSeconds(kSwingDown);   // 붓이 닿는 순간에 맞춤
+
+            if (m_PaintFx != null)   // 피 튀김 이펙트를 주황으로 틴트 → 페인트 튀김
+            {
+                var go = Instantiate(m_PaintFx, pos, Quaternion.identity);
+                go.transform.localScale *= big ? 1f : 0.55f;
+                TintParticles(go, kPaintOrange);
+                Destroy(go, 5f);
+            }
+            else
+                GridJuice.PaintPop(pos, GridContract.Unit, big ? 1.6f : 1f);   // 프리팹 없으면 방울 폴백
+
+            if (big)
+            {
+                var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
+                if (net != null) GridJuice.Squish(net.VisualAt(GridCoordinates.WorldToCell(pos)), 0.10f);
+            }
+            // 소리는 스트로크 사운드(PaintStrokeSfx)가 로딩바와 함께 1회 담당 — 여기선 비주얼만.
+        }
+
+        // 붓질 사운드: 로딩바와 함께 시작·종료(클립 길이 = kPaintSeconds). 피치 고정(길이 싱크 유지).
+        private void PaintStrokeSfx(bool start, Vector3 pos)
+        {
+            if (SoundManager.Instance == null) return;
+            if (start) SoundManager.Instance.PlayTapAt(SFXType.Painting, pos, 1f);
+            else SoundManager.Instance.StopTap();
+        }
+
+        // 스트로크 중단(E 뗌/대상 무효/셀 변경) → 소리도 함께 끊음.
+        private void CancelPaintStroke()
+        {
+            if (m_ProcessKind != ProcessType.Painted || m_ProcessHold <= 0f) return;
+            PaintStrokeSfx(false, default);
+            if (IsSpawned) RequestPaintStrokeRpc(false, default);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestPaintStrokeRpc(bool start, Vector3 pos) => PaintStrokeRpc(start, pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PaintStrokeRpc(bool start, Vector3 pos) { if (!IsOwner) PaintStrokeSfx(start, pos); }
+
+        // 파티클 색 오버라이드(startColor) — CFXR 계열은 버텍스 컬러 기반이라 이걸로 전체 틴트됨.
+        private static void TintParticles(GameObject go, Color c)
+        {
+            foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+            {
+                var main = ps.main;
+                main.startColor = new ParticleSystem.MinMaxGradient(c);
+            }
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestPaintFxRpc(Vector3 pos) => PaintFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PaintFxRpc(Vector3 pos) { if (!IsOwner) SpawnPaintFx(pos); }
+
+        [Rpc(SendTo.Server)]
+        private void RequestPaintDoneFxRpc(Vector3 pos) => PaintDoneFxRpc(pos);
+
+        [Rpc(SendTo.NotOwner)]
+        private void PaintDoneFxRpc(Vector3 pos) { if (!IsOwner) SpawnPaintDoneFx(pos); }
+
+        // 든 도구 내려찍기 스윙(플레이어가 보는 방향 기준). 모든 클라에서 재생.
+        private Coroutine m_SwingCo;
+        private void SwingHeldTool()
+        {
+            if (m_HeldVisual == null || !isActiveAndEnabled) return;
+            if (m_SwingCo != null) StopCoroutine(m_SwingCo);
+            m_SwingCo = StartCoroutine(SwingCo());
+        }
+
+        private System.Collections.IEnumerator SwingCo()
+        {
+            var t = m_HeldVisual.transform;
+            const float down = kSwingDown, back = kSwingBack;
+            for (float e = 0f; e < down && t != null; e += Time.deltaTime)   // 휙 내려찍기
+            {
+                t.rotation = transform.rotation * Quaternion.Euler(Mathf.Lerp(0f, -70f, e / down), 0f, 0f);
+                yield return null;
+            }
+            for (float e = 0f; e < back && t != null; e += Time.deltaTime)   // 되돌아오기(감속)
+            {
+                float n = e / back;
+                t.rotation = transform.rotation * Quaternion.Euler(Mathf.Lerp(-70f, 0f, 1f - (1f - n) * (1f - n)), 0f, 0f);
+                yield return null;
+            }
+            if (t != null) t.rotation = Quaternion.identity;
+            m_SwingCo = null;
         }
 
         // ── 비주얼(상태 구동, 모든 클라) ───────────────────────────────────
@@ -651,7 +1036,12 @@ namespace Player
             }
 
             if (m_HeldVisual != null)
+            {
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
+                m_HeldPrevPos = transform.position;   // 바운스 속도 계산 초기화(첫 프레임 튐 방지)
+                m_HeldSwayVel = Vector3.zero;
+                GridJuice.Squish(m_HeldVisual, 0.22f);   // 집는 순간 뽁 — 손맛
+            }
 
             Debug.Log($"[FXSync] RebuildHeld {(IsOwner ? "owner" : "remote")} mat={matId} tool={tool} visual={(m_HeldVisual != null)}", this);
         }
@@ -763,6 +1153,15 @@ namespace Player
                 for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
                 m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
+
+                float pa = 0.40f + 0.10f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 살아있는 청사진 숨쉬기
+                for (int i = 0; i < m_PreviewGhostMats.Count; i++)
+                    if (m_PreviewGhostMats[i] != null)
+                    {
+                        var c = m_PreviewGhostMats[i].GetColor(s_PvBase); c.a = pa;
+                        m_PreviewGhostMats[i].SetColor(s_PvBase, c);
+                        m_PreviewGhostMats[i].SetColor(s_PvCol, c);
+                    }
                 return;
             }
 
@@ -811,6 +1210,30 @@ namespace Player
             go.GetComponent<Renderer>().sharedMaterial = PreviewMat();
             m_Preview = go;
             m_PreviewKey = -1;
+        }
+
+        // 배치 실패 도리도리: 프리뷰가 좌우로 흔들리며 "여긴 안 돼" 신호(감쇠).
+        private Coroutine m_ShakeCo;
+        private void ShakePreview()
+        {
+            if (m_Preview == null || !isActiveAndEnabled) return;
+            if (m_ShakeCo != null) StopCoroutine(m_ShakeCo);
+            m_ShakeCo = StartCoroutine(ShakePreviewCo());
+        }
+
+        private System.Collections.IEnumerator ShakePreviewCo()
+        {
+            var t = m_Preview.transform;
+            var baseRot = t.rotation;
+            const float dur = 0.25f;
+            for (float e = 0f; e < dur && t != null; e += Time.deltaTime)
+            {
+                float decay = 1f - e / dur;
+                t.rotation = baseRot * Quaternion.Euler(0f, Mathf.Sin(e * 55f) * 8f * decay, 0f);
+                yield return null;
+            }
+            if (t != null) t.rotation = baseRot;
+            m_ShakeCo = null;
         }
 
         private void DestroyPreview()
@@ -876,30 +1299,38 @@ namespace Player
             return m_PreviewMat;
         }
 
-        private void OnGUI()
+        // ── 프리팹 HUD 구동(구 OnGUI 대체 · 비주얼은 Resources/UI/HUD/CarryHudUI 프리팹) ──
+        private void UpdateHud()
         {
-            if (!IsOwner || !Application.isPlaying) return;
-            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene) return;   // 조작법 HUD는 GameScene만
-            if (m_HudStyle == null)
-                m_HudStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, normal = { textColor = Color.white } };
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene)   // 조작법 HUD는 GameScene만
+            {
+                if (m_Hud != null) m_Hud.gameObject.SetActive(false);
+                return;
+            }
+            if (m_Hud == null)
+            {
+                if (m_HudMissing || UIManager.Instance == null) return;
+                if (Resources.Load<GameObject>("UI/HUD/CarryHudUI") == null)
+                {
+                    m_HudMissing = true;   // 프리팹 없음 → 예외 스팸 방지(1회 경고)
+                    Debug.LogWarning("[PlayerCarry] CarryHudUI 프리팹 없음 — 메뉴 Jobsnail ▸ UI ▸ Generate CarryHud Prefab 실행하세요.");
+                    return;
+                }
+                m_Hud = UIManager.Instance.ShowHUDUI<CarryHudUI>();
+                if (m_Hud == null) return;
+            }
+            if (!m_Hud.gameObject.activeSelf) m_Hud.gameObject.SetActive(true);
 
-            // [기존 개발용 문구 — 유지]
-            // string held = HasMaterial ? $"재료 id{m_HeldMaterial.Id} (R회전 {m_Rotation})"
-            //             : HasTool     ? (m_HeldTool == ProcessType.Fixed ? "망치(고정) — 블록 가리키고 E 꾹" : "페인트통(페인트) — 블록 가리키고 E 꾹")
-            //             :               "빈손 — 우상단서 주문 → 배송 구역에서 좌클릭으로 줍기 (작업장서 좌클릭=도구)";
-            // if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
-            //     held = "빈손 — 좌클릭 = 미고정 블록 집기 (고정 전)";
-            // string tgt = m_HasTarget ? $"대상 {m_Target}" : "대상 -";
-            // string score = m_Net != null ? $"점수 {m_Net.ScorePercent:F0}%" : "";
-            // string grab = !m_GrabValid ? "없음"
-            //             : m_GrabStation != null ? "도구함"
-            //             : m_GrabBody.ToolBit != 0 ? "도구" : "재료" + m_GrabBody.MaterialId;
-            // string text =
-            //     $"[Carry] 들기: {held}\n" +
-            //     $"좌클릭 집기/배치 · C 철거 · Q 버리기 · Space 점프/벽점프 · G 던지기\n" +
-            //     $"E꾹 공정 · Z꾹 되돌리기 · R 회전 · 벽 보고 W/S 기어오르기 · 층 {m_BuildHeight}(자동) · TAB 정답    {tgt}  {score}\n" +
-            //     $"진단: cam={m_Cam != null} grid={m_Grid != null} net={m_Net != null} 대상유효={m_HasTarget} · 집기대상={grab}";
+            m_Hud.SetHint(BuildHintText());
+            UpdateHudBars();
 
+            int pct = m_Net != null ? Mathf.RoundToInt(m_Net.ScorePercent) : 0;   // 완성도 오르면 패널 디용
+            if (m_PrevScorePct >= 0 && pct > m_PrevScorePct) m_Hud.PopHint();
+            m_PrevScorePct = pct;
+        }
+
+        private string BuildHintText()
+        {
             string heldStr;
             if (HasMaterial)
                 heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
@@ -913,79 +1344,52 @@ namespace Player
                 heldStr = "오른쪽 하단에서 재료를 주문하세요! ";
 
             string score = m_Net != null ? $"  |  완성도 {m_Net.ScorePercent:F0}%" : "";
-            string text =
+            return
                 $"{heldStr}{score}\n" +
-                $"[좌클릭] 집기/배치    [C] 설치한 블록 철거    [Q] 블록 버리기    [G] 던지기\n" +
+                $"[좌클릭] 집기/배치 (그리드 밖 클릭 = 발밑에 버리기, 미고정 블록 클릭 = 회수)    [G 꾹] 차징 던지기(꾹 누를수록 멀리)\n" +
                 $"[Space] 점프    [Space 연타] 비계 발밑에 설치(1칸 올라가기)\n" +
-                $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    현재 층: {m_BuildHeight}";
-
-            var box = new Rect(10, 10, 960, 150);
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
-            GUI.DrawTexture(box, Texture2D.whiteTexture);
-            GUI.color = prev;
-            GUI.Label(new Rect(box.x + 8, box.y + 6, box.width - 16, box.height - 12), text, m_HudStyle);
-
-            DrawProcessBar();
-            DrawProcessHint();
+                $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    [T 꾹] 감정표현    현재 층: {m_BuildHeight}";
         }
 
-        // 도구 들고 조준 중일 때(바가 안 차는 동안) 대상 블록 위에 공정 안내를 띄운다.
-        private void DrawProcessHint()
+        // E 공정 / Z 되돌리기 로딩바 + 공정 안내(대상 블록 위 · 월드→스크린 좌표는 여기서 계산).
+        private void UpdateHudBars()
         {
-            if (m_ProcessHold > 0f || string.IsNullOrEmpty(m_ProcessHint) || m_Cam == null || !m_HasTarget) return;
-            Vector3 world = GridCoordinates.CellToWorld(m_Target) + new Vector3(0.5f, 1.3f, 0.5f);
-            Vector3 sp = m_Cam.WorldToScreenPoint(world);
-            if (sp.z <= 0f) return;
+            Vector2 sp = default;
 
-            if (m_BarLabel == null)
-                m_BarLabel = new GUIStyle(GUI.skin.label)
-                    { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-
-            const float w = 280f, h = 20f;
-            var r = new Rect(sp.x - w / 2f, Screen.height - sp.y - h, w, h);
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = prev;
-            GUI.Label(r, m_ProcessHint, m_BarLabel);
-        }
-
-        // E 공정 / C 되돌리기 로딩바(대상 블록 위).
-        private void DrawProcessBar()
-        {
-            if (m_ProcessHold > 0f && m_ProcessCell != s_NoCell)
-                DrawHoldBar(m_ProcessCell, m_ProcessHold,
+            if (m_CannonCharge > 0f)   // 대포 충전은 같은 바를 머리 위에 띄워 게이지로 쓴다
+            {
+                bool ok = WorldToScreen(transform.position + Vector3.up * 2.2f, out sp);
+                m_Hud.SetProcessBar(ok, sp, Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds),
+                    new Color(0.95f, 0.55f, 0.15f), "대포 조준 중… (떼면 발사)");
+            }
+            else
+            {
+                bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
+                            && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
+                m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
                     m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
                     m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
-            if (m_RevertHold > 0f && m_RevertCell != s_NoCell)
-                DrawHoldBar(m_RevertCell, m_RevertHold, new Color(0.90f, 0.45f, 0.30f), "되돌리는 중…");
+            }
+
+            bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell
+                       && WorldToScreen(GridCoordinates.CellToWorld(m_RevertCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
+            m_Hud.SetRevertBar(rev, sp, Mathf.Clamp01(m_RevertHold / m_ProcessSeconds),
+                new Color(0.90f, 0.45f, 0.30f), "되돌리는 중…");
+
+            // 도구 들고 조준 중일 때(바가 안 차는 동안) 공정 안내
+            bool hint = m_ProcessHold <= 0f && !string.IsNullOrEmpty(m_ProcessHint) && m_HasTarget
+                        && WorldToScreen(GridCoordinates.CellToWorld(m_Target) + new Vector3(0.5f, 1.3f, 0.5f), out sp);
+            m_Hud.SetProcessHint(hint, sp, m_ProcessHint);
         }
 
-        private void DrawHoldBar(Vector3Int cell, float hold, Color fill, string label)
+        private bool WorldToScreen(Vector3 world, out Vector2 screen)
         {
-            if (m_Cam == null) return;
-            Vector3 world = GridCoordinates.CellToWorld(cell) + new Vector3(0.5f, 1.1f, 0.5f);
+            screen = default;
+            if (m_Cam == null) return false;
             Vector3 sp = m_Cam.WorldToScreenPoint(world);
-            if (sp.z <= 0f) return;
-
-            const float bw = 96f, bh = 12f;
-            float x = sp.x - bw / 2f;
-            float y = Screen.height - sp.y - bh;   // GUI y는 위에서부터
-            var prev = GUI.color;
-
-            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-            GUI.DrawTexture(new Rect(x - 2f, y - 2f, bw + 4f, bh + 4f), Texture2D.whiteTexture);
-
-            float t = Mathf.Clamp01(hold / m_ProcessSeconds);
-            GUI.color = fill;
-            GUI.DrawTexture(new Rect(x, y, bw * t, bh), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            if (m_BarLabel == null)
-                m_BarLabel = new GUIStyle(GUI.skin.label)
-                    { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x - 30f, y - 20f, bw + 60f, 18f), label, m_BarLabel);
+            if (sp.z <= 0f) return false;   // 카메라 뒤 → 표시 안 함
+            screen = new Vector2(sp.x, sp.y);
+            return true;
         }
     }
 }

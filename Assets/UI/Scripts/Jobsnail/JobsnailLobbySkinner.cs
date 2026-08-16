@@ -50,6 +50,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private bool m_IsStartingGame;
     private Button m_CustomLobbyStartButton;
     private Button m_CustomLobbyReadyButton;
+    private Button m_CustomLobbyModeButton;   // 방장 전용 — 게임 모드 순환 토글
+    private static readonly string[] kModeLabels = { "모드 · 타임어택", "모드 · 2vs2 대결", "모드 · 자유 건축" };
     private Text m_CustomLobbyStartHint;
     private Text m_CustomLobbyReadyStatus;
     private Text m_CustomLobbyRoomNameText;
@@ -159,6 +161,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return;
 
         var bg = JobsnailUiKit.Image("@JobsnailSessionBackground", transform, JobsnailUiKit.Sprite("UI_pngs/2.sesh/Session_BG"));
+        JobsnailUiKit.CoverFill(bg);   // 화면 꽉 채움(레터박스 X)
         bg.transform.SetAsFirstSibling();
     }
 
@@ -887,6 +890,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         {
             m_LobbyRoomOverlay.SetActive(true);
             m_LobbyRoomOverlay.transform.SetAsLastSibling();
+            JuicyButton.AttachAll(m_LobbyRoomOverlay);   // 프리팹산 버튼도 쫀득(중복 부착 안전)
             UpdateCustomLobbyRoomOverlay();
         }
     }
@@ -968,6 +972,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             m_CustomLobbyStartHint = MakeText(pcRoot, "팀원이 준비하면 시작할 수 있어요", 16, new Color(0.35f, 0.25f, 0.18f, 1f), new Vector2(305, -145), new Vector2(260, 30), TextAnchor.MiddleCenter);
             m_CustomLobbyReadyStatus = MakeText(pcRoot, "준비 상태를 확인하는 중...", 19, new Color(0.18f, 0.12f, 0.08f, 1f), new Vector2(0, -192), new Vector2(470, 36), TextAnchor.MiddleCenter, new Color(1f, 0.92f, 0.76f, 0.95f));
 
+            AddMapSelect(pcRoot);   // 맵 선택(방장 ◀▶ + 전원 썸네일)
+
             m_LobbyRoomOverlay = overlay;
         }
         catch (System.Exception ex)
@@ -986,6 +992,24 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             m_CustomLobbySlotStatuses.Clear();
             Debug.LogError($"[JobsnailLobbySkinner] 대기실 UI 생성 실패: {ex}");
         }
+    }
+
+    // 모드 버튼은 프리팹/코드 어느 빌드 경로든 오버레이가 생긴 뒤 한 번만 만든다(프리팹에 없어도 동작).
+    private void EnsureModeButton()
+    {
+        if (m_CustomLobbyModeButton != null || m_LobbyRoomOverlay == null) return;
+        Transform parent = m_LobbyRoomOverlay.transform.childCount > 0
+            ? m_LobbyRoomOverlay.transform.GetChild(0)
+            : m_LobbyRoomOverlay.transform;
+        m_CustomLobbyModeButton = MakeFixedButton(
+            parent, kModeLabels[0], new Vector2(305, -190), new Vector2(145, 40),
+            CycleGameMode, 13, new Color(1f, 0.78f, 0.44f, 1f));   // 게임시작과 같은 주황·같은 폭
+    }
+
+    private void CycleGameMode()
+    {
+        GridSystem.GameLoopManager.HostSelectedMode = (GridSystem.GameLoopManager.HostSelectedMode + 1) % 3;
+        UpdateCustomLobbyRoomOverlay();
     }
 
     private static void MakeLobbySlot(Transform parent, Vector2 anchored, string name, string status, out GameObject slotRoot, out Text nameText, out Text statusText)
@@ -1024,6 +1048,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             m_CustomLobbyStatusBadgeImage.color = roomIsFullEnough
                 ? new Color(0.45f, 0.84f, 0.38f, 1f)
                 : new Color(1f, 0.78f, 0.44f, 1f);
+
+        // 게임 모드 토글(방장 전용) — 누를 때마다 타임어택→2vs2→자유 순환. 시작 시 전원 동기화됨.
+        EnsureModeButton();
+        if (m_CustomLobbyModeButton != null)
+        {
+            m_CustomLobbyModeButton.gameObject.SetActive(isHost);
+            int mode = Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMode, 0, 2);
+            SetButtonLabel(m_CustomLobbyModeButton, kModeLabels[mode]);
+        }
 
         if (m_CustomLobbyStartButton != null)
         {
@@ -1077,6 +1110,56 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
 
         UpdateLobbySlots(joinedCount, readyCount, maxPlayers, allReady);
+        UpdateMapSelectUI(readyNet, isHost && isNetworkServer);
+    }
+
+    // ── 맵 선택 UI(방장 ◀▶, 전원 썸네일·이름 표시) — "현재 선택된 맵 이미지" 자리 ──
+    private Image m_MapThumb;
+    private Text m_MapNameText;
+    private Button m_MapPrevButton, m_MapNextButton;
+
+    private void AddMapSelect(Transform pcRoot)
+    {
+        if (pcRoot == null) return;
+        var thumbGo = new GameObject("MapThumb", typeof(RectTransform), typeof(Image));
+        thumbGo.transform.SetParent(pcRoot, false);
+        var trt = (RectTransform)thumbGo.transform;
+        trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f);
+        trt.anchoredPosition = new Vector2(312, 8);
+        trt.sizeDelta = new Vector2(130, 130);
+        m_MapThumb = thumbGo.GetComponent<Image>();
+        m_MapThumb.preserveAspect = true;
+        m_MapThumb.raycastTarget = false;
+        m_MapThumb.enabled = false;   // 썸네일 없으면 기존 회색 자리 그대로
+
+        m_MapNameText = MakeText(pcRoot, "", 15, new Color(0.25f, 0.17f, 0.10f, 1f), new Vector2(312, -66), new Vector2(170, 26), TextAnchor.MiddleCenter);
+        m_MapPrevButton = MakeFixedButton(pcRoot, "◀", new Vector2(232, 8), new Vector2(26, 44), () => StepMap(-1), 15, new Color(1f, 0.92f, 0.76f, 0.95f));
+        m_MapNextButton = MakeFixedButton(pcRoot, "▶", new Vector2(392, 8), new Vector2(26, 44), () => StepMap(1), 15, new Color(1f, 0.92f, 0.76f, 0.95f));
+    }
+
+    private void StepMap(int dir)
+    {
+        var net = FindFirstObjectByType<LobbyRoomNet>();
+        if (net != null) net.HostSelectMap(net.SelectedMap + dir);
+    }
+
+    private void UpdateMapSelectUI(LobbyRoomNet readyNet, bool isHostAuth)
+    {
+        if (m_MapNameText == null) return;
+        var catalog = GridSystem.MapCatalog.Instance;
+        int idx = readyNet != null ? readyNet.SelectedMap : 0;
+        var def = catalog != null ? catalog.Get(idx) : null;
+        int count = catalog != null ? catalog.Count : 0;
+
+        m_MapNameText.text = def != null ? def.DisplayName : "";
+        if (m_MapThumb != null)
+        {
+            m_MapThumb.sprite = def != null ? def.Thumbnail : null;
+            m_MapThumb.enabled = m_MapThumb.sprite != null;
+        }
+        bool arrows = isHostAuth && count > 1;   // 맵 1개거나 팀원이면 화살표 숨김
+        if (m_MapPrevButton != null) m_MapPrevButton.gameObject.SetActive(arrows);
+        if (m_MapNextButton != null) m_MapNextButton.gameObject.SetActive(arrows);
     }
 
     private void UpdateLobbySlots(int joinedCount, int readyCount, int maxPlayers, bool allReady)
@@ -1113,7 +1196,15 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                 status.text = "";
             }
         }
+
+        // 새 팀원 입장 → 그 슬롯 디용
+        if (joinedCount > m_PrevJoinedForPop && joinedCount - 1 < m_CustomLobbySlotRoots.Count
+            && m_CustomLobbySlotRoots[joinedCount - 1] != null)
+            GridSystem.GridJuice.Squish(m_CustomLobbySlotRoots[joinedCount - 1], 0.15f);
+        m_PrevJoinedForPop = joinedCount;
     }
+
+    private int m_PrevJoinedForPop;   // 입장 팝 감지용
 
     private void ToggleCustomReadyState()
     {
@@ -1434,7 +1525,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (m_CustomLobbyStartButton != null && m_CustomLobbyReadyButton != null &&
             m_CustomLobbyStartHint != null && m_CustomLobbyReadyStatus != null &&
             m_CustomLobbySlotRoots.Count == 4 && m_CustomLobbySlotNames.Count == 4 && m_CustomLobbySlotStatuses.Count == 4)
+        {
+            AddMapSelect(overlay.transform.Find("LobbyPcRoot"));   // 맵 선택은 런타임 부착(프리팹 재생성 불필요)
             return true;
+        }
 
         Debug.LogWarning("[JobsnailLobbySkinner] 대기실 프리팹 바인딩 실패. 코드 생성 UI로 대체합니다.");
         Destroy(overlay);
