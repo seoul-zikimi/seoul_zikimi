@@ -164,6 +164,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             m_ModeOptions.gameObject.SetActive(false);
 
         JuicyButton.AttachAll(gameObject);   // 프리팹에서 만든 버튼도 쫀득(중복 부착 안전)
+        ResolveSlots();                       // Missing Prefab 껍데기 정리는 첫 레이캐스트 전에 끝내야 한다
     }
 
     public void SetVisible(bool visible)
@@ -643,6 +644,16 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         m_LobbySlotNames ??= new Text[4];
         m_LobbySlotStatuses ??= new Text[4];
 
+        // 중첩 슬롯 프리팹이 프로젝트에 없으면(Missing Prefab) 직렬화된 Text 참조가 CanvasRenderer 없는
+        // 껍데기("Placeholder for referenced MonoBehaviour in Prefab instance")로 로드되고, GraphicRaycaster가
+        // 매 프레임 MissingComponentException을 뿜는다 — 껍데기 Graphic은 파괴하고 참조를 비운 뒤 이름으로 다시 찾는다.
+        for (int i = 0; i < m_LobbySlotNames.Length; i++)
+            if (DestroyIfPlaceholderGraphic(m_LobbySlotNames[i])) m_LobbySlotNames[i] = null;
+        for (int i = 0; i < m_LobbySlotStatuses.Length; i++)
+            if (DestroyIfPlaceholderGraphic(m_LobbySlotStatuses[i])) m_LobbySlotStatuses[i] = null;
+        for (int i = 0; i < m_LobbySlotRoots.Length; i++)
+            if (m_LobbySlotRoots[i] != null && m_LobbySlotRoots[i].name.StartsWith("Placeholder for referenced")) m_LobbySlotRoots[i] = null;
+
         int n = Mathf.Min(4, Mathf.Min(m_LobbySlotRoots.Length, Mathf.Min(m_LobbySlotNames.Length, m_LobbySlotStatuses.Length)));
         for (int i = 0; i < n; i++)
         {
@@ -660,6 +671,20 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             if (statusT != null)
                 m_LobbySlotStatuses[i] = statusT.GetComponent<Text>();
         }
+    }
+
+    /// <summary>Missing Prefab 잔재로 남은 껍데기 Graphic(CanvasRenderer 없음)이면 파괴하고 true.</summary>
+    private static bool DestroyIfPlaceholderGraphic(Graphic g)
+    {
+        if (g == null)
+            return false;
+        bool placeholder = g.GetComponent<CanvasRenderer>() == null || g.gameObject.name.StartsWith("Placeholder for referenced");
+        if (!placeholder)
+            return false;
+        Debug.LogWarning($"[JobsnailLobbyPrefabView] 대기방 슬롯 참조가 Missing Prefab 껍데기({g.gameObject.name})라 제거합니다 — " +
+                         "JobsnailLobbyRoomOverlay 안 슬롯 카드 프리팹이 프로젝트에 없습니다(커밋 누락). 슬롯 UI는 표시되지 않습니다.");
+        Destroy(g.gameObject);
+        return true;
     }
 
     private static Transform FindDescendant(Transform root, string name)
