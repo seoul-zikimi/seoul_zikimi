@@ -85,11 +85,17 @@ public static class SaveService
 
     public static bool TryGetBest(string map, int players, out int pct, out float seconds)
     {
+        pct = 0;
+        seconds = 0f;
         string key = BestKey(map, players);
-        if (!ES3.KeyExists(key + "_pct", kFile)) { pct = 0; seconds = 0f; return false; }
-        pct = ES3.Load(key + "_pct", kFile, 0);
-        seconds = ES3.Load(key + "_sec", kFile, 0f);
-        return true;
+        try
+        {
+            if (!ES3.KeyExists(key + "_pct", kFile)) return false;
+            pct = ES3.Load(key + "_pct", kFile, 0);
+            seconds = ES3.Load(key + "_sec", kFile, 0f);
+            return true;
+        }
+        catch (System.IO.IOException) { pct = 0; seconds = 0f; return false; }   // MPPM 등 동시 접근 시 방어
     }
 
     /// <summary>기록 표시용: 미플레이 "-", 그 외 "58% 3:00".</summary>
@@ -114,6 +120,42 @@ public static class SaveService
         ES3.Save(key + "_pct", pct, kFile);
         ES3.Save(key + "_sec", seconds, kFile);
         return true;
+    }
+
+    // ── 2VS2 대전 전적(맵 단위 승/패 누적) ──
+    private static string VersusKey(string map) => $"versus_{map}";
+
+    public static void GetVersus(string map, out int wins, out int losses)
+    {
+        wins = 0;
+        losses = 0;
+        if (string.IsNullOrEmpty(map)) return;
+        string key = VersusKey(map);
+        try
+        {
+            wins = ES3.Load(key + "_w", kFile, 0);
+            losses = ES3.Load(key + "_l", kFile, 0);
+        }
+        catch (System.IO.IOException) { wins = 0; losses = 0; }   // MPPM 등 동시 접근 시 방어
+    }
+
+    /// <summary>2vs2 결과 보고 — 해당 맵의 승 또는 패 카운트를 1 증가시킨다.</summary>
+    public static void ReportVersus(string map, bool won)
+    {
+        if (string.IsNullOrEmpty(map)) return;
+        string key = VersusKey(map);
+        int w = ES3.Load(key + "_w", kFile, 0);
+        int l = ES3.Load(key + "_l", kFile, 0);
+        if (won) w++; else l++;
+        ES3.Save(key + "_w", w, kFile);
+        ES3.Save(key + "_l", l, kFile);
+    }
+
+    /// <summary>전적 표시용: "5승 2패".</summary>
+    public static string FormatVersus(string map)
+    {
+        GetVersus(map, out int w, out int l);
+        return $"{w}승 {l}패";
     }
 
     // ── 타임어택 보상표(커스터마이징 기획 문서 기준) ──

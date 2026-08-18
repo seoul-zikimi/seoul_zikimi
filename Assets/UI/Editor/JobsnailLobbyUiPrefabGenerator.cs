@@ -123,10 +123,11 @@ public static class JobsnailLobbyUiPrefabGenerator
         Text("LobbySubtitle", pcRoot, "신체 건강한 달팽이 구합니다", 24, Color.black, new Vector2(0, 160), new Vector2(620, 42), TextAnchor.MiddleCenter);
         Text("LobbyStatusBadge", pcRoot, "모집중", 16, Color.black, new Vector2(330, 116), new Vector2(94, 30), TextAnchor.MiddleCenter, new Color(1f, 0.78f, 0.44f, 1f));
 
-        LobbySlot(pcRoot, 0, new Vector2(-250, 60), "방장", "방장 / 준비 완료");
-        LobbySlot(pcRoot, 1, new Vector2(60, 60), "팀원 1", "대기중...");
-        LobbySlot(pcRoot, 2, new Vector2(-250, -65), "팀원 2", "대기중...");
-        LobbySlot(pcRoot, 3, new Vector2(60, -65), "팀원 3", "대기중...");
+        // 세로형 캐릭터 카드 4개를 왼쪽에 가로 한 줄로 배치(우측 맵/모드 패널과 겹치지 않게).
+        LobbySlot(pcRoot, 0, new Vector2(-330, 5), "방장", "방장");
+        LobbySlot(pcRoot, 1, new Vector2(-182, 5), "팀원 1", "대기중...");
+        LobbySlot(pcRoot, 2, new Vector2(-34, 5), "팀원 2", "대기중...");
+        LobbySlot(pcRoot, 3, new Vector2(114, 5), "팀원 3", "대기중...");
 
         Text("MapPreview", pcRoot, "현재 선택된\n맵 이미지", 16, Color.black, new Vector2(312, 8), new Vector2(130, 130), TextAnchor.MiddleCenter, new Color(0.82f, 0.82f, 0.82f, 1f));
         Button("LobbyLeaveButton", pcRoot, "나가기", new Vector2(-340, -205), new Vector2(105, 42), 18, Color.white);
@@ -197,10 +198,11 @@ public static class JobsnailLobbyUiPrefabGenerator
 
     private static void LobbySlot(Transform parent, int index, Vector2 anchored, string name, string status)
     {
-        var slot = Box($"LobbySlot{index}", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(295, 102), new Color(1f, 1f, 1f, 0.98f));
-        Text($"LobbySlotAvatar{index}", slot.transform, "유저\n캐릭터", 13, new Color(0.25f, 0.25f, 0.25f, 1f), new Vector2(-94, 0), new Vector2(74, 74), TextAnchor.MiddleCenter, new Color(0.86f, 0.86f, 0.86f, 1f));
-        Text($"LobbySlotName{index}", slot.transform, name, 19, Color.black, new Vector2(45, 20), new Vector2(165, 30), TextAnchor.MiddleLeft);
-        Text($"LobbySlotStatus{index}", slot.transform, status, 17, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(45, -21), new Vector2(165, 30), TextAnchor.MiddleRight);
+        // 세로형(포트레이트) 카드: 위=닉네임, 가운데=캐릭터, 아래=상태.
+        var slot = Box($"LobbySlot{index}", parent, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchored, new Vector2(135, 285), new Color(1f, 1f, 1f, 0.98f));
+        Text($"LobbySlotName{index}", slot.transform, name, 17, Color.black, new Vector2(0, 102), new Vector2(125, 26), TextAnchor.MiddleCenter);
+        Text($"LobbySlotAvatar{index}", slot.transform, "유저\n캐릭터", 13, new Color(0.25f, 0.25f, 0.25f, 1f), new Vector2(0, 0), new Vector2(115, 165), TextAnchor.MiddleCenter, new Color(0.86f, 0.86f, 0.86f, 1f));
+        Text($"LobbySlotStatus{index}", slot.transform, status, 15, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(0, -118), new Vector2(125, 24), TextAnchor.MiddleCenter);
     }
 
     internal static GameObject Root(string name)

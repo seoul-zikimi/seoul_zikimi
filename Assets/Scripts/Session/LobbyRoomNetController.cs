@@ -1,4 +1,5 @@
 using Unity.Netcode;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
@@ -63,6 +64,100 @@ public class LobbyRoomNet : NetworkBehaviour
     public int SelectedMap => m_MapIndex.Value;
     public event System.Action<int> MapChanged;   // 로비 UI 갱신용
 
+    // ── 모드/날씨(방장이 로비에서 고르면 방 전원에게 동기화) ──
+    // 로비 모드 4종: 0=타임어택, 1=2VS2 대전(아이템), 2=2VS2 대전(타임어택), 3=자유건축
+    private NetworkVariable<int> m_LobbyMode = new(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private NetworkVariable<bool> m_WeatherOn = new(
+        true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    public int SelectedLobbyMode => m_LobbyMode.Value;
+    public bool WeatherOn => m_WeatherOn.Value;
+    public const int LobbyModeCount = 4;
+
+    /// <summary>방장 전용: 모드 순환(0→1→2→3→0). GameLoopManager 정적값에 즉시 반영.</summary>
+    public void HostCycleMode()
+    {
+        if (!IsServer) return;
+        m_LobbyMode.Value = (m_LobbyMode.Value + 1) % LobbyModeCount;
+        ApplyLobbyModeToGameLoop(m_LobbyMode.Value);
+    }
+
+    /// <summary>방장 전용: 날씨 ON/OFF 토글.</summary>
+    public void HostToggleWeather()
+    {
+        if (!IsServer) return;
+        m_WeatherOn.Value = !m_WeatherOn.Value;
+        GridSystem.GameLoopManager.HostWeatherEnabled = m_WeatherOn.Value;
+    }
+
+    // 로비 모드(0~3) → GameLoopManager 모드(0 타임어택/1 2vs2/2 자유) + 아이템 플래그로 매핑.
+    private static void ApplyLobbyModeToGameLoop(int lobbyMode)
+    {
+        switch (lobbyMode)
+        {
+            case 1: GridSystem.GameLoopManager.HostSelectedMode = 1; GridSystem.GameLoopManager.HostVersusUsesItems = true; break;
+            case 2: GridSystem.GameLoopManager.HostSelectedMode = 1; GridSystem.GameLoopManager.HostVersusUsesItems = false; break;
+            case 3: GridSystem.GameLoopManager.HostSelectedMode = 2; break;
+            default: GridSystem.GameLoopManager.HostSelectedMode = 0; break;
+        }
+    }
+
+    // GameLoopManager 정적값(생성 화면에서 고른 값)에서 로비 모드 인덱스를 역산.
+    private static int DeriveLobbyMode()
+    {
+        int m = Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMode, 0, 2);
+        if (m == 0) return 0;
+        if (m == 2) return 3;
+        return GridSystem.GameLoopManager.HostVersusUsesItems ? 1 : 2;
+    }
+
+    // ── 로비 슬롯 로스터(입장 순서대로 왼쪽부터 고정 배치, 중간에 나가면 빈칸 유지) ──
+    // 인덱스 = 슬롯 위치(0~3). 서버가 관리하고 전원에게 복제한다.
+    private readonly NetworkList<LobbySlot> m_Slots = new();
+
+    // 현재 방장의 clientId(방장 이양 대비 NetworkVariable로 복제). 지금은 최초 호스트로 고정.
+    private NetworkVariable<ulong> m_HostClientId = new(
+        0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    public int SlotCount => m_Slots.Count;
+    public bool IsSlotOccupied(int i) => i >= 0 && i < m_Slots.Count && m_Slots[i].Occupied;
+    public string GetSlotName(int i) => (i >= 0 && i < m_Slots.Count) ? m_Slots[i].Nickname.ToString() : "";
+    public string GetSlotCharacterId(int i) => (i >= 0 && i < m_Slots.Count) ? m_Slots[i].CharacterId.ToString() : "";
+    public string GetSlotOutfitId(int i) => (i >= 0 && i < m_Slots.Count) ? m_Slots[i].OutfitId.ToString() : "";
+    public bool IsSlotReady(int i) => i >= 0 && i < m_Slots.Count && m_Slots[i].Ready;
+    public int GetSlotTeam(int i) => (i >= 0 && i < m_Slots.Count) ? m_Slots[i].Team : 0;
+
+    public bool IsSlotHost(int i) =>
+        i >= 0 && i < m_Slots.Count && m_Slots[i].Occupied && m_Slots[i].ClientId == m_HostClientId.Value;
+
+    private struct LobbySlot : INetworkSerializable, System.IEquatable<LobbySlot>
+    {
+        public bool Occupied;
+        public ulong ClientId;
+        public FixedString32Bytes Nickname;
+        public FixedString64Bytes CharacterId;
+        public FixedString64Bytes OutfitId;
+        public bool Ready;
+        public byte Team;   // 0=미지정/A, 1=B (2vs2 단계에서 사용)
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            serializer.SerializeValue(ref Occupied);
+            serializer.SerializeValue(ref ClientId);
+            serializer.SerializeValue(ref Nickname);
+            serializer.SerializeValue(ref CharacterId);
+            serializer.SerializeValue(ref OutfitId);
+            serializer.SerializeValue(ref Ready);
+            serializer.SerializeValue(ref Team);
+        }
+
+        public bool Equals(LobbySlot other) =>
+            Occupied == other.Occupied && ClientId == other.ClientId &&
+            Nickname.Equals(other.Nickname) && CharacterId.Equals(other.CharacterId) &&
+            OutfitId.Equals(other.OutfitId) && Ready == other.Ready && Team == other.Team;
+    }
+
     /// <summary>방장 전용: 맵 선택(카탈로그 인덱스, 순환). 클라가 부르면 무시.</summary>
     public void HostSelectMap(int index)
     {
@@ -94,6 +189,18 @@ public class LobbyRoomNet : NetworkBehaviour
             m_MaxPlayers.Value = RoomCapacity;
             // 방 생성 시 고른 맵으로 초기화(기본 0 대신). 로비에서 방장이 ◀▶로 계속 바꿀 수 있다.
             m_MapIndex.Value = WrapMapIndex(GridSystem.GameLoopManager.HostSelectedMap);
+            // 생성 화면에서 고른 모드/날씨를 로비 네트워크 변수 초기값으로.
+            m_LobbyMode.Value = DeriveLobbyMode();
+            m_WeatherOn.Value = GridSystem.GameLoopManager.HostWeatherEnabled;
+
+            // 슬롯을 정원만큼 빈 상태로 초기화하고, 방장(호스트) 자리부터 채운다.
+            m_Slots.Clear();
+            for (int i = 0; i < RoomCapacity; i++)
+                m_Slots.Add(new LobbySlot { Occupied = false });
+
+            ulong hostId = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0;
+            m_HostClientId.Value = hostId;
+            OccupySlotForClient(hostId);
         }
 
         // 네트워크 변수 값이 변경될 때 실행할 이벤트 연결
@@ -136,6 +243,9 @@ public class LobbyRoomNet : NetworkBehaviour
                 readyButton.onClick.AddListener(ToggleReadyState);
             }
         }
+
+        // 내 닉네임 + 착용 캐릭터를 서버 슬롯에 등록(전원 복제).
+        SubmitSlotInfo();
 
         // 방에 갓 진입했을 때의 초기 UI 갱신
         UpdateUI(m_IsAllReady.Value);
@@ -190,8 +300,108 @@ public class LobbyRoomNet : NetworkBehaviour
         else
             m_ReadyClients.Remove(clientId);
 
+        // 슬롯에도 준비 상태 반영(전원 복제 → 슬롯별 '준비 완료' 표시).
+        int slot = FindSlotByClient(clientId);
+        if (slot >= 0)
+        {
+            var s = m_Slots[slot];
+            s.Ready = isReady;
+            m_Slots[slot] = s;
+        }
+
         // 모든 클라이언트가 준비 상태인지 검사 시작
         CheckAllPlayersReady();
+    }
+
+    // ────────────────────────── 슬롯 로스터(서버 전용) ──────────────────────────
+
+    private int FindSlotByClient(ulong clientId)
+    {
+        for (int i = 0; i < m_Slots.Count; i++)
+            if (m_Slots[i].Occupied && m_Slots[i].ClientId == clientId)
+                return i;
+        return -1;
+    }
+
+    private int FindFirstEmptySlot()
+    {
+        for (int i = 0; i < m_Slots.Count; i++)
+            if (!m_Slots[i].Occupied)
+                return i;
+        return -1;
+    }
+
+    /// <summary>[서버] 가장 왼쪽 빈 슬롯에 clientId를 앉힌다(빈칸=구멍은 그대로 유지, 재정렬 없음).</summary>
+    private void OccupySlotForClient(ulong clientId)
+    {
+        if (!IsServer)
+            return;
+        if (FindSlotByClient(clientId) >= 0)
+            return;
+
+        int idx = FindFirstEmptySlot();
+        if (idx < 0)
+            return;
+
+        m_Slots[idx] = new LobbySlot
+        {
+            Occupied = true,
+            ClientId = clientId,
+            Nickname = default,
+            CharacterId = default,
+            Ready = false,
+            Team = 0
+        };
+    }
+
+    /// <summary>[서버] 나간 clientId의 슬롯을 비운다. 위치는 그대로 두어 중간에 구멍이 남는다.</summary>
+    private void ClearSlotForClient(ulong clientId)
+    {
+        if (!IsServer)
+            return;
+
+        int idx = FindSlotByClient(clientId);
+        if (idx < 0)
+            return;
+
+        m_Slots[idx] = new LobbySlot { Occupied = false };
+    }
+
+    /// <summary>각 클라가 스폰 시 자기 닉네임(PlayerPrefs) + 착용 캐릭터ID를 서버로 제출.</summary>
+    private void SubmitSlotInfo()
+    {
+        string nick = PlayerPrefs.GetString("PlayerNickname", "");
+        if (string.IsNullOrEmpty(nick))
+            nick = $"플레이어{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}";
+        if (nick.Length > 12) nick = nick.Substring(0, 12);
+        while (System.Text.Encoding.UTF8.GetByteCount(nick) > 28 && nick.Length > 0)
+            nick = nick.Substring(0, nick.Length - 1);
+
+        string charId = SaveService.EquippedCharacter ?? "";
+        string outfitId = SaveService.EquippedOutfit ?? "";
+
+        SubmitSlotInfoRpc(nick, charId, outfitId);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void SubmitSlotInfoRpc(FixedString32Bytes nick, FixedString64Bytes charId, FixedString64Bytes outfitId, RpcParams rpc = default)
+    {
+        ulong sender = rpc.Receive.SenderClientId;
+
+        int idx = FindSlotByClient(sender);
+        if (idx < 0)
+        {
+            OccupySlotForClient(sender);   // 접속 콜백보다 RPC가 먼저 도착한 경우 대비
+            idx = FindSlotByClient(sender);
+        }
+        if (idx < 0)
+            return;
+
+        var s = m_Slots[idx];
+        s.Nickname = nick;
+        s.CharacterId = charId;
+        s.OutfitId = outfitId;
+        m_Slots[idx] = s;
     }
 
     /// <summary>
@@ -216,6 +426,7 @@ public class LobbyRoomNet : NetworkBehaviour
 
     private void OnClientConnected(ulong clientId)
     {
+        OccupySlotForClient(clientId);   // 입장 순서대로 왼쪽 빈 슬롯 배정
         CheckAllPlayersReady();
     }
 
@@ -228,6 +439,7 @@ public class LobbyRoomNet : NetworkBehaviour
         {
             m_ReadyClients.Remove(clientId);
         }
+        ClearSlotForClient(clientId);   // 슬롯을 비워 구멍을 남긴다(재정렬 없음)
         CheckAllPlayersReady();
     }
 
