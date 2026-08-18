@@ -829,6 +829,10 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             var legacy = found.GetComponent<Image>();
             if (legacy != null)
                 DestroyImmediate(legacy);
+            // Image를 지우면 함께 쓰던 CanvasRenderer도 사라진다 — Graphic(RawImage)엔 필수라 없으면 다시 붙인다.
+            // (없으면 GraphicRaycaster가 매 프레임 MissingComponentException을 뿜는다)
+            if (found.GetComponent<CanvasRenderer>() == null)
+                found.gameObject.AddComponent<CanvasRenderer>();
             img = found.gameObject.AddComponent<RawImage>();
             img.raycastTarget = false;
             img.color = Color.white;
