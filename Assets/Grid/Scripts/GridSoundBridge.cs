@@ -18,6 +18,7 @@ namespace GridSystem
         private static MethodInfo s_PlaySfxMethod;
         private static MethodInfo s_PlaySfxAtMethod;
         private static MethodInfo s_SetPhaseMethod;
+        private static MethodInfo s_PlayBgmMethod;
 
         public static void PlaySFX(string sfxName)
         {
@@ -44,6 +45,28 @@ namespace GridSystem
 
             s_SetPhaseMethod ??= SoundManagerType.GetMethod("SetPhase", new[] { GamePhaseType });
             s_SetPhaseMethod?.Invoke(instance, new[] { value });
+        }
+
+        /// <summary>맵 전용 BGM(SoundLibrary 미등록 곡)으로 crossfade. 같은 곡이면 SoundManager가 무시한다.</summary>
+        public static void PlayBGM(AudioClip clip)
+        {
+            if (clip == null || !TryGetInstance(out var instance))
+                return;
+
+            s_PlayBgmMethod ??= SoundManagerType.GetMethod("PlayBGM", new[] { typeof(AudioClip) });
+            s_PlayBgmMethod?.Invoke(instance, new object[] { clip });
+        }
+
+        /// <summary>페이즈 BGM을 걸되, 맵 카드(MapDef)에 그 페이즈용 전용 곡이 있으면 그걸 우선한다.
+        /// 맵별 BGM의 유일한 진입점 — GameLoopManager는 SetPhase 대신 이걸 부른다.</summary>
+        public static void SetPhaseForMap(string phaseName, int mapIndex)
+        {
+            var catalog = MapCatalog.Instance;
+            var def = catalog != null ? catalog.Get(mapIndex) : null;
+            var mapClip = def != null ? def.Bgm.For(phaseName) : null;
+
+            if (mapClip != null) PlayBGM(mapClip);
+            else SetPhase(phaseName);
         }
 
         private static Type SoundManagerType => s_SoundManagerType ??= Type.GetType("SoundManager, Assembly-CSharp");

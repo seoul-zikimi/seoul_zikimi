@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20201acce871a3c45b510babe7f8bb03, type: 3}
+  m_Name: Map_Ddp
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
+  m_DisplayName: "DDP \uB3D9\uB300\uBB38\uB514\uC790\uC778\uD50C\uB77C\uC790"
+  m_BackgroundPrefab: {fileID: 2402067089498921570, guid: 75e6aa33d7cb43549a82fbb04b235fe7, type: 3}
+  m_Answers:
+  - {fileID: 11400000, guid: cf5032aa04edecc458c5fb2c5517041d, type: 2}
+  m_Thumbnail: {fileID: 21300000, guid: 4f3bc5c8e144d494c9a9e1f1ec63553d, type: 3}
+  m_GridSize: {x: 13, y: 12, z: 13}
+  m_AvailableMaterials:
+  - {fileID: 11400000, guid: b1940ca3d77f4b643ad406a73a15685c, type: 2}
+  - {fileID: 11400000, guid: b6b9f14b650c53448ba56b4466ef2fd6, type: 2}
+  - {fileID: 11400000, guid: 0145f31713fcb934f847106d0f66af92, type: 2}
+  - {fileID: 11400000, guid: ac331ed5e0dd6114b8df2805fdb0f6ba, type: 2}
+  - {fileID: 11400000, guid: 801d8e00c18b2474c90d0daffd176050, type: 2}
+  - {fileID: 11400000, guid: cf5820511f6da3a48aa8f2854de0e34a, type: 2}
+  - {fileID: 11400000, guid: 32abc150ba2ab014a8614fadb848ed4b, type: 2}
+  - {fileID: 11400000, guid: 89bfcdffc701e294f9297dee1431fba2, type: 2}
+  m_NamsanGimmicks: {fileID: 0}
+  m_LotteGimmicks: {fileID: 0}
+  m_DdpGimmicks: {fileID: 11400000, guid: 1d914fdc154ea4e4b87a542828023b08, type: 2}
+  m_Bgm:
+    Building: {fileID: 0}
+    Urgent: {fileID: 0}
+    Result: {fileID: 0}
