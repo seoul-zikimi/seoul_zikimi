@@ -858,7 +858,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                     IsHost = readyNet.IsSlotHost(i),
                     Ready = readyNet.IsSlotReady(i),
                     CharacterId = readyNet.GetSlotCharacterId(i),
-                    OutfitId = readyNet.GetSlotOutfitId(i)
+                    OutfitId = readyNet.GetSlotOutfitId(i),
+                    Team = readyNet.GetSlotTeam(i)
                 };
             }
         }
@@ -891,7 +892,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             ShowMapArrows = isHost && isNetworkServer && mapCount > 1,
             WeatherOn = weatherOn,
             ShowWeatherToggle = isHost,
-            RecordText = recordText
+            RecordText = recordText,
+            ShowTeamSelect = hasReadyNet && readyNet.IsVersusMode
         };
 
         view.ApplyLobbyRoomState(state);
@@ -908,6 +910,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (isHost && !isNetworkServer)
             return "방장 권한 복구 중...";
+
+        // 2vs2: 양 팀 인원이 안 맞으면(1v2 등) 시작 자체가 불가.
+        if (readyNet.IsVersusMode && !readyNet.TeamsBalancedForStart())
+            return "양 팀 인원을 같게 맞춰야 시작할 수 있어요 (1v1 또는 2v2)";
 
         if (isHost)
         {
@@ -1122,6 +1128,16 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
         if (readyNet != null && readyNet.IsSpawned)
             readyNet.HostToggleWeather();
+        UpdateLobbyRoomView();
+    }
+
+    /// <summary>로컬 플레이어가 자기 팀 선택(0=파랑, 1=빨강).</summary>
+    internal void PrefabSelectTeam(int team)
+    {
+        PlayUIClick();
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null && readyNet.IsSpawned)
+            readyNet.RequestSetTeam(team);
         UpdateLobbyRoomView();
     }
 
