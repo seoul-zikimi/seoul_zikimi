@@ -44,6 +44,17 @@ namespace Player.EditorTools
             Debug.Log($"[OutfitBuilder] 완료 — {made}/{kItems.Length}개 생성. 어긋난 건 테이블 배율/오프셋 조정 후 재실행.");
         }
 
+        [MenuItem("Tools/Character/아웃핏 생성(게 후드만)")]
+        static void BuildCrabHoodieOnly()
+        {
+            foreach (var it in kItems)
+                if (it.id == "cloth_hoodie_crab")
+                { BuildOne(it.charId, it.id, it.display, it.file, it.kind, it.widthScale, it.offset); break; }
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[OutfitBuilder] 게 후드만 재생성 완료");
+        }
+
         static bool BuildOne(string charId, string id, string display, string file, Kind kind, float widthScale, Vector3 offset)
         {
             var itemModel = AssetDatabase.LoadAssetAtPath<GameObject>($"{kSrcDir}/{file}.glb");
