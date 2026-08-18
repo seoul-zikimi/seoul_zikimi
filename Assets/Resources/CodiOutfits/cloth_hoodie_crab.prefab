@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &5127386845164145715
+--- !u!1 &1297969428843745695
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,97 +8,47 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6810554261842945172}
-  - component: {fileID: 7646165838579125941}
+  - component: {fileID: 6545653979981500063}
+  - component: {fileID: 4855476862669795105}
+  - component: {fileID: 4799127807195565098}
+  - component: {fileID: 59973848831905913}
   m_Layer: 0
-  m_Name: cloth_hoodie_crab
+  m_Name: Item_crab_hodie
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6810554261842945172
+--- !u!4 &6545653979981500063
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5127386845164145715}
+  m_GameObject: {fileID: 1297969428843745695}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 6004269687974057537}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7646165838579125941
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5127386845164145715}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
-  DisplayName: "\uD6C4\uB4DC\uD2F0"
-  Price: 100
-  TargetCharacter: char_crab
-  Thumbnail: {fileID: 0}
-  ScaleMargin: 1.06
---- !u!1 &8063294521281762697
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6004269687974057537}
-  - component: {fileID: 4933154312354199215}
-  - component: {fileID: 148218727257845499}
-  - component: {fileID: 6876114392676229975}
-  m_Layer: 0
-  m_Name: Item_cloth_hoodie_crab
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &6004269687974057537
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8063294521281762697}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.047999855, y: -0.03149562, z: 0.0060760155, w: 0.9983322}
-  m_LocalPosition: {x: 0.008, y: -0.077, z: 0.015}
-  m_LocalScale: {x: 0.50213814, y: 0.308726, z: 0.64041704}
+  m_LocalPosition: {x: -0.0000000018626451, y: -0.06254804, z: 0.0000000018626451}
+  m_LocalScale: {x: 1.5693148, y: 1.5693148, z: 1.5693148}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6810554261842945172}
+  m_Father: {fileID: 8585416538907670799}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &4933154312354199215
+--- !u!33 &4855476862669795105
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8063294521281762697}
+  m_GameObject: {fileID: 1297969428843745695}
   m_Mesh: {fileID: -1901923605265949594, guid: 0095e63460b149f44830d2287ff9f912, type: 3}
---- !u!23 &148218727257845499
+--- !u!23 &4799127807195565098
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8063294521281762697}
+  m_GameObject: {fileID: 1297969428843745695}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -142,20 +92,70 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6876114392676229975
+--- !u!114 &59973848831905913
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8063294521281762697}
+  m_GameObject: {fileID: 1297969428843745695}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c31b2a9e0d54f2f8b6a1c9d3e5f7a20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfitPiece
   BoneName: mixamorig:Spine1
-  BonePos: {x: 0.008000042, y: -0.07699999, z: 0.015000002}
-  BoneRot: {x: 0.047999866, y: -0.031495627, z: 0.0060760155, w: 0.9983324}
-  WorldScale: {x: 0.5021381, y: 0.308726, z: 0.6404171}
+  BonePos: {x: 0.0016090069, y: -0.40332633, z: -0.02337308}
+  BoneRot: {x: 0.04799986, y: -0.031495627, z: 0.0060760165, w: 0.99833226}
+  WorldScale: {x: 0.83448225, y: 0.83448225, z: 0.83448225}
   Version: 3
+--- !u!1 &7913543215511321995
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8585416538907670799}
+  - component: {fileID: 3719078744091725044}
+  m_Layer: 0
+  m_Name: cloth_hoodie_crab
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8585416538907670799
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7913543215511321995}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 6545653979981500063}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3719078744091725044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7913543215511321995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
+  DisplayName: "\uD6C4\uB4DC\uD2F0"
+  Price: 100
+  TargetCharacter: char_crab
+  Thumbnail: {fileID: 0}
+  ScaleMargin: 1.06
