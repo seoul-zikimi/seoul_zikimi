@@ -23,6 +23,7 @@ public struct JobsnailLobbySlot
     public bool Ready;        // 팀원 준비 완료 여부
     public string CharacterId; // 착용 캐릭터 ID(모델 렌더)
     public string OutfitId;    // 착용 아웃핏 ID(기본 캐릭터 커스터마이징)
+    public int Team;          // 0=파랑(기본), 1=빨강
 }
 
 /// <summary>대기방 화면 한 프레임 분량의 표시 상태. 네트워크 값 해석은 컨트롤러가 끝낸 뒤 넘긴다.</summary>
@@ -50,6 +51,7 @@ public struct JobsnailLobbyRoomState
     public bool WeatherOn;         // 날씨 ON/OFF 현재 상태
     public bool ShowWeatherToggle; // 방장만 토글 가능
     public string RecordText;      // 타임어택=개인 최고기록 / 2vs2=승패 / 자유=없음
+    public bool ShowTeamSelect;    // 2vs2 모드에서만 팀 선택 UI 표시
 }
 
 /// <summary>Jobsnail 로비 UI 프리팹(세션 목록 / 방 생성 / 대기방)에 붙는 View.
@@ -124,20 +126,17 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
     private JobsnailLobbySkinner m_Owner;
     private int m_PrevJoinedForPop;
     private bool m_SessionListLayoutReady;
-    private Image[] m_SlotCrowns;          // 슬롯별 방장 왕관(런타임 생성, 프리팹 재생성 불필요)
-    private Sprite m_CrownSprite;
-    private bool m_CrownSpriteLoaded;
-    private JobsnailLobbyCharacterStage m_CharacterStage;   // 슬롯 3D 캐릭터 렌더 스테이지
-    private RawImage[] m_SlotCharacterImages;
-    private Button m_LobbyWeatherButton;   // 로비 날씨 ON/OFF(런타임 생성)
+    private JobsnailLobbyCharacterStage m_CharacterStage;   // 슬롯 3D 캐릭터 렌더 스테이지(오프스크린 인프라)
+    private Button m_LobbyWeatherButton;   // 프리팹의 날씨 토글 버튼(이름으로 찾음)
     private Text m_LobbyWeatherLabel;
-    private Text m_LobbyRecordText;        // 로비 최고기록/전적(런타임 생성)
-    private bool m_LobbyExtrasBuilt;
-    private bool m_LobbySlotLayoutReady;   // 슬롯을 세로 카드 4개로 런타임 재배치(프리팹 재생성 불필요)
+    private Text m_LobbyRecordText;        // 프리팹의 기록 텍스트(이름으로 찾음)
+    private bool m_LobbyExtrasBound;
+    private GameObject m_TeamSelectRoot;   // 프리팹의 "TeamSelect" 컨테이너(2vs2에서만 표시)
+    private bool m_TeamSelectBound;
+    private bool m_SlotsResolved;          // 슬롯 루트/이름/상태를 이름으로 재바인딩했는지
 
-    private static readonly Vector2 kLobbySlotSize = new(135f, 285f);
-    private static readonly Vector2[] kLobbySlotPositions =
-        { new(-330f, 5f), new(-182f, 5f), new(-34f, 5f), new(114f, 5f) };
+    private static readonly Color kTeamBlue = new(0.28f, 0.5f, 1f, 1f);
+    private static readonly Color kTeamRed = new(1f, 0.35f, 0.35f, 1f);
 
     // 세션 목록 2열 그리드 배치 값(프리팹 상태와 무관하게 런타임에서 강제).
     private static readonly Vector2 kSessionCellSize = new(388f, 120f);
@@ -528,18 +527,16 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         EnsureLobbyExtras();
         if (m_LobbyWeatherButton != null)
         {
-            m_LobbyWeatherButton.gameObject.SetActive(true);
-            m_LobbyWeatherButton.interactable = state.ShowWeatherToggle;
-            SetButtonColor(m_LobbyWeatherButton, state.WeatherOn ? kReady : kDisabled);
+            m_LobbyWeatherButton.interactable = state.ShowWeatherToggle;   // 방장만 토글
             if (m_LobbyWeatherLabel != null)
                 m_LobbyWeatherLabel.text = state.WeatherOn ? "날씨 ON" : "날씨 OFF";
         }
         if (m_LobbyRecordText != null)
-        {
-            bool show = !string.IsNullOrEmpty(state.RecordText);
-            m_LobbyRecordText.gameObject.SetActive(show);
             m_LobbyRecordText.text = state.RecordText ?? string.Empty;
-        }
+
+        EnsureTeamSelect();
+        if (m_TeamSelectRoot != null && m_TeamSelectRoot.activeSelf != state.ShowTeamSelect)
+            m_TeamSelectRoot.SetActive(state.ShowTeamSelect);
 
         if (m_LobbyStartButton != null)
         {
@@ -570,108 +567,98 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         SetText(m_LobbyStartHint, message);
     }
 
-    /// <summary>로비 우측 패널에 날씨 토글 + 기록 텍스트를 런타임 생성한다(프리팹 재생성 불필요).</summary>
+    /// <summary>프리팹에 직접 만들어 둔 날씨 토글/기록 요소를 이름으로 찾아 참조만 잡는다(위치는 프리팹 배치를 존중).
+    /// 날씨 버튼: "LobbyWeatherButton"(Button, 자식 Text 라벨), 기록: "LobbyRecordText"(Text).</summary>
     private void EnsureLobbyExtras()
     {
-        if (m_LobbyExtrasBuilt || m_Kind != OverlayKind.LobbyRoom || m_LobbyModeButton == null)
+        if (m_LobbyExtrasBound || m_Kind != OverlayKind.LobbyRoom)
             return;
-        m_LobbyExtrasBuilt = true;
+        m_LobbyExtrasBound = true;
 
-        if (m_LobbyModeButton.transform.parent is not RectTransform parent)
-            return;
-
-        m_LobbyWeatherButton = MakeRuntimeButton(parent, "LobbyWeatherToggle",
-            new Vector2(305f, -228f), new Vector2(150f, 30f), 14, out m_LobbyWeatherLabel);
-        m_LobbyWeatherLabel.text = "날씨 ON";
-        m_LobbyWeatherButton.onClick.AddListener(() => Owner?.PrefabToggleLobbyWeather());
-
-        m_LobbyRecordText = MakeRuntimeText(parent, "LobbyRecordText",
-            new Vector2(305f, -260f), new Vector2(340f, 26f), 15);
-    }
-
-    private static Button MakeRuntimeButton(RectTransform parent, string name, Vector2 pos, Vector2 size, int fontSize, out Text label)
-    {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(parent, false);
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = pos;
-        rt.sizeDelta = size;
-
-        var img = go.GetComponent<Image>();
-        img.color = new Color(0.58f, 1f, 0.54f, 1f);
-        var btn = go.GetComponent<Button>();
-        btn.targetGraphic = img;
-
-        label = MakeRuntimeText(rt, name + "Label", Vector2.zero, size, fontSize);
-        return btn;
-    }
-
-    private static Text MakeRuntimeText(RectTransform parent, string name, Vector2 pos, Vector2 size, int fontSize)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(parent, false);
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = pos;
-        rt.sizeDelta = size;
-
-        var t = go.AddComponent<Text>();
-        t.font = JobsnailUiKit.LegacyFont;
-        t.fontSize = fontSize;
-        t.color = new Color(0.2f, 0.14f, 0.08f, 1f);
-        t.alignment = TextAnchor.MiddleCenter;
-        t.raycastTarget = false;
-        return t;
-    }
-
-    /// <summary>대기방 슬롯을 세로형 카드 4개(왼쪽 가로 한 줄)로 런타임 재배치한다.
-    /// 프리팹이 구버전(2x2 가로)이어도 이 코드가 세로 레이아웃을 강제하므로 재생성이 필요 없다.</summary>
-    private void EnsureLobbySlotLayout()
-    {
-        if (m_LobbySlotLayoutReady || m_Kind != OverlayKind.LobbyRoom || m_LobbySlotRoots == null)
-            return;
-        m_LobbySlotLayoutReady = true;
-
-        for (int i = 0; i < m_LobbySlotRoots.Length && i < kLobbySlotPositions.Length; i++)
+        var wb = FindDescendant(transform, "LobbyWeatherButton");
+        if (wb != null)
         {
-            var root = m_LobbySlotRoots[i];
+            m_LobbyWeatherButton = wb.GetComponent<Button>();
+            m_LobbyWeatherLabel = wb.GetComponentInChildren<Text>(true);
+            if (m_LobbyWeatherButton != null)
+                m_LobbyWeatherButton.onClick.AddListener(() => Owner?.PrefabToggleLobbyWeather());
+        }
+
+        var rec = FindDescendant(transform, "LobbyRecordText");
+        if (rec != null)
+            m_LobbyRecordText = rec.GetComponent<Text>();
+    }
+
+    /// <summary>프리팹의 "TeamSelect" 컨테이너 + "BlueTeam"/"RedTeam" 버튼을 찾아 클릭을 연결한다(각자 자기 팀 선택).</summary>
+    private void EnsureTeamSelect()
+    {
+        if (m_TeamSelectBound || m_Kind != OverlayKind.LobbyRoom)
+            return;
+        m_TeamSelectBound = true;
+
+        var ts = FindDescendant(transform, "TeamSelect");
+        m_TeamSelectRoot = ts != null ? ts.gameObject : null;
+
+        var blue = FindDescendant(transform, "BlueTeam");
+        var blueBtn = blue != null ? blue.GetComponent<Button>() : null;
+        if (blueBtn != null)
+            blueBtn.onClick.AddListener(() => Owner?.PrefabSelectTeam(0));
+
+        var red = FindDescendant(transform, "RedTeam");
+        var redBtn = red != null ? red.GetComponent<Button>() : null;
+        if (redBtn != null)
+            redBtn.onClick.AddListener(() => Owner?.PrefabSelectTeam(1));
+    }
+
+    /// <summary>슬롯의 "Team" 이미지 색을 팀에 맞게(0=파랑, 1=빨강) 칠하고, 점유 슬롯에서만 표시.</summary>
+    private void SetSlotTeam(int index, bool occupied, int team)
+    {
+        var t = FindSlotChild(index, "Team");
+        if (t == null)
+            return;
+
+        if (occupied)
+        {
+            var img = t.GetComponent<Image>();
+            if (img != null)
+                img.color = team == 1 ? kTeamRed : kTeamBlue;
+            if (!t.gameObject.activeSelf)
+                t.gameObject.SetActive(true);
+        }
+        else if (t.gameObject.activeSelf)
+        {
+            t.gameObject.SetActive(false);
+        }
+    }
+
+    /// <summary>슬롯 루트/이름/상태 참조를 이름으로 다시 잡는다(프리팹에서 슬롯을 직접 편집해 serialized 배열이
+    /// 끊겨도 안전). "LobbySlot{i}" / "LobbySlotName{i}" / "LobbySlotStatus{i}" 규칙을 따른다.</summary>
+    private void ResolveSlots()
+    {
+        if (m_SlotsResolved || m_Kind != OverlayKind.LobbyRoom)
+            return;
+        m_SlotsResolved = true;
+
+        m_LobbySlotRoots ??= new GameObject[4];
+        m_LobbySlotNames ??= new Text[4];
+        m_LobbySlotStatuses ??= new Text[4];
+
+        int n = Mathf.Min(4, Mathf.Min(m_LobbySlotRoots.Length, Mathf.Min(m_LobbySlotNames.Length, m_LobbySlotStatuses.Length)));
+        for (int i = 0; i < n; i++)
+        {
+            var root = FindDescendant(transform, "LobbySlot" + i);
             if (root == null)
                 continue;
 
-            if (root.transform is RectTransform rt)
-            {
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = kLobbySlotPositions[i];
-                rt.sizeDelta = kLobbySlotSize;
-            }
+            m_LobbySlotRoots[i] = root.gameObject;
 
-            if (m_LobbySlotNames != null && i < m_LobbySlotNames.Length && m_LobbySlotNames[i] != null)
-            {
-                var nt = m_LobbySlotNames[i].rectTransform;
-                nt.anchorMin = nt.anchorMax = new Vector2(0.5f, 0.5f);
-                nt.anchoredPosition = new Vector2(0f, 102f);
-                nt.sizeDelta = new Vector2(125f, 26f);
-                m_LobbySlotNames[i].alignment = TextAnchor.MiddleCenter;
-            }
+            var nameT = FindDescendant(root, "LobbySlotName" + i);
+            if (nameT != null)
+                m_LobbySlotNames[i] = nameT.GetComponent<Text>();
 
-            if (m_LobbySlotStatuses != null && i < m_LobbySlotStatuses.Length && m_LobbySlotStatuses[i] != null)
-            {
-                var stt = m_LobbySlotStatuses[i].rectTransform;
-                stt.anchorMin = stt.anchorMax = new Vector2(0.5f, 0.5f);
-                stt.anchoredPosition = new Vector2(0f, -118f);
-                stt.sizeDelta = new Vector2(125f, 24f);
-                m_LobbySlotStatuses[i].alignment = TextAnchor.MiddleCenter;
-            }
-
-            var avatar = FindDescendant(root.transform, $"LobbySlotAvatar{i}");
-            if (avatar is RectTransform art)
-            {
-                art.anchorMin = art.anchorMax = new Vector2(0.5f, 0.5f);
-                art.anchoredPosition = Vector2.zero;
-                art.sizeDelta = new Vector2(115f, 165f);
-            }
+            var statusT = FindDescendant(root, "LobbySlotStatus" + i);
+            if (statusT != null)
+                m_LobbySlotStatuses[i] = statusT.GetComponent<Text>();
         }
     }
 
@@ -690,10 +677,10 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
 
     private void ApplyLobbySlots(in JobsnailLobbyRoomState state)
     {
+        ResolveSlots();   // 프리팹 편집으로 끊긴 슬롯 참조를 이름으로 복구
+
         if (m_LobbySlotNames == null || m_LobbySlotStatuses == null)
             return;
-
-        EnsureLobbySlotLayout();
 
         int slotCount = Mathf.Min(m_LobbySlotNames.Length, m_LobbySlotStatuses.Length);
         var slots = state.Slots;
@@ -708,6 +695,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             {
                 SetSlotCrown(i, false);
                 SetSlotCharacter(i, false, null, null);
+                SetSlotTeam(i, false, 0);
                 continue;
             }
 
@@ -717,6 +705,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             bool ready;
             string charId;
             string outfitId;
+            int team;
 
             if (slots != null && i < slots.Length)
             {
@@ -726,33 +715,37 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
                 ready = slots[i].Ready;
                 charId = slots[i].CharacterId;
                 outfitId = slots[i].OutfitId;
+                team = slots[i].Team;
             }
             else
             {
-                // 로스터 미제공 시 폴백(기존 방식).
+                // 로스터 미제공 시 폴백(닉네임 알 수 없으므로 공백).
                 occupied = i < state.JoinedCount;
-                name = i == 0 ? "방장" : (occupied ? $"팀원 {i}" : "빈 자리");
+                name = string.Empty;
                 isHost = i == 0;
                 ready = i <= state.ReadyCount;
                 charId = string.Empty;
                 outfitId = string.Empty;
+                team = 0;
             }
 
             if (!occupied)
             {
-                SetText(m_LobbySlotNames[i], "빈 자리");
+                SetText(m_LobbySlotNames[i], string.Empty);   // 아직 안 들어온 자리 = 공백
                 SetText(m_LobbySlotStatuses[i], string.Empty);
                 SetSlotCrown(i, false);
                 SetSlotCharacter(i, false, null, null);
+                SetSlotTeam(i, false, 0);
                 SetSlotDimmed(i, true);
                 continue;
             }
 
             SetSlotDimmed(i, false);
-            SetText(m_LobbySlotNames[i], string.IsNullOrWhiteSpace(name) ? "..." : name);
-            SetText(m_LobbySlotStatuses[i], isHost ? "방장" : (ready ? "준비 완료" : "대기중..."));
+            SetText(m_LobbySlotNames[i], name ?? string.Empty);            // 각자 닉네임(없으면 공백)
+            SetText(m_LobbySlotStatuses[i], (!isHost && ready) ? "준비" : "대기중");  // 방장·미준비=대기중, 팀원 준비=준비
             SetSlotCrown(i, isHost);
             SetSlotCharacter(i, true, charId, outfitId);
+            SetSlotTeam(i, state.ShowTeamSelect, team);   // 팀 색은 2vs2 모드에서만 표시
         }
 
         // 새 유저 입장 감지 → 마지막으로 채워진 슬롯 디용(구멍이 있어도 안전).
@@ -787,52 +780,25 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         return last;
     }
 
-    /// <summary>슬롯 위 방장 왕관을 런타임에 생성/토글한다(Crown_Icon 스프라이트).</summary>
+    /// <summary>슬롯 안에 만들어 둔 방장 왕관("LobbyCrown")을 방장 슬롯에서만 켠다. 없으면 무동작.</summary>
     private void SetSlotCrown(int index, bool show)
     {
-        if (m_LobbySlotRoots == null || index < 0 || index >= m_LobbySlotRoots.Length || m_LobbySlotRoots[index] == null)
-            return;
-
-        m_SlotCrowns ??= new Image[m_LobbySlotRoots.Length];
-        if (index >= m_SlotCrowns.Length)
-            return;
-
-        if (m_SlotCrowns[index] == null)
-        {
-            if (!m_CrownSpriteLoaded)
-            {
-                m_CrownSprite = Resources.Load<Sprite>("UI_pngs/2.sesh/Crown_Icon");
-                m_CrownSpriteLoaded = true;
-            }
-
-            var go = new GameObject("HostCrown", typeof(RectTransform), typeof(Image));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(m_LobbySlotRoots[index].transform, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = new Vector2(0f, 128f);   // 세로 카드 최상단(닉네임 위)
-            rt.sizeDelta = new Vector2(30f, 30f);
-
-            var img = go.GetComponent<Image>();
-            img.sprite = m_CrownSprite;
-            img.preserveAspect = true;
-            img.raycastTarget = false;
-            img.color = m_CrownSprite != null ? Color.white : new Color(1f, 0.82f, 0.3f, 1f);
-            m_SlotCrowns[index] = img;
-        }
-
-        if (m_SlotCrowns[index].gameObject.activeSelf != show)
-            m_SlotCrowns[index].gameObject.SetActive(show);
+        var crown = FindSlotChild(index, "LobbyCrown");
+        if (crown != null && crown.gameObject.activeSelf != show)
+            crown.gameObject.SetActive(show);
     }
 
-    /// <summary>빈 슬롯은 회색으로 흐리게 처리한다.</summary>
+    /// <summary>빈 슬롯은 흐리게(카드 색은 안 건드리고 CanvasGroup 알파만). 프리팹 스타일 존중.</summary>
     private void SetSlotDimmed(int index, bool dimmed)
     {
         if (m_LobbySlotRoots == null || index < 0 || index >= m_LobbySlotRoots.Length || m_LobbySlotRoots[index] == null)
             return;
 
-        var img = m_LobbySlotRoots[index].GetComponent<Image>();
-        if (img != null)
-            img.color = dimmed ? new Color(0.82f, 0.82f, 0.82f, 0.75f) : new Color(1f, 1f, 1f, 0.98f);
+        var go = m_LobbySlotRoots[index];
+        var cg = go.GetComponent<CanvasGroup>();
+        if (cg == null)
+            cg = go.AddComponent<CanvasGroup>();
+        cg.alpha = dimmed ? 0.45f : 1f;
     }
 
     private JobsnailLobbyCharacterStage EnsureCharacterStage()
@@ -846,43 +812,27 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         return m_CharacterStage;
     }
 
-    private RawImage EnsureSlotCharacterImage(int index)
-    {
-        if (m_LobbySlotRoots == null || index < 0 || index >= m_LobbySlotRoots.Length || m_LobbySlotRoots[index] == null)
-            return null;
-
-        m_SlotCharacterImages ??= new RawImage[m_LobbySlotRoots.Length];
-        if (index >= m_SlotCharacterImages.Length)
-            return null;
-
-        if (m_SlotCharacterImages[index] == null)
-        {
-            var go = new GameObject("SlotCharacter", typeof(RectTransform), typeof(RawImage));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(m_LobbySlotRoots[index].transform, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = new Vector2(0f, 0f);   // 세로 카드 중앙 캐릭터 영역
-            rt.sizeDelta = new Vector2(115f, 165f);
-
-            var img = go.GetComponent<RawImage>();
-            img.raycastTarget = false;
-            img.color = Color.white;
-            img.enabled = false;
-            m_SlotCharacterImages[index] = img;
-        }
-
-        return m_SlotCharacterImages[index];
-    }
-
-    /// <summary>슬롯의 3D 캐릭터를 스테이지에 세우고, 그 열(uvRect)을 RawImage로 표시한다.</summary>
+    /// <summary>슬롯 안에 만들어 둔 캐릭터 표시용 RawImage("LobbyCharacter")에 3D 캐릭터 열을 채운다. 없으면 무동작.</summary>
     private void SetSlotCharacter(int index, bool occupied, string charId, string outfitId)
     {
         if (m_Kind != OverlayKind.LobbyRoom)
             return;
 
-        var img = EnsureSlotCharacterImage(index);
-        if (img == null)
+        var found = FindSlotChild(index, "LobbyCharacter");
+        if (found == null)
             return;
+
+        var img = found.GetComponent<RawImage>();
+        if (img == null)
+        {
+            // RenderTexture는 RawImage로만 표시된다. Image로 만들어졌으면 런타임에 교체.
+            var legacy = found.GetComponent<Image>();
+            if (legacy != null)
+                DestroyImmediate(legacy);
+            img = found.gameObject.AddComponent<RawImage>();
+            img.raycastTarget = false;
+            img.color = Color.white;
+        }
 
         if (occupied)
         {
@@ -900,6 +850,13 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
             if (img.enabled)
                 img.enabled = false;
         }
+    }
+
+    private Transform FindSlotChild(int index, string name)
+    {
+        if (m_LobbySlotRoots == null || index < 0 || index >= m_LobbySlotRoots.Length || m_LobbySlotRoots[index] == null)
+            return null;
+        return FindDescendant(m_LobbySlotRoots[index].transform, name);
     }
 
     private void ApplyMapSelect(in JobsnailLobbyRoomState state)

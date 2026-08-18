@@ -79,8 +79,13 @@ public class LobbyRoomNet : NetworkBehaviour
     public void HostCycleMode()
     {
         if (!IsServer) return;
+        bool wasVersus = IsVersusMode;
         m_LobbyMode.Value = (m_LobbyMode.Value + 1) % LobbyModeCount;
         ApplyLobbyModeToGameLoop(m_LobbyMode.Value);
+        // 비팀 모드 → 2vs2로 처음 들어올 때 위치 기본 팀(왼쪽 레드/오른쪽 블루)으로 초기화.
+        if (IsVersusMode && !wasVersus)
+            AssignDefaultTeamsByPosition();
+        CheckAllPlayersReady();   // 모드가 팀 밸런스 게이트에 영향
     }
 
     /// <summary>방장 전용: 날씨 ON/OFF 토글.</summary>
@@ -350,8 +355,29 @@ public class LobbyRoomNet : NetworkBehaviour
             Nickname = default,
             CharacterId = default,
             Ready = false,
-            Team = 0
+            // 2vs2면 위치 기본 팀(왼쪽 2칸=레드, 오른쪽 2칸=블루). 팀 모드 아니면 무의미(0).
+            Team = IsVersusMode ? DefaultTeamForSlot(idx) : (byte)0
         };
+    }
+
+    // 슬롯 위치 기본 팀: 0,1번(왼쪽)=레드(1), 2,3번(오른쪽)=블루(0).
+    private static byte DefaultTeamForSlot(int slotIndex) => (byte)(slotIndex <= 1 ? 1 : 0);
+
+    /// <summary>[서버] 모든 점유 슬롯을 위치 기본 팀으로 재배정(2vs2 진입 시).</summary>
+    private void AssignDefaultTeamsByPosition()
+    {
+        if (!IsServer) return;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            if (!m_Slots[i].Occupied) continue;
+            byte team = DefaultTeamForSlot(i);
+            if (m_Slots[i].Team != team)
+            {
+                var s = m_Slots[i];
+                s.Team = team;
+                m_Slots[i] = s;
+            }
+        }
     }
 
     /// <summary>[서버] 나간 clientId의 슬롯을 비운다. 위치는 그대로 두어 중간에 구멍이 남는다.</summary>
@@ -404,6 +430,42 @@ public class LobbyRoomNet : NetworkBehaviour
         m_Slots[idx] = s;
     }
 
+    // ────────────────────────── 팀 선택 (2vs2) ──────────────────────────
+
+    /// <summary>현재 로비 모드가 2vs2 대전(아이템/타임어택)인지.</summary>
+    public bool IsVersusMode => m_LobbyMode.Value == 1 || m_LobbyMode.Value == 2;
+
+    /// <summary>[클라이언트] 로컬 플레이어가 자기 팀 선택(0=파랑, 1=빨강).</summary>
+    public void RequestSetTeam(int team)
+    {
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening) return;
+        SetTeamServerRpc((byte)Mathf.Clamp(team, 0, 1));
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void SetTeamServerRpc(byte team, RpcParams rpc = default)
+    {
+        int idx = FindSlotByClient(rpc.Receive.SenderClientId);
+        if (idx < 0) return;
+        var s = m_Slots[idx];
+        s.Team = team;
+        m_Slots[idx] = s;
+        CheckAllPlayersReady();   // 팀 변경이 시작 조건(밸런스)에 영향
+    }
+
+    /// <summary>2vs2에서 양 팀이 동수(1v1 또는 2v2)이고 각 팀 최소 1명이면 true. 팀 모드가 아니면 항상 true.</summary>
+    public bool TeamsBalancedForStart()
+    {
+        if (!IsVersusMode) return true;
+        int blue = 0, red = 0;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            if (!m_Slots[i].Occupied) continue;
+            if (m_Slots[i].Team == 1) red++; else blue++;
+        }
+        return blue >= 1 && red >= 1 && blue == red;
+    }
+
     /// <summary>
     /// [서버] 호스트를 제외한 모든 클라이언트가 준비를 완료했는지 판단
     /// </summary>
@@ -421,7 +483,8 @@ public class LobbyRoomNet : NetworkBehaviour
         m_TargetReadyCount.Value = target;
         m_ReadyCount.Value = Mathf.Min(m_ReadyClients.Count, target);
 
-        m_IsAllReady.Value = m_ReadyClients.Count >= target;
+        // 2vs2는 양 팀 인원이 같아야(1v1/2v2) 시작 가능 — 한쪽이 더 많으면 시작 불가.
+        m_IsAllReady.Value = m_ReadyClients.Count >= target && TeamsBalancedForStart();
     }
 
     private void OnClientConnected(ulong clientId)
