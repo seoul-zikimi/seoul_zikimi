@@ -73,6 +73,14 @@ namespace GridSystem.EditorTools
         [MenuItem("Tools/Map/★ 남산타워 맵 생성 (실전)")]
         public static void Generate()
         {
+            // 배경 프리팹을 처음부터 다시 만든다 — 기획자가 직접 꾸민 배치가 있으면 날아가므로 반드시 확인.
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(kPrefabPath) != null &&
+                !EditorUtility.DisplayDialog("남산타워 맵 재생성",
+                    "배경 프리팹(MapBg_NamsanTower)을 처음부터 다시 만듭니다.\n" +
+                    "직접 꾸민 배치·소품·마커 이동이 있으면 사라져요!\n(파츠 def·정답·기믹 설정은 안전)",
+                    "재생성", "취소"))
+                return;
+
             Directory.CreateDirectory(kDir);
 
             // ① 파츠 MaterialDef + 색큐브 프리팹
@@ -177,25 +185,28 @@ namespace GridSystem.EditorTools
                       $"정답 {cells.Count}칸(높이 23) · 전망대 y11~13 완성 시 엘베 개통 · 제한시간 {kTimeLimitSeconds / 60f:0}분");
         }
 
-        // ── 파츠 def + 색큐브 프리팹(피벗 min-corner, 규약 준수) ──
+        // ── 파츠 def + 프리팹(피벗 min-corner, 규약 준수) ──
+        // VARCO 모델(_Fit)이 있으면 그것만 쓰고, 없을 때만 색큐브 폴백을 만든다(불필요 에셋 방지).
         private static MaterialDef EnsurePartDef(Part p)
         {
-            // 프리팹: 루트(피벗=min-corner) + 자식 큐브(footprint 크기, 파츠 색)
-            string prefabPath = $"{kDir}/{p.Name}.prefab";
-            var rootGo = new GameObject(p.Name);
-            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = "cube";
-            cube.transform.SetParent(rootGo.transform, false);
-            cube.transform.localPosition = new Vector3(p.Fp.x * 0.5f, p.Fp.y * 0.5f, p.Fp.z * 0.5f);
-            cube.transform.localScale = new Vector3(p.Fp.x, p.Fp.y, p.Fp.z) * 0.97f;
-            var mat = EnsureMaterial($"Mat_{p.Name}", p.Color);
-            if (mat != null) cube.GetComponent<Renderer>().sharedMaterial = mat;
-            var prefab = PrefabUtility.SaveAsPrefabAsset(rootGo, prefabPath);
-            Object.DestroyImmediate(rootGo);
-
-            // VARCO 모델(_Fit)이 이미 적용돼 있으면 그걸 유지 — 색큐브는 모델 없을 때의 폴백일 뿐.
-            // (예전엔 여기서 무조건 큐브로 덮어써서, 모델 적용 후 맵 생성을 다시 돌리면 큐브로 롤백되는 버그가 있었다)
             var fitPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/{p.Name}_Fit.prefab");
+
+            GameObject prefab = null;
+            if (fitPrefab == null)
+            {
+                // 폴백 색큐브: 루트(피벗=min-corner) + 자식 큐브(footprint 크기, 파츠 색)
+                string prefabPath = $"{kDir}/{p.Name}.prefab";
+                var rootGo = new GameObject(p.Name);
+                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                cube.name = "cube";
+                cube.transform.SetParent(rootGo.transform, false);
+                cube.transform.localPosition = new Vector3(p.Fp.x * 0.5f, p.Fp.y * 0.5f, p.Fp.z * 0.5f);
+                cube.transform.localScale = new Vector3(p.Fp.x, p.Fp.y, p.Fp.z) * 0.97f;
+                var mat = EnsureMaterial($"Mat_{p.Name}", p.Color);
+                if (mat != null) cube.GetComponent<Renderer>().sharedMaterial = mat;
+                prefab = PrefabUtility.SaveAsPrefabAsset(rootGo, prefabPath);
+                Object.DestroyImmediate(rootGo);
+            }
 
             var def = LoadOrCreate<MaterialDef>($"{kDir}/{p.Name}_Def.asset");
             var so = new SerializedObject(def);

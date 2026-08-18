@@ -26,6 +26,6 @@ MonoBehaviour:
   GustDurationSeconds: 3
   WeakWindMinHeight: 10
   StrongWindMinHeight: 15
-  WeakPushCells: 2
-  StrongPushCells: 4
+  WeakPushCells: 3
+  StrongPushCells: 6
   StunSeconds: 2

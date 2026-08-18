@@ -182,8 +182,41 @@ namespace GridSystem
             Spawned?.Invoke(this);   // 드라이버가 주문 HUD 띄움
         }
 
+        private static Material s_DecalMat;   // 배송 데칼 공유 머티리얼(전 맵 공통)
+
         private static GameObject MakeMarker(string name)
         {
+            // Resources/DeliveryZoneDecal 텍스처가 있으면 '택배 데칼' 쿼드 — 없으면 기존 노란 판 폴백.
+            var decal = Resources.Load<Texture2D>("DeliveryZoneDecal");
+            if (decal != null)
+            {
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.name = name;
+                quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);   // 바닥에 눕힘
+                quad.transform.localScale = new Vector3(3.4f, 3.4f, 1f);
+                var qcol = quad.GetComponent<Collider>();
+                if (qcol != null) Destroy(qcol);
+                if (s_DecalMat == null)
+                {
+                    var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                    if (sh == null) sh = Shader.Find("Universal Render Pipeline/Lit");
+                    if (sh != null)
+                    {
+                        // 투명 서피스 — 데칼 PNG의 알파(배경 투명)가 그대로 살게
+                        s_DecalMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+                        s_DecalMat.SetTexture("_BaseMap", decal);
+                        s_DecalMat.SetFloat("_Surface", 1f);
+                        s_DecalMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        s_DecalMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        s_DecalMat.SetInt("_ZWrite", 0);
+                        s_DecalMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                        s_DecalMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    }
+                }
+                if (s_DecalMat != null) quad.GetComponent<Renderer>().sharedMaterial = s_DecalMat;
+                return quad;
+            }
+
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
             go.transform.localScale = new Vector3(3f, 0.1f, 3f);

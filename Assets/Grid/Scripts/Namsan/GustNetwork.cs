@@ -164,9 +164,20 @@ namespace GridSystem
         // ── 연출(전 클라 로컬): 예고 토스트 + 하늘 풍향 화살표 ─────────────────
         private GameObject m_Arrow;
 
+        // 로컬 플레이어의 그리드 높이 — 저층(무풍)에서는 예고·화살표를 띄우지 않는다(기획: 고층부터 돌풍).
+        private static float LocalGridY()
+        {
+            var nm = NetworkManager.Singleton;
+            var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
+            return po != null ? (po.transform.position.y - GridContract.Origin.y) / GridContract.Unit : -999f;
+        }
+
+        private bool LocalInWindBand() => Active && LocalGridY() >= Config.WeakWindMinHeight - 1f;   // 경계 1칸 아래부터 미리 경고
+
         private void OnStateChanged(GustState _, GustState next)
         {
             if ((GustPhase)next.phase != GustPhase.Warning) return;
+            if (!LocalInWindBand()) return;   // 1층에서는 조용 — 바람 밴드 근처에 있는 사람만 경고
 
             // 내 화면 위 예고(오너 로컬 위치)
             var nm = NetworkManager.Singleton;
@@ -178,7 +189,9 @@ namespace GridSystem
 
         private void UpdateArrow()
         {
-            bool show = Phase != GustPhase.Idle;
+            UpdateStreaks();
+
+            bool show = Phase != GustPhase.Idle && LocalInWindBand();   // 고층에 있을 때만 풍향 표시
             if (!show) { if (m_Arrow != null) m_Arrow.SetActive(false); return; }
 
             if (m_Arrow == null)
@@ -208,6 +221,93 @@ namespace GridSystem
         {
             if (m_Arrow != null) Destroy(m_Arrow);
             m_Arrow = null;
+            if (m_StreakRoot != null) Destroy(m_StreakRoot);
+            m_StreakRoot = null;
+            m_Streaks.Clear();
+        }
+
+        // ── 바람 줄기 이펙트(에셋 불필요 — 절차 생성): 돌풍 동안 바람 밴드 높이에 흰 줄기들이 흘러간다 ──
+        private GameObject m_StreakRoot;
+        private readonly System.Collections.Generic.List<Transform> m_Streaks = new();
+        private const int kStreakCount = 18;
+        private const float kStreakRange = 22f;   // 그리드 중심 기준 왕복 반경
+
+        private void UpdateStreaks()
+        {
+            bool on = Phase == GustPhase.Blowing;
+            if (!on)
+            {
+                if (m_StreakRoot != null && m_StreakRoot.activeSelf) m_StreakRoot.SetActive(false);
+                return;
+            }
+
+            var dir = WindDir;
+            if (dir.sqrMagnitude < 1e-4f) return;
+            dir.Normalize();
+
+            float u = GridContract.Unit;
+            var size = Grid != null ? Grid.EffectiveSize : new Vector3Int(16, 10, 16);
+            var center = GridContract.Origin + new Vector3(size.x * 0.5f, 0f, size.z * 0.5f) * u;
+            float yMin = GridContract.Origin.y + Config.WeakWindMinHeight * u;
+            float yMax = GridContract.Origin.y + (size.y + 2f) * u;
+
+            if (m_StreakRoot == null)
+            {
+                m_StreakRoot = new GameObject("~GustStreaks");
+                for (int i = 0; i < kStreakCount; i++)
+                {
+                    var s = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    s.name = $"streak{i}";
+                    s.transform.SetParent(m_StreakRoot.transform);
+                    var col = s.GetComponent<Collider>();
+                    if (col != null) Destroy(col);
+                    s.transform.localScale = new Vector3(0.06f, 0.06f, 2.2f + (i % 4) * 0.7f);
+                    s.GetComponent<Renderer>().sharedMaterial = StreakMat();
+                    m_Streaks.Add(s.transform);
+                    RespawnStreak(s.transform, i, center, dir, yMin, yMax, scatter: true);
+                }
+            }
+            if (!m_StreakRoot.activeSelf) m_StreakRoot.SetActive(true);
+
+            var rot = Quaternion.LookRotation(dir);
+            for (int i = 0; i < m_Streaks.Count; i++)
+            {
+                var s = m_Streaks[i];
+                s.rotation = rot;
+                float speed = 15f + (i % 5) * 3f;
+                s.position += dir * (speed * Time.deltaTime);
+                // 바람 진행 방향으로 범위를 벗어나면 반대편에서 재등장
+                if (Vector3.Dot(s.position - center, dir) > kStreakRange)
+                    RespawnStreak(s, i, center, dir, yMin, yMax, scatter: false);
+            }
+        }
+
+        private static void RespawnStreak(Transform s, int i, Vector3 center, Vector3 dir, float yMin, float yMax, bool scatter)
+        {
+            var perp = Vector3.Cross(Vector3.up, dir);
+            float along = scatter ? Random.Range(-kStreakRange, kStreakRange) : -kStreakRange;
+            var p = center + dir * along + perp * Random.Range(-10f, 10f);
+            p.y = Random.Range(yMin, yMax);
+            s.position = p;
+        }
+
+        private static Material s_StreakMat;
+        private static Material StreakMat()
+        {
+            if (s_StreakMat != null) return s_StreakMat;
+            var sh = Shader.Find("Universal Render Pipeline/Unlit");
+            if (sh == null) sh = Shader.Find("Universal Render Pipeline/Lit");
+            s_StreakMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            s_StreakMat.SetFloat("_Surface", 1f);
+            s_StreakMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            s_StreakMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            s_StreakMat.SetInt("_ZWrite", 0);
+            s_StreakMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            s_StreakMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            var c = new Color(1f, 1f, 1f, 0.38f);
+            s_StreakMat.SetColor("_BaseColor", c);
+            s_StreakMat.SetColor("_Color", c);
+            return s_StreakMat;
         }
 
         private static Material s_Mat;
