@@ -66,6 +66,38 @@ public static class SaveService
         set => ES3.Save("equippedCharacter", value ?? "", kFile);
     }
 
+    // ── 인트로 컷씬(최초 실행 연출 + 초기 캐릭터 선택) 완료 여부 ──
+    public static bool IntroSeen
+    {
+        get => ES3.Load("introSeen", kFile, false);
+        set => ES3.Save("introSeen", value, kFile);
+    }
+
+    // ── 보유 캐릭터 — 인트로에서 고른 1명 무료, 나머지는 옷장에서 코인 해금.
+    //    빈 id(달팽이)는 리스트에 "default" 토큰으로 저장.
+    private const string kCharacters = "ownedCharacters";
+    private static string CharToken(string id) => string.IsNullOrEmpty(id) ? "default" : id;
+
+    public static List<string> OwnedCharacters => ES3.Load(kCharacters, kFile, new List<string>());
+
+    public static bool HasCharacter(string id)
+        => !IntroSeen || OwnedCharacters.Contains(CharToken(id));   // 인트로 전(기존 세이브 포함)엔 전부 개방 유지
+
+    public static void GrantCharacter(string id)
+    {
+        var list = OwnedCharacters;
+        if (list.Contains(CharToken(id))) return;
+        list.Add(CharToken(id));
+        ES3.Save(kCharacters, list, kFile);
+    }
+
+    public static bool BuyCharacter(string id, int price)
+    {
+        if (OwnedCharacters.Contains(CharToken(id)) || !TrySpendCoins(price)) return false;
+        GrantCharacter(id);
+        return true;
+    }
+
     // ── 보유 캐릭터 스킨 (구매 시 저장) — 선행조건(캐릭터 보유 등) 검사는 상점 쪽 책임 ──
     public static List<string> Skins => ES3.Load(kSkins, kFile, new List<string>());
     public static bool HasSkin(string id) => Skins.Contains(id);

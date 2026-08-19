@@ -14,12 +14,29 @@ public static class CharacterSwap
     private const float kVisualGroundOffset = -0.135f;
 
     /// <summary>현재 기본 외 캐릭터가 활성화돼 있으면 true(아웃핏 적용 스킵 판단용).</summary>
-    public static bool IsNonDefault(GameObject player)
+    public static bool IsNonDefault(GameObject player) => CurrentId(player) != "";
+
+    /// <summary>현재 보이는 모델의 Animator — 대체 캐릭터 클론이 있으면 그쪽, 없으면 첫 Animator.
+    /// 아웃핏 스케일 정규화 기준(루트 스케일)이 저작 때와 같아지도록 하는 용도.</summary>
+    public static Animator ActiveAnimator(GameObject player)
     {
-        if (player == null) return false;
+        if (player == null) return null;
         foreach (var t in player.GetComponentsInChildren<Transform>(true))
-            if (t.name.StartsWith(kClone)) return true;
-        return false;
+            if (t.name.StartsWith(kClone))
+            {
+                var a = t.GetComponentInChildren<Animator>(true);
+                if (a != null) return a;
+            }
+        return player.GetComponentInChildren<Animator>(true);
+    }
+
+    /// <summary>플레이어에 현재 활성화된 캐릭터 id(빈 문자열 = 달팽이). 클론 이름에서 판별.</summary>
+    public static string CurrentId(GameObject player)
+    {
+        if (player == null) return "";
+        foreach (var t in player.GetComponentsInChildren<Transform>(true))
+            if (t.name.StartsWith(kClone)) return t.name.Substring(kClone.Length);
+        return "";
     }
 
     /// <summary>id 캐릭터로 교체(빈 id = 달팽이 복원). 같은 id면 무동작.</summary>
@@ -67,6 +84,8 @@ public static class CharacterSwap
         {
             var mirror = clone.GetComponent<CharacterMirror>();
             if (mirror == null) mirror = clone.AddComponent<CharacterMirror>();
+            mirror.ClimbFlip = true;   // 믹사모 사다리 클립은 전부 정면을 봐서 뒤집기 필요
+            // (사다리 클립은 믹사모 In Place로 받는 게 정답 — 루트모션 잔재가 있으면 몸이 옆·위로 튄다)
             mirror.Init(carrier, selfAnim);
         }
     }

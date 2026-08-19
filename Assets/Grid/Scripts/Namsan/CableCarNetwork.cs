@@ -45,11 +45,11 @@ namespace GridSystem
 
         // 마커가 없을 때 폴백(하차장 기준 상대 위치 — 산 아래 방향)
         private static readonly Vector3 kFallbackBaseOffset = new Vector3(-10f, -5f, -8f);
-        private const float kWireHeight = 6.5f;   // 마커 위 와이어 높이(실제처럼 높게 매달림)
+        private const float kWireHeight = 4.5f;   // 양 끝(마커) 와이어 높이 — 중간은 철탑 꼭대기를 자동 경유
         private const float kHangDepth = 1.9f;    // 와이어 아래 곤돌라 '중심'까지 깊이(몸통 3.4 기준)
         private const float kWaitT = 0.85f;       // 대기 지점(하차장 직전)의 경로 비율
         private const float kUnloadDistance = 1.8f; // 화물이 이 이상 벗어나면 '내려진 것'으로 간주(킥 등)
-        private const float kCargoLift = 1.6f;    // 화물 안착 높이(하차장 기준) — 곤돌라 아래 짧은 줄에 매달림
+        private const float kCargoLift = 0.1f;    // 화물 안착 높이(하차장 기준) — 곤돌라 아래 짧은 줄에 매달림
 
         /// <summary>대기 중 주문 수(HUD 표시용).</summary>
         public int QueueCount => m_QueueCount.Value;
@@ -256,6 +256,88 @@ namespace GridSystem
 
         private Vector3 DockPos() => StationPos();
 
+        // ── 와이어 폴리라인: 산 아래 → (씬의 남산_철탑들 꼭대기 경유) → 하차장 ──
+        // 기획자가 철탑을 옮겨도 선·곤돌라가 자동으로 따라간다(2초 간격 재탐색).
+        private readonly List<Vector3> m_WirePts = new();
+        private readonly List<float> m_WireCum = new();
+        private float m_WireLen;
+        private float m_NextPathBuild;
+
+        private void BuildWirePath()
+        {
+            m_WirePts.Clear();
+
+            // 수동 경로 우선: 배경에 Spot_CableWire1, 2, 3… 마커가 있으면 그 위치(높이 포함)를
+            // 번호 순서대로 '그대로' 통과한다 — 기획자가 선을 완전히 직접 그리는 방식.
+            var manual = new List<(int n, Vector3 p)>();
+            foreach (var tr in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                if (!tr.name.StartsWith("Spot_CableWire")) continue;
+                int.TryParse(tr.name.Substring("Spot_CableWire".Length), out int n);
+                manual.Add((n, tr.position));
+            }
+            if (manual.Count >= 2)
+            {
+                manual.Sort((x, y) => x.n.CompareTo(y.n));
+                foreach (var m in manual) m_WirePts.Add(m.p);
+                FinishWirePath();
+                return;
+            }
+
+            // 자동 경로: 산 아래 → (철탑 꼭대기 경유) → 하차장
+            var a = BasePos() + Vector3.up * kWireHeight;
+            var b = StationPos() + Vector3.up * kWireHeight;
+            m_WirePts.Add(a);
+
+            var dir = b - a;
+            float dl2 = Mathf.Max(1e-4f, dir.sqrMagnitude);
+            var pylons = new List<(float t, Vector3 p)>();
+            foreach (var tr in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                if (!tr.name.Contains("남산_철탑")) continue;
+                if (tr.parent != null && tr.parent.name.Contains("남산_철탑")) continue;   // 루트만
+                var rends = tr.GetComponentsInChildren<Renderer>();
+                if (rends.Length == 0) continue;
+                var bd = rends[0].bounds;
+                foreach (var r in rends) bd.Encapsulate(r.bounds);
+                var top = new Vector3(bd.center.x, bd.max.y - 0.15f, bd.center.z);   // 크로스암 살짝 아래
+                float t = Vector3.Dot(top - a, dir) / dl2;
+                if (t > 0.02f && t < 0.98f) pylons.Add((t, top));
+            }
+            pylons.Sort((x, y) => x.t.CompareTo(y.t));
+            foreach (var p in pylons) m_WirePts.Add(p.p);
+            m_WirePts.Add(b);
+            FinishWirePath();
+        }
+
+        private void FinishWirePath()
+        {
+            m_WireCum.Clear();
+            m_WireCum.Add(0f);
+            m_WireLen = 0f;
+            for (int i = 1; i < m_WirePts.Count; i++)
+            {
+                m_WireLen += Vector3.Distance(m_WirePts[i - 1], m_WirePts[i]);
+                m_WireCum.Add(m_WireLen);
+            }
+        }
+
+        /// <summary>폴리라인 위 비율 t(0~1, 호 길이 기준)의 와이어 위치.</summary>
+        private Vector3 WirePosAt(float t)
+        {
+            if (m_WirePts.Count < 2)
+                return Vector3.Lerp(BasePos(), StationPos(), Mathf.Clamp01(t)) + Vector3.up * kWireHeight;
+            float d = Mathf.Clamp01(t) * m_WireLen;
+            for (int i = 1; i < m_WirePts.Count; i++)
+                if (d <= m_WireCum[i] || i == m_WirePts.Count - 1)
+                {
+                    float seg = m_WireCum[i] - m_WireCum[i - 1];
+                    float u = seg > 1e-4f ? (d - m_WireCum[i - 1]) / seg : 0f;
+                    return Vector3.Lerp(m_WirePts[i - 1], m_WirePts[i], u);
+                }
+            return m_WirePts[m_WirePts.Count - 1];
+        }
+
         /// <summary>경로 비율 t(0=산 아래, 1=하차장)의 곤돌라 중심 위치. 순수 계산 — 테스트 대상.</summary>
         public static Vector3 CarPosAt(Vector3 basePos, Vector3 stationPos, float t)
         {
@@ -340,8 +422,8 @@ namespace GridSystem
                 var rope = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 rope.name = "rope";
                 rope.transform.SetParent(car.transform, false);
-                rope.transform.localScale = new Vector3(0.05f, 1.1f, 0.05f);
-                rope.transform.localPosition = new Vector3(0f, -2.15f, 0f);   // 몸통 바닥(-1.7) → 화물
+                rope.transform.localScale = new Vector3(0.05f, 0.6f, 0.05f);
+                rope.transform.localPosition = new Vector3(0f, -1.95f, 0f);   // 몸통 바닥(-1.7) → 화물
                 Destroy(rope.GetComponent<Collider>());
                 Tint(rope, new Color(0.2f, 0.2f, 0.22f));
                 rope.SetActive(false);
@@ -393,8 +475,15 @@ namespace GridSystem
 
             var basePos = BasePos();
             var station = StationPos();
-            m_Wire.SetPosition(0, basePos + Vector3.up * kWireHeight);
-            m_Wire.SetPosition(1, station + Vector3.up * kWireHeight);
+
+            // 와이어 폴리라인 갱신(철탑 이동 반영, 2초 간격) + 선 렌더러 반영
+            if (Time.time >= m_NextPathBuild)
+            {
+                m_NextPathBuild = Time.time + 2f;
+                BuildWirePath();
+                m_Wire.positionCount = m_WirePts.Count;
+                for (int w = 0; w < m_WirePts.Count; w++) m_Wire.SetPosition(w, m_WirePts[w]);
+            }
 
             var camT = Camera.main != null ? Camera.main.transform : null;
             for (int i = 0; i < m_Cars.Count; i++)
@@ -409,11 +498,13 @@ namespace GridSystem
                 if (m_CarVisuals[i].activeSelf != carVisible) m_CarVisuals[i].SetActive(carVisible);
                 if (!carVisible) { UpdateCargoVisual(i, -1); continue; }
 
-                var pos = CarPosAt(basePos, station, t);
+                // 곤돌라 = 와이어 폴리라인에 매달림(철탑 경유 경로 그대로 따라감)
+                var pos = WirePosAt(t) + Vector3.down * kHangDepth;
                 m_CarVisuals[i].transform.position = pos;
 
-                // 진행 방향으로 몸통 회전(와이어를 따라가는 느낌 + 문이 항상 산 아래쪽을 본다)
-                var horiz = station - basePos; horiz.y = 0f;
+                // 진행 방향으로 몸통 회전(현재 구간의 수평 방향)
+                var horiz = WirePosAt(Mathf.Min(1f, t + 0.02f)) - WirePosAt(Mathf.Max(0f, t - 0.02f));
+                horiz.y = 0f;
                 if (horiz.sqrMagnitude > 1e-4f)
                     m_CarVisuals[i].transform.rotation = Quaternion.LookRotation(horiz);
 
@@ -449,7 +540,7 @@ namespace GridSystem
                 UpdateCargoVisual(i, showCargo ? c.materialId : -1);
                 if (m_CargoVisuals[i] != null)
                     m_CargoVisuals[i].transform.localPosition =
-                        new Vector3(Mathf.Sin(Time.time * 2f + i) * 0.08f, -2.5f, 0f);   // 살짝 흔들리는 매달림(몸통 아래)
+                        new Vector3(Mathf.Sin(Time.time * 2f + i) * 0.08f, -2.0f, 0f);   // 살짝 흔들리는 매달림(몸통 아래)
 
                 // 남은 초: 도킹(열림) 중 = 수령 타이머, 그 외 숨김
                 if (phase == CarPhase.Docked)
@@ -478,7 +569,7 @@ namespace GridSystem
                 foreach (var col in vis.GetComponentsInChildren<Collider>()) Destroy(col);
                 float maxAxis = Mathf.Max(1, Mathf.Max(def.Footprint.x, Mathf.Max(def.Footprint.y, def.Footprint.z)));
                 vis.transform.localScale = Vector3.one * (0.9f / maxAxis);
-                vis.transform.localPosition = new Vector3(0f, -2.5f, 0f);
+                vis.transform.localPosition = new Vector3(0f, -2.0f, 0f);
             }
             else
             {
@@ -487,7 +578,7 @@ namespace GridSystem
                 var col = vis.GetComponent<Collider>();
                 if (col != null) Destroy(col);
                 vis.transform.localScale = Vector3.one * 0.7f;
-                vis.transform.localPosition = new Vector3(0f, -2.5f, 0f);
+                vis.transform.localPosition = new Vector3(0f, -2.0f, 0f);
                 Tint(vis, new Color(0.72f, 0.72f, 0.72f));
             }
             m_CargoVisuals[i] = vis;

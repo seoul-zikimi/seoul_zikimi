@@ -145,10 +145,11 @@ public class MyPageUI : UIHUD
         // 캐릭터 탭 = 아웃핏이 아니라 캐릭터 카탈로그로 채운다
         if (m_Filter == "char_") { RefreshCharacterSlots(); return; }
 
-        // 아웃핏 카탈로그에서 현재 카테고리(접두사)만
+        // 아웃핏 카탈로그에서 현재 카테고리(접두사) + 선택 캐릭터용만
+        string charId = SaveService.EquippedCharacter;
         var items = new System.Collections.Generic.List<CodiOutfit>();
         foreach (var o in CodiOutfit.Catalog())
-            if (o.name.StartsWith(m_Filter)) items.Add(o);
+            if (o.name.StartsWith(m_Filter) && o.TargetCharacter == charId) items.Add(o);
 
         string equipped = SaveService.EquippedOutfit;
         for (int i = 0; i < m_Slots.Count; i++)
@@ -223,7 +224,8 @@ public class MyPageUI : UIHUD
         SetClosetList(items.Count == 0 ? "이 카테고리엔 아이템이 없어요." : "");
     }
 
-    // 캐릭터 선택 탭 — 슬롯 = CharacterCatalog 순서(0번 = 달팽이 기본). 무료, 클릭 = 즉시 선택.
+    // 캐릭터 선택 탭 — 슬롯 = CharacterCatalog 순서(0번 = 달팽이 기본).
+    // 인트로에서 고른 캐릭터만 보유 시작, 나머지는 코인 해금(가격 = CharacterCatalog.Entry.Price).
     private void RefreshCharacterSlots()
     {
         var chars = CharacterCatalog.All;
@@ -244,33 +246,63 @@ public class MyPageUI : UIHUD
             }
 
             var entry = chars[i];
+            bool owned = SaveService.HasCharacter(entry.Id) || entry.Price <= 0;
             bool on = selected == entry.Id;
             if (thumb != null)
             {
                 var sp = CharacterCatalog.LoadThumbnail(entry.Id);
                 thumb.enabled = sp != null;
                 thumb.sprite = sp;
-                thumb.color = Color.white;
+                thumb.color = owned ? Color.white : new Color(0.65f, 0.65f, 0.7f, 1f);   // 잠금 = 어둡게
             }
-            if (lockIcon != null) lockIcon.enabled = false;   // 전 캐릭터 무료
+            if (lockIcon != null) lockIcon.enabled = !owned;   // 잠금 = 자물쇠 표시
             if (labelBg != null) labelBg.enabled = true;
             if (label != null)
             {
                 label.alignment = TextAlignmentOptions.Bottom;
-                label.text = on ? $"{entry.DisplayName}\n[선택중]" : entry.DisplayName;
+                label.text = owned
+                    ? (on ? $"{entry.DisplayName}\n[선택중]" : entry.DisplayName)
+                    : $"{entry.Price}코인";                    // 잠금 = 가격만
             }
             btn.interactable = true;
             string id = entry.Id;
+            string display = entry.DisplayName;
+            int price = entry.Price;
             btn.onClick.AddListener(() =>
             {
                 if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
-                SaveService.EquippedCharacter = id;
-                MyPageSceneController.RefreshCharacter();
-                RefreshCloset();
+                OnClickCharacter(id, display, price);
             });
         }
 
-        SetClosetList("캐릭터를 누르면 바로 바뀌어요. (게임엔 다음 판부터 적용)");
+        SetClosetList("캐릭터를 누르면 바로 바뀌어요. 잠긴 친구는 코인으로 영입! (게임엔 다음 판부터 적용)");
+    }
+
+    private void OnClickCharacter(string id, string displayName, int price)
+    {
+        string message = null;
+        if (!SaveService.HasCharacter(id) && price > 0)
+        {
+            if (SaveService.BuyCharacter(id, price))
+            {
+                message = $"'{displayName}' 영입 완료! (-{price}코인)";
+                SaveService.EquippedCharacter = id;   // 영입 즉시 선택
+                MyPageSceneController.RefreshCharacter();
+            }
+            else
+            {
+                SetClosetList("코인이 부족해요.");
+                return;
+            }
+        }
+        else
+        {
+            SaveService.EquippedCharacter = id;
+            MyPageSceneController.RefreshCharacter();
+        }
+        RefreshCloset();
+        if (message != null)
+            SetClosetList(message);   // 새로고침이 안내문으로 덮으므로 결과 메시지는 마지막에
     }
 
     private void OnClickItem(CodiOutfit item)

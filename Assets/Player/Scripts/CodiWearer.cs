@@ -25,6 +25,9 @@ public class CodiWearer : NetworkBehaviour
 
     private void OnOutfitChanged(FixedString64Bytes _, FixedString64Bytes __) => ApplyCurrent();
 
+    /// <summary>캐릭터 교체 후 아웃핏 다시 입히기 — CharacterWearer가 호출(교체 전에 입힌 아웃핏은 무효).</summary>
+    public void Reapply() => ApplyCurrent();
+
     private Coroutine m_Pending;
 
     private void ApplyCurrent()
@@ -42,10 +45,12 @@ public class CodiWearer : NetworkBehaviour
         m_Pending = null;
     }
 
+    // 아웃핏 부착 기준 본 — 달팽이(spine.001) 또는 대체 캐릭터(mixamorig:Hips) 어느 쪽이든 준비되면 OK
     private bool HasBone()
     {
+        string need = CharacterSwap.CurrentId(gameObject) == "" ? "spine.001" : "mixamorig:Hips";
         foreach (var t in GetComponentsInChildren<Transform>(true))
-            if (t.name == "spine.001") return true;
+            if (t.name == need) return true;
         return false;
     }
 }
