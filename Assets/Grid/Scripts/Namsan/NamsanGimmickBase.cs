@@ -17,7 +17,8 @@ namespace GridSystem
         /// <summary>MapLoader가 씬 오브젝트 배치를 건너뛰어야 하는 마커인가(전체 이름 "Spot_..." 기준).</summary>
         public static bool IsMarkerOnly(string fullName) =>
             fullName == CableCarStation || fullName == CableCarOrigin ||
-            fullName == ElevatorLower || fullName == ElevatorUpper;
+            fullName == ElevatorLower || fullName == ElevatorUpper ||
+            fullName.StartsWith("Spot_CableWire");   // 케이블카 선 수동 경유점(1, 2, 3…)
     }
 
     /// <summary>

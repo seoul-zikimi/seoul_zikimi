@@ -200,22 +200,30 @@ namespace GridSystem
             }
             else SetPanels(0f);
 
+            // 마커 라이브 추적 — 기획자가 씬/프리팹에서 Spot_ElevatorLower/Upper를 끌면 문이 즉시 따라간다
+            if (m_DoorLower != null) m_DoorLower.transform.SetPositionAndRotation(lower.position, lower.rotation);
+            if (m_DoorUpper != null) m_DoorUpper.transform.SetPositionAndRotation(upper.position, upper.rotation);
+
             if (m_TintedOpen != m_Open.Value)
             {
                 m_TintedOpen = m_Open.Value;
                 TintDoors(m_TintedOpen);
             }
 
-            // 상부 문·발판은 '개통 전엔 없다' — 전망대(4번) 완성 순간 개통 연출과 함께 등장
-            if (m_DoorUpper != null && m_DoorUpper.activeSelf != m_Open.Value)
-                m_DoorUpper.SetActive(m_Open.Value);
+            // 상부 문·발판 표시 조건: ① 개통됨 ② 게임 종료(캡처·한바퀴 둘러보기) 중엔 숨김 — 완성 사진에 안 나오게.
+            bool finished = Loop != null && !Loop.IsBuilding;
+            bool showUpper = m_Open.Value && !finished;
+            if (m_DoorLower != null && m_DoorLower.activeSelf == finished)
+                m_DoorLower.SetActive(!finished);   // 하부 문도 종료 화면에선 숨김
+            if (m_DoorUpper != null && m_DoorUpper.activeSelf != showUpper)
+                m_DoorUpper.SetActive(showUpper);
             if (m_UpperPlatform == null)
             {
                 var plat = GameObject.Find("UpperDoorPlatform");   // 비활성화 전에 1회 캐시(Find는 활성만 찾음)
                 if (plat != null) m_UpperPlatform = plat;
             }
-            if (m_UpperPlatform != null && m_UpperPlatform.activeSelf != m_Open.Value)
-                m_UpperPlatform.SetActive(m_Open.Value);
+            if (m_UpperPlatform != null && m_UpperPlatform.activeSelf != showUpper)
+                m_UpperPlatform.SetActive(showUpper);
 
             // 프롬프트: 개통 + 로컬 플레이어가 근처일 때만
             var nm = NetworkManager.Singleton;
@@ -256,6 +264,22 @@ namespace GridSystem
                 panel.transform.localScale = new Vector3(0.44f, 1.6f, 0.12f);
                 var pcol = panel.GetComponent<Collider>();
                 if (pcol != null) Destroy(pcol);
+
+                // 문짝 텍스처(Resources/Namsan/ElevatorDoor) — 있으면 스틸 문, 상태 틴트는 그 위에 곱해짐
+                var doorTex = DoorTexture();
+                if (doorTex != null)
+                {
+                    if (s_DoorMat == null)
+                    {
+                        var dsh = Shader.Find("Universal Render Pipeline/Lit");
+                        if (dsh != null)
+                        {
+                            s_DoorMat = new Material(dsh) { hideFlags = HideFlags.HideAndDontSave };
+                            s_DoorMat.SetTexture("_BaseMap", doorTex);
+                        }
+                    }
+                    if (s_DoorMat != null) panel.GetComponent<Renderer>().sharedMaterial = s_DoorMat;
+                }
             }
 
             var tgo = new GameObject("prompt");
@@ -311,6 +335,15 @@ namespace GridSystem
             try { return Resources.GetBuiltinResource<Font>("Arial.ttf"); }
             catch { }
             return null;
+        }
+
+        private static Material s_DoorMat;
+        private static Texture2D s_DoorTex;
+        private static bool s_DoorTexTried;
+        private static Texture2D DoorTexture()
+        {
+            if (!s_DoorTexTried) { s_DoorTexTried = true; s_DoorTex = Resources.Load<Texture2D>("Namsan/ElevatorDoor"); }
+            return s_DoorTex;
         }
 
         private static Material s_Mat;

@@ -69,6 +69,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     // 대기방 슬롯 표시용 재사용 버퍼(매 프레임 갱신, GC 방지).
     private readonly JobsnailLobbySlot[] m_SlotBuffer = new JobsnailLobbySlot[4];
 
+    // 방 생성 맵 드롭다운 순번 → 카탈로그 인덱스(공터 제외 매핑).
+    private readonly List<int> m_CreateMapOptionIndices = new();
+
     // 기록 텍스트 캐시(파일 읽기라 입력 바뀔 때만 재계산).
     private int m_RecordCacheMode = -1;
     private int m_RecordCacheMap = -1;
@@ -290,14 +293,26 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         int mapCount = catalog != null ? catalog.Count : 0;
         m_SelectedMap = mapCount > 0 ? Mathf.Clamp(GridSystem.GameLoopManager.HostSelectedMap, 0, mapCount - 1) : 0;
 
+        // 공터(2vs2 경기장)는 선택지에서 제외 — 대전 모드가 배경으로 자동 사용. 옵션 순번 → 카탈로그 인덱스 매핑 유지.
+        m_CreateMapOptionIndices.Clear();
         var mapLabels = new List<string>(mapCount);
         for (int i = 0; i < mapCount; i++)
         {
             var def = catalog.Get(i);
+            if (def != null && def.IsVersusArena) continue;
+            m_CreateMapOptionIndices.Add(i);
             mapLabels.Add(def != null ? def.DisplayName : $"맵 {i + 1}");
         }
-        view.BuildMapOptions(mapLabels, OnCreateMapSelected);
-        view.SetMapLabel(mapCount > 0 ? mapLabels[m_SelectedMap] : "맵 없음");
+        if (mapCount > 0 && !m_CreateMapOptionIndices.Contains(m_SelectedMap) && m_CreateMapOptionIndices.Count > 0)
+            m_SelectedMap = m_CreateMapOptionIndices[0];   // 저장된 선택이 공터였다면 첫 일반 맵으로
+
+        view.BuildMapOptions(mapLabels, optionIndex =>
+        {
+            if (optionIndex >= 0 && optionIndex < m_CreateMapOptionIndices.Count)
+                OnCreateMapSelected(m_CreateMapOptionIndices[optionIndex]);
+        });
+        var selectedDef = mapCount > 0 ? catalog.Get(m_SelectedMap) : null;
+        view.SetMapLabel(selectedDef != null ? selectedDef.DisplayName : "맵 없음");
 
         view.BuildModeOptions(new List<string>(kModeLabels), OnCreateModeSelected);
         view.SetModeLabel(kModeLabels[m_SelectedMode]);
@@ -847,7 +862,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                     IsHost = readyNet.IsSlotHost(i),
                     Ready = readyNet.IsSlotReady(i),
                     CharacterId = readyNet.GetSlotCharacterId(i),
-                    OutfitId = readyNet.GetSlotOutfitId(i)
+                    OutfitId = readyNet.GetSlotOutfitId(i),
+                    Team = readyNet.GetSlotTeam(i)
                 };
             }
         }
@@ -880,7 +896,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             ShowMapArrows = isHost && isNetworkServer && mapCount > 1,
             WeatherOn = weatherOn,
             ShowWeatherToggle = isHost,
-            RecordText = recordText
+            RecordText = recordText,
+            ShowTeamSelect = hasReadyNet && readyNet.IsVersusMode
         };
 
         view.ApplyLobbyRoomState(state);
@@ -897,6 +914,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (isHost && !isNetworkServer)
             return "방장 권한 복구 중...";
+
+        // 2vs2: 양 팀 인원이 안 맞으면(1v2 등) 시작 자체가 불가.
+        if (readyNet.IsVersusMode && !readyNet.TeamsBalancedForStart())
+            return "양 팀 인원을 같게 맞춰야 시작할 수 있어요 (1v1 또는 2v2)";
 
         if (isHost)
         {
@@ -1111,6 +1132,16 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
         if (readyNet != null && readyNet.IsSpawned)
             readyNet.HostToggleWeather();
+        UpdateLobbyRoomView();
+    }
+
+    /// <summary>로컬 플레이어가 자기 팀 선택(0=파랑, 1=빨강).</summary>
+    internal void PrefabSelectTeam(int team)
+    {
+        PlayUIClick();
+        var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
+        if (readyNet != null && readyNet.IsSpawned)
+            readyNet.RequestSetTeam(team);
         UpdateLobbyRoomView();
     }
 

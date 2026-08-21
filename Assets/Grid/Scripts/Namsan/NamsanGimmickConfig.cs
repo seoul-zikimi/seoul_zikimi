@@ -43,9 +43,9 @@ namespace GridSystem
         [Tooltip("이 높이(그리드 y)부터 강풍")]
         public int StrongWindMinHeight = 15;
         [Tooltip("약풍이 돌풍 시간 동안 미는 총 거리(칸) — 점프로 파훼 가능한 수준")]
-        [Min(0f)] public float WeakPushCells = 2f;
+        [Min(0f)] public float WeakPushCells = 3f;
         [Tooltip("강풍이 돌풍 시간 동안 미는 총 거리(칸)")]
-        [Min(0f)] public float StrongPushCells = 4f;
+        [Min(0f)] public float StrongPushCells = 6f;
         [Tooltip("바람에 밀려 추락 후 착지 시 스턴(초)")]
         [Min(0f)] public float StunSeconds = 2f;
 
