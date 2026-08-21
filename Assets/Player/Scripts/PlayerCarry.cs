@@ -1463,12 +1463,8 @@ namespace Player
             else
                 heldStr = "오른쪽 하단에서 재료를 주문하세요! ";
 
-            string score = m_Net != null ? $"  |  완성도 {m_Net.ScorePercent:F0}%" : "";
-            return
-                $"{heldStr}{score}\n" +
-                $"[좌클릭] 집기/배치 (그리드 밖 클릭 = 발밑에 버리기, 미고정 블록 클릭 = 회수)    [G 꾹] 차징 던지기(꾹 누를수록 멀리)\n" +
-                $"[Space] 점프    [Space 연타] 비계 발밑에 설치(1칸 올라가기)\n" +
-                $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    [T 꾹] 감정표현    현재 층: {m_BuildHeight}";
+            // 조작법 줄은 좌상단 조작법 툴팁(ControlsTooltipHUD), 완성도는 폰 뱃지로 옮겨져 상황 힌트 한 줄만 남긴다.
+            return heldStr;
         }
 
         // E 공정 / Z 되돌리기 로딩바 + 공정 안내(대상 블록 위 · 월드→스크린 좌표는 여기서 계산).

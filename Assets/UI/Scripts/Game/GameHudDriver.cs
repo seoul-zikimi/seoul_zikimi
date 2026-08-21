@@ -48,8 +48,11 @@ public class GameHudDriver : MonoBehaviour
     // 모든 버튼 쫀득 통일: 씬 배치·프리팹·코드빌드 가리지 않고 1초마다 훑어 JuicyButton 부착.
     // (Attach는 중복 방지라 멱등 — 새로 생긴 버튼만 실제로 붙음)
     private float m_JuicySweep;
+    private GridNetwork m_Net;
+    private GameLoopManager m_Loop;
     private void Update()
     {
+        UpdateCompletion();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         // [개발자 치트] 0 = 10배속 토글(타이머 빨리감기 등 테스트용). 릴리즈 빌드엔 미포함.
         // 주의: 멀티에선 호스트에서 눌러야 서버 타이머도 빨라짐(클라는 로컬 물리만 가속).
@@ -85,6 +88,17 @@ public class GameHudDriver : MonoBehaviour
         MaterialDepot.Despawned -= OnDepotDespawned;
         MaterialDepot.MaterialsChanged -= OnDepotSpawned;
         MaterialDepot.OrdersChanged    -= OnOrdersChanged;
+    }
+
+    // 폰 '현재 완성도 : N%' — 2vs2 는 우리 팀 점수, 협동은 공용 점수
+    private void UpdateCompletion()
+    {
+        if (m_OrderHud == null) return;
+        if (m_Net == null)  m_Net  = FindFirstObjectByType<GridNetwork>();
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
+        if (m_Net == null) return;
+        float pct = (m_Loop != null && m_Loop.IsVersus) ? m_Net.ScoreFor(Mathf.Max(0, m_Loop.LocalTeam)).Percent : m_Net.ScorePercent;
+        m_OrderHud.SetCompletion(Mathf.RoundToInt(pct));
     }
 
     private AnswerPanelHUD m_OrderHud;   // '시공도면 폰'(정답+주문 통합). 잔량 배지 갱신용 참조 유지
