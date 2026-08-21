@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0712575e44085ae49bddbe20e0140375, type: 3}
+  m_Name: WeatherGroundKit
+  m_EditorClassIdentifier: GridSystem::GridSystem.WeatherGroundKit
+  Disc: {fileID: 4300000, guid: e5d96e850d70164418a84b6aa6ec9848, type: 2}
+  Quad: {fileID: 4300000, guid: e93eb179af24e3344ad85bfb7b8c6e0c, type: 2}
+  Puddle: {fileID: 2100000, guid: cb01ae16b522c944181e5317fe7bd186, type: 2}
+  SnowPatch: {fileID: 2100000, guid: 72abe61d197493347a9503799b61b6a4, type: 2}
+  SnowTrail: {fileID: 2100000, guid: 7950c58841ed0eb4986b3d5c8dce6731, type: 2}
+  Leaves:
+  - {fileID: 2100000, guid: eb0c603db0d38164f9df1874178c2b4a, type: 2}
+  - {fileID: 2100000, guid: 8c97882b9244ed3489a1a0a8c77abaa5, type: 2}
+  - {fileID: 2100000, guid: 9efef57bfa511c94f92dd6fd514b94e2, type: 2}
+  Petal: {fileID: 2100000, guid: f42bdc1ee3b977941835ffffee0d26be, type: 2}
+  PuddleCount: 14
+  TyphoonPuddleCount: 22
+  SnowPatchCount: 22
+  LeafCount: 70
+  PetalCount: 80
+  PuddleSize: {x: 0.9, y: 1.8}
+  SnowPatchSize: {x: 1.6, y: 3.2}
+  LeafSize: {x: 0.17, y: 0.28}
+  PetalSize: {x: 0.1, y: 0.17}
+  TrailStride: 0.45
+  TrailSize: {x: 0.42, y: 0.62}
+  TrailLifetime: 14
+  TrailFadeDuration: 4
+  TrailMax: 160
+  Snowman: {fileID: 6656791311684202999, guid: d13f9989f29e49a418e43f4d1059c22d, type: 3}
+  SnowmanCount: 3
+  SnowmanScale: {x: 0.8, y: 1.15}
+  PetalTilesX: 2
+  PetalTilesY: 2

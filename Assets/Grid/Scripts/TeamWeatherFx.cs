@@ -5,7 +5,7 @@ namespace GridSystem
 {
     /// <summary>
     /// 2vs2 날씨·안개의 '내 화면' 연출(로컬 전용). 서버가 복제한 팀 상태를 보고 켜고 끈다.
-    /// 시각 연출은 Weather3DVfxRig 프리팹, 안개는 카메라 포그를 사용한다.
+    /// 공중 연출은 Weather3DVfxRig 프리팹, 바닥 연출(웅덩이·눈·잎)은 WeatherGroundFx, 안개는 카메라 포그를 사용한다.
     /// 게임플레이 효과(미끄러짐·붕괴)는 서버가 판정하고, 여기서는 보이는 것만 담당한다.
     /// </summary>
     public class TeamWeatherFx : MonoBehaviour
@@ -16,6 +16,7 @@ namespace GridSystem
         private WeatherKind m_Weather = WeatherKind.Sunny;
         private bool m_Fog;
         private Weather3DVfxRig m_Rig;
+        private WeatherGroundFx m_Ground;
         private bool m_MissingRigLogged;
 
         // 안개 복원용(원래 씬 설정)
@@ -62,6 +63,16 @@ namespace GridSystem
             EnsureRig();
             if (m_Rig != null)
                 m_Rig.SetWeather(effective);
+            EnsureGround();
+            m_Ground.SetWeather(effective);
+        }
+
+        private void EnsureGround()
+        {
+            if (m_Ground != null) return;
+            // 바닥 데칼은 월드에 고정되어야 하므로 카메라를 따라가는 리그와 분리한다.
+            m_Ground = new GameObject("WeatherGroundFx").AddComponent<WeatherGroundFx>();
+            m_Ground.transform.SetParent(transform, false);
         }
 
         private void EnsureRig()
