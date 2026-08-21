@@ -22,7 +22,7 @@ public static class CodiOutfitApplyTester
 
         string charId = meta.TargetCharacter;
         GameObject charPrefab = string.IsNullOrEmpty(charId)
-            ? AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyPage/PreviewSnail.prefab")
+            ? AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Player/Animations/model.fbx")   // 달팽이(마이페이지 프리뷰와 동일 모델)
             : AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Resources/Characters/{charId}.prefab");
         if (charPrefab == null) { Debug.LogError($"[적용테스트] 캐릭터 프리팹 없음 (target='{charId}')"); return; }
 
