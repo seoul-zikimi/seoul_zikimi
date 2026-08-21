@@ -23,6 +23,8 @@ namespace GridSystem
         private bool m_SavedFog;
         private Color m_SavedFogColor;
         private float m_SavedFogDensity;
+        private FogMode m_SavedFogMode;          // 씬 기본은 Linear(비주얼 정리 툴) — 복구 안 하면 Exp2로 남아 맵이 계속 뿌옇게 됨
+        private float m_SavedFogStart, m_SavedFogEnd;
         private bool m_FogSaved;
 
         /// <summary>없으면 만들어서 반환(씬 배치 불필요).</summary>
@@ -103,6 +105,9 @@ namespace GridSystem
                     m_SavedFog = RenderSettings.fog;
                     m_SavedFogColor = RenderSettings.fogColor;
                     m_SavedFogDensity = RenderSettings.fogDensity;
+                    m_SavedFogMode = RenderSettings.fogMode;
+                    m_SavedFogStart = RenderSettings.fogStartDistance;
+                    m_SavedFogEnd = RenderSettings.fogEndDistance;
                     m_FogSaved = true;
                 }
                 RenderSettings.fog = true;
@@ -115,6 +120,9 @@ namespace GridSystem
                 RenderSettings.fog = m_SavedFog;
                 RenderSettings.fogColor = m_SavedFogColor;
                 RenderSettings.fogDensity = m_SavedFogDensity;
+                RenderSettings.fogMode = m_SavedFogMode;
+                RenderSettings.fogStartDistance = m_SavedFogStart;
+                RenderSettings.fogEndDistance = m_SavedFogEnd;
                 m_FogSaved = false;
             }
         }
