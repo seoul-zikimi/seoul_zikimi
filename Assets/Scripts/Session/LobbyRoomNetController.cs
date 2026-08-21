@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine.SceneManagement;
+using System;
 
 public class LobbyRoomNet : NetworkBehaviour
 {
@@ -56,6 +57,11 @@ public class LobbyRoomNet : NetworkBehaviour
     public int TargetReadyCount => m_TargetReadyCount.Value;
     public int ConnectedCount => m_ConnectedCount.Value;
     public int MaxPlayers => m_MaxPlayers.Value;
+    public bool CanHostEditSettings => IsHost;
+    public bool IsVersusMode => m_LobbyMode.Value == 1 || m_LobbyMode.Value == 2;
+    public bool CanStartGame => m_IsAllReady.Value && (!IsVersusMode || HasValidVersusBalance());
+    public event Action StateChanged;
+    public event Action<string, string> ChatMessageReceived;
 
     // ── 맵 선택(방장이 고르면 방 전원에게 동기화, 게임 시작 시 GameLoopManager로 전달) ──
     private NetworkVariable<int> m_MapIndex = new NetworkVariable<int>(
@@ -70,9 +76,18 @@ public class LobbyRoomNet : NetworkBehaviour
         0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     private NetworkVariable<bool> m_WeatherOn = new(
         true, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private NetworkVariable<int> m_SeasonSelectionMode = new(
+        (int)SeoulZikimi.Weather.SeasonSelectionMode.Random,
+        NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private NetworkVariable<int> m_FixedSeason = new(
+        (int)SeoulZikimi.Weather.Season.Spring,
+        NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     public int SelectedLobbyMode => m_LobbyMode.Value;
     public bool WeatherOn => m_WeatherOn.Value;
+    public SeoulZikimi.Weather.SeasonSelectionMode SeasonSelectionMode =>
+        (SeoulZikimi.Weather.SeasonSelectionMode)m_SeasonSelectionMode.Value;
+    public SeoulZikimi.Weather.Season FixedSeason => (SeoulZikimi.Weather.Season)m_FixedSeason.Value;
     public const int LobbyModeCount = 4;
 
     /// <summary>방장 전용: 모드 순환(0→1→2→3→0). GameLoopManager 정적값에 즉시 반영.</summary>
@@ -86,6 +101,13 @@ public class LobbyRoomNet : NetworkBehaviour
         if (IsVersusMode && !wasVersus)
             AssignDefaultTeamsByPosition();
         CheckAllPlayersReady();   // 모드가 팀 밸런스 게이트에 영향
+    }
+
+    public void HostSelectMode(int index)
+    {
+        if (!IsServer) return;
+        m_LobbyMode.Value = Mathf.Clamp(index, 0, LobbyModeCount - 1);
+        ApplyLobbyModeToGameLoop(m_LobbyMode.Value);
     }
 
     /// <summary>방장 전용: 날씨 ON/OFF 토글.</summary>
@@ -132,6 +154,21 @@ public class LobbyRoomNet : NetworkBehaviour
     public string GetSlotOutfitId(int i) => (i >= 0 && i < m_Slots.Count) ? m_Slots[i].OutfitId.ToString() : "";
     public bool IsSlotReady(int i) => i >= 0 && i < m_Slots.Count && m_Slots[i].Ready;
     public int GetSlotTeam(int i) => (i >= 0 && i < m_Slots.Count) ? m_Slots[i].Team : 0;
+    public int LocalTeam
+    {
+        get
+        {
+            ulong id = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0;
+            int slot = FindSlotByClient(id);
+            return slot >= 0 ? m_Slots[slot].Team : 0;
+        }
+    }
+
+    public bool IsSlotLocal(int i)
+    {
+        ulong id = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0;
+        return i >= 0 && i < m_Slots.Count && m_Slots[i].Occupied && m_Slots[i].ClientId == id;
+    }
 
     public bool IsSlotHost(int i) =>
         i >= 0 && i < m_Slots.Count && m_Slots[i].Occupied && m_Slots[i].ClientId == m_HostClientId.Value;
@@ -172,6 +209,52 @@ public class LobbyRoomNet : NetworkBehaviour
         m_MapIndex.Value = SkipVersusArena(WrapMapIndex(index), dir);
     }
 
+    public void SelectLocalTeam(int team)
+    {
+        if (!IsSpawned || NetworkManager.Singleton == null || !IsVersusMode || (!IsHost && m_IsLocallyReady))
+            return;
+        SelectTeamRpc((byte)Mathf.Clamp(team, 0, 1));
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void SelectTeamRpc(byte team, RpcParams rpc = default)
+    {
+        int slot = FindSlotByClient(rpc.Receive.SenderClientId);
+        if (slot < 0)
+            return;
+        LobbySlot value = m_Slots[slot];
+        if (!IsVersusMode || (!IsSlotHost(slot) && value.Ready))
+            return;
+        value.Team = (byte)Mathf.Clamp(team, 0, 1);
+        m_Slots[slot] = value;
+    }
+
+    public void SendChat(string message)
+    {
+        if (!IsSpawned || string.IsNullOrWhiteSpace(message))
+            return;
+        message = message.Trim();
+        if (message.Length > 50)
+            message = message.Substring(0, 50);
+        SendChatRpc(message);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void SendChatRpc(FixedString128Bytes message, RpcParams rpc = default)
+    {
+        int slot = FindSlotByClient(rpc.Receive.SenderClientId);
+        if (slot < 0 || !m_Slots[slot].Occupied)
+            return;
+        FixedString32Bytes nickname = m_Slots[slot].Nickname;
+        BroadcastChatRpc(nickname, message);
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void BroadcastChatRpc(FixedString32Bytes nickname, FixedString128Bytes message)
+    {
+        ChatMessageReceived?.Invoke(nickname.ToString(), message.ToString());
+    }
+
     /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다.</summary>
     private static int WrapMapIndex(int index)
     {
@@ -198,6 +281,7 @@ public class LobbyRoomNet : NetworkBehaviour
     {
         GridSystem.GameLoopManager.HostSelectedMap = now;   // 게임 씬 진입 시 서버가 이 값을 복제(호스트 외 클라에선 미사용)
         MapChanged?.Invoke(now);
+        StateChanged?.Invoke();
     }
 
     public override void OnNetworkSpawn()
@@ -213,6 +297,8 @@ public class LobbyRoomNet : NetworkBehaviour
             // 생성 화면에서 고른 모드/날씨를 로비 네트워크 변수 초기값으로.
             m_LobbyMode.Value = DeriveLobbyMode();
             m_WeatherOn.Value = GridSystem.GameLoopManager.HostWeatherEnabled;
+            m_SeasonSelectionMode.Value = (int)GridSystem.GameLoopManager.HostSeasonSelectionMode;
+            m_FixedSeason.Value = (int)GridSystem.GameLoopManager.HostFixedSeason;
 
             // 슬롯을 정원만큼 빈 상태로 초기화하고, 방장(호스트) 자리부터 채운다.
             m_Slots.Clear();
@@ -230,6 +316,11 @@ public class LobbyRoomNet : NetworkBehaviour
         m_TargetReadyCount.OnValueChanged += OnReadyCountChanged;
         m_ConnectedCount.OnValueChanged += OnReadyCountChanged;
         m_MapIndex.OnValueChanged += OnMapChanged;
+        m_LobbyMode.OnValueChanged += OnLobbyModeChanged;
+        m_WeatherOn.OnValueChanged += OnWeatherChanged;
+        m_SeasonSelectionMode.OnValueChanged += OnSeasonSettingsChanged;
+        m_FixedSeason.OnValueChanged += OnSeasonSettingsChanged;
+        m_Slots.OnListChanged += OnSlotsChanged;
         OnMapChanged(0, m_MapIndex.Value);   // 늦참자 초기 반영
 
         if (IsHost)
@@ -270,6 +361,7 @@ public class LobbyRoomNet : NetworkBehaviour
 
         // 방에 갓 진입했을 때의 초기 UI 갱신
         UpdateUI(m_IsAllReady.Value);
+        StateChanged?.Invoke();
     }
 
     public override void OnNetworkDespawn()
@@ -279,6 +371,11 @@ public class LobbyRoomNet : NetworkBehaviour
         m_TargetReadyCount.OnValueChanged -= OnReadyCountChanged;
         m_ConnectedCount.OnValueChanged -= OnReadyCountChanged;
         m_MapIndex.OnValueChanged -= OnMapChanged;
+        m_LobbyMode.OnValueChanged -= OnLobbyModeChanged;
+        m_WeatherOn.OnValueChanged -= OnWeatherChanged;
+        m_SeasonSelectionMode.OnValueChanged -= OnSeasonSettingsChanged;
+        m_FixedSeason.OnValueChanged -= OnSeasonSettingsChanged;
+        m_Slots.OnListChanged -= OnSlotsChanged;
         if (IsHost && NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
@@ -298,6 +395,7 @@ public class LobbyRoomNet : NetworkBehaviour
             return;
 
         m_IsLocallyReady = !m_IsLocallyReady;
+        StateChanged?.Invoke();
         
         // 내 버튼 텍스트 변경
         if (readyButton != null)
@@ -371,8 +469,7 @@ public class LobbyRoomNet : NetworkBehaviour
             Nickname = default,
             CharacterId = default,
             Ready = false,
-            // 2vs2면 위치 기본 팀(왼쪽 2칸=레드, 오른쪽 2칸=블루). 팀 모드 아니면 무의미(0).
-            Team = IsVersusMode ? DefaultTeamForSlot(idx) : (byte)0
+            Team = (byte)(IsVersusMode ? BalancedTeamForNewPlayer(clientId) : 0)
         };
     }
 
@@ -531,7 +628,31 @@ public class LobbyRoomNet : NetworkBehaviour
     private void OnReadyCountChanged(int previousValue, int newValue)
     {
         UpdateUI(m_IsAllReady.Value);
+        StateChanged?.Invoke();
     }
+
+    private void OnLobbyModeChanged(int previousValue, int newValue)
+    {
+        ApplyLobbyModeToGameLoop(newValue);
+        if (IsServer)
+            ApplyTeamMode(previousValue, newValue);
+        StateChanged?.Invoke();
+    }
+
+    private void OnWeatherChanged(bool previousValue, bool newValue)
+    {
+        GridSystem.GameLoopManager.HostWeatherEnabled = newValue;
+        StateChanged?.Invoke();
+    }
+
+    private void OnSeasonSettingsChanged(int previousValue, int newValue)
+    {
+        GridSystem.GameLoopManager.HostSeasonSelectionMode = SeasonSelectionMode;
+        GridSystem.GameLoopManager.HostFixedSeason = FixedSeason;
+        StateChanged?.Invoke();
+    }
+
+    private void OnSlotsChanged(NetworkListEvent<LobbySlot> changeEvent) => StateChanged?.Invoke();
 
     private void UpdateUI(bool isAllReady)
     {
@@ -553,6 +674,7 @@ public class LobbyRoomNet : NetworkBehaviour
             else
                 readyStatusText.text = $"다른 플레이어의 준비를 기다리는 중... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})";
         }
+        StateChanged?.Invoke();
     }
 
     /// <summary>
@@ -560,7 +682,7 @@ public class LobbyRoomNet : NetworkBehaviour
     /// </summary>
     public void OnStartGameButtonClicked()
     {
-        if (!IsHost || !m_IsAllReady.Value) return;
+        if (!IsHost || !CanStartGame) return;
 
         Debug.Log("게임 시작! 인게임 씬으로 다 함께 이동합니다.");
         // 💡 넷코드 환경에서 다 함께 씬을 이동할 때는 NetworkSceneManager를 사용해야 해!
@@ -573,5 +695,47 @@ public class LobbyRoomNet : NetworkBehaviour
         }
 
         SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+    }
+
+    private int BalancedTeamForNewPlayer(ulong clientId)
+    {
+        if (clientId == m_HostClientId.Value) return 0;
+        int blue = 0, red = 0;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            if (!m_Slots[i].Occupied) continue;
+            if (m_Slots[i].Team == 0) blue++; else red++;
+        }
+        return blue <= red ? 0 : 1;
+    }
+
+    private void ApplyTeamMode(int previousMode, int newMode)
+    {
+        bool wasVersus = previousMode == 1 || previousMode == 2;
+        bool nowVersus = newMode == 1 || newMode == 2;
+        if (wasVersus == nowVersus) return;
+
+        int blue = 0, red = 0;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            LobbySlot slot = m_Slots[i];
+            if (!slot.Occupied) continue;
+            if (!nowVersus) slot.Team = 0;
+            else if (slot.ClientId == m_HostClientId.Value) { slot.Team = 0; blue++; }
+            else if (blue <= red) { slot.Team = 0; blue++; }
+            else { slot.Team = 1; red++; }
+            m_Slots[i] = slot;
+        }
+    }
+
+    private bool HasValidVersusBalance()
+    {
+        int blue = 0, red = 0;
+        for (int i = 0; i < m_Slots.Count; i++)
+        {
+            if (!m_Slots[i].Occupied) continue;
+            if (m_Slots[i].Team == 0) blue++; else red++;
+        }
+        return (blue == 1 && red == 1) || (blue == 2 && red == 2);
     }
 }

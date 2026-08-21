@@ -91,6 +91,9 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
     // ────────────────────────── 수명 주기 ──────────────────────────
 
+    // LEGACY UI 비활성화(2026-08-21): Lobby 씬은 정적으로 배치된 UI_NEW_Canvas와
+    // 기능별 UI_NEW 컨트롤러를 사용한다. 이전 스키너 구현은 비교/복구를 위해 보존한다.
+#if false
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
@@ -110,6 +113,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         canvas.gameObject.AddComponent<JobsnailLobbySkinner>();
     }
+#endif
 
     private void Awake()
     {
