@@ -44,6 +44,136 @@ namespace Player.EditorTools
             Debug.Log($"[OutfitBuilder] 완료 — {made}/{kItems.Length}개 생성. 어긋난 건 테이블 배율/오프셋 조정 후 재실행.");
         }
 
+        // ── 데롱데롱 머리띠(하트/똥/새싹) — 전 캐릭터 스킨 ─────────────
+        static readonly (string design, string display)[] kHairbands =
+        {
+            ("heart", "하트 머리띠"), ("poop", "똥 머리띠"), ("sprout", "새싹 머리띠"),
+        };
+
+        [MenuItem("Tools/Character/머리띠 생성(전 캐릭터)")]
+        static void BuildHairbands()
+        {
+            foreach (var (design, display) in kHairbands)
+            {
+                // 거북·게: 머리 본 기준 자동 배치
+                BuildHatOutfit("char_turtle", $"skin_hairband_{design}_turtle", display, $"hairband_{design}", 0.62f);
+                BuildHatOutfit("char_crab", $"skin_hairband_{design}_crab", display, $"hairband_{design}", 0.50f);
+                // 달팽이: 안전모 조각의 본 데이터를 재활용해 같은 자리에
+                BuildSnailHat($"skin_hairband_{design}", display, $"hairband_{design}", 0.9f);
+            }
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[OutfitBuilder] 머리띠 9종 생성 완료(달팽이·거북·게 × 하트/똥/새싹)");
+        }
+
+        // 거북·게 머리 위 배치(안전모와 같은 방식, 머리띠는 머리에 조금 더 얹힘)
+        static void BuildHatOutfit(string charId, string id, string display, string file, float widthScale)
+        {
+            var itemModel = AssetDatabase.LoadAssetAtPath<GameObject>($"{kSrcDir}/{file}.glb");
+            var charPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Resources/Characters/{charId}.prefab");
+            if (itemModel == null || charPrefab == null) { Debug.LogWarning($"[OutfitBuilder] {id} 스킵(에셋 없음)"); return; }
+
+            var ch = (GameObject)PrefabUtility.InstantiatePrefab(charPrefab);
+            var item = (GameObject)PrefabUtility.InstantiatePrefab(itemModel);
+            GameObject outfitRoot = null;
+            try
+            {
+                string animDir = charId == "char_turtle" ? "Assets/Player/Turtle" : "Assets/Player/Crab";
+                AnimationClip idle = null;
+                foreach (var a in AssetDatabase.LoadAllAssetsAtPath($"{animDir}/Idle.fbx"))
+                    if (a is AnimationClip c && !c.name.StartsWith("__preview")) { idle = c; break; }
+                var anim = ch.GetComponentInChildren<Animator>(true);
+                if (idle != null && anim != null) idle.SampleAnimation(anim.gameObject, 0f);
+
+                var head = FindBone(ch.transform, "mixamorig:Head");
+                if (head == null) { Debug.LogError($"[OutfitBuilder] {charId} Head 본 없음"); return; }
+
+                var cb = Bounds(ch);
+                var ib0 = Bounds(item);
+                float s = cb.size.x * widthScale / Mathf.Max(ib0.size.x, 0.001f);
+                item.transform.localScale = Vector3.one * s;
+                var ib = Bounds(item);
+                // 밴드 아랫단이 정수리에 살짝 겹치게
+                var hc = new Vector3(cb.center.x, cb.max.y + ib.extents.y * 0.15f, head.position.z);
+                item.transform.position += hc - ib.center;
+                item.name = "Item_" + file;
+
+                outfitRoot = new GameObject(id);
+                var meta = outfitRoot.AddComponent<CodiOutfit>();
+                meta.DisplayName = display;
+                meta.Price = 400;
+                meta.TargetCharacter = charId;
+                var old = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDstDir}/{id}.prefab");
+                var oldMeta = old != null ? old.GetComponent<CodiOutfit>() : null;
+                if (oldMeta != null) { meta.DisplayName = oldMeta.DisplayName; meta.Price = oldMeta.Price; meta.Thumbnail = oldMeta.Thumbnail; meta.ScaleMargin = oldMeta.ScaleMargin; }
+
+                var poseRoot = anim != null ? anim.transform : ch.transform;
+                RecordPiece(outfitRoot, item, head, poseRoot.lossyScale.x);
+
+                if (old != null) AssetDatabase.DeleteAsset($"{kDstDir}/{id}.prefab");
+                PrefabUtility.SaveAsPrefabAsset(outfitRoot, $"{kDstDir}/{id}.prefab");
+                Debug.Log($"[OutfitBuilder] {id} 저장");
+            }
+            finally
+            {
+                Object.DestroyImmediate(item);
+                Object.DestroyImmediate(ch);
+                if (outfitRoot != null) Object.DestroyImmediate(outfitRoot);
+            }
+        }
+
+        // 달팽이: skin_safetyset의 안전모 조각(본 상대 데이터)을 복제해 머리띠로 스왑
+        static void BuildSnailHat(string id, string display, string file, float widthRatio)
+        {
+            var itemModel = AssetDatabase.LoadAssetAtPath<GameObject>($"{kSrcDir}/{file}.glb");
+            var snailSet = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDstDir}/skin_safetyset.prefab");
+            var helmetSrc = snailSet != null ? FindChild(snailSet.transform, "Item_Hat_SafetyHelmet") : null;
+            var helmetPiece = helmetSrc != null ? helmetSrc.GetComponent<CodiOutfitPiece>() : null;
+            if (itemModel == null || helmetPiece == null) { Debug.LogWarning($"[OutfitBuilder] {id} 스킵(달팽이 안전모 참조 없음)"); return; }
+
+            GameObject outfitRoot = null;
+            GameObject probeH = null, probeI = null;
+            try
+            {
+                // 월드 폭 계산용 임시 인스턴스
+                probeH = Object.Instantiate(helmetSrc.gameObject);
+                probeH.transform.localScale = Vector3.one;
+                float helmetW = Bounds(probeH).size.x;
+                probeI = (GameObject)PrefabUtility.InstantiatePrefab(itemModel);
+                float bandW = Bounds(probeI).size.x;
+                // 헬멧과 같은 월드 폭 × 비율이 되도록 스케일
+                float scale = helmetPiece.WorldScale.x * (helmetW / Mathf.Max(bandW, 0.001f)) * widthRatio;
+
+                outfitRoot = new GameObject(id);
+                var meta = outfitRoot.AddComponent<CodiOutfit>();
+                meta.DisplayName = display;
+                meta.Price = 400;
+                meta.TargetCharacter = "";   // 달팽이(기본 캐릭터)
+                var old = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDstDir}/{id}.prefab");
+                var oldMeta = old != null ? old.GetComponent<CodiOutfit>() : null;
+                if (oldMeta != null) { meta.DisplayName = oldMeta.DisplayName; meta.Price = oldMeta.Price; meta.Thumbnail = oldMeta.Thumbnail; meta.ScaleMargin = oldMeta.ScaleMargin; }
+
+                var piece = (GameObject)PrefabUtility.InstantiatePrefab(itemModel, outfitRoot.transform);
+                piece.name = "Item_" + file;
+                var cp = piece.AddComponent<CodiOutfitPiece>();
+                cp.BoneName = helmetPiece.BoneName;
+                cp.BonePos = helmetPiece.BonePos;
+                cp.BoneRot = helmetPiece.BoneRot;
+                cp.WorldScale = Vector3.one * scale;
+                cp.Version = 3;
+
+                if (old != null) AssetDatabase.DeleteAsset($"{kDstDir}/{id}.prefab");
+                PrefabUtility.SaveAsPrefabAsset(outfitRoot, $"{kDstDir}/{id}.prefab");
+                Debug.Log($"[OutfitBuilder] {id} 저장(달팽이, 안전모 자리 기준)");
+            }
+            finally
+            {
+                if (probeH != null) Object.DestroyImmediate(probeH);
+                if (probeI != null) Object.DestroyImmediate(probeI);
+                if (outfitRoot != null) Object.DestroyImmediate(outfitRoot);
+            }
+        }
+
         [MenuItem("Tools/Character/아웃핏 생성(후드만 · 거북·게)")]
         static void BuildHoodiesOnly()
         {
