@@ -13,6 +13,8 @@ namespace SeoulZikimi.UI.New
         {
             if (root == null) return;
 
+            JobsnailUiKit.ApplyFontPolicy(root);
+
             foreach (JuicyButton motion in root.GetComponentsInChildren<JuicyButton>(true))
             {
                 motion.enabled = false;

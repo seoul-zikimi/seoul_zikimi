@@ -17,7 +17,12 @@ namespace SeoulZikimi.UI.New
 
         public UiNewScreen Current { get; private set; }
 
-        private void Awake() => Show(initialScreen);
+        private void Awake()
+        {
+            // UI_NEW_Canvas 전체(비활성 팝업 포함)를 한 번에 SUITE Medium으로 통일한다.
+            JobsnailUiKit.ApplyFontPolicy(transform);
+            Show(initialScreen);
+        }
 
         public void Show(UiNewScreen screen)
         {
