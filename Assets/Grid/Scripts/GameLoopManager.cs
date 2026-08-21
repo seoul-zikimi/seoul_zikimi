@@ -1,4 +1,5 @@
 using SeoulZikimi.Gameplay;
+using SeoulZikimi.Weather;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -105,6 +106,12 @@ namespace GridSystem
         /// <summary>방 생성 시 호스트가 고른 날씨 ON/OFF. 현재는 선택값만 보관하며(세션 프로퍼티에도 저장),
         /// 실제 인게임 날씨 적용은 날씨 시스템을 게임 루프에 연결하는 별도 작업에서 사용한다.</summary>
         public static bool HostWeatherEnabled = true;
+
+        /// <summary>세션 생성 시 확정되는 계절 선택 방식. 현재 UI는 ON/OFF만 제공하므로 ON이면 랜덤이 기본이다.</summary>
+        public static SeasonSelectionMode HostSeasonSelectionMode = SeasonSelectionMode.Random;
+
+        /// <summary>고정 계절 UI가 추가될 때 사용할 값. 랜덤 모드에서는 선택에 사용되지 않는다.</summary>
+        public static Season HostFixedSeason = Season.Spring;
 
         /// <summary>2vs2 대전에서 경쟁 아이템 사용 여부(true=아이템전, false=순수 타임어택전).
         /// 로비 모드 4종 중 2vs2 두 변형을 구분하는 플래그. 실제 인게임 아이템 스폰 On/Off 연결은
