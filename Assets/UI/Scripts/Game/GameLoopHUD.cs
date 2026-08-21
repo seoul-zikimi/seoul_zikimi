@@ -43,6 +43,7 @@ public sealed class GameLoopHUD : UIHUD
     private float m_TimerTick;         // 초 넘김 팝 감쇠값
     private bool m_CraneViewing;      // true = 정산서 숨기고 크레인샷 보는 중
     private Button m_CraneToggleBtn;  // 정산서↔크레인샷 토글(프리팹 바인딩, 정산 중에만 표시)
+    private Sprite m_EndBaked, m_EndBlank;   // 종료 요청 버튼 스프라이트(텍스트 구움 / 빈 흰색)
 
     // ── 부트스트랩: GameScene 진입 시 프리팹 HUD 표시 ──
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -72,6 +73,8 @@ public sealed class GameLoopHUD : UIHUD
             return;
         }
         UIManager.Instance.ShowHUDUI<GameLoopHUD>();
+        if (Resources.Load<GameObject>("UI/HUD/ControlsTooltipHUD") != null)   // 좌상단 조작법 툴팁(접기/펴기)
+            UIManager.Instance.ShowHUDUI<ControlsTooltipHUD>();
     }
 
     public override void Init()
@@ -224,7 +227,7 @@ public sealed class GameLoopHUD : UIHUD
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         if (m_TimerText != null && timeLimited)
         {
-            string timer = m_Loop.IsBuilding ? $"{secs / 60}:{secs % 60:00}" : "종료";
+            string timer = m_Loop.IsBuilding ? $"{secs / 60} : {secs % 60:00}" : "종료";
             // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
             if (m_Loop.IsVersus && m_Loop.IsBuilding)
             {
@@ -252,7 +255,7 @@ public sealed class GameLoopHUD : UIHUD
             {
                 float beat = Mathf.Abs(Mathf.Sin(Time.unscaledTime * 5f));
                 m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.14f * beat);
-                m_TimerText.color = Color.Lerp(new Color(0.80f, 0.10f, 0.10f, 1f), Color.black, beat * 0.5f);
+                m_TimerText.color = Color.Lerp(new Color(1f, 0.20f, 0.16f, 1f), Color.white, beat * 0.35f);
                 EnsureVignette();
                 if (m_Vignette != null) m_Vignette.intensity.Override(0.16f + 0.14f * beat);
             }
@@ -261,7 +264,7 @@ public sealed class GameLoopHUD : UIHUD
                 if (m_Loop.IsBuilding && secs != m_LastTimerSecs) m_TimerTick = 1f;   // 초 넘어갈 때 톡
                 m_TimerTick = Mathf.Max(0f, m_TimerTick - Time.unscaledDeltaTime * 6f);
                 m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.12f * m_TimerTick);
-                m_TimerText.color = Color.black;
+                m_TimerText.color = m_Loop.IsBuilding && m_Loop.TimeLeft <= 60f ? new Color(1f, 0.28f, 0.22f, 1f) : Color.white;   // 1분 미만 빨강(기획서 3.2)
                 if (m_Vignette != null) m_Vignette.intensity.Override(0f);
             }
             m_LastTimerSecs = secs;
@@ -276,13 +279,7 @@ public sealed class GameLoopHUD : UIHUD
 
         UpdateResultPanel();
 
-        if (m_EndRequestButton != null)
-        {
-            string verb = m_Loop.IsBuilding ? "종료 요청" : "재시작";
-            var lbl = m_EndRequestButton.GetComponentInChildren<TextMeshProUGUI>();
-            if (lbl != null) lbl.text = (m_Loop.HasLocalConsent ? "동의 취소" : verb) + " (Enter)";
-            SetButtonColor(m_EndRequestButton, m_Loop.HasLocalConsent ? new Color(0.56f, 0.86f, 0.48f, 1f) : new Color(1f, 0.78f, 0.44f, 1f));
-        }
+        UpdateEndRequestButton();
         if (m_PeopleIcons != null)
             for (int i = 0; i < m_PeopleIcons.Length; i++)
             {
@@ -292,6 +289,38 @@ public sealed class GameLoopHUD : UIHUD
                 if (connected)   // 동의=검정(채움) / 미동의=흐린(빈칸)
                     m_PeopleIcons[i].color = i < m_Loop.ConsentCount ? Color.black : new Color(0f, 0f, 0f, 0.28f);
             }
+    }
+
+    // 종료 요청 버튼 상태: 기본(건축 중·미동의) = '조기 종료 요청 (ENTER)' 구워진 스프라이트,
+    // 그 외(동의 취소 / 재시작) = 텍스트 지운 흰 버튼 스프라이트에 틴트 + TMP 라벨.
+    private void UpdateEndRequestButton()
+    {
+        if (m_EndRequestButton == null) return;
+        if (m_EndBaked == null) m_EndBaked = InGameUiSkin.Load("EndRequestButton");
+        if (m_EndBlank == null) m_EndBlank = InGameUiSkin.Load("EndRequestButton_Blank");
+        var img = m_EndRequestButton.targetGraphic as Image;
+        var lblT = m_EndRequestButton.transform.Find("Label");
+        var lbl = lblT != null ? lblT.GetComponent<TextMeshProUGUI>() : m_EndRequestButton.GetComponentInChildren<TextMeshProUGUI>(true);
+        bool consent = m_Loop.HasLocalConsent;
+        bool baked = m_EndBaked != null && m_EndBlank != null && img != null && m_Loop.IsBuilding && !consent;
+        if (baked)
+        {
+            img.sprite = m_EndBaked; img.color = Color.white;
+            if (lbl != null && lbl.gameObject.activeSelf) lbl.gameObject.SetActive(false);
+            return;
+        }
+        string text = (consent ? "동의 취소" : m_Loop.IsBuilding ? "종료 요청" : "재시작") + "\n<size=70%>(ENTER)</size>";
+        if (img != null && m_EndBlank != null)
+        {
+            img.sprite = m_EndBlank;
+            img.color = consent ? InGameUiSkin.Consent : InGameUiSkin.Orange;
+        }
+        else SetButtonColor(m_EndRequestButton, consent ? InGameUiSkin.Consent : new Color(1f, 0.78f, 0.44f, 1f));
+        if (lbl != null)
+        {
+            if (!lbl.gameObject.activeSelf) lbl.gameObject.SetActive(true);
+            if (lbl.text != text) lbl.text = text;
+        }
     }
 
     private void SetVisible(bool visible, bool timeLimited)
