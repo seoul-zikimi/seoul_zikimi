@@ -545,9 +545,6 @@ public class LobbyRoomNet : NetworkBehaviour
 
     // ────────────────────────── 팀 선택 (2vs2) ──────────────────────────
 
-    /// <summary>현재 로비 모드가 2vs2 대전(아이템/타임어택)인지.</summary>
-    public bool IsVersusMode => m_LobbyMode.Value == 1 || m_LobbyMode.Value == 2;
-
     /// <summary>[클라이언트] 로컬 플레이어가 자기 팀 선택(0=파랑, 1=빨강).</summary>
     public void RequestSetTeam(int team)
     {
