@@ -59,6 +59,13 @@ public static class SaveService
         set => ES3.Save("equippedOutfit", value ?? "", kFile);
     }
 
+    // ── 착용 중 트레일(이동 이펙트) — 아웃핏과 독립, 빈 문자열 = 없음. 예: trail_fire ──
+    public static string EquippedTrail
+    {
+        get => ES3.Load("equippedTrail", kFile, "");
+        set => ES3.Save("equippedTrail", value ?? "", kFile);
+    }
+
     // ── 선택 중 캐릭터 — 빈 문자열 = 기본(달팽이). 예: char_turtle ──
     public static string EquippedCharacter
     {

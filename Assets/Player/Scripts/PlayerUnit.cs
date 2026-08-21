@@ -466,6 +466,8 @@ namespace Player
 
             if (m_SlimeTrail == null) return;
             if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();
+            // 커스텀 트레일(상점) 착용 중이면 점액 트레일은 끔(새 트레일로 교체)
+            if (transform.Find("~Trail") != null) { m_SlimeTrail.emitting = false; return; }
             // 바닥 위 또는 벽타기 중엔 점액이 나옴(민달팽이니 벽에도 자국 남김). 점프/낙하 공중에선 끊김.
             bool climbing = m_MoveForTrail != null && m_MoveForTrail.IsClimbing;
             m_SlimeTrail.emitting = m_MoveForTrail == null || m_MoveForTrail.IsGrounded() || climbing;

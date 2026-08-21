@@ -64,6 +64,7 @@ public class MyPageSceneController : MonoBehaviour
         // 아웃핏은 캐릭터별(TargetCharacter) — Apply가 대상 불일치면 알아서 안 입힌다.
         s_Preview = ch;
         CodiOutfit.Apply(ch, SaveService.EquippedOutfit, charId);
+        // 트레일은 옷장 프리뷰엔 안 붙임(움직임이 없어 어색 + 거울/화면 오염) — 인게임에서만 표시
     }
 
     private static GameObject s_Preview;

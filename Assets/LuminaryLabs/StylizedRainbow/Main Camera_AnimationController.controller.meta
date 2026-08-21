@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 0788d3db0657c5147a8f3010f65427b1
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 318668
+  packageName: Stylized Rainbow Trails
+  packageVersion: 0.1.0
+  assetPath: Assets/LuminaryLabs/StylizedRainbow/Main Camera_AnimationController.controller
+  uploadId: 752482

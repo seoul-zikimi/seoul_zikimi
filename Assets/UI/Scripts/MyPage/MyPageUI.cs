@@ -29,14 +29,16 @@ public class MyPageUI : UIHUD
 
     private class Section
     {
-        public string prefix;           // "char_" / "shell_" / "cloth_" / "skin_"
+        public string prefix;           // "char_" / "shell_" / "cloth_" / "skin_" / "trail_"
+        public int row;                 // 단독 표시 끌어올림용 줄 번호(트레일 클론은 원본 줄 사용)
+        public bool soloOnly;           // 전체 탭에선 숨김(패널에 줄이 모자람 — 트레일)
         public GameObject root;
         public readonly System.Collections.Generic.List<Slot> slots = new();
     }
 
-    // 생성기 Sec0..3 순서와 동일
+    // 생성기 Sec0..3 순서와 동일(+트레일은 런타임 클론)
     private static readonly string[] kSectionPrefixes = { "char_", "shell_", "cloth_", "skin_" };
-    private static readonly string[] kTabPrefixes = { "", "char_", "skin_", "hat_", "cloth_", "bag_", "shell_" };
+    private static readonly string[] kTabPrefixes = { "", "char_", "skin_", "hat_", "cloth_", "bag_", "shell_", "trail_" };
 
     private string m_Filter = "";
     private readonly System.Collections.Generic.List<Section> m_Sections = new();
@@ -110,6 +112,7 @@ public class MyPageUI : UIHUD
     private void CollectTabs()
     {
         m_Tabs.Clear();
+        EnsureTrailTab();
         for (int i = 0; i < kTabPrefixes.Length; i++)
         {
             var t = FindDeep(transform, $"Cat{i}");
@@ -117,6 +120,56 @@ public class MyPageUI : UIHUD
             m_Tabs.Add((kTabPrefixes[i], t.GetComponent<Image>(), t.Find("Icon")?.GetComponent<Image>(), t.Find("Label")?.GetComponent<TextMeshProUGUI>()));
         }
         RefreshTabs();
+    }
+
+    // 트레일 탭(Cat7)이 프리팹에 없으면 마지막 탭을 복제해 만들고, 탭 줄을 8칸으로 재배치.
+    private void EnsureTrailTab()
+    {
+        if (FindDeep(transform, "Cat7") != null) return;
+        var last = FindDeep(transform, "Cat6");
+        if (last == null) return;
+
+        var clone = Instantiate(last.gameObject, last.parent);
+        clone.name = "Cat7";
+        var lbl = clone.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
+        if (lbl != null) lbl.text = "트레일";
+        var ico = clone.transform.Find("Icon")?.GetComponent<Image>();
+        if (ico != null)
+        {
+            var sp = Resources.Load<Sprite>("UI_pngs/MyPage/Tab_Trail");
+            if (sp != null) ico.sprite = sp;
+        }
+        var btn = clone.GetComponent<Button>();
+        if (btn != null)
+        {
+            btn.onClick = new Button.ButtonClickedEvent();   // 복제된 영속 리스너(등껍질) 제거
+            btn.onClick.AddListener(() =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+                SetFilter("trail_");
+            });
+        }
+
+        // 기존 7칸 줄 폭에 8칸을 균등 배치(크기 7/8로 축소)
+        var rects = new System.Collections.Generic.List<RectTransform>();
+        for (int i = 0; i <= 7; i++)
+        {
+            var t = FindDeep(transform, $"Cat{i}");
+            if (t != null) rects.Add((RectTransform)t);
+        }
+        if (rects.Count < 2) return;
+        float w = rects[0].sizeDelta.x;
+        float left = rects[0].anchoredPosition.x - w * 0.5f;
+        float right = rects[rects.Count - 2].anchoredPosition.x + w * 0.5f;   // 마지막(복제 전) 탭 기준
+        float span = right - left;
+        float cell = span / rects.Count;
+        float w2 = Mathf.Min(w, cell - 3f);
+        for (int i = 0; i < rects.Count; i++)
+        {
+            var rt = rects[i];
+            rt.sizeDelta = new Vector2(w2, rt.sizeDelta.y);
+            rt.anchoredPosition = new Vector2(left + cell * (i + 0.5f), rt.anchoredPosition.y);
+        }
     }
 
     // 평소 = 흰 배경 + 보라 아이콘/글씨, 선택 = 보라 배경 + 흰 아이콘/글씨
@@ -141,10 +194,43 @@ public class MyPageUI : UIHUD
         {
             var secTr = FindDeep(transform, $"Sec{s}");
             if (secTr == null) break;
-            var sec = new Section { prefix = kSectionPrefixes[s], root = secTr.gameObject };
+            var sec = new Section { prefix = kSectionPrefixes[s], row = s, root = secTr.gameObject };
             for (int i = 0; ; i++)
             {
                 var t = secTr.Find($"Slot{i}");
+                if (t == null) break;
+                sec.slots.Add(BuildSlot(t, lockSprite, checkSprite));
+            }
+            m_Sections.Add(sec);
+        }
+
+        // 트레일 섹션: Sec3(스킨) 클론 — 전체 탭엔 줄이 모자라 트레일 탭에서만 표시
+        var src = FindDeep(transform, "Sec3");
+        if (src != null && FindDeep(transform, "Sec4") == null)
+        {
+            var clone = Instantiate(src.gameObject, src.parent);
+            clone.name = "Sec4";
+            var header = clone.transform.Find("Header")?.GetComponent<TextMeshProUGUI>();
+            if (header != null) header.text = "트레일";
+
+            // 트레일은 11종 — 슬롯 줄을 2줄 더 복제해 15칸(단독 표시라 패널을 다 쓸 수 있음)
+            int baseCount = 0;
+            while (clone.transform.Find($"Slot{baseCount}") != null) baseCount++;
+            for (int r = 1; r <= 2; r++)
+                for (int i = 0; i < baseCount; i++)
+                {
+                    var srcSlot = clone.transform.Find($"Slot{i}");
+                    if (srcSlot == null) continue;
+                    var s2 = Instantiate(srcSlot.gameObject, clone.transform);
+                    s2.name = $"Slot{r * baseCount + i}";
+                    var rt2 = (RectTransform)s2.transform;
+                    rt2.anchoredPosition = new Vector2(rt2.anchoredPosition.x, rt2.anchoredPosition.y - 156f * r);
+                }
+
+            var sec = new Section { prefix = "trail_", row = 3, soloOnly = true, root = clone };
+            for (int i = 0; ; i++)
+            {
+                var t = clone.transform.Find($"Slot{i}");
                 if (t == null) break;
                 sec.slots.Add(BuildSlot(t, lockSprite, checkSprite));
             }
@@ -228,14 +314,15 @@ public class MyPageUI : UIHUD
         {
             var sec = m_Sections[s];
             bool solo = m_Filter == sec.prefix;
-            bool show = string.IsNullOrEmpty(m_Filter) || solo;
+            bool show = solo || (string.IsNullOrEmpty(m_Filter) && !sec.soloOnly);
             sec.root.SetActive(show);
             // 단독 표시면 맨 위 줄로 끌어올림(줄 간격 156, 생성기와 동일)
             var rt = (RectTransform)sec.root.transform;
-            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, solo ? 156f * s : 0f);
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, solo ? 156f * sec.row : 0f);
             if (!show) continue;
             anyVisible = true;
             if (sec.prefix == "char_") FillCharacterSection(sec);
+            else if (sec.prefix == "trail_") FillTrailSection(sec);
             else FillOutfitSection(sec);
         }
 
@@ -321,6 +408,70 @@ public class MyPageUI : UIHUD
             var captured = item;
             slot.btn.onClick.AddListener(() => { if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick); OnClickItem(captured); });
         }
+    }
+
+    // 트레일 섹션 — 0번 = 현재 트레일(체크) 또는 '없음', 이후 아이템(코디 저장 재사용, id: trail_*)
+    private void FillTrailSection(Section sec)
+    {
+        string equipped = SaveService.EquippedTrail;
+
+        for (int i = 0; i < sec.slots.Count; i++)
+        {
+            var slot = sec.slots[i];
+            slot.btn.onClick.RemoveAllListeners();
+
+            if (i == 0)
+            {
+                if (TrailCatalog.TryFind(equipped, out var cur))
+                    ShowSlot(slot, TrailCatalog.LoadThumbnail(cur.Id), true, true, cur.DisplayName);
+                else
+                    ShowSlot(slot, CharacterCatalog.LoadThumbnail(SaveService.EquippedCharacter), true, true, "없음");
+                slot.btn.onClick.AddListener(() =>
+                {
+                    if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+                    SaveService.EquippedTrail = "";
+                    MyPageSceneController.RefreshEquip();
+                    RefreshCloset();
+                });
+                continue;
+            }
+
+            int idx = i - 1;
+            var list = new System.Collections.Generic.List<TrailCatalog.Entry>();
+            foreach (var e in TrailCatalog.All) if (e.Id != equipped) list.Add(e);
+            if (idx >= list.Count) { HideSlot(slot); continue; }
+
+            var item = list[idx];
+            bool owned = SaveService.HasCodiItem(item.Id) || item.Price <= 0;
+            ShowSlot(slot, TrailCatalog.LoadThumbnail(item.Id), owned, false,
+                owned ? item.DisplayName : $"해금 조건\n{item.Price:N0}코인");
+            var captured = item;
+            slot.btn.onClick.AddListener(() =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+                OnClickTrail(captured);
+            });
+        }
+    }
+
+    private void OnClickTrail(TrailCatalog.Entry item)
+    {
+        if (!SaveService.HasCodiItem(item.Id) && item.Price > 0)
+        {
+            if (SaveService.BuyCodiItem(item.Id, item.Price))
+            {
+                SetClosetList($"'{item.DisplayName}' 트레일 구매 완료! (-{item.Price}코인)");
+                SaveService.EquippedTrail = item.Id;   // 구매 즉시 착용
+                MyPageSceneController.RefreshEquip();
+            }
+            else { SetClosetList("코인이 부족해요."); return; }
+        }
+        else
+        {
+            SaveService.EquippedTrail = SaveService.EquippedTrail == item.Id ? "" : item.Id;   // 토글
+            MyPageSceneController.RefreshEquip();
+        }
+        RefreshCloset();
     }
 
     private static void HideSlot(Slot slot)
