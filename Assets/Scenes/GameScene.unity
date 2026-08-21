@@ -15,18 +15,18 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 0.78431374, g: 0.84705883, b: 0.8784314, a: 1}
-  m_FogMode: 3
+  m_FogColor: {r: 0.89, g: 0.93, b: 0.97, a: 1}
+  m_FogMode: 1
   m_FogDensity: 0.019
-  m_LinearFogStart: 0
-  m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
-  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
-  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
-  m_AmbientIntensity: 0.52
-  m_AmbientMode: 0
+  m_LinearFogStart: 90
+  m_LinearFogEnd: 320
+  m_AmbientSkyColor: {r: 0.66, g: 0.74, b: 0.86, a: 1}
+  m_AmbientEquatorColor: {r: 0.62, g: 0.6, b: 0.56, a: 1}
+  m_AmbientGroundColor: {r: 0.34, g: 0.31, b: 0.28, a: 1}
+  m_AmbientIntensity: 1
+  m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 2100000, guid: 21becfca83d972148b363631df454e30, type: 2}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 7f42abd764a0f7a419c2441bb4077888, type: 2}
   m_HaloStrength: 0.41
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -196,7 +196,7 @@ MonoBehaviour:
   priority: 0
   blendDistance: 0
   weight: 1
-  sharedProfile: {fileID: 0}
+  sharedProfile: {fileID: 11400000, guid: 24afb9fb9d2394c44a18de3eb454acac, type: 2}
 --- !u!4 &593838316
 Transform:
   m_ObjectHideFlags: 0
@@ -269,8 +269,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1
+  m_Color: {r: 1, g: 0.96, b: 0.88, a: 1}
+  m_Intensity: 1.15
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -608,8 +608,8 @@ MonoBehaviour:
     m_Bits: 1
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
-  m_Antialiasing: 0
+  m_RenderPostProcessing: 1
+  m_Antialiasing: 1
   m_AntialiasingQuality: 2
   m_StopNaN: 0
   m_Dithering: 0
