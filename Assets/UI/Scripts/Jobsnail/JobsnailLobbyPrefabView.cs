@@ -153,6 +153,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
     public void Bind(JobsnailLobbySkinner owner)
     {
         m_Owner = owner;
+        JobsnailUiKit.ApplyFontPolicy(transform);
 
         if (m_SessionCardTemplate != null)
             m_SessionCardTemplate.gameObject.SetActive(false);

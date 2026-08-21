@@ -51,6 +51,9 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private GameObject[] settingLockOverlays;
 
         private readonly List<string> chatLines = new();
+        private readonly string[] avatarKeys = new string[LobbyRoomNet.RoomCapacity];
+        private readonly Sprite[] avatarSprites = new Sprite[LobbyRoomNet.RoomCapacity];
+        private JobsnailLobbyCharacterStage avatarStage;
         private bool localIsHost;
 
         public event Action LeaveRequested;
@@ -108,10 +111,64 @@ namespace SeoulZikimi.UI.New
                 roomTitle.text = string.IsNullOrWhiteSpace(value) ? "이름 없는 방" : value;
         }
 
-        public void SetSlot(int index, bool occupied, string nickname, bool isHost, bool isLocal, bool ready, int team, bool versusMode)
+        public void SetSlot(int index, bool occupied, string nickname, bool isHost, bool isLocal, bool ready,
+            int team, bool versusMode, string characterId, string outfitId)
         {
             if (slots != null && index >= 0 && index < slots.Length)
-                slots[index]?.Apply(occupied, nickname, isHost, isLocal, ready, team, versusMode);
+                slots[index]?.Apply(occupied, nickname, isHost, isLocal, ready, team, versusMode,
+                    ResolveAvatar(index, occupied, characterId, outfitId));
+        }
+
+        private Sprite ResolveAvatar(int index, bool occupied, string characterId, string outfitId)
+        {
+            if (index < 0 || index >= avatarKeys.Length)
+                return null;
+
+            characterId ??= string.Empty;
+            outfitId ??= string.Empty;
+            string key = occupied ? characterId + "|" + outfitId : null;
+            if (avatarKeys[index] == key)
+                return avatarSprites[index];
+
+            ReleaseAvatar(index);
+            avatarKeys[index] = key;
+            if (!occupied)
+            {
+                avatarStage?.SetBooth(index, false, null, null);
+                return null;
+            }
+
+            if (avatarStage == null)
+            {
+                var stageObject = new GameObject("@UI_NEW_LobbyCharacterStage");
+                avatarStage = stageObject.AddComponent<JobsnailLobbyCharacterStage>();
+                avatarStage.EnsureBuilt();
+            }
+
+            avatarStage.SetBooth(index, true, characterId, outfitId);
+            avatarSprites[index] = avatarStage.CaptureBoothSprite(index);
+            avatarStage.SetActiveRendering(false);
+            return avatarSprites[index];
+        }
+
+        private void ReleaseAvatar(int index)
+        {
+            Sprite sprite = avatarSprites[index];
+            avatarSprites[index] = null;
+            if (sprite == null)
+                return;
+            Texture2D texture = sprite.texture;
+            Destroy(sprite);
+            if (texture != null)
+                Destroy(texture);
+        }
+
+        private void OnDestroy()
+        {
+            for (int i = 0; i < avatarSprites.Length; i++)
+                ReleaseAvatar(i);
+            if (avatarStage != null)
+                Destroy(avatarStage.gameObject);
         }
 
         public void SetTeam(int team, bool versusMode, bool interactable)

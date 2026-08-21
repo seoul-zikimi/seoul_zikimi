@@ -13,6 +13,26 @@ public static class SaveService
     private const string kCoins = "coins";
     private const string kCodi = "codiItems";
     private const string kSkins = "skins";
+    private const int kTestStartingCoins = 100000;
+
+    /// <summary>
+    /// 테스트 기간에는 새 저장과 기존 저장 모두 플레이 시작 시 최소 100,000코인을 보장한다.
+    /// 이미 그보다 많이 보유했다면 기존 잔액을 유지한다.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void EnsureTestStartingCoins()
+    {
+        try
+        {
+            int current = ES3.Load(kCoins, kFile, kTestStartingCoins);
+            if (current < kTestStartingCoins)
+                ES3.Save(kCoins, kTestStartingCoins, kFile);
+        }
+        catch (System.IO.IOException exception)
+        {
+            Debug.LogWarning($"[SaveService] 테스트 시작 코인 저장을 건너뜁니다: {exception.Message}");
+        }
+    }
 
     // ── 닉네임 (변경 시 저장) ──
     public static string Nickname
@@ -27,7 +47,7 @@ public static class SaveService
     }
 
     // ── 코인 (증가/감소 시 저장 — 게임 종료 보상, 아이템 구매) ──
-    public static int Coins => ES3.Load(kCoins, kFile, 0);
+    public static int Coins => ES3.Load(kCoins, kFile, kTestStartingCoins);
 
     public static void AddCoins(int delta) => ES3.Save(kCoins, Mathf.Max(0, Coins + delta), kFile);
 

@@ -145,7 +145,9 @@ namespace SeoulZikimi.UI.New
                 bool occupied = i < count && lobbyNet.IsSlotOccupied(i);
                 view.SetSlot(i, occupied, occupied ? lobbyNet.GetSlotName(i) : string.Empty,
                     occupied && lobbyNet.IsSlotHost(i), occupied && lobbyNet.IsSlotLocal(i),
-                    occupied && lobbyNet.IsSlotReady(i), occupied ? lobbyNet.GetSlotTeam(i) : 0, versusMode);
+                    occupied && lobbyNet.IsSlotReady(i), occupied ? lobbyNet.GetSlotTeam(i) : 0, versusMode,
+                    occupied ? lobbyNet.GetSlotCharacterId(i) : string.Empty,
+                    occupied ? lobbyNet.GetSlotOutfitId(i) : string.Empty);
             }
 
             bool weather = spawned ? lobbyNet.WeatherOn : GridSystem.GameLoopManager.HostWeatherEnabled;

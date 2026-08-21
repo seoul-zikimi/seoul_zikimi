@@ -8,6 +8,8 @@ public sealed class JobsnailMainMenu : MonoBehaviour
 {
     private InputField m_NicknameInput;
     private GameObject m_SettingsPopup;
+    private JobsnailLobbyCharacterStage m_CharacterStage;
+    private Sprite m_CharacterSprite;
     private static Font s_DefaultFont;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -75,6 +77,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var snailImage = snail.gameObject.AddComponent<Image>();
         snailImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/SnailPic");
         snailImage.preserveAspect = true;
+        ApplySelectedCharacterPreview(snailImage);
 
         var nick = JobsnailUiKit.Rect("UserNicknameTextbox", root, new Vector2(0.14f, 0.08f), new Vector2(0.34f, 0.16f), Vector2.zero, Vector2.zero);
         var nickImage = nick.gameObject.AddComponent<Image>();
@@ -95,7 +98,37 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             new Vector2(0.70f, 0.11f), new Vector2(0.88f, 0.19f), Quit);
 
         BuildSettingsPopup(root);
+        JobsnailUiKit.ApplyFontPolicy(root);
         JuicyButton.AttachAll(gameObject);   // 메뉴·팝업 전 버튼 호버·프레스 쫀득
+    }
+
+    private void ApplySelectedCharacterPreview(Image target)
+    {
+        var stageObject = new GameObject("@JobsnailMainCharacterStage");
+        m_CharacterStage = stageObject.AddComponent<JobsnailLobbyCharacterStage>();
+        m_CharacterStage.EnsureBuilt();
+        m_CharacterStage.SetBooth(0, true, SaveService.EquippedCharacter, SaveService.EquippedOutfit);
+        m_CharacterSprite = m_CharacterStage.CaptureBoothSprite(0);
+        m_CharacterStage.SetActiveRendering(false);
+        if (m_CharacterSprite != null)
+        {
+            target.sprite = m_CharacterSprite;
+            target.color = Color.white;
+            target.preserveAspect = true;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (m_CharacterSprite != null)
+        {
+            Texture2D texture = m_CharacterSprite.texture;
+            Destroy(m_CharacterSprite);
+            if (texture != null)
+                Destroy(texture);
+        }
+        if (m_CharacterStage != null)
+            Destroy(m_CharacterStage.gameObject);
     }
 
     private void Update()

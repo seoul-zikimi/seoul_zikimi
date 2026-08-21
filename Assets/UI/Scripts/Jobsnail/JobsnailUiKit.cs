@@ -15,6 +15,10 @@ public static class JobsnailUiKit
 
     private static Font s_LegacyFont;
     private static TMP_FontAsset s_TmpFont;
+    private static JobsnailFontSet s_FontSet;
+
+    private static JobsnailFontSet FontSet
+        => s_FontSet != null ? s_FontSet : s_FontSet = Resources.Load<JobsnailFontSet>("UI/Jobsnail/JobsnailFontSet");
 
     public static Font LegacyFont
     {
@@ -23,18 +27,17 @@ public static class JobsnailUiKit
             if (s_LegacyFont != null)
                 return s_LegacyFont;
 
-            // 폰트 통일: Resources의 서울한강 장체M을 최우선(에디터·빌드 동일 — OS 폰트 편차 제거)
-            s_LegacyFont = Resources.Load<Font>("Fonts/서울한강 장체M");
+            s_LegacyFont = FontSet != null ? FontSet.LegacyFont : null;
             if (s_LegacyFont != null)
                 return s_LegacyFont;
 
 #if UNITY_EDITOR
-            s_LegacyFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Font/서울한강 장체M.ttf");
+            s_LegacyFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Font/SUITE/SUITE-Medium.ttf");
             if (s_LegacyFont != null)
                 return s_LegacyFont;
 #endif
 
-            s_LegacyFont = Font.CreateDynamicFontFromOSFont("서울한강 장체 M", 16);
+            s_LegacyFont = Font.CreateDynamicFontFromOSFont("SUITE Medium", 16);
             if (s_LegacyFont == null)
                 s_LegacyFont = Font.CreateDynamicFontFromOSFont("SeoulHangang", 16);
             if (s_LegacyFont == null)
@@ -54,8 +57,12 @@ public static class JobsnailUiKit
             if (s_TmpFont != null)
                 return s_TmpFont;
 
+            s_TmpFont = FontSet != null ? FontSet.TmpFont : null;
+            if (s_TmpFont != null)
+                return s_TmpFont;
+
 #if UNITY_EDITOR
-            s_TmpFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Resources/Fonts/서울한강 장체M SDF.asset");
+            s_TmpFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Font/SUITE/SUITE-Medium SDF.asset");
             if (s_TmpFont != null)
                 return s_TmpFont;
 #endif
@@ -68,6 +75,23 @@ public static class JobsnailUiKit
     }
 
     public static Sprite Sprite(string resourcesPath) => Resources.Load<Sprite>(resourcesPath);
+
+    /// <summary>기존에 프리팹에 저장된 폰트까지 SUITE Medium으로 통일한다.</summary>
+    public static void ApplyFontPolicy(Transform root)
+    {
+        if (root == null)
+            return;
+
+        Font legacy = LegacyFont;
+        if (legacy != null)
+            foreach (Text text in root.GetComponentsInChildren<Text>(true))
+                text.font = legacy;
+
+        TMP_FontAsset tmp = TmpFont;
+        if (tmp != null)
+            foreach (TMP_Text text in root.GetComponentsInChildren<TMP_Text>(true))
+                text.font = tmp;
+    }
 
     public static RectTransform Rect(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchored, Vector2 size)
     {

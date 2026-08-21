@@ -17,7 +17,8 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private GameObject hostBadge;
         [SerializeField] private Image avatarAnchor;
 
-        public void Apply(bool occupied, string displayName, bool isHost, bool isLocal, bool ready, int team, bool versusMode)
+        public void Apply(bool occupied, string displayName, bool isHost, bool isLocal, bool ready,
+            int team, bool versusMode, Sprite avatarSprite)
         {
             if (nickname != null)
             {
@@ -39,7 +40,14 @@ namespace SeoulZikimi.UI.New
                 panel.color = Color.white;
             }
             if (avatarAnchor != null)
-                avatarAnchor.color = occupied ? new Color(1f, 1f, 1f, 0.12f) : new Color(1f, 1f, 1f, 0.03f);
+            {
+                avatarAnchor.sprite = occupied ? avatarSprite : null;
+                avatarAnchor.preserveAspect = true;
+                avatarAnchor.raycastTarget = false;
+                avatarAnchor.color = occupied && avatarSprite != null
+                    ? Color.white
+                    : occupied ? new Color(1f, 1f, 1f, 0.12f) : new Color(1f, 1f, 1f, 0.03f);
+            }
         }
     }
 }
