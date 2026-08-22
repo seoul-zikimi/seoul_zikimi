@@ -15,7 +15,7 @@ public static class GameLoopHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/GameLoopHUD.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "RemasterMarker_v12";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
+    public const string kRemasterMarker = "RemasterMarker_v14";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate GameLoopHud Prefab")]
     public static void Generate()
@@ -90,7 +90,7 @@ public static class GameLoopHudPrefabGenerator
 
         // ── 정산서 ↔ 크레인샷 토글 버튼(하단 중앙, 숨김) — 정산 중에만 표시 ──
         var crane = JobsnailUiKit.Button("CraneToggleButton", rootT, null,
-            new Vector2(0.5f, 0.06f), new Vector2(0.5f, 0.06f), Vector2.zero, new Vector2(230, 52), null, "건축물 둘러보기");
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 32f), new Vector2(230, 52), null, "건축물 둘러보기");   // 화면 맨 아래(버튼 스트립 밑)
         SetColor(crane, new Color(0.60f, 0.82f, 0.95f, 1f));
         crane.gameObject.SetActive(false);
 
@@ -125,78 +125,109 @@ public static class GameLoopHudPrefabGenerator
         popup.SetActive(false);
     }
 
+    // ── 정산서(리마스터): 영수증 배경(라벨·칸 구움 · 1056x1150) + 버튼 스트립(1048x148) + 도장 3종 ──
+    // 좌표는 배경 PNG 픽셀(좌상단 원점) 그대로 적고 kR 배율로 캔버스에 올린다. 자식 이름은 GameLoopHUD Bind enum과 1:1.
+    private const float kR = 0.72f;   // 배경 1150px → 828 캔버스px(버튼 스트립 포함 1080 안에 들어가게)
+    private static Vector2 Rv(float x, float y) => new Vector2(x * kR, -y * kR);
+    private static Vector2 Rs(float w, float h) => new Vector2(w * kR, h * kR);
+    private static int Rf(float px) => Mathf.RoundToInt(px * kR);
+
+    /// <summary>배경 좌상단 기준 (x,y,w,h) 배경px → 앵커/피벗 좌상단 RectTransform.</summary>
+    private static RectTransform RPlace(RectTransform rt, float x, float y, float w, float h)
+    {
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.anchoredPosition = Rv(x, y);
+        rt.sizeDelta = Rs(w, h);
+        return rt;
+    }
+
+    private static TextMeshProUGUI RLabel(string name, Transform parent, float x, float y, float w, float h, float fontPx, Color color, TextAlignmentOptions align, bool bold = false)
+    {
+        var t = JobsnailUiKit.Label(name, parent, "", Rf(fontPx), color, align, Vector2.zero, Vector2.one);
+        RPlace(t.rectTransform, x, y, w, h);
+        if (bold) t.fontStyle = FontStyles.Bold;
+        t.raycastTarget = false;
+        return t;
+    }
+
     private static void BuildResultPanel(Transform root)
     {
-        var panel = JobsnailUiKit.Box("ResultPanel", root, new Vector2(0.30f, 0.10f), new Vector2(0.70f, 0.90f), Vector2.zero, Vector2.zero, new Color(1f, 1f, 1f, 0.98f)).gameObject;
+        var ink = new Color(0.27f, 0.22f, 0.18f, 1f);       // 영수증 글자색(진갈색)
+        var inkSoft = new Color(0.42f, 0.37f, 0.32f, 1f);
 
-        // ── 상단: 제목 / 명단 / JOBSNAIL 로고 ──
-        var title = JobsnailUiKit.Label("Title", panel.transform, "정산서", 44, Color.black, TextAlignmentOptions.Center, new Vector2(0, 378), new Vector2(360, 64));
-        title.fontStyle = FontStyles.Bold;
-        JobsnailUiKit.Label("Players", panel.transform, "", 15, new Color(0.30f, 0.22f, 0.15f, 1f), TextAlignmentOptions.Left, new Vector2(-235, 320), new Vector2(290, 26));
+        // 패널 = 배경 이미지 자체. 위로 조금 올려 아래 버튼 스트립 자리를 확보.
+        var bgSprite = InGameUiSkin.Load("Result_Bg");
+        var panelRt = JobsnailUiKit.Rect("ResultPanel", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 57f), Rs(1056, 1150));
+        var panelImg = panelRt.gameObject.AddComponent<Image>();
+        panelImg.sprite = bgSprite;
+        panelImg.color = bgSprite != null ? Color.white : new Color(1f, 1f, 1f, 0.98f);
+        panelImg.raycastTarget = true;   // 뒤 클릭 차단
+        var panel = panelRt.gameObject;
+        var pT = panel.transform;
 
-        var brandSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/JobSnailLogo");
-        if (brandSprite != null)
-        {
-            var logo = JobsnailUiKit.Box("Logo", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(245, 320), new Vector2(180, 50), Color.white);
-            logo.sprite = brandSprite;
-            logo.preserveAspect = true;
-        }
-        else
-        {
-            var brand = JobsnailUiKit.Label("Logo", panel.transform, "JOBSNAIL", 26, new Color(0.95f, 0.42f, 0.12f, 1f), TextAlignmentOptions.Right, new Vector2(215, 320), new Vector2(200, 40));
-            brand.fontStyle = FontStyles.Bold | FontStyles.Italic;
-            if (TMP_Settings.defaultFontAsset != null) brand.font = TMP_Settings.defaultFontAsset;
-        }
+        // 참여자 / 정산번호 / 발행일자
+        RLabel("Players", pT, 85, 278, 560, 52, 24, ink, TextAlignmentOptions.BottomLeft);
+        RLabel("ReceiptNo", pT, 893, 256, 112, 34, 24, inkSoft, TextAlignmentOptions.MidlineLeft);
+        RLabel("IssueDate", pT, 808, 298, 196, 36, 24, inkSoft, TextAlignmentOptions.MidlineRight);
 
-        var snailSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/Snail_Icon");
-        if (snailSprite != null)
-        {
-            var snailIcon = JobsnailUiKit.Box("LogoSnail", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(356, 320), new Vector2(32, 32), Color.white);
-            snailIcon.sprite = snailSprite;
-            snailIcon.preserveAspect = true;
-        }
-
-        // ── 완성 건축물 이미지(런타임에 AnswerPreview RT 연결) + 프레임 ──
-        JobsnailUiKit.Box("ImageFrame", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 115), new Vector2(340, 270), new Color(0.85f, 0.85f, 0.85f, 1f));
-        var riRt = JobsnailUiKit.Rect("ResultImage", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 115), new Vector2(324, 254));
+        // 완성 건축물 이미지(런타임에 RT 연결) — 배경에 테두리가 있어 프레임 불필요
+        var riRt = JobsnailUiKit.Rect("ResultImage", pT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        RPlace(riRt, 84, 382, 512, 444);
         var ri = riRt.gameObject.AddComponent<RawImage>();
         ri.raycastTarget = false;
 
-        // ── 구조물명 / 소요시간 / 완성도 / 등급 ──
-        JobsnailUiKit.Label("Structure", panel.transform, "", 24, Color.black, TextAlignmentOptions.Center, new Vector2(0, -50), new Vector2(440, 38));
-        JobsnailUiKit.Label("Time", panel.transform, "소요시간     0 : 00", 22, new Color(0.20f, 0.18f, 0.14f, 1f), TextAlignmentOptions.Center, new Vector2(0, -108), new Vector2(440, 36));
-        JobsnailUiKit.Label("Score", panel.transform, "건축 0 % 완료", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, -172), new Vector2(440, 52));
+        // 프로젝트명 / 소요시간 / 건축 완료율(숫자만 · '%' 는 배경) / 업무결과(2vs2 승패 문구)
+        RLabel("Structure", pT, 715, 432, 290, 56, 30, ink, TextAlignmentOptions.MidlineLeft, bold: true);
+        RLabel("Time", pT, 715, 556, 290, 56, 30, ink, TextAlignmentOptions.MidlineLeft, bold: true);
+        RLabel("Score", pT, 760, 614, 160, 50, 40, ink, TextAlignmentOptions.MidlineRight, bold: true);
+        var grade = RLabel("Grade", pT, 715, 772, 290, 56, 26, ink, TextAlignmentOptions.MidlineLeft, bold: true);
+        grade.textWrappingMode = TextWrappingModes.Normal;
 
-        // 완성도 별점(1~3개): 등급 글씨(EXCELLENT/TRY AGAIN) '뒤에' 깔리는 배경(원래 기획).
-        // grade/stamp보다 먼저 생성 → 렌더 순서상 뒤. 채움/개수는 GameLoopHUD가 완성도에 따라 설정.
-        var starSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/star");
-        var starRow = JobsnailUiKit.Rect("StarRow", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(168, -172), new Vector2(180, 60));
-        for (int i = 0; i < 3; i++)
-        {
-            var s = JobsnailUiKit.Box($"GradeStar{i}", starRow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-46 + i * 46, 0), new Vector2(44, 44), starSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
-            s.sprite = starSprite;
-            s.preserveAspect = true;
-        }
-
-        var grade = JobsnailUiKit.Label("Grade", panel.transform, "", 34, new Color(0.85f, 0.15f, 0.12f, 1f), TextAlignmentOptions.Center, new Vector2(175, -172), new Vector2(240, 70));
-        grade.fontStyle = FontStyles.Bold;
-        grade.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -12f);
-
-        var stampSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/exellent");
-        var stamp = JobsnailUiKit.Box("GradeStamp", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(150, -172), new Vector2(240, 88), stampSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
+        // 도장(EXCELLENT / GOOD JOB / TRY AGAIN — 런타임에 완성도로 선택) — 업무결과 칸 위에 비스듬히
+        var stampSprite = InGameUiSkin.Load("Stamp_Excellent") ?? JobsnailUiKit.Sprite("UI_pngs/3.inGame/exellent");
+        var stampRt = JobsnailUiKit.Rect("GradeStamp", pT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        RPlace(stampRt, 760, 690, 238, 146);
+        stampRt.pivot = new Vector2(0.5f, 0.5f);
+        stampRt.anchoredPosition = Rv(760 + 119, 690 + 73);
+        stampRt.localRotation = Quaternion.Euler(0f, 0f, -8f);
+        var stamp = stampRt.gameObject.AddComponent<Image>();
         stamp.sprite = stampSprite;
         stamp.preserveAspect = true;
+        stamp.raycastTarget = false;
+        stamp.color = stampSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
         stamp.gameObject.SetActive(false);
 
-        JobsnailUiKit.Box("Divider", panel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -252), new Vector2(640, 3), new Color(0.80f, 0.80f, 0.80f, 1f));
+        // 최종정산금액(코인 보상)
+        RLabel("CoinReward", pT, 60, 958, 936, 56, 30, InGameUiSkin.Orange, TextAlignmentOptions.Center, bold: true);
 
-        // 코인 보상(디바이더 아래 빈 공간, 주황) — 내용은 GameLoopHUD가 정산 때 채움
-        JobsnailUiKit.Label("CoinReward", panel.transform, "", 22, new Color(1f, 0.55f, 0.15f, 1f), TextAlignmentOptions.Center, new Vector2(0, -290), new Vector2(560, 34));
+        // 별점 1~3 (채움/개수는 런타임) — 금액 아래 가운데
+        var starSprite = JobsnailUiKit.Sprite("UI_pngs/3.inGame/star");
+        var starRow = JobsnailUiKit.Rect("StarRow", pT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        RPlace(starRow, 528 - 120, 1030, 240, 70);
+        starRow.pivot = new Vector2(0.5f, 0.5f);
+        starRow.anchoredPosition = Rv(528, 1065);
+        for (int i = 0; i < 3; i++)
+        {
+            var st = JobsnailUiKit.Box($"GradeStar{i}", starRow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((-1 + i) * Rf(78), 0), Rs(64, 64), starSprite != null ? Color.white : new Color(1f, 1f, 1f, 0f));
+            st.sprite = starSprite;
+            st.preserveAspect = true;
+        }
 
-        var room = JobsnailUiKit.Button("RoomButton", panel.transform, null, new Vector2(0.14f, 0.05f), new Vector2(0.49f, 0.13f), Vector2.zero, Vector2.zero, null, "방으로 돌아가기");
-        SetColor(room, new Color(0.97f, 0.85f, 0.58f, 1f));
-        var leave = JobsnailUiKit.Button("LeaveButton", panel.transform, null, new Vector2(0.51f, 0.05f), new Vector2(0.86f, 0.13f), Vector2.zero, Vector2.zero, null, "나가기");
-        SetColor(leave, new Color(0.97f, 0.85f, 0.58f, 1f));
+        // ── 버튼 스트립(방으로 돌아가기 | 나가기 — 한 장에 구움) · 패널 아래 ──
+        var stripSprite = InGameUiSkin.Load("Result_Buttons");
+        var stripRt = JobsnailUiKit.Rect("ResultButtons", pT, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, -Rf(148) * 0.5f - 8f), Rs(1048, 148));
+        var strip = stripRt.gameObject.AddComponent<Image>();
+        strip.sprite = stripSprite;
+        strip.raycastTarget = false;
+        strip.color = stripSprite != null ? Color.white : new Color(1f, 0.97f, 0.86f, 1f);
+        const float kDivider = 512f;   // 두 버튼 경계(스트립 px)
+        var room = JobsnailUiKit.Button("RoomButton", stripRt, null, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, null, stripSprite == null ? "방으로 돌아가기" : null);
+        RPlace((RectTransform)room.transform, 30, 18, kDivider - 40, 112);
+        var leave = JobsnailUiKit.Button("LeaveButton", stripRt, null, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, null, stripSprite == null ? "나가기" : null);
+        RPlace((RectTransform)leave.transform, kDivider + 10, 18, 1048 - kDivider - 40, 112);
+        foreach (var btn in new[] { room, leave })
+            if (stripSprite != null && btn.targetGraphic is Image bi) bi.color = new Color(1f, 1f, 1f, 0f);   // 투명 히트 영역(비주얼은 스트립)
 
         panel.SetActive(false);
     }
