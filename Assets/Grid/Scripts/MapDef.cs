@@ -52,6 +52,15 @@ namespace GridSystem
         [Tooltip("이 맵에서만 쓸 배경음악. 비운 칸은 SoundLibrary의 공용 BGM을 그대로 씁니다.")]
         [SerializeField] private MapBgm m_Bgm;
 
+        [Header("완성체 (조각으로 짓는 맵 전용)")]
+        [Tooltip("정답을 다 맞췄을 때 보여줄 '통짜 완성 모델'. 비워두면 조각 그대로 남습니다.\n\n" +
+                 "DDP처럼 큰 곡면 모델을 격자로 잘라 짓는 맵은, 조각 이음매가 아무리 잘 맞아도\n" +
+                 "잘린 단면 때문에 완성본이 매끈하게 안 보인다. 그래서 다 지으면 조각을 감추고\n" +
+                 "자르기 전 원본 하나로 갈아 끼운다 — 완공 계획도(정답 UI)도 이 모델로 보여준다.")]
+        [SerializeField] private GameObject m_CompletedModel;
+        [Tooltip("완성체 프리팹을 놓을 기준 셀(그 셀의 min-corner에 프리팹 원점이 온다).")]
+        [SerializeField] private Vector3Int m_CompletedModelAnchor;
+
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
         public GameObject BackgroundPrefab => m_BackgroundPrefab;
         public IReadOnlyList<MapAnswerData> Answers => m_Answers;
@@ -75,6 +84,11 @@ namespace GridSystem
 
         /// <summary>이 맵 전용 BGM 슬롯(비운 칸은 공용 BGM 폴백).</summary>
         public MapBgm Bgm => m_Bgm;
+
+        /// <summary>정답을 다 맞췄을 때 조각 대신 보여줄 통짜 완성 모델(null이면 조각 그대로).</summary>
+        public GameObject CompletedModel => m_CompletedModel;
+        /// <summary>완성체를 놓을 기준 셀(min-corner 기준).</summary>
+        public Vector3Int CompletedModelAnchor => m_CompletedModelAnchor;
 
         /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
         public Vector3Int GridSize => m_GridSize;

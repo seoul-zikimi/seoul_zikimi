@@ -146,8 +146,8 @@ namespace GridSystem
                 gameObject.AddComponent<WaterGateNetwork>();
             if (!TryGetComponent<ExcavationNetwork>(out _))
                 gameObject.AddComponent<ExcavationNetwork>();
-            if (!TryGetComponent<LedRoseNetwork>(out _))
-                gameObject.AddComponent<LedRoseNetwork>();
+            // LedRoseNetwork(LED 장미 발판)는 더 이상 붙이지 않는다 — DDP 맵에서 뺀 기믹.
+            // 광장 위에 분홍 원판이 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
         }
 
         public override void OnNetworkSpawn()
@@ -296,7 +296,8 @@ namespace GridSystem
                 if (m_SurrenderWinner >= 0) m_Winner.Value = m_SurrenderWinner;
                 else
                 {
-                    int a = m_Net.ScoreFor(0).score, b = m_Net.ScoreFor(1).score;
+                    // Total = 건축 점수 + 보너스(DDP 유구 출토 등) — 보너스도 승패에 반영된다.
+                    int a = m_Net.ScoreFor(0).Total, b = m_Net.ScoreFor(1).Total;
                     m_Winner.Value = a == b ? -1 : (a > b ? 0 : 1);
                 }
             }
@@ -400,7 +401,6 @@ namespace GridSystem
             if (TryGetComponent<ParadeNetwork>(out var parade)) parade.ServerReset();   // 롯데월드: 퍼레이드 주기 리셋
             if (TryGetComponent<WaterGateNetwork>(out var water)) water.ServerReset();  // DDP: 물길 주기 리셋
             if (TryGetComponent<ExcavationNetwork>(out var dig)) dig.ServerReset();     // DDP: 발굴터·누적 출토 리셋
-            if (TryGetComponent<LedRoseNetwork>(out var rose)) rose.ServerReset();      // DDP: 장미 개화 박자 리셋
             if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);

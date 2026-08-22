@@ -23,9 +23,11 @@ MonoBehaviour:
   CarryMaterials: 1
   MaterialFloatSpeed: 9
   DigSeconds: 2.5
-  DigRadius: 1.8
+  DigRadius: 2.2
   DigRespawnSeconds: 14
   DigMaxPerRound: 6
+  ArtifactChance: 0.3
+  ArtifactScoreBonus: 300
   RoseBloomSeconds: 7
   RoseFadeSeconds: 5
   RoseWarnSeconds: 1.5

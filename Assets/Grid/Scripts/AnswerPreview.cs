@@ -151,6 +151,11 @@ namespace GridSystem
                 m_PickTargets.Add((o.def, RendererBounds(go, bb), go));   // 픽킹은 렌더러 실측 AABB(피벗 규약 무관)
             }
 
+            // 완성체가 지정된 맵(DDP처럼 통짜를 잘라 짓는 맵)은 계획도를 '자르기 전 원본'으로 보여준다.
+            // 조각을 그대로 그리면 잘린 단면이 드러나 완성 모습이 매끈하게 안 보이기 때문.
+            // 조각 오브젝트는 렌더러만 끄고 남겨 둔다 — 픽킹 AABB와 호버 테두리가 그걸 쓰기 때문.
+            ShowCompletedModelInstead(m_Root.transform, u);
+
             m_RT = new RenderTexture(512, 512, 16);
             var camGO = new GameObject("~AnswerPreviewCam");
             camGO.transform.SetParent(m_Root.transform, true);
@@ -433,6 +438,28 @@ namespace GridSystem
             return objs;
         }
 
+        /// <summary>맵에 '완성체 통짜 모델'이 지정돼 있으면, 조각 렌더러를 끄고 원본 하나를 대신 세운다.
+        /// 지정 안 된 맵(대부분)은 아무것도 하지 않는다.</summary>
+        private void ShowCompletedModelInstead(Transform parent, float u)
+        {
+            var cat = MapCatalog.Instance;
+            var loop = m_Loop != null ? m_Loop : FindFirstObjectByType<GameLoopManager>();
+            var mapDef = (cat != null && loop != null) ? cat.Get(loop.MapIndex) : null;
+            if (mapDef == null || mapDef.CompletedModel == null) return;
+
+            foreach (var t in m_PickTargets)
+            {
+                if (t.go == null) continue;
+                foreach (var r in t.go.GetComponentsInChildren<Renderer>()) r.enabled = false;
+            }
+
+            var whole = Instantiate(mapDef.CompletedModel, parent);
+            whole.name = "~CompletedPreview";
+            whole.transform.SetPositionAndRotation(
+                m_Offset + GridCoordinates.CellToWorld(mapDef.CompletedModelAnchor), Quaternion.identity);
+            foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);
+        }
+
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
         // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell)+(dims.x,0,dims.z)*0.5u (피벗=바닥), rot = Euler(0,90·step,0).
         private GameObject MakeBlockVisual(AnsObject o, Transform parent, Vector3 pos, Quaternion rot, float u, bool ghost)
@@ -441,7 +468,9 @@ namespace GridSystem
             if (o.def != null && o.def.Prefab != null)
             {
                 go = Instantiate(o.def.Prefab, parent);
-                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u);   // min-corner + 메시 90° 어긋남 자동 보정
+                // min-corner + 메시 90° 어긋남 자동 보정. 자유 형상(잘라낸 곡면 조각)은 보정을 끈다 —
+                // 조각마다 제멋대로 90° 돌아가면 완공 계획도에서 곡면이 산산조각 나 보인다.
+                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u, autoYaw: !o.def.FreeformVisual);
                 foreach (var col in go.GetComponentsInChildren<Collider>()) Destroy(col);
                 if (ghost) MakeTransparent(go, kGhostAlpha);
             }

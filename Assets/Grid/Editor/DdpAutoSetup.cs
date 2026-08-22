@@ -31,8 +31,21 @@ namespace GridSystem.EditorTools
         /// <summary>재적용이 필요할 때 올린다 — 생성 툴을 고쳤거나, GLB를 통째로 갈아끼웠을 때.
         /// (Models 폴더만 바꾸면 에셋 임포트는 일어나도 도메인 리로드가 안 걸려 이 실행기가 안 돈다.
         ///  이 상수를 건드리면 스크립트가 재컴파일되면서 리로드가 걸리고, 그때 지문 비교로 1회 재적용된다.)
-        /// 3: VARCO 모델 11종을 30k tri 리메시본으로 교체(500k → 30k, 386MB → 211MB).</summary>
-        private const int kSetupVersion = 3;
+        /// 3: VARCO 모델 11종을 30k tri 리메시본으로 교체(500k → 30k, 386MB → 211MB).
+        /// 4: 정답을 '낮고 넓은' DDP 실루엣으로 재설계(파츠 footprint 전면 변경 → _Fit 전부 다시 만들어야 한다),
+        ///    장미화단·유구터 프롭 제거 + 장미 개별 식재, 이간수문 비율/위치 교정,
+        ///    Resources/Ddp 런타임 프리팹 추가(DigStake · Artifact0~2).
+        /// 5: LED 장미 발판 기믹 제거(마커·부착 없앰) + 나선램프 폭 3.4 → 5.6m,
+        ///    그리고 DDP 정답을 '통짜 모델 격자 절단'(DdpSliceTool) 방식으로 전환 —
+        ///    Models/DDP_본관.glb 가 있으면 그걸 잘라 만든 고유 곡면 조각이 정답이 된다.
+        /// 6: 절단 조각이 배치 시 제멋대로 90° 돌아가던 문제 수정(GridFootprint 자동 보정을 자유 형상엔 끔) +
+        ///    통짜 크기 확대(span 11×4×7 → 13×5×10, 그리드 13 → 14).
+        /// 7: (되돌림) 조각 병합·양면 머티리얼을 넣었다가 텍스처가 날아가 전부 새하얘져서 6 상태로 복구.
+        ///    삼각형 보존 여부를 알려 주는 로그만 남겼다.
+        /// 8: 위 되돌림 반영.
+        /// 9: '완성체 교체' 도입 — 자르기 전 통짜를 DDP_본관_완성.prefab으로 따로 굽고,
+        ///    완공 계획도(정답 UI)와 '다 지었을 때'를 그 원본으로 보여준다(조각 이음매를 안 보이게).</summary>
+        private const int kSetupVersion = 9;
 
         private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
 
