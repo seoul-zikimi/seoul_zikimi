@@ -130,13 +130,17 @@ namespace GridSystem
             // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨
             m_GhostRoot = new GameObject("~AnswerGhost");
             m_GhostFloors.Clear();
+            bool useWhole = MapDefOrNull()?.CompletedModel != null;
             foreach (var o in objects)
             {
                 Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
+                if (useWhole) HideRenderers(go);        // 통짜 고스트를 대신 세운다(아래) — 층 필터 파편화 방지
                 m_GhostFloors.Add((go, o.minCell.y));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
             }
+            // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
+            ShowCompletedModelInstead(m_GhostRoot.transform, ghost: true);
 
             // ② 우하단 3D 미리보기 = 진짜 블록 프리팹 솔리드(멀리 떨어진 미니씬 → RenderTexture)
             m_Root = new GameObject("~AnswerPreview");
@@ -154,7 +158,8 @@ namespace GridSystem
             // 완성체가 지정된 맵(DDP처럼 통짜를 잘라 짓는 맵)은 계획도를 '자르기 전 원본'으로 보여준다.
             // 조각을 그대로 그리면 잘린 단면이 드러나 완성 모습이 매끈하게 안 보이기 때문.
             // 조각 오브젝트는 렌더러만 끄고 남겨 둔다 — 픽킹 AABB와 호버 테두리가 그걸 쓰기 때문.
-            ShowCompletedModelInstead(m_Root.transform, u);
+            if (ShowCompletedModelInstead(m_Root.transform, ghost: false) != null)
+                foreach (var t in m_PickTargets) HideRenderers(t.go);
 
             m_RT = new RenderTexture(512, 512, 16);
             var camGO = new GameObject("~AnswerPreviewCam");
@@ -438,26 +443,39 @@ namespace GridSystem
             return objs;
         }
 
-        /// <summary>맵에 '완성체 통짜 모델'이 지정돼 있으면, 조각 렌더러를 끄고 원본 하나를 대신 세운다.
-        /// 지정 안 된 맵(대부분)은 아무것도 하지 않는다.</summary>
-        private void ShowCompletedModelInstead(Transform parent, float u)
+        /// <summary>이 맵의 '완성체 통짜 모델'(없으면 null).</summary>
+        private MapDef MapDefOrNull()
         {
             var cat = MapCatalog.Instance;
             var loop = m_Loop != null ? m_Loop : FindFirstObjectByType<GameLoopManager>();
-            var mapDef = (cat != null && loop != null) ? cat.Get(loop.MapIndex) : null;
-            if (mapDef == null || mapDef.CompletedModel == null) return;
+            return (cat != null && loop != null) ? cat.Get(loop.MapIndex) : null;
+        }
 
-            foreach (var t in m_PickTargets)
-            {
-                if (t.go == null) continue;
-                foreach (var r in t.go.GetComponentsInChildren<Renderer>()) r.enabled = false;
-            }
+        /// <summary>맵에 '완성체 통짜 모델'이 지정돼 있으면, 조각 렌더러를 끄고 원본 하나를 대신 세운다.
+        /// 지정 안 된 맵(대부분)은 아무것도 하지 않는다.
+        ///
+        /// <para><paramref name="ghost"/>=true면 인월드 배치 가이드용 반투명. 조각을 그대로 두면
+        /// '내가 선 층'만 골라 보여주는 층 필터(m_GhostFloors) 때문에 곡면 껍데기가 파편처럼 보인다 —
+        /// 통짜 하나로 세우면 어디에 무엇을 짓는지가 한눈에 들어온다.</para></summary>
+        private GameObject ShowCompletedModelInstead(Transform parent, bool ghost)
+        {
+            var mapDef = MapDefOrNull();
+            if (mapDef == null || mapDef.CompletedModel == null) return null;
 
             var whole = Instantiate(mapDef.CompletedModel, parent);
-            whole.name = "~CompletedPreview";
+            whole.name = ghost ? "~CompletedGhost" : "~CompletedPreview";
             whole.transform.SetPositionAndRotation(
                 m_Offset + GridCoordinates.CellToWorld(mapDef.CompletedModelAnchor), Quaternion.identity);
             foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);
+            if (ghost) MakeTransparent(whole, kGhostAlpha);
+            return whole;
+        }
+
+        /// <summary>완성체를 쓰는 맵에서 조각 비주얼의 렌더러만 끈다(픽킹 AABB·테두리는 그대로 살려 둔다).</summary>
+        private static void HideRenderers(GameObject go)
+        {
+            if (go == null) return;
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.enabled = false;
         }
 
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
