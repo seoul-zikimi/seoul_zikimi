@@ -282,7 +282,7 @@ namespace GridSystem
             var cable = GetComponent<CableCarNetwork>();
             if (cable != null && cable.Active)
             {
-                cable.ServerEnqueue(materialId);
+                cable.ServerEnqueue(materialId, orderTeam);   // 2vs2: 주문한 팀의 케이블카로만 배차
                 return;
             }
 
