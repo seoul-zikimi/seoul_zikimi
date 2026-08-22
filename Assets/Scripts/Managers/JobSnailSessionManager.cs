@@ -15,6 +15,10 @@ public class JobsnailSessionManager
     private bool m_IsHost;             // 내가 방장이었는지 여부 기억
     private bool m_IsLeaving;
 
+    /// <summary>씬이 바뀌어도 유지되는 현재 UGS 세션. 로비 UI 상태 복원에 사용한다.</summary>
+    public ISession ActiveSession => m_ActiveSession;
+    public bool HasActiveSession => m_ActiveSession != null || !string.IsNullOrEmpty(m_CachedSessionId);
+
     private JobsnailSessionManager() { }
 
     // 🔄 로비(Skinner)에서 세션이 잡힐 때 이 ID들을 확실하게 백업해 둡니다.

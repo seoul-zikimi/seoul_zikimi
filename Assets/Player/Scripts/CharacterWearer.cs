@@ -39,6 +39,8 @@ public class CharacterWearer : NetworkBehaviour
         float deadline = Time.time + 5f;
         while (Time.time < deadline && GetComponentInChildren<Animator>(true) == null) yield return null;
         CharacterSwap.Apply(gameObject, m_Character.Value.ToString());
+        // 캐릭터가 바뀌면 그 캐릭터용 아웃핏을 다시 입힌다(교체 전 적용분은 대상이 달라 무효)
+        GetComponent<CodiWearer>()?.Reapply();
         m_Pending = null;
     }
 }

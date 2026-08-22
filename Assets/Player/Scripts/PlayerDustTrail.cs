@@ -150,17 +150,25 @@ namespace Player
         // owner는 Rigidbody 속도로, 원격은 NetworkVariable 복제값으로 PlayerUnit이 호출.
         public void Apply(bool isMoving, bool isSprinting)
         {
-            // 회색 먼지 — 스프린트 중 끔
+            // 커스텀 트레일(상점) 착용 여부 — 착용 중이면 기본 먼지/점액 대신 새 트레일이 그 자리를 대체
+            var custom = transform.Find("~Trail");
+
+            // 회색 먼지 — 스프린트 중 끔, 커스텀 트레일 착용 중에도 끔
             if (m_Ps != null)
             {
                 var dustEmission = m_Ps.emission;
-                dustEmission.enabled = isMoving && !isSprinting;
+                dustEmission.enabled = isMoving && !isSprinting && custom == null;
 
                 var main = m_Ps.main;
                 main.startSize = m_Config.DustSize;
             }
 
             
+
+            // 커스텀 트레일(상점): 걷기/일반 이동에만 그림 — 달릴 땐 기본 빨간 부스터가 대신 나온다
+            if (custom != null)
+                foreach (var tr in custom.GetComponentsInChildren<TrailRenderer>(true))
+                    tr.emitting = isMoving && !isSprinting;
 
             if (m_SprintTrails != null)
             {

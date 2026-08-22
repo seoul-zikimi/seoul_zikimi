@@ -57,6 +57,10 @@ namespace GridSystem
         public IReadOnlyList<MapAnswerData> Answers => m_Answers;
         public Sprite Thumbnail => m_Thumbnail;
 
+        /// <summary>2vs2 전용 공터(경기장) 여부 — 로비 맵 선택지에서 제외되고, 대전 모드에서 배경/그리드로 강제 사용된다.
+        /// 에셋 이름 기준(별도 필드 마이그레이션 없이 기존 Map_VersusField.asset 그대로 인식).</summary>
+        public bool IsVersusArena => name == "Map_VersusField";
+
         /// <summary>이 맵에서 주문 가능한 재료(비면 카탈로그 전체). 카탈로그 자체는 전역 그대로다.</summary>
         public IReadOnlyList<MaterialDef> AvailableMaterials => m_AvailableMaterials;
 

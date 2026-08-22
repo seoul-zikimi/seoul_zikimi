@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c3ab9cf125b145540932b7381b9ae0f2
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 7400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 318668
+  packageName: Stylized Rainbow Trails
+  packageVersion: 0.1.0
+  assetPath: Assets/LuminaryLabs/StylizedRainbow/StylizedRainbowDemoAnimation.anim
+  uploadId: 752482

@@ -128,6 +128,7 @@ public class MirrorReflection : MonoBehaviour
 
     private static void SetLayerRecursively(Transform t, int layer)
     {
+        if (t.name == "~Trail") return;   // 트레일은 거울 레이어 제외 — 거울에 안 비침
         t.gameObject.layer = layer;
         for (int i = 0; i < t.childCount; i++) SetLayerRecursively(t.GetChild(i), layer);
     }

@@ -48,6 +48,8 @@ namespace SeoulZikimi.Gameplay
         public IReadOnlyList<CompetitiveItemDefinition> GetAll() => _all;
 
         /// <summary>
+        /// 대포의 10%를 제외한 나머지 기획 확률을 가중치로 사용한다.
+        /// 합계가 100일 필요는 없으며 선택기가 남은 아이템 사이에서 자동 정규화한다.
         /// 기획 확률표를 그대로 가중치로 사용한다(합계 100).
         /// 합계가 100일 필요는 없으며 선택기가 자동 정규화한다.
         /// </summary>

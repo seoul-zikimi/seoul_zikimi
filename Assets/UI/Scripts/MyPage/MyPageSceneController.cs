@@ -60,9 +60,11 @@ public class MyPageSceneController : MonoBehaviour
             }
         }
 
-        // 저장된 아웃핏 입히기(본 부착 — 프리뷰·인게임 동일 로직). 아웃핏은 달팽이 본 기준이라 달팽이만.
+        // 저장된 아웃핏 입히기(본 부착 — 프리뷰·인게임 동일 로직).
+        // 아웃핏은 캐릭터별(TargetCharacter) — Apply가 대상 불일치면 알아서 안 입힌다.
         s_Preview = ch;
-        if (isDefault) CodiOutfit.Apply(ch, SaveService.EquippedOutfit);
+        CodiOutfit.Apply(ch, SaveService.EquippedOutfit, charId);
+        // 트레일은 옷장 프리뷰엔 안 붙임(움직임이 없어 어색 + 거울/화면 오염) — 인게임에서만 표시
     }
 
     private static GameObject s_Preview;
@@ -72,8 +74,8 @@ public class MyPageSceneController : MonoBehaviour
     /// <summary>옷장에서 착용이 바뀌면 프리뷰 캐릭터 갈아입히기.</summary>
     public static void RefreshEquip()
     {
-        if (s_Preview != null && !CharacterSwap.IsNonDefault(s_Preview))
-            CodiOutfit.Apply(s_Preview, SaveService.EquippedOutfit);
+        if (s_Preview != null)
+            CodiOutfit.Apply(s_Preview, SaveService.EquippedOutfit, SaveService.EquippedCharacter);
     }
 
     /// <summary>캐릭터 선택이 바뀌면 프리뷰를 새 모델로 다시 세운다.</summary>

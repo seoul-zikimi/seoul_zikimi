@@ -13,6 +13,14 @@ public static class CodiOutfitExtractor
 {
     private const string kDstDir = "Assets/Resources/CodiOutfits";
 
+    // t가 root까지 올라가는 길에 다른 Item_ 조상이 있으면 중첩 조각
+    private static bool IsNestedItem(Transform t, Transform root)
+    {
+        for (var p = t.parent; p != null && p != root; p = p.parent)
+            if (p.name.StartsWith("Item_")) return true;
+        return false;
+    }
+
     [MenuItem("Tools/MyPage/Extract Outfit From Selection")]
     public static void Extract()
     {
@@ -39,6 +47,9 @@ public static class CodiOutfitExtractor
         var meta = outfitRoot.AddComponent<CodiOutfit>();
         meta.DisplayName = id;
         meta.Price = 100;
+        // 대상 캐릭터를 id 접미사로 추론(_turtle/_crab). 기본은 달팽이("")
+        if (id.EndsWith("_turtle")) meta.TargetCharacter = "char_turtle";
+        else if (id.EndsWith("_crab")) meta.TargetCharacter = "char_crab";
 
         // 기존 아웃핏이 있으면 이름·가격·썸네일·여유배율 보존
         string path = $"{kDstDir}/{id}.prefab";
@@ -50,6 +61,7 @@ public static class CodiOutfitExtractor
             meta.Price = oldMeta.Price;
             meta.Thumbnail = oldMeta.Thumbnail;
             meta.ScaleMargin = oldMeta.ScaleMargin;
+            meta.TargetCharacter = oldMeta.TargetCharacter;   // 캐릭터별 아웃핏 대상 보존
         }
 
         // 포즈 기준 = Animator 노드(model.fbx 루트) — 적용 쪽(CodiOutfit.Apply)과 동일 기준
@@ -61,9 +73,16 @@ public static class CodiOutfitExtractor
         {
             if (!t.name.StartsWith("Item_")) continue;
             if (t.parent == null) continue;
+            if (IsNestedItem(t, root.transform)) { Debug.LogWarning($"[Outfit] 중첩 조각 무시: {t.name} (다른 Item_ 안에 있음 — 씬 잔재로 보이면 삭제하세요)"); continue; }
 
             var piece = Object.Instantiate(t.gameObject, outfitRoot.transform);
             piece.name = t.name;
+            // 복사본 내부의 중첩 Item_/조각 컴포넌트 제거 — 반복 추출 시 조각이 눈덩이처럼 불어나는 것 방지
+            foreach (var nested in piece.GetComponentsInChildren<Transform>(true))
+                if (nested != null && nested != piece.transform && nested.name.StartsWith("Item_"))
+                    Object.DestroyImmediate(nested.gameObject);
+            foreach (var oldCp in piece.GetComponentsInChildren<CodiOutfitPiece>(true))
+                if (oldCp != null) Object.DestroyImmediate(oldCp);
             var cp = piece.AddComponent<CodiOutfitPiece>();
             var bone = t.parent;
             float rootScale = poseRoot.lossyScale.x;

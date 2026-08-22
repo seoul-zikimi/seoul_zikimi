@@ -70,10 +70,12 @@ public class CarryHudUI : UIHUD
         var img = Get<Image>(fillIdx);
         if (img != null)
         {
-            // 85% 이상부터 흰색 펄스 — "곧 완료!" 신호
+            // 85% 이상부터 펄스 — "곧 완료!" 신호. 리마스터 스프라이트 게이지는 구운 주황을 쓰므로 호출자 색 틴트는 무시.
+            bool skinned = img.sprite != null;
+            Color baseCol = skinned ? Color.white : fill;
             img.color = t01 > 0.85f
-                ? Color.Lerp(fill, Color.white, Mathf.PingPong(Time.unscaledTime * 6f, 0.6f))
-                : fill;
+                ? Color.Lerp(baseCol, skinned ? new Color(1f, 1f, 1f, 0.45f) : Color.white, Mathf.PingPong(Time.unscaledTime * 6f, 0.6f))
+                : baseCol;
             img.rectTransform.localScale = new Vector3(Mathf.Clamp01(t01), 1f, 1f);   // pivot=왼쪽 → 왼→오 채움
         }
         var txt = Get<Text>(labelIdx);

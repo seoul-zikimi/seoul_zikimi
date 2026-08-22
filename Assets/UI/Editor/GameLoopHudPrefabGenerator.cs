@@ -14,6 +14,9 @@ public static class GameLoopHudPrefabGenerator
 {
     private const string kPath = "Assets/Resources/UI/HUD/GameLoopHUD.prefab";
 
+    /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
+    public const string kRemasterMarker = "TimerIcon";
+
     [MenuItem("Jobsnail/UI/Generate GameLoopHud Prefab")]
     public static void Generate()
     {
@@ -26,25 +29,45 @@ public static class GameLoopHudPrefabGenerator
         root.AddComponent<GameLoopHUD>();
         var rootT = root.transform;
 
-        // ── 상단 타이머 ──
-        var top = JobsnailUiKit.Box("TopBar", rootT, new Vector2(0.42f, 0.92f), new Vector2(0.58f, 0.99f), Vector2.zero, Vector2.zero, new Color(0.84f, 0.82f, 0.70f, 0.92f));
-        JobsnailUiKit.Label("Timer", top.transform, "0:00", 34, Color.black, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
+        // ── 상단: 타이머 아이콘 + 남은 시간(리마스터 · 피그마 "2 : 15" 642,19 120x60 · 아이콘 38x44 왼쪽) ──
+        // TopBar 는 투명 컨테이너(무제한 모드에선 통째로 숨김). Timer 텍스트는 위 정렬 + 아래로 넘침 허용(2vs2 점수줄).
+        var topRt = JobsnailUiKit.Rect("TopBar", rootT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        InGameUiSkin.TopCenter(topRt, 590, 19, 220, 60);
+        var top = topRt.gameObject;
+        var icon = InGameUiSkin.SpriteImage("TimerIcon", top.transform, "TimerIcon");
+        InGameUiSkin.TopLeft(icon.rectTransform, 0, 8, 38, 44);
+        var timer = JobsnailUiKit.Label("Timer", top.transform, "0 : 00", Mathf.RoundToInt(44 * InGameUiSkin.S), Color.white, TextAlignmentOptions.Top, Vector2.zero, Vector2.zero);
+        InGameUiSkin.TopLeft(timer.rectTransform, 46, -4, 174, 60);
+        timer.rectTransform.sizeDelta = new Vector2(timer.rectTransform.sizeDelta.x, 160f);   // 2vs2 점수/아이템 줄이 아래로 이어짐
+        timer.fontStyle = FontStyles.Bold;
+        timer.textWrappingMode = TextWrappingModes.NoWrap;
+        timer.overflowMode = TextOverflowModes.Overflow;
 
-        // ── 종료 요청 클러스터(인원 아이콘 + 버튼) ──
-        var cbar = JobsnailUiKit.Box("EndRequestCluster", rootT, new Vector2(0.70f, 0.925f), new Vector2(0.945f, 0.985f), Vector2.zero, Vector2.zero, new Color(1f, 1f, 1f, 0f));
+        // ── 종료 요청 클러스터(인원 아이콘 + 버튼) — 버튼 피그마 (1071,26) 108x34, 아이콘은 그 왼쪽 ──
+        var cbarRt = JobsnailUiKit.Rect("EndRequestCluster", rootT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        InGameUiSkin.TopRight(cbarRt, 1071 - 120, 26, 108 + 120, 34);
+        var cbar = cbarRt.gameObject;
         var snail = JobsnailUiKit.Sprite("UI_pngs/3.inGame/Person_Icon") ?? JobsnailUiKit.Sprite("UI_pngs/3.inGame/Snail_Icon");
         for (int i = 0; i < 4; i++)
         {
-            var icon = JobsnailUiKit.Box($"P{i}", cbar.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(16 + i * 26, 0), new Vector2(22, 22), Color.white);
-            icon.sprite = snail;
-            icon.preserveAspect = true;
+            var pIcon = JobsnailUiKit.Box($"P{i}", cbar.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18 + i * 38, 0), new Vector2(30, 30), Color.white);
+            pIcon.sprite = snail;
+            pIcon.preserveAspect = true;
         }
-        var end = JobsnailUiKit.Button("EndRequestButton", cbar.transform, null, new Vector2(0.46f, 0.12f), new Vector2(1f, 0.88f), Vector2.zero, Vector2.zero, null, "종료 요청");
-        SetColor(end, new Color(1f, 0.78f, 0.44f, 1f));
+        var endSprite = InGameUiSkin.Load("EndRequestButton");
+        var end = JobsnailUiKit.Button("EndRequestButton", cbar.transform, endSprite, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, null, endSprite == null ? "종료 요청" : null);
+        InGameUiSkin.TopRight((RectTransform)end.transform, 120, 0, 108, 34, frameW: 228);
+        if (end.targetGraphic is Image endImg) endImg.preserveAspect = false;
+        // 상태 라벨(동의 취소 / 재시작) — 기본 상태는 스프라이트에 구워진 텍스트를 쓰므로 숨김. GameLoopHUD 가 빈 버튼 스프라이트로 바꿔 켠다.
+        var endLabel = JobsnailUiKit.Label("Label", end.transform, "", Mathf.RoundToInt(13 * InGameUiSkin.S), Color.white, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
+        endLabel.fontStyle = FontStyles.Bold;
+        endLabel.raycastTarget = false;
+        endLabel.gameObject.SetActive(false);
 
-        // ── 설정(톱니) ──
-        var gearSprite = JobsnailUiKit.Sprite("UI_pngs/settingsicon");
-        var gear = JobsnailUiKit.Button("SettingsIconButton", rootT, gearSprite, new Vector2(0.955f, 0.925f), new Vector2(0.99f, 0.985f), Vector2.zero, Vector2.zero, null, gearSprite == null ? "설정" : null);
+        // ── 설정(톱니) — 피그마 (1270,21) 49x49 ──
+        var gearSprite = InGameUiSkin.Load("SettingsButton") ?? JobsnailUiKit.Sprite("UI_pngs/settingsicon");
+        var gear = JobsnailUiKit.Button("SettingsIconButton", rootT, gearSprite, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, null, gearSprite == null ? "설정" : null);
+        InGameUiSkin.TopRight((RectTransform)gear.transform, 1270, 21, 49, 49);
         if (gear.targetGraphic is Image gearImg)
         {
             gearImg.raycastTarget = true;

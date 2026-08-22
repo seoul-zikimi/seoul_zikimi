@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: b926ed1645cff46b49aa8627ceb5552d
+VisualEffectImporter:
+  externalObjects: {}
+  serializedVersion: 1
+  template:
+    name: 
+    category: 
+    description: 
+    icon: {instanceID: 0}
+    thumbnail: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 318668
+  packageName: Stylized Rainbow Trails
+  packageVersion: 0.1.0
+  assetPath: Assets/LuminaryLabs/StylizedRainbow/StylizedRainbow.vfx
+  uploadId: 752482

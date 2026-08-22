@@ -13,6 +13,26 @@ public static class SaveService
     private const string kCoins = "coins";
     private const string kCodi = "codiItems";
     private const string kSkins = "skins";
+    private const int kTestStartingCoins = 100000;
+
+    /// <summary>
+    /// 테스트 기간에는 새 저장과 기존 저장 모두 플레이 시작 시 최소 100,000코인을 보장한다.
+    /// 이미 그보다 많이 보유했다면 기존 잔액을 유지한다.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void EnsureTestStartingCoins()
+    {
+        try
+        {
+            int current = ES3.Load(kCoins, kFile, kTestStartingCoins);
+            if (current < kTestStartingCoins)
+                ES3.Save(kCoins, kTestStartingCoins, kFile);
+        }
+        catch (System.IO.IOException exception)
+        {
+            Debug.LogWarning($"[SaveService] 테스트 시작 코인 저장을 건너뜁니다: {exception.Message}");
+        }
+    }
 
     // ── 닉네임 (변경 시 저장) ──
     public static string Nickname
@@ -27,7 +47,7 @@ public static class SaveService
     }
 
     // ── 코인 (증가/감소 시 저장 — 게임 종료 보상, 아이템 구매) ──
-    public static int Coins => ES3.Load(kCoins, kFile, 0);
+    public static int Coins => ES3.Load(kCoins, kFile, kTestStartingCoins);
 
     public static void AddCoins(int delta) => ES3.Save(kCoins, Mathf.Max(0, Coins + delta), kFile);
 
@@ -59,11 +79,50 @@ public static class SaveService
         set => ES3.Save("equippedOutfit", value ?? "", kFile);
     }
 
+    // ── 착용 중 트레일(이동 이펙트) — 아웃핏과 독립, 빈 문자열 = 없음. 예: trail_fire ──
+    public static string EquippedTrail
+    {
+        get => ES3.Load("equippedTrail", kFile, "");
+        set => ES3.Save("equippedTrail", value ?? "", kFile);
+    }
+
     // ── 선택 중 캐릭터 — 빈 문자열 = 기본(달팽이). 예: char_turtle ──
     public static string EquippedCharacter
     {
         get => ES3.Load("equippedCharacter", kFile, "");
         set => ES3.Save("equippedCharacter", value ?? "", kFile);
+    }
+
+    // ── 인트로 컷씬(최초 실행 연출 + 초기 캐릭터 선택) 완료 여부 ──
+    public static bool IntroSeen
+    {
+        get => ES3.Load("introSeen", kFile, false);
+        set => ES3.Save("introSeen", value, kFile);
+    }
+
+    // ── 보유 캐릭터 — 인트로에서 고른 1명 무료, 나머지는 옷장에서 코인 해금.
+    //    빈 id(달팽이)는 리스트에 "default" 토큰으로 저장.
+    private const string kCharacters = "ownedCharacters";
+    private static string CharToken(string id) => string.IsNullOrEmpty(id) ? "default" : id;
+
+    public static List<string> OwnedCharacters => ES3.Load(kCharacters, kFile, new List<string>());
+
+    public static bool HasCharacter(string id)
+        => !IntroSeen || OwnedCharacters.Contains(CharToken(id));   // 인트로 전(기존 세이브 포함)엔 전부 개방 유지
+
+    public static void GrantCharacter(string id)
+    {
+        var list = OwnedCharacters;
+        if (list.Contains(CharToken(id))) return;
+        list.Add(CharToken(id));
+        ES3.Save(kCharacters, list, kFile);
+    }
+
+    public static bool BuyCharacter(string id, int price)
+    {
+        if (OwnedCharacters.Contains(CharToken(id)) || !TrySpendCoins(price)) return false;
+        GrantCharacter(id);
+        return true;
     }
 
     // ── 보유 캐릭터 스킨 (구매 시 저장) — 선행조건(캐릭터 보유 등) 검사는 상점 쪽 책임 ──

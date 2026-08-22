@@ -66,6 +66,7 @@ public class UIManager : Singleton<UIManager>
         var ui = go.GetComponent<T>();
         if (ui == null) ui = go.AddComponent<T>();
         go.transform.SetParent(HUDRoot.transform, false);
+        JobsnailUiKit.ApplyFontPolicy(go.transform);
         ui.Init();
         _hudCache[typeof(T)] = ui;
         return ui;
@@ -86,6 +87,7 @@ public class UIManager : Singleton<UIManager>
         if (popup == null) popup = go.AddComponent<T>();
         _popupStack.Push(popup);
         go.transform.SetParent(PopupRoot.transform, false);
+        JobsnailUiKit.ApplyFontPolicy(go.transform);
         go.transform.SetAsLastSibling();
         popup.Init();
         return popup;
@@ -118,6 +120,7 @@ public class UIManager : Singleton<UIManager>
         if (popup == null) popup = go.AddComponent<T>();
         _systemStack.Push(popup);
         go.transform.SetParent(SystemRoot.transform, false);
+        JobsnailUiKit.ApplyFontPolicy(go.transform);
         go.transform.SetAsLastSibling();
         popup.Init();
         return popup;

@@ -33,7 +33,17 @@ namespace GridSystem
 
             var catalog = MapCatalog.Instance;
             var def = catalog != null ? catalog.Get(idx) : null;
-            if (def == null || def.BackgroundPrefab == null)
+
+            // 2vs2: 배경·그리드는 항상 공터(경기장) 맵을 쓴다. 정답 구조물·재료는 선택한 맵 것 그대로
+            // (= "선택한 맵에 따라 지을 건축물이 바뀌고, 경기장은 공터"). 공터 맵이 없으면 기존 대칭 복제 폴백.
+            var bgDef = def;
+            if (m_Loop.IsVersus && catalog != null)
+            {
+                var arena = catalog.FindVersusArena();
+                if (arena != null && arena.BackgroundPrefab != null) bgDef = arena;
+            }
+
+            if (def == null || bgDef == null || bgDef.BackgroundPrefab == null)
             {
                 if (m_SpawnedIndex < 0) { m_SpawnedIndex = idx; Pending = false; Debug.LogWarning("[MapLoader] MapCatalog/배경 프리팹 없음 — 배경 미스폰"); }
                 return;
@@ -42,15 +52,15 @@ namespace GridSystem
             if (m_Spawned != null) Destroy(m_Spawned);   // 맵 교체(새 라운드에 다른 맵) 대응
             if (m_MirrorClone != null) Destroy(m_MirrorClone);
             ClearSpawnedSystemObjects();                // 이전 맵이 만든 작업대 등 정리
-            m_Spawned = Instantiate(def.BackgroundPrefab);
-            m_Spawned.name = $"~MapBackground({def.DisplayName})";
+            m_Spawned = Instantiate(bgDef.BackgroundPrefab);
+            m_Spawned.name = $"~MapBackground({bgDef.DisplayName})";
             m_SpawnedIndex = idx;
 
-            // 맵 전용 건축 영역 크기(있으면) — 마커 배치·플레이어 배치보다 먼저 확정해야 위치가 맞는다.
-            if (def.HasGridSize)
+            // 건축 영역 크기 — 배경으로 쓰는 맵(2vs2=공터)의 값. 마커 배치·플레이어 배치보다 먼저 확정해야 위치가 맞는다.
+            if (bgDef.HasGridSize)
             {
                 var gm = FindFirstObjectByType<GridManager>();
-                if (gm != null) gm.ApplyMapGridSize(def.GridSize);
+                if (gm != null) gm.ApplyMapGridSize(bgDef.GridSize);
             }
 
             // 이 맵에서 주문할 수 있는 재료(비면 카탈로그 전체) — 주문 HUD가 이 목록만 보여준다.

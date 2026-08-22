@@ -4,9 +4,10 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// '시공도면 폰' HUD — 정답 3D 뷰(위)와 재료 주문(아래)을 폰 한 화면에 통합.
-/// 화면 블럭 클릭 = 선택(오주문 방지 2단계), 카드/[주문] 버튼으로 확정. TAB = 폰 꺼내기/넣기.
-/// 3D 뷰 텍스처·입력 라우팅·호버/선택 픽킹은 AnswerHudDriver, 주문 목록·잔량은 GameHudDriver가 채운다.
+/// '완공 계획도 폰' HUD(리마스터) — 정답 3D 뷰(위)와 재료 카탈로그(아래)를 폰 한 화면에 통합.
+/// 비주얼은 피그마 익스포트(PhoneBg: 상태바·제목·'현재 완성도' 뱃지·'재료 카탈로그' 구움) + 카드/주문 버튼 스프라이트.
+/// 화면 블럭 클릭 = 선택(오주문 방지 2단계), 카드 클릭 = 선택, [주문!] 버튼으로 확정. TAB = 폰 꺼내기/넣기.
+/// 3D 뷰 텍스처·입력 라우팅·호버/선택 픽킹은 AnswerHudDriver, 주문 목록·잔량·완성도는 GameHudDriver가 채운다.
 /// UIManager가 Resources/UI/HUD/AnswerPanelHUD 프리팹(빈 껍데기)에서 인스턴스화.
 /// </summary>
 public class AnswerPanelHUD : UIHUD
@@ -18,35 +19,40 @@ public class AnswerPanelHUD : UIHUD
         public string Sub;    // 필요 공정 리치텍스트(드라이버가 계산 — 이 클래스는 GridSystem을 모른다)
     }
 
-    private const string kIdleName = "블럭을 골라 주문하세요";
-    private const string kIdleSub  = "화면 블럭 클릭 = 선택 · 우클릭 회전 · 휠 줌";
-
-    // 폰 레이아웃: 베젤 안에 [타이틀 / 3D 화면 / 선택 바 / 주문 그리드]
-    private const float kW = 360f, kBezel = 8f, kTitleH = 26f, kScreenH = 344f, kSelH = 52f, kGridH = 190f;
-    private const float kGap = 6f;
-    private const int   kCols = 4;
-    private const string kSidePref = "Jobsnail_PhoneSide";   // 1 = 오른쪽(기본), 0 = 왼쪽
+    // ── 피그마 '완성본 모습' 좌표(px · 폰 좌상단 원점) ──
+    private const float kPhoneX = 1029f, kPhoneY = 217f, kPhoneW = 304f, kPhoneH = 625f;   // 프레임 기준(아래로 89px 잠김 = 디자인)
+    private const float kPctX = 88f, kPctY = 94f, kPctW = 27f, kPctH = 15f;               // '현재 완성도 : [  ]%' 빈칸
+    private const float kViewX = 38f, kViewY = 114f, kViewS = 228f;                          // 3D 뷰(정사각)
+    private const float kOrderX = 219f, kOrderY = 355f, kOrderW = 46f, kOrderH = 22f;       // [주문!]
+    private const float kGridX = 35f, kGridY = 383f, kGridW = 230f;                          // 카드 그리드 원점
+    private const float kCardW = 111f, kCardH = 59f, kColStep = 119f, kRowStep = 65f;
+    private const int   kCols = 2;
+    private const float kDisplayBottom = InGameUiSkin.FrameH - kPhoneY;                     // 폰 로컬 기준 화면 하단(536) — 그 아래는 안 보임
+    // 카드 내부
+    private const float kThumbX = 6f, kThumbY = 7f, kThumbW = 43f, kThumbH = 46f;
+    private const float kNameX = 53f, kNameY = 8f, kNameW = 53f, kNameH = 34f;
+    private const float kBadgeX = 60f, kBadgeY = 46f, kBadgeW = 50f, kBadgeH = 12f;
 
     private static Font s_Font;
     private GameObject m_Phone;
     private RawImage m_Surface;
-    private Text m_SelName, m_SelSub;
+    private Text m_PctText;
     private Button m_OrderBtn;
     private Image m_OrderBtnImg;
     private GameObject m_GridRoot;
 
     private struct Card
     {
-        public Image Bg; public Outline Frame; public RawImage Thumb; public Text Badge;
+        public Image Bg; public Outline Frame; public RawImage Thumb; public Text Badge; public GameObject BadgeBg;
         public string Name; public string Sub; public int Remaining;   // -1 = 무제한
     }
     private readonly Dictionary<int, Card> m_Cards = new();
     private int m_SelectedId = -1;
     private Action<int> m_OnOrder;
 
-    private static readonly Color kCardIdle   = new Color(1f, 1f, 1f, 0.10f);
-    private static readonly Color kCardPicked = new Color(0.30f, 0.85f, 0.40f, 0.22f);
-    private static readonly Color kSelGreen   = new Color(0.30f, 0.85f, 0.40f);
+    private static readonly Color kCardIdle   = Color.white;                         // 스프라이트 원색(#BEC3CD)
+    private static readonly Color kCardPicked = new Color(1f, 0.86f, 0.74f, 1f);     // 살구빛 틴트
+    private static readonly Color kSoldOut    = new Color(0.72f, 0.72f, 0.72f, 1f);
 
     /// <summary>선택이 바뀜(-1 = 해제) — AnswerHudDriver가 3D 뷰 테두리를 동기화.</summary>
     public event Action<int> SelectionChanged;
@@ -54,69 +60,42 @@ public class AnswerPanelHUD : UIHUD
     public RectTransform SurfaceRect => m_Surface != null ? m_Surface.rectTransform : null;
     public void SetTexture(RenderTexture rt) { if (m_Surface != null) m_Surface.texture = rt; }
 
-    private bool m_Right;
-
-    // 폰을 화면 좌/우 하단에 붙인다. 툴팁·픽킹은 좌표 기반이라 어느 쪽이든 그대로 동작.
-    private void ApplySide(bool right)
+    /// <summary>'현재 완성도 : N%' 숫자 갱신(GameHudDriver가 매 프레임 호출).</summary>
+    public void SetCompletion(int percent)
     {
-        m_Right = right;
-        PlayerPrefs.SetInt(kSidePref, right ? 1 : 0);
-        var rt = m_Phone.GetComponent<RectTransform>();
-        var a = right ? new Vector2(1f, 0f) : new Vector2(0f, 0f);
-        rt.anchorMin = rt.anchorMax = a; rt.pivot = a;
-        rt.anchoredPosition = right ? new Vector2(-14f, 14f) : new Vector2(14f, 14f);
+        if (m_PctText == null) return;
+        string s = Mathf.Clamp(percent, 0, 100).ToString();
+        if (m_PctText.text != s) m_PctText.text = s;
     }
 
     public override void Init()
     {
         if (s_Font == null) s_Font = JobsnailUiKit.LegacyFont;
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (!InGameUiSkin.Available)
+            Debug.LogWarning("[AnswerPanelHUD] 리마스터 스프라이트 없음 — Assets/Resources/UI_pngs/3.inGame/Remaster 확인");
 
-        float h = kBezel * 2 + kTitleH + kScreenH + kSelH + kGridH;
-        m_Phone = NewRect("Phone", transform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(14, 14), new Vector2(kW, h));
-        var bezel = m_Phone.AddComponent<Image>(); bezel.color = new Color(0.06f, 0.06f, 0.09f, 0.95f); bezel.raycastTarget = false;
+        // ── 폰 본체(우하단 · 디자인대로 아래로 살짝 잠김) ──
+        var bg = InGameUiSkin.SpriteImage("Phone", transform, "PhoneBg");
+        InGameUiSkin.BottomRight(bg.rectTransform, kPhoneX, kPhoneY, kPhoneW, kPhoneH);
+        m_Phone = bg.gameObject;
         m_Phone.AddComponent<UiPopIn>();   // 폰 꺼낼 때 뽁
-        ApplySide(PlayerPrefs.GetInt(kSidePref, 1) == 1);   // 기본 오른쪽, 마지막 선택 기억
 
-        float y = -kBezel;
-        var title = MakeText(m_Phone.transform, "시공도면 폰  (TAB 꺼내기/넣기)",
-                             new Vector2(kBezel + 4, y), new Vector2(kW - kBezel * 2 - 44, kTitleH), 14, TextAnchor.MiddleLeft);
-        title.color = new Color(0.75f, 0.78f, 0.85f);
+        // 완성도 숫자(뱃지 빈칸 · 우측 정렬이라 '%' 앞에 붙는다)
+        m_PctText = MakeText(m_Phone.transform, "0", new Vector2(kPctX, kPctY), new Vector2(kPctW, kPctH), Px(11), TextAnchor.MiddleRight);
+        m_PctText.fontStyle = FontStyle.Bold;
 
-        // 좌/우 전환 버튼 — 화면 어느 쪽에 둘지 즉석 토글(PlayerPrefs 저장)
-        var sideGo = NewRect("SideBtn", m_Phone.transform, new Vector2(1, 1), new Vector2(1, 1),
-                             new Vector2(-kBezel, -kBezel - 2), new Vector2(32, 22));
-        var sideImg = sideGo.AddComponent<Image>(); sideImg.color = new Color(1f, 1f, 1f, 0.12f);
-        var sideBtn = sideGo.AddComponent<Button>(); sideBtn.targetGraphic = sideImg;
-        sideBtn.onClick.AddListener(() => ApplySide(!m_Right));
-        JuicyButton.Attach(sideBtn);
-        var sideLbl = MakeText(sideGo.transform, "<>", Vector2.zero, new Vector2(32, 22), 13, TextAnchor.MiddleCenter);
-        sideLbl.fontStyle = FontStyle.Bold;
-        y -= kTitleH;
+        // 3D 정답 뷰
+        m_Surface = MakeRawImage(m_Phone.transform, new Vector2(kViewX, kViewY), new Vector2(kViewS, kViewS));
 
-        m_Surface = MakeRawImage(m_Phone.transform, new Vector2(kBezel, y), new Vector2(kW - kBezel * 2, kScreenH));
-        y -= kScreenH;
-
-        // ── 선택 정보 바 + [주문] 버튼 ──
-        m_SelName = MakeText(m_Phone.transform, kIdleName,
-                             new Vector2(kBezel + 4, y - 4), new Vector2(kW - kBezel * 2 - 96, 24), 16, TextAnchor.MiddleLeft);
-        m_SelName.fontStyle = FontStyle.Bold;
-        m_SelSub = MakeText(m_Phone.transform, kIdleSub,
-                            new Vector2(kBezel + 4, y - 28), new Vector2(kW - kBezel * 2 - 96, 20), 12, TextAnchor.MiddleLeft);
-        m_SelSub.color = new Color(0.8f, 0.8f, 0.8f);
-
-        var btnGo = NewRect("OrderBtn", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
-                            new Vector2(kW - kBezel - 84, y - 8), new Vector2(84, 38));
-        m_OrderBtnImg = btnGo.AddComponent<Image>();
-        m_OrderBtn = btnGo.AddComponent<Button>(); m_OrderBtn.targetGraphic = m_OrderBtnImg;
+        // [주문!] 버튼(텍스트 구움) — 선택 없으면 반투명
+        var btnImg = InGameUiSkin.SpriteImage("OrderBtn", m_Phone.transform, "OrderButton", raycast: true);
+        Local(btnImg.rectTransform, kOrderX, kOrderY, kOrderW, kOrderH);
+        m_OrderBtnImg = btnImg;
+        m_OrderBtn = btnImg.gameObject.AddComponent<Button>();
+        m_OrderBtn.targetGraphic = m_OrderBtnImg;
         m_OrderBtn.onClick.AddListener(() => { if (m_SelectedId >= 0) m_OnOrder?.Invoke(m_SelectedId); });
         JuicyButton.Attach(m_OrderBtn);
-        var bl = NewRect("Label", btnGo.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        var blrt = bl.GetComponent<RectTransform>();
-        blrt.pivot = new Vector2(0.5f, 0.5f); blrt.offsetMin = blrt.offsetMax = Vector2.zero;
-        var blt = bl.AddComponent<Text>();
-        blt.font = s_Font; blt.fontSize = 17; blt.fontStyle = FontStyle.Bold;
-        blt.color = Color.white; blt.text = "주문"; blt.alignment = TextAnchor.MiddleCenter;
         UpdateOrderButton();
 
         BuildTip();   // 마지막에 만들어 항상 위에 그려진다
@@ -130,35 +109,30 @@ public class AnswerPanelHUD : UIHUD
         if (m_GridRoot != null) Destroy(m_GridRoot);
         m_Cards.Clear();
         m_SelectedId = -1;
-        SetSelBar(null, null);
         UpdateOrderButton();
 
-        float innerW = kW - kBezel * 2;
-        float top = -(kBezel + kTitleH + kScreenH + kSelH);
+        // 뷰포트 = 그리드 원점 ~ 실제 화면 하단(폰이 아래로 잠겨 있어 그 아래 카드는 안 보임 → 스크롤)
+        float viewH = kDisplayBottom - kGridY - 4f;
         m_GridRoot = NewRect("Orders", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
-                             new Vector2(kBezel, top), new Vector2(innerW, kGridH));
-        m_GridRoot.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.04f);
+                             new Vector2(kGridX * InGameUiSkin.S, -kGridY * InGameUiSkin.S),
+                             new Vector2(kGridW * InGameUiSkin.S, viewH * InGameUiSkin.S));
         m_GridRoot.AddComponent<RectMask2D>();
 
-        float cardW = (innerW - kGap * (kCols + 1)) / kCols;
-        float thumb = cardW - 8f;
-        float cardH = thumb + 16f;
         int rows = Mathf.CeilToInt(items.Count / (float)kCols);
-        float contentH = kGap + rows * (cardH + kGap);
+        float contentH = rows > 0 ? (rows - 1) * kRowStep + kCardH : 0f;
 
         var content = NewRect("Content", m_GridRoot.transform, new Vector2(0, 1), new Vector2(1, 1),
-                              Vector2.zero, new Vector2(0, contentH));
+                              Vector2.zero, new Vector2(0, contentH * InGameUiSkin.S));
         var crt = content.GetComponent<RectTransform>();
         crt.pivot = new Vector2(0.5f, 1f); crt.anchoredPosition = Vector2.zero;
 
         for (int i = 0; i < items.Count; i++)
         {
             int col = i % kCols, row = i / kCols;
-            MakeCard(content.transform, items[i],
-                     new Vector2(kGap + col * (cardW + kGap), -(kGap + row * (cardH + kGap))), cardW, cardH, thumb);
+            MakeCard(content.transform, items[i], col * kColStep, row * kRowStep);
         }
 
-        if (contentH > kGridH)
+        if (contentH > viewH)
         {
             var sr = m_GridRoot.AddComponent<ScrollRect>();
             sr.content = crt;
@@ -169,39 +143,41 @@ public class AnswerPanelHUD : UIHUD
         }
     }
 
-    private void MakeCard(Transform parent, OrderEntry e, Vector2 pos, float w, float h, float thumbSize)
+    private void MakeCard(Transform parent, OrderEntry e, float x, float y)
     {
-        var card = NewRect("Card", parent, new Vector2(0, 1), new Vector2(0, 1), pos, new Vector2(w, h));
-        var img = card.AddComponent<Image>(); img.color = kCardIdle;
-        var frame = card.AddComponent<Outline>();   // 선택 테두리(게임 집기 초록과 동일 색)
-        frame.effectColor = kSelGreen; frame.effectDistance = new Vector2(2f, 2f); frame.enabled = false;
-        var btn = card.AddComponent<Button>(); btn.targetGraphic = img;
+        var img = InGameUiSkin.SpriteImage("Card", parent, "OrderCard", raycast: true);
+        Local(img.rectTransform, x, y, kCardW, kCardH);
+        img.color = kCardIdle;
+        var frame = img.gameObject.AddComponent<Outline>();   // 선택 테두리(주황)
+        frame.effectColor = InGameUiSkin.Orange; frame.effectDistance = new Vector2(2f, 2f); frame.enabled = false;
+        var btn = img.gameObject.AddComponent<Button>(); btn.targetGraphic = img;
+        btn.transition = Selectable.Transition.None;
         int id = e.Id;
-        btn.onClick.AddListener(() => Select(id));   // 카드 클릭 = 선택(주문은 [주문] 버튼)
+        btn.onClick.AddListener(() => Select(id));   // 카드 클릭 = 선택(주문은 [주문!] 버튼)
         JuicyButton.Attach(btn);
 
-        var th = NewRect("Thumb", card.transform, new Vector2(0, 1), new Vector2(0, 1),
-                         new Vector2((w - thumbSize) * 0.5f, -2f), new Vector2(thumbSize, thumbSize));
+        var th = NewRect("Thumb", img.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        Local((RectTransform)th.transform, kThumbX, kThumbY, kThumbW, kThumbH);
         var ri = th.AddComponent<RawImage>();
         var tex = e.Prefab != null ? BlockThumbnail.Get(e.Prefab, 256) : null;
         if (tex != null) ri.texture = tex;
         else ri.color = new Color(1f, 1f, 1f, 0.15f);
         ri.raycastTarget = false;
 
-        var nm = MakeText(card.transform, e.Name, new Vector2(2, -(2f + thumbSize)), new Vector2(w - 4, 14), 11, TextAnchor.MiddleCenter);
+        var nm = MakeText(img.transform, e.Name, new Vector2(kNameX, kNameY), new Vector2(kNameW, kNameH), Px(10), TextAnchor.MiddleCenter);
+        nm.color = InGameUiSkin.TextGray;
         nm.horizontalOverflow = HorizontalWrapMode.Wrap; nm.verticalOverflow = VerticalWrapMode.Truncate;
 
-        Text badge = null;
+        Text badge = null; GameObject badgeBg = null;
         if (e.Limit >= 0)
         {
-            var bg = NewRect("BadgeBg", card.transform, new Vector2(1, 1), new Vector2(1, 1),
-                             new Vector2(-2, -2), new Vector2(34, 16));
-            var bimg = bg.AddComponent<Image>(); bimg.color = new Color(0f, 0f, 0f, 0.65f); bimg.raycastTarget = false;
-            badge = MakeText(bg.transform, $"×{e.Limit}", Vector2.zero, new Vector2(34, 16), 11, TextAnchor.MiddleCenter);
-            badge.fontStyle = FontStyle.Bold;
+            badgeBg = NewRect("BadgeBg", img.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+            Local((RectTransform)badgeBg.transform, kBadgeX, kBadgeY, kBadgeW, kBadgeH);
+            var bimg = badgeBg.AddComponent<Image>(); bimg.color = InGameUiSkin.Orange; bimg.raycastTarget = false;
+            badge = MakeText(badgeBg.transform, $"재고: {e.Limit}개", Vector2.zero, new Vector2(kBadgeW, kBadgeH), Px(8), TextAnchor.MiddleCenter);
         }
 
-        m_Cards[id] = new Card { Bg = img, Frame = frame, Thumb = ri, Badge = badge,
+        m_Cards[id] = new Card { Bg = img, Frame = frame, Thumb = ri, Badge = badge, BadgeBg = badgeBg,
                                 Name = e.Name, Sub = e.Sub, Remaining = e.Limit };
     }
 
@@ -215,7 +191,6 @@ public class AnswerPanelHUD : UIHUD
             m_SelectedId = id;
             c.Frame.enabled = true;
             c.Bg.color = kCardPicked;
-            SetSelBar(c.Name + RemainSuffix(c), c.Sub);
             UpdateOrderButton();
         }
         SelectionChanged?.Invoke(id);
@@ -226,7 +201,6 @@ public class AnswerPanelHUD : UIHUD
         if (m_SelectedId < 0) return;
         DeselectCardVisual();
         m_SelectedId = -1;
-        SetSelBar(null, null);
         UpdateOrderButton();
         SelectionChanged?.Invoke(-1);
     }
@@ -236,47 +210,29 @@ public class AnswerPanelHUD : UIHUD
         if (m_SelectedId >= 0 && m_Cards.TryGetValue(m_SelectedId, out var old))
         {
             old.Frame.enabled = false;
-            old.Bg.color = kCardIdle;
+            old.Bg.color = old.Remaining == 0 ? kSoldOut : kCardIdle;
         }
     }
 
-    /// <summary>수량 제한 재료의 잔량 반영. 품절이어도 선택은 되게 두고 [주문] 버튼만 잠근다.</summary>
+    /// <summary>수량 제한 재료의 잔량 반영. 품절이어도 선택은 되게 두고 [주문!] 버튼만 잠근다.</summary>
     public void SetRemaining(int id, int remaining)
     {
         if (remaining < 0 || !m_Cards.TryGetValue(id, out var c)) return;
         c.Remaining = remaining;
         m_Cards[id] = c;
         bool sold = remaining == 0;
-        if (c.Badge != null)
-        {
-            c.Badge.text = sold ? "품절" : $"×{remaining}";
-            c.Badge.color = sold ? new Color(1f, 0.55f, 0.45f) : Color.white;
-        }
+        if (c.Badge != null) c.Badge.text = sold ? "품절" : $"재고: {remaining}개";
         if (c.Thumb != null && c.Thumb.texture != null)
             c.Thumb.color = sold ? new Color(0.4f, 0.4f, 0.4f, 1f) : Color.white;
-        if (m_SelectedId == id)
-        {
-            SetSelBar(c.Name + RemainSuffix(c), c.Sub);
-            UpdateOrderButton();
-        }
-    }
-
-    private static string RemainSuffix(Card c) =>
-        c.Remaining < 0 ? "" : c.Remaining == 0 ? "  <color=#FF8C73>품절</color>" : $"  ({c.Remaining}개 남음)";
-
-    private void SetSelBar(string name, string sub)
-    {
-        bool has = !string.IsNullOrEmpty(name);
-        if (m_SelName != null) m_SelName.text = has ? name : kIdleName;
-        if (m_SelSub != null)  m_SelSub.text  = has ? sub : kIdleSub;
+        if (m_SelectedId != id) c.Bg.color = sold ? kSoldOut : kCardIdle;
+        else UpdateOrderButton();
     }
 
     private void UpdateOrderButton()
     {
         bool can = m_SelectedId >= 0 && m_Cards.TryGetValue(m_SelectedId, out var c) && c.Remaining != 0;
         if (m_OrderBtn != null) m_OrderBtn.interactable = can;
-        if (m_OrderBtnImg != null)
-            m_OrderBtnImg.color = can ? new Color(0.22f, 0.55f, 0.30f) : new Color(0.28f, 0.28f, 0.30f, 0.9f);
+        if (m_OrderBtnImg != null) m_OrderBtnImg.color = can ? Color.white : new Color(1f, 1f, 1f, 0.35f);
     }
 
     // ── 커서 옆 말풍선 툴팁(호버 전용 — 선택과 별개) ─────────────────
@@ -316,22 +272,30 @@ public class AnswerPanelHUD : UIHUD
         m_TipRt.pivot = Vector2.zero;   // 좌하단 피벗 — 커서 우상단으로 펼쳐짐
         m_TipRt.sizeDelta = new Vector2(kTipW, kTipH);
         var bg = m_Tip.AddComponent<Image>();
-        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.92f);
+        bg.color = new Color(1f, 1f, 1f, 0.96f);
         bg.raycastTarget = false;   // 커서 아래에 있어도 다른 UI 클릭 안 막음
+        var ol = m_Tip.AddComponent<Outline>(); ol.effectColor = InGameUiSkin.CardGray; ol.effectDistance = new Vector2(2f, 2f);
 
         var th = NewRect("Thumb", m_Tip.transform, new Vector2(0, 1), new Vector2(0, 1),
                          new Vector2((kTipW - 128f) * 0.5f, -8f), new Vector2(128f, 128f));
         m_TipThumb = th.AddComponent<RawImage>();
         m_TipThumb.raycastTarget = false;
 
-        m_TipName = MakeText(m_Tip.transform, "", new Vector2(6, -140f), new Vector2(kTipW - 12, 24), 17, TextAnchor.MiddleCenter);
-        m_TipName.fontStyle = FontStyle.Bold;
-        m_TipSub = MakeText(m_Tip.transform, "", new Vector2(6, -162f), new Vector2(kTipW - 12, 20), 13, TextAnchor.MiddleCenter);
+        m_TipName = MakeTextPx(m_Tip.transform, "", new Vector2(6, -140f), new Vector2(kTipW - 12, 24), 17, TextAnchor.MiddleCenter);
+        m_TipName.fontStyle = FontStyle.Bold; m_TipName.color = InGameUiSkin.TextGray;
+        m_TipSub = MakeTextPx(m_Tip.transform, "", new Vector2(6, -162f), new Vector2(kTipW - 12, 20), 13, TextAnchor.MiddleCenter);
+        m_TipSub.color = InGameUiSkin.TextGray;
 
         m_Tip.SetActive(false);
     }
 
-    // ── 빌더 헬퍼(OrderHUD와 동일 스타일) ──
+    // ── 빌더 헬퍼 ──
+    private static int Px(float figmaPx) => Mathf.RoundToInt(figmaPx * InGameUiSkin.S);
+
+    /// <summary>부모 좌상단 기준 피그마 px 배치(스케일 S).</summary>
+    private static void Local(RectTransform rt, float x, float y, float w, float h)
+        => InGameUiSkin.TopLeft(rt, x, y, w, h);
+
     private static GameObject NewRect(string name, Transform parent, Vector2 aMin, Vector2 aMax, Vector2 pos, Vector2 size)
     {
         var go = new GameObject(name, typeof(RectTransform)) { layer = 5 };
@@ -342,15 +306,25 @@ public class AnswerPanelHUD : UIHUD
         return go;
     }
 
-    private RawImage MakeRawImage(Transform parent, Vector2 pos, Vector2 size)
+    private RawImage MakeRawImage(Transform parent, Vector2 figmaPos, Vector2 figmaSize)
     {
-        var go = NewRect("Surface", parent, new Vector2(0, 1), new Vector2(0, 1), pos, size);
+        var go = NewRect("Surface", parent, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        Local((RectTransform)go.transform, figmaPos.x, figmaPos.y, figmaSize.x, figmaSize.y);
         var ri = go.AddComponent<RawImage>();
         ri.raycastTarget = false;   // 다른 UI 클릭 안 막음(라우팅은 좌표로 판정)
         return ri;
     }
 
-    private static Text MakeText(Transform parent, string s, Vector2 pos, Vector2 size, int fontSize, TextAnchor anchor)
+    /// <summary>피그마 px 좌표/크기 텍스트.</summary>
+    private static Text MakeText(Transform parent, string s, Vector2 figmaPos, Vector2 figmaSize, int fontSize, TextAnchor anchor)
+    {
+        var t = MakeTextPx(parent, s, Vector2.zero, Vector2.zero, fontSize, anchor);
+        Local(t.rectTransform, figmaPos.x, figmaPos.y, figmaSize.x, figmaSize.y);
+        return t;
+    }
+
+    /// <summary>캔버스 px 좌표/크기 텍스트(툴팁용).</summary>
+    private static Text MakeTextPx(Transform parent, string s, Vector2 pos, Vector2 size, int fontSize, TextAnchor anchor)
     {
         var go = NewRect("Text", parent, new Vector2(0, 1), new Vector2(0, 1), pos, size);
         var t = go.AddComponent<Text>();
