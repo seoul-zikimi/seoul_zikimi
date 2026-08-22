@@ -13,7 +13,7 @@ public static class CarryHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/CarryHudUI.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "RemasterMarker_v12";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
+    public const string kRemasterMarker = "RemasterMarker_v14";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate CarryHud Prefab")]
     public static void Generate()
