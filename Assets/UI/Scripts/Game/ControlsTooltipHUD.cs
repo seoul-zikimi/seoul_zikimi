@@ -25,7 +25,8 @@ public class ControlsTooltipHUD : UIHUD
         open.gameObject.AddComponent<UiPopIn>();
         m_Open = open.gameObject;
 
-        // 우측 탭(이미지에 화살표가 구워져 있음) 위 투명 버튼 → 접기
+        // 우측 탭 위 투명 버튼 → 접기. 화살표(별도 에셋 · 피그마 Group 8: 438,28 13x30 → 패널 로컬 420,2)는
+        // 버튼의 자식으로 넣어 호버/클릭 때 같이 통통 튀게(JuicyButton).
         var tab = new GameObject("CollapseTab", typeof(RectTransform), typeof(Image), typeof(Button)) { layer = 5 };
         tab.transform.SetParent(open.transform, false);
         InGameUiSkin.TopLeft((RectTransform)tab.transform, 378, 0, 57, 34);
@@ -36,6 +37,9 @@ public class ControlsTooltipHUD : UIHUD
         tabBtn.targetGraphic = tabImg;
         tabBtn.transition = Selectable.Transition.None;
         tabBtn.onClick.AddListener(() => SetCollapsed(true));
+        var arrow = InGameUiSkin.SpriteImage("CollapseArrow", tab.transform, "Tooltip_CollapseArrow");
+        InGameUiSkin.TopLeft(arrow.rectTransform, 420 - 378, 2, 13, 30);
+        JuicyButton.Attach(tabBtn);
 
         // 접힘 버튼('조작법 보기' + 화살표 구움)
         var closed = InGameUiSkin.SpriteImage("ClosedButton", transform, "Tooltip_Closed", raycast: true);

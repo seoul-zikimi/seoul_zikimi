@@ -15,7 +15,7 @@ public static class GameLoopHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/GameLoopHUD.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "TimerIcon";
+    public const string kRemasterMarker = "RemasterMarker_v12";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate GameLoopHud Prefab")]
     public static void Generate()
@@ -32,12 +32,17 @@ public static class GameLoopHudPrefabGenerator
         // ── 상단: 타이머 아이콘 + 남은 시간(리마스터 · 피그마 "2 : 15" 642,19 120x60 · 아이콘 38x44 왼쪽) ──
         // TopBar 는 투명 컨테이너(무제한 모드에선 통째로 숨김). Timer 텍스트는 위 정렬 + 아래로 넘침 허용(2vs2 점수줄).
         var topRt = JobsnailUiKit.Rect("TopBar", rootT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
-        InGameUiSkin.TopCenter(topRt, 590, 19, 220, 60);
+        InGameUiSkin.TopCenter(topRt, 556, 16, 226, 60);
         var top = topRt.gameObject;
+        // (유리 알약 배경은 빼기로 — 2026-08-23. 글자 halo 만으로 강조)
+        var halo = InGameUiSkin.SpriteImage("TimerIconHalo", top.transform, "TimerIcon_Halo");   // 숫자와 같은 흰 빛 번짐(아이콘 뒤)
+        InGameUiSkin.TopLeft(halo.rectTransform, -6 - 12, 9 - 12, 38 + 24, 44 + 24);
+        var shadow = InGameUiSkin.SpriteImage("TimerIconShadow", top.transform, "TimerIcon_Shadow");   // 얇은 어두운 테두리(대비용 · halo 위, 아이콘 아래)
+        InGameUiSkin.TopLeft(shadow.rectTransform, -6 - 12, 9 - 12, 38 + 24, 44 + 24);
         var icon = InGameUiSkin.SpriteImage("TimerIcon", top.transform, "TimerIcon");
-        InGameUiSkin.TopLeft(icon.rectTransform, 0, 8, 38, 44);
-        var timer = JobsnailUiKit.Label("Timer", top.transform, "0 : 00", Mathf.RoundToInt(44 * InGameUiSkin.S), Color.white, TextAlignmentOptions.Top, Vector2.zero, Vector2.zero);
-        InGameUiSkin.TopLeft(timer.rectTransform, 46, -4, 174, 60);
+        InGameUiSkin.TopLeft(icon.rectTransform, -6, 9, 38, 44);   // 숫자 기준 좌측 하단으로
+        var timer = JobsnailUiKit.Label("Timer", top.transform, "0 : 00", Mathf.RoundToInt(44 * InGameUiSkin.S), Color.white, TextAlignmentOptions.TopLeft, Vector2.zero, Vector2.zero);
+        InGameUiSkin.TopLeft(timer.rectTransform, 52, 6, 220, 60);   // 아이콘 바로 오른쪽에 왼쪽 정렬   // 시계 아이콘(8~52) 높이에 맞춰 살짝 아래
         timer.rectTransform.sizeDelta = new Vector2(timer.rectTransform.sizeDelta.x, 160f);   // 2vs2 점수/아이템 줄이 아래로 이어짐
         timer.fontStyle = FontStyles.Bold;
         timer.textWrappingMode = TextWrappingModes.NoWrap;
@@ -94,6 +99,8 @@ public static class GameLoopHudPrefabGenerator
         toast.rectTransform.anchorMin = toast.rectTransform.anchorMax = new Vector2(0.13f, 0.72f);
         toast.gameObject.AddComponent<UiPopIn>();
         toast.gameObject.SetActive(false);
+
+        new GameObject(kRemasterMarker, typeof(RectTransform)).transform.SetParent(rootT, false);   // 리마스터 버전 마커(빈 노드)
 
         SavePrefab(root, kPath);
         Debug.Log($"[GameLoopHudPrefabGenerator] 생성 완료 → {kPath}");

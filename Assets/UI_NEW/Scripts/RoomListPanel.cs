@@ -35,9 +35,12 @@ namespace SeoulZikimi.UI.New
         public event Action<RoomListFilter> FilterChanged;
         public event Action<UiNewSessionRoom> RoomJoinRequested;
 
+        private Text emptyLabel;   // 조건에 맞는 방 0개 안내(카드 영역 가운데 · 런타임 생성)
+
         private void Awake()
         {
             createRoomButton?.onClick.AddListener(() => router.Show(UiNewScreen.CreateRoom));
+            BuildEmptyLabel();
             refreshButton?.onClick.AddListener(RequestRefresh);
             backToMainButton?.onClick.AddListener(ReturnToMain);
             allFilterButton?.onClick.AddListener(() => SelectFilter(RoomListFilter.All));
@@ -130,6 +133,35 @@ namespace SeoulZikimi.UI.New
                 if (hasRoom)
                     roomCards[i].Apply(visibleRooms[i]);
             }
+            if (emptyLabel != null) emptyLabel.gameObject.SetActive(visibleRooms.Count == 0);
+        }
+
+        // 카드 슬롯들의 부모 한가운데에 안내 문구. 폰트/색은 카드의 텍스트에서 가져와 톤을 맞춘다.
+        private void BuildEmptyLabel()
+        {
+            if (roomCards == null || roomCards.Length == 0 || roomCards[0] == null) return;
+            Transform parent = roomCards[0].transform.parent;
+            if (parent == null) return;
+
+            var go = new GameObject("EmptyLabel", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            go.transform.SetAsLastSibling();
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);   // 화면 가운데 고정 크기(부모 레이아웃/사이즈 영향 없음)
+            rt.anchoredPosition = new Vector2(0f, -40f);
+            rt.sizeDelta = new Vector2(900f, 80f);
+
+            emptyLabel = go.AddComponent<Text>();
+            var sample = roomCards[0].GetComponentInChildren<Text>(true);
+            emptyLabel.font = sample != null && sample.font != null ? sample.font : JobsnailUiKit.LegacyFont;
+            emptyLabel.fontSize = 26;
+            emptyLabel.color = new Color(0.55f, 0.47f, 0.40f, 0.85f);   // 크림 배경 위 연갈색(카드 글자색은 흰색일 수 있어 고정)
+            emptyLabel.alignment = TextAnchor.MiddleCenter;
+            emptyLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+            emptyLabel.verticalOverflow = VerticalWrapMode.Overflow;
+            emptyLabel.text = "조건에 맞는 방이 없어요";
+            emptyLabel.raycastTarget = false;
+            emptyLabel.gameObject.SetActive(false);
         }
 
         private static void SetState(Button button, Sprite[] states, bool selected)

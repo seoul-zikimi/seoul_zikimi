@@ -13,7 +13,15 @@ public static class InGameUiRemasterAutoApply
     private const string kCarry    = "Assets/Resources/UI/HUD/CarryHudUI.prefab";
     private const string kSprite   = "Assets/Resources/UI_pngs/3.inGame/Remaster/PhoneBg.png";
 
-    static InGameUiRemasterAutoApply() => EditorApplication.delayCall += AutoApply;
+    static InGameUiRemasterAutoApply()
+    {
+        EditorApplication.delayCall += AutoApply;
+        // 플레이 중에 컴파일되면 위 delayCall 은 건너뛰므로, 에디트 모드로 돌아올 때 한 번 더 시도
+        EditorApplication.playModeStateChanged += state =>
+        {
+            if (state == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += AutoApply;
+        };
+    }
 
     private static void AutoApply()
     {
