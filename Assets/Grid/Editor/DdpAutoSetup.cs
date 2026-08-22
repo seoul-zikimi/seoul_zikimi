@@ -28,8 +28,11 @@ namespace GridSystem.EditorTools
         private const string kDir = "Assets/Prefabs/Map/4_Ddp";
         private const string kModelDir = kDir + "/Models";
 
-        /// <summary>생성 툴(DdpMapTool/DdpModelApplyTool)을 고쳐서 재생성이 필요할 때 올린다.</summary>
-        private const int kSetupVersion = 2;
+        /// <summary>재적용이 필요할 때 올린다 — 생성 툴을 고쳤거나, GLB를 통째로 갈아끼웠을 때.
+        /// (Models 폴더만 바꾸면 에셋 임포트는 일어나도 도메인 리로드가 안 걸려 이 실행기가 안 돈다.
+        ///  이 상수를 건드리면 스크립트가 재컴파일되면서 리로드가 걸리고, 그때 지문 비교로 1회 재적용된다.)
+        /// 3: VARCO 모델 11종을 30k tri 리메시본으로 교체(500k → 30k, 386MB → 211MB).</summary>
+        private const int kSetupVersion = 3;
 
         private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
 
