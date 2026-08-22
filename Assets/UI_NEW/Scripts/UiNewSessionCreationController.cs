@@ -70,7 +70,8 @@ namespace SeoulZikimi.UI.New
                 {
                     IHostSession host = session.AsHost();
                     host.SetProperty("MapIndex", new SessionProperty(request.MapIndex.ToString()));
-                    host.SetProperty("ModeIndex", new SessionProperty(GridSystem.GameLoopManager.HostSelectedMode.ToString()));
+                    // 세션에는 축약된 게임 모드(0~2)가 아니라 UI 로비 모드(0~3)를 저장한다.
+                    host.SetProperty("ModeIndex", new SessionProperty(request.ModeIndex.ToString()));
                     host.SetProperty("Weather", new SessionProperty(request.WeatherEnabled ? "1" : "0"));
                     host.SetProperty("SeasonSelection", new SessionProperty("Random"));
                     host.SetProperty("FixedSeason", new SessionProperty("Spring"));

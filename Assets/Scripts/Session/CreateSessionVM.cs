@@ -112,10 +112,12 @@ public class CreateSessionVM : IDisposable
         if (m_SessionObserver.Session != null)
         {
             OnSessionAdded(m_SessionObserver.Session);
-            _ = TryDeleteSessionAsync();
         }
         
-        CanRegisterSession = true;
+        // Lobby 씬 재진입 시 SessionObserver가 기존 방을 반환하는 것은 정상이다.
+        // 이 시점에 방을 삭제하면 GameScene -> Lobby 복귀 직후 UGS 세션만 사라지고
+        // Netcode 연결만 남는 반쪽 상태가 된다. 새 방 생성 요청 때만 기존 방을 정리한다.
+        CanRegisterSession = m_Session == null;
     }
     void OnAddingSessionFailed(AddingSessionOptions session, SessionException exception) => CanRegisterSession = true;
     void OnAddingSessionStarted(AddingSessionOptions session) => CanRegisterSession = false;

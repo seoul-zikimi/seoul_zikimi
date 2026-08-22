@@ -56,6 +56,8 @@ namespace SeoulZikimi.UI.New
                 ISession session = await MultiplayerService.Instance.JoinSessionByIdAsync(room.SessionId, options);
                 sessionState.Set(session);
                 lobby.SetRoomName(session.Name);
+                // 호스트뿐 아니라 참가자도 GameScene -> Lobby 복귀 시 같은 방을 복원할 수 있어야 한다.
+                JobsnailSessionManager.Instance.RegisterActiveSession(session);
                 UiNewSessionService.StartNetwork(session);
                 router.Show(UiNewScreen.Lobby);
             }
