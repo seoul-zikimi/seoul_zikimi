@@ -141,6 +141,8 @@ public sealed class GameLoopHUD : UIHUD
         if (m_ResultPanel != null) m_ResultPanel.SetActive(false);
         if (m_StartBanner != null) m_StartBanner.SetActive(false);
 
+        EmphasizeTimer();
+
         // 텍스트 애니메이터: 큰 순간 텍스트만 예쁘게(글자별 물결·흔들)
         AddJuicyText(m_ResultGradeText, 5f, 4.5f, 0.45f, 8f);                 // 등급(EXCELLENT! 등)
         AddJuicyText(m_StartBanner != null ? m_StartBanner.GetComponent<TextMeshProUGUI>() : null, 6f, 5f, 0.4f, 6f); // 배너(완성!!/공사 시작!)
@@ -152,6 +154,25 @@ public sealed class GameLoopHUD : UIHUD
 
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
+    }
+
+    // 타이머 강조: 글자 주변에 부드러운 흰 빛 번짐(Underlay 를 halo 로) — 유리 알약 배경(프리팹) 위에서 은은하게 빛나게
+    private void EmphasizeTimer()
+    {
+        if (m_TimerText == null) return;
+        var mat = m_TimerText.fontMaterial;   // 공유 머티리얼 복제(이 HUD 전용)
+        mat.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+        mat.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(1f, 1f, 1f, 0.55f));
+        mat.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, 0f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.5f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.8f);
+        // 밝은 배경(눈·하늘)에서 흰 halo 가 묻히지 않게 얇은 어두운 테두리 한 겹(대비용). 빼려면 이 두 줄 → DisableKeyword.
+        mat.EnableKeyword(ShaderUtilities.Keyword_Outline);
+        mat.SetColor(ShaderUtilities.ID_OutlineColor, new Color(0.15f, 0.12f, 0.10f, 0.55f));
+        mat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.09f);
+        mat.SetFloat(ShaderUtilities.ID_FaceDilate, 0.05f);
+        m_TimerText.UpdateMeshPadding();
     }
 
     // 텍스트 애니메이터 부착(중복 방지) — 큰 순간 TMP만 글자별 물결·흔들
