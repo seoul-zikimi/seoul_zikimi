@@ -295,9 +295,14 @@ namespace GridSystem.EditorTools
                 }
             }
 
-            // ── 발굴터 흙자국(런타임 발굴터가 이 자리에 뜬다 — 배경엔 흔적만) ──
+            // ── 발굴터 자리(런타임에 ExcavationNetwork가 이 위에 노출 표시를 띄운다 — 배경엔 유구 자국만) ──
+            // VARCO 유구터 모델(성곽 기초 + 기와편이 묻힌 흙구덩이)이 있으면 그걸, 없으면 흙 실린더 폴백.
             foreach (var (name, pos) in kDigSites)
-                AddCylinder(root, $"DigSoil_{name}", pos + Vector3.down * 0.04f, new Vector3(3.8f, 0.06f, 3.8f), soil);
+            {
+                var ground = pos + Vector3.down * 0.04f;
+                if (!TryPlaceProp(root, "DDP_유구터", ground))
+                    AddCylinder(root, $"DigSoil_{name}", ground, new Vector3(3.8f, 0.06f, 3.8f), soil);
+            }
 
             // ── 원경: DDP 본관 실루엣(데크 북쪽 너머) ──
             if (!TryPlaceProp(root, "DDP_원경", new Vector3(6.5f, kDeckY, 30f), 0f, 1.4f))
