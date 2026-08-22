@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using GridSystem;
 
 /// <summary>
@@ -45,8 +46,8 @@ public class GameHudDriver : MonoBehaviour
         MaterialDepot.OrdersChanged    += OnOrdersChanged;  // 주문 누적 복제 → 잔량 배지 갱신
     }
 
-    // 모든 버튼 쫀득 통일: 씬 배치·프리팹·코드빌드 가리지 않고 1초마다 훑어 JuicyButton 부착.
-    // (Attach는 중복 방지라 멱등 — 새로 생긴 버튼만 실제로 붙음)
+    // 게임 플레이 HUD 버튼에만 쫀득 효과를 붙인다. 이 드라이버는 DontDestroyOnLoad라
+    // Lobby로 돌아간 뒤에도 살아 있으므로, 씬 제한이 없으면 UI_NEW 버튼에 효과를 다시 붙인다.
     private float m_JuicySweep;
     private void Update()
     {
@@ -72,6 +73,9 @@ public class GameHudDriver : MonoBehaviour
             Debug.Log("[DevCheat] 1개 빼고 완성(≈99%)");
         }
 #endif
+
+        if (SceneManager.GetActiveScene().name != SceneNames.GameScene)
+            return;
 
         m_JuicySweep -= Time.unscaledDeltaTime;
         if (m_JuicySweep > 0f) return;

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Unity.Services.Multiplayer;
 using Unity.Netcode;
@@ -16,7 +17,7 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private LobbyPanel view;
         [SerializeField] private UiNewSessionState sessionState;
         [SerializeField] private LobbyRoomNet lobbyNet;
-        private bool metadataSaving;
+        private readonly SemaphoreSlim metadataGate = new(1, 1);
         private bool netSubscribed;
         private bool spawnWarningShown;
 
@@ -179,27 +180,41 @@ namespace SeoulZikimi.UI.New
 
         private async Task MarkInGameAndStartAsync()
         {
-            await SaveMetadataAsync("InGame");
+            // 삭제되었거나 끊어진 UGS 방에서는 Netcode 씬 전환을 시작하지 않는다.
+            // 그렇지 않으면 로컬 연결만 남은 채 엉뚱한 맵으로 가거나 전환이 멎는다.
+            if (!await SaveMetadataAsync("InGame"))
+                return;
+            if (lobbyNet == null || !lobbyNet.IsSpawned)
+                return;
             lobbyNet.OnStartGameButtonClicked();
         }
 
-        private async Task SaveMetadataAsync(string state = "Lobby")
+        private async Task<bool> SaveMetadataAsync(string state = "Lobby")
         {
-            if (metadataSaving || lobbyNet == null || !lobbyNet.IsHost) return;
+            if (lobbyNet == null || !lobbyNet.IsHost) return false;
             ISession session = sessionState != null ? sessionState.ActiveSession : null;
-            if (session == null || !session.IsHost) return;
-            metadataSaving = true;
+            if (session == null || !session.IsHost) return false;
+
+            await metadataGate.WaitAsync();
             try
             {
                 IHostSession host = session.AsHost();
                 host.SetProperty("MapIndex", new SessionProperty(lobbyNet.SelectedMap.ToString()));
-                host.SetProperty("ModeIndex", new SessionProperty(GridSystem.GameLoopManager.HostSelectedMode.ToString()));
+                host.SetProperty("ModeIndex", new SessionProperty(lobbyNet.SelectedLobbyMode.ToString()));
                 host.SetProperty("Weather", new SessionProperty(lobbyNet.WeatherOn ? "1" : "0"));
                 host.SetProperty("State", new SessionProperty(state));
                 await host.SavePropertiesAsync();
+                return true;
             }
-            catch (Exception ex) { Debug.LogWarning($"[UI_NEW] 로비 설정 저장 실패: {ex.Message}"); }
-            finally { metadataSaving = false; }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[UI_NEW] 로비 설정 저장 실패: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                metadataGate.Release();
+            }
         }
 
         private static string BuildRecordText(int modeIndex, GridSystem.MapDef map, int players)

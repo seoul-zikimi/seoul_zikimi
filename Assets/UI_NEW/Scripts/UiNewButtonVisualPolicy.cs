@@ -19,6 +19,8 @@ namespace SeoulZikimi.UI.New
             {
                 motion.enabled = false;
                 motion.transform.localScale = Vector3.one;
+                // UI_NEW에는 크기 모션이 다시 켜질 여지를 남기지 않는다.
+                Object.Destroy(motion);
             }
 
             foreach (Button button in root.GetComponentsInChildren<Button>(true))
