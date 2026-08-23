@@ -50,6 +50,71 @@ namespace GridSystem
             if (m_Weather == weather && m_HasPlaced) return;
             m_Weather = weather;
             Rescatter();
+            RefreshBlockCaps();
+        }
+
+        // ───────────────────────── 건축물 윗면 덮개(눈/웅덩이) ─────────────────────────
+        // 배치 블록(평평한 윗면 = Walkable)마다 눈 덮개 쿼드 + 웅덩이 디스크를 자식으로 미리 만들어 두고 날씨에 따라 켠다.
+        // 블록과 함께 생기고 사라지니 공중에 뜨는 일 없음. 눈 오는 중에 지으면 지은 것부터 눈이 쌓인 건물이 된다.
+        private static WeatherGroundFx s_Instance;
+        private static readonly List<GameObject> s_Caps = new();
+        private static WeatherKind s_CapWeather = WeatherKind.Sunny;
+
+        private void OnEnable() { s_Instance = this; }
+        private void OnDisable() { if (s_Instance == this) s_Instance = null; }
+
+        /// <summary>GridNetwork가 블록 비주얼을 스폰할 때 호출. topCenter = 윗면 중심(월드), sizeXZ = 윗면 크기(월드).</summary>
+        public static void DecorateBlockTop(GameObject block, Vector3 topCenter, Vector2 sizeXZ)
+        {
+            var kit = s_Instance != null && s_Instance.EnsureKit() ? s_Instance.m_Kit : Resources.Load<WeatherGroundKit>(KitPath);
+            if (kit == null || block == null) return;
+            s_Caps.RemoveAll(g => g == null);
+
+            // 눈: 윗면 거의 전체를 덮는 쿼드(가장자리 살짝 안쪽)
+            if (kit.SnowPatch != null && kit.Quad != null)
+            {
+                var snow = MakeCap(block.transform, "~WeatherCap:Snow", kit.Quad, kit.SnowPatch,
+                    topCenter + Vector3.up * 0.03f, new Vector3(sizeXZ.x * 0.94f, 1f, sizeXZ.y * 0.94f));
+                snow.SetActive(s_CapWeather == WeatherKind.Snow);
+                s_Caps.Add(snow);
+            }
+            // 비/태풍: 윗면 가운데 웅덩이 하나(작은 면은 더 작게)
+            if (kit.Puddle != null && kit.Disc != null)
+            {
+                float d = Mathf.Min(sizeXZ.x, sizeXZ.y) * 0.62f;
+                var puddle = MakeCap(block.transform, "~WeatherCap:Puddle", kit.Disc, kit.Puddle,
+                    topCenter + Vector3.up * 0.025f, new Vector3(d * 1.25f, 1f, d));
+                puddle.transform.Rotate(0f, (topCenter.x * 37f + topCenter.z * 53f) % 360f, 0f, Space.World);
+                puddle.SetActive(s_CapWeather == WeatherKind.Rain || s_CapWeather == WeatherKind.Typhoon);
+                s_Caps.Add(puddle);
+            }
+        }
+
+        private static GameObject MakeCap(Transform parent, string name, Mesh mesh, Material material, Vector3 pos, Vector3 scale)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, true);
+            go.transform.position = pos;
+            go.transform.rotation = Quaternion.identity;
+            go.transform.localScale = new Vector3(scale.x / Mathf.Max(1e-4f, parent.lossyScale.x), scale.y / Mathf.Max(1e-4f, parent.lossyScale.y), scale.z / Mathf.Max(1e-4f, parent.lossyScale.z));
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = material;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.lightProbeUsage = LightProbeUsage.Off;
+            r.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            return go;
+        }
+
+        private void RefreshBlockCaps()
+        {
+            s_CapWeather = m_Weather;
+            s_Caps.RemoveAll(g => g == null);
+            bool snow = m_Weather == WeatherKind.Snow;
+            bool wet = m_Weather == WeatherKind.Rain || m_Weather == WeatherKind.Typhoon;
+            foreach (var g in s_Caps)
+                g.SetActive(g.name.EndsWith("Snow") ? snow : wet);
         }
 
         private void Awake()
