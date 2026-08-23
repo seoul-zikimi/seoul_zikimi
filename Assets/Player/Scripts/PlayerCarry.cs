@@ -59,6 +59,19 @@ namespace Player
         private readonly NetworkVariable<ulong> m_NetHelping =
             new(ulong.MaxValue, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private PlayerCarry m_HelpTarget;     // owner: 돕는 중인 운반자(캐시)
+        // 같이 들기 슬롯: 화물 4면(0:-Z 1:+Z 2:-X 3:+X · 월드 고정). 운반자 면(-1 = 혼자 들기), 도우미 면, 도우미 입력(월드 방향)
+        private readonly NetworkVariable<int> m_NetSide =
+            new(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<int> m_NetHelpSide =
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<Vector3> m_NetHelpInput =
+            new(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<int> m_NetRotation =   // 든 재료 yaw(R 회전) — 화물은 월드 방향 고정
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private Vector3 m_HeldSmoothPos;      // 화물 위치 스무딩
+        private bool m_HeldSmoothInit;
+        [Tooltip("같이 들 때: 입력이 같은 방향이면 인원당 이만큼 가속(0.25 = 2명 1.25배). 반대면 상쇄.")]
+        [SerializeField] private float m_CoopBoostPerHelper = 0.25f;
         private PlayerCarry m_GrabCargoOf;    // 조준 중인 '남이 든 화물'의 운반자(클릭 = 같이 들기)
         [Tooltip("같이 들기 가능한 거리(화물 중심까지, 수평).")]
         [SerializeField] private float m_JoinRange = 3f;
@@ -71,34 +84,87 @@ namespace Player
         public bool IsStraining => m_NetStraining.Value;
         public bool HasMaterialHeld => m_NetMaterialId.Value >= 0;   // 모든 클라
         public bool IsHelping => m_NetHelping.Value != kNoHelp;
+        public bool IsSharedCarry => HasMaterialHeld && m_NetSide.Value >= 0;   // 도우미가 붙어 4면 슬롯 모드
 
-        /// <summary>화물 앞쪽(진행 방향)에서 같이 드는 도우미를 위한 목표 위치·방향. 운반자가 없어졌으면 false.</summary>
-        private bool HelperTarget(out Vector3 pos, out Vector3 facing)
+        private static readonly Vector3[] kSideDir = { Vector3.back, Vector3.forward, Vector3.left, Vector3.right };
+        private static int NearestSide(Vector3 dir)
         {
-            pos = default; facing = default;
-            var c = ResolveHelpTarget();
-            if (c == null || !c.HasMaterialHeld) return false;
-            Vector3 fwd = c.FacingDir();
-            float depth = (c.m_HeldDef != null ? Mathf.Max(1, c.m_HeldDef.Footprint.z) : 1) * GridContract.Unit;
-            pos = c.transform.position + fwd * (c.m_FrontHoldDist + depth + 0.45f);   // 화물 너머 앞쪽
-            facing = fwd;
-            return true;
+            int best = 0; float bd = float.NegativeInfinity;
+            for (int i = 0; i < 4; i++) { float d = Vector3.Dot(dir, kSideDir[i]); if (d > bd) { bd = d; best = i; } }
+            return best;
         }
 
+        // 든 재료의 월드 반폭(x/z · R 회전 반영). 모든 클라.
+        private Vector2 HalfExtentXZ()
+        {
+            if (m_HeldDef == null) return Vector2.one * (0.5f * GridContract.Unit);
+            var fp = m_HeldDef.Footprint;
+            bool swap = (m_NetRotation.Value & 1) == 1;
+            float x = Mathf.Max(1, swap ? fp.z : fp.x), z = Mathf.Max(1, swap ? fp.x : fp.z);
+            return new Vector2(x, z) * (0.5f * GridContract.Unit);
+        }
+        private float HalfExtentAlong(int side) => side < 2 ? HalfExtentXZ().y : HalfExtentXZ().x;
+
+        /// <summary>화물 중심(모든 클라). 혼자면 모델이 보는 방향 앞, 같이 들면 운반자 면의 반대편(월드 고정).</summary>
+        private Vector3 CargoCenter()
+        {
+            Vector3 up = Vector3.up * m_FrontHoldHeight;
+            int side = m_NetSide.Value;
+            if (side >= 0)
+                return transform.position - kSideDir[side] * (m_FrontHoldDist + HalfExtentAlong(side)) + up;
+            Vector3 f = FacingDir();
+            float half = Mathf.Abs(f.x) > Mathf.Abs(f.z) ? HalfExtentXZ().x : HalfExtentXZ().y;
+            return transform.position + f * (m_FrontHoldDist + half) + up;
+        }
+
+        /// <summary>side 면에 서는 사람의 발 위치(y = 운반자 y).</summary>
+        private Vector3 SlotPos(int side)
+        {
+            Vector3 c = CargoCenter();
+            Vector3 p = c + kSideDir[side] * (HalfExtentAlong(side) + m_FrontHoldDist);
+            p.y = transform.position.y;
+            return p;
+        }
+
+        /// <summary>같이 드는 중이면 화물을 바라보게(운반자·도우미 공통).</summary>
         public bool TryGetHelperFacing(out Vector3 dir)
         {
             dir = default;
-            return IsHelping && HelperTarget(out _, out dir);
+            if (IsHelping)
+            {
+                var c = ResolveHelpTarget();
+                if (c == null || !c.HasMaterialHeld) return false;
+                dir = -kSideDir[m_NetHelpSide.Value];
+                return true;
+            }
+            if (IsSharedCarry) { dir = -kSideDir[m_NetSide.Value]; return true; }
+            return false;
         }
 
-        /// <summary>도우미(owner) 물리 구동: 입력 대신 운반자 앞자리로 부드럽게 끌려간다. 운반자가 놓으면 자동 해제.</summary>
-        public void DriveHelper(Rigidbody rb)
+        /// <summary>도우미(owner) 물리 구동: 자기 면 슬롯에 붙어 따라가고, 이동 입력은 운반자에게 보낸다(힘 합산용).</summary>
+        public void DriveHelper(Rigidbody rb, Vector3 worldInput)
         {
-            if (!HelperTarget(out var pos, out _)) { ReleaseHelp(); return; }
+            var c = ResolveHelpTarget();
+            if (c == null || !c.HasMaterialHeld) { ReleaseHelp(); return; }
+            if ((m_NetHelpInput.Value - worldInput).sqrMagnitude > 1e-4f) m_NetHelpInput.Value = worldInput;
+            Vector3 pos = c.SlotPos(m_NetHelpSide.Value);
             Vector3 cur = rb.position;
-            Vector3 next = Vector3.Lerp(cur, new Vector3(pos.x, cur.y, pos.z), 1f - Mathf.Exp(-14f * Time.fixedDeltaTime));
+            Vector3 next = Vector3.Lerp(cur, new Vector3(pos.x, cur.y, pos.z), 1f - Mathf.Exp(-16f * Time.fixedDeltaTime));
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             rb.MovePosition(next);
+        }
+
+        /// <summary>운반자(owner): 같이 드는 중이면 내 입력 + 도우미 입력을 합산한 이동 방향(크기 = 속도 배율).
+        /// 같은 방향 = 인원 가속, 반대 = 상쇄. 혼자면 false.</summary>
+        public bool TryGetSharedMove(Vector3 myDir, out Vector3 combined)
+        {
+            combined = myDir;
+            if (!IsSharedCarry) return false;
+            Vector3 sum = myDir; int n = 1;
+            foreach (var o in AllCarries())
+                if (o != null && o != this && o.m_NetHelping.Value == NetworkObjectId) { sum += o.m_NetHelpInput.Value; n++; }
+            combined = sum / n * (1f + m_CoopBoostPerHelper * (n - 1));
+            return true;
         }
 
         private PlayerCarry ResolveHelpTarget()
@@ -115,6 +181,21 @@ namespace Player
         private void JoinCarry(PlayerCarry carrier)
         {
             if (carrier == null || carrier == this || !carrier.HasMaterialHeld) return;
+            // 빈 면 중 내게 가장 가까운 면. 운반자 면은 제외(아직 혼자면 운반자는 '보는 방향의 반대' 면에 선다고 가정).
+            int carrierSide = carrier.m_NetSide.Value >= 0 ? carrier.m_NetSide.Value : NearestSide(-carrier.FacingDir());
+            var taken = new HashSet<int> { carrierSide };
+            foreach (var o in AllCarries())
+                if (o != null && o != this && o.m_NetHelping.Value == carrier.NetworkObjectId) taken.Add(o.m_NetHelpSide.Value);
+            Vector3 center = carrier.CargoCenter();
+            int best = -1; float bd = float.MaxValue;
+            for (int i = 0; i < 4; i++)
+            {
+                if (taken.Contains(i)) continue;
+                float d = (center + kSideDir[i] - transform.position).sqrMagnitude;
+                if (d < bd) { bd = d; best = i; }
+            }
+            if (best < 0) return;   // 4면 다 참
+            m_NetHelpSide.Value = best;
             m_NetHelping.Value = carrier.NetworkObjectId;
             m_HelpTarget = carrier;
             if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
@@ -124,21 +205,36 @@ namespace Player
         {
             if (!IsHelping) return;
             m_NetHelping.Value = kNoHelp;
+            m_NetHelpInput.Value = Vector3.zero;
             m_HelpTarget = null;
         }
 
-        /// <summary>이 운반자를 돕고 있는 도우미 수(모든 클라 계산 가능).</summary>
-        private int HelperCount()
+        private static PlayerCarry[] AllCarries()
         {
             if (s_AllCarries == null || Time.time - s_AllCarriesTime > 1f)
             {
                 s_AllCarries = FindObjectsByType<PlayerCarry>(FindObjectsSortMode.None);
                 s_AllCarriesTime = Time.time;
             }
+            return s_AllCarries;
+        }
+
+        /// <summary>이 운반자를 돕고 있는 도우미 수(모든 클라 계산 가능).</summary>
+        private int HelperCount()
+        {
             int n = 0;
-            foreach (var o in s_AllCarries)
+            foreach (var o in AllCarries())
                 if (o != null && o != this && o.m_NetHelping.Value == NetworkObjectId) n++;
             return n;
+        }
+
+        // 운반자(owner): 도우미가 붙으면 내 면을 고정(보는 방향의 반대), 다 떠나면 혼자 들기로 복귀
+        private void UpdateSharedSide()
+        {
+            if (!HasMaterial) { if (m_NetSide.Value != -1) m_NetSide.Value = -1; return; }
+            bool any = HelperCount() > 0;
+            if (any && m_NetSide.Value < 0) m_NetSide.Value = NearestSide(-FacingDir());
+            else if (!any && m_NetSide.Value >= 0) m_NetSide.Value = -1;
         }
 
         // 모델이 보는 수평 방향(PlayerFacing) — 없으면 루트 forward
@@ -147,7 +243,6 @@ namespace Player
             if (m_Facing == null) m_Facing = GetComponent<PlayerFacing>();
             return m_Facing != null ? m_Facing.Forward : transform.forward;
         }
-        private Quaternion FacingRot() => Quaternion.LookRotation(FacingDir(), Vector3.up);
 
         private int m_Rotation;
         private int m_BuildHeight;
@@ -229,8 +324,7 @@ namespace Player
         private Vector3 HeldOffset()
         {
             if (m_NetMaterialId.Value < 0) return m_HoldOffset;
-            float depth = (m_HeldDef != null ? Mathf.Max(1, m_HeldDef.Footprint.z) : 1) * GridContract.Unit;
-            return FacingDir() * (m_FrontHoldDist + depth * 0.5f) + Vector3.up * m_FrontHoldHeight;
+            return CargoCenter() - transform.position;
         }
 
         private Vector3 m_HeldPrevPos;      // 든 비주얼 바운스/스웨이용 위치 추적
@@ -263,11 +357,15 @@ namespace Player
             m_HeldSwayVel = Vector3.Lerp(m_HeldSwayVel, horiz, 8f * dt);               // 가감속 관성
             Vector3 sway = -m_HeldSwayVel * 0.045f;                                    // 가속 방향 반대로 살짝 처짐
 
-            m_HeldVisual.transform.position = transform.position + HeldOffset() + Vector3.up * bob + sway;
+            Vector3 target = transform.position + HeldOffset();
+            if (!m_HeldSmoothInit || HasMaterialHeld == false) { m_HeldSmoothPos = target; m_HeldSmoothInit = true; }
+            else m_HeldSmoothPos = Vector3.Lerp(m_HeldSmoothPos, target, 1f - Mathf.Exp(-14f * dt));   // 몸 돌 때 화물이 부드럽게 따라옴
+            m_HeldVisual.transform.position = m_HeldSmoothPos + Vector3.up * bob + sway;
 
             if (m_SwingCo == null)   // 망치질 스윙 코루틴이 회전을 쓰는 동안은 건드리지 않음
             {
-                Quaternion face = HasMaterialHeld ? FacingRot() : transform.rotation;   // 재료는 모델이 보는 방향을 따라 돈다
+                // 재료는 월드 방향 고정(R 회전만 반영) — 몸을 돌려도 제자리 회전하지 않는다. 도구는 몸 회전 따라감.
+                Quaternion face = HasMaterialHeld ? Quaternion.Euler(0f, 90f * m_NetRotation.Value, 0f) : transform.rotation;
                 var local = Quaternion.Inverse(face) * m_HeldSwayVel;                     // 몸 기준 기울임
                 Quaternion tilt = Quaternion.Euler(local.z * 4f, 0f, -local.x * 4f);
                 m_HeldVisual.transform.rotation = Quaternion.Slerp(m_HeldVisual.transform.rotation, face * tilt, 10f * dt);
@@ -298,6 +396,8 @@ namespace Player
             }
 
             if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
+            if (m_NetRotation.Value != m_Rotation) m_NetRotation.Value = m_Rotation;
+            UpdateSharedSide();
             UpdateThrowCharge(kb);   // G 탭=짧게 던지기 / 꾹=차징(화살표 미리보기) 후 떼면 멀리
             // Q(버리기)·C(철거)는 좌클릭에 통합(07/26 기획): 그리드 밖 배치=발밑 버리기, 미고정 블록 좌클릭=회수.
             // Space는 점프(PlayerInputHandler). 집기·배치는 좌클릭. 우클릭은 카메라 회전 전용.
@@ -1298,6 +1398,7 @@ namespace Player
             {
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
                 m_HeldPrevPos = transform.position;   // 바운스 속도 계산 초기화(첫 프레임 튐 방지)
+                m_HeldSmoothInit = false;
                 m_HeldSwayVel = Vector3.zero;
                 GridJuice.Squish(m_HeldVisual, 0.22f);   // 집는 순간 뽁 — 손맛
             }
@@ -1338,7 +1439,7 @@ namespace Player
         private void UpdateHeavyState()
         {
             bool heavy = HasMaterial && m_HeldMaterial.IsHeavy;
-            bool helped = heavy && HelperCount() > 0;   // 동료가 화물을 클릭해 '같이 들기' 중이면 정상 속도
+            bool helped = heavy && IsSharedCarry;   // 동료가 화물을 클릭해 '같이 들기' 중이면 정상 속도
             MoveMultiplier = heavy && !helped ? m_HeavySoloSpeed : 1f;
             bool straining = heavy && !helped;
             if (m_NetStraining.Value != straining) m_NetStraining.Value = straining;

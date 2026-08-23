@@ -83,7 +83,8 @@ namespace Player
         private void ApplyYaw()
         {
             Quaternion target = Quaternion.Euler(0f, m_Yaw, 0f);
-            m_Visual.rotation = Quaternion.Slerp(m_Visual.rotation, target, 1f - Mathf.Exp(-m_TurnSpeed * Time.deltaTime));
+            float turn = (m_Carry != null && m_Carry.HasMaterialHeld) ? m_TurnSpeed * 0.55f : m_TurnSpeed;   // 재료 안고 있으면 묵직하게(덜 뻑뻑)
+            m_Visual.rotation = Quaternion.Slerp(m_Visual.rotation, target, 1f - Mathf.Exp(-turn * Time.deltaTime));
         }
     }
 }

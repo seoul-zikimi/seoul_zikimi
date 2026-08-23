@@ -168,7 +168,11 @@ namespace Player
             if (m_CarryForHelp != null && m_CarryForHelp.IsHelping)   // 같이 들기: 운반자 앞쪽에 붙어 끌려감(입력 무시)
             {
                 m_Rb.useGravity = true;
-                m_CarryForHelp.DriveHelper(m_Rb);
+                Vector2 mi = m_InputHandler.MoveInput;
+                Vector3 hf = Vector3.ProjectOnPlane(m_CameraArm.forward, Vector3.up).normalized;
+                Vector3 hr = Vector3.ProjectOnPlane(m_CameraArm.right, Vector3.up).normalized;
+                Vector3 wd = hf * mi.y + hr * mi.x; if (wd.sqrMagnitude > 1f) wd.Normalize();
+                m_CarryForHelp.DriveHelper(m_Rb, wd);
                 return;
             }
 

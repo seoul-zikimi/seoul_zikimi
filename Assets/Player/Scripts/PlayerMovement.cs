@@ -93,6 +93,8 @@ namespace Player
             Vector3 right   = Vector3.ProjectOnPlane(cameraArm.right,   Vector3.up).normalized;
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
+            if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
+            if (m_Carry != null && m_Carry.TryGetSharedMove(dir, out var shared)) { dir = shared; isSprinting = false; }   // 같이 들기: 입력 벡터 합산(상쇄/가속)
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
