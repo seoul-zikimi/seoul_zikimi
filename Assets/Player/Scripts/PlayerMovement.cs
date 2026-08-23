@@ -94,6 +94,7 @@ namespace Player
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
+            if (m_Carry != null && m_Carry.TryGetGroupMove(dir, out var group)) { dir = group; isSprinting = false; }   // 같이 들기: 전원 입력 평균(같은 방향=풀속도, 반대=상쇄)
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();

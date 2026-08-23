@@ -64,12 +64,14 @@ namespace Player
             new(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetHelpSide =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<Vector3> m_NetMoveInput =   // 같이 들 때 내 이동 입력(월드) — 전원이 평균내서 같은 그룹 속도로 움직임
+            new(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetRotation =   // 든 재료 yaw(R 회전) — 화물은 월드 방향 고정
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         [Tooltip("같이 들 때 각자를 자기 면 슬롯으로 당기는 스프링 세기(클수록 단단히 붙음).")]
-        [SerializeField] private float m_TetherStiffness = 16f;
+        [SerializeField] private float m_TetherStiffness = 6f;
         [Tooltip("슬롯에서 이만큼 벗어날 때까진 안 당김(네트워크 지연 흡수).")]
-        [SerializeField] private float m_TetherSlack = 0.4f;
+        [SerializeField] private float m_TetherSlack = 0.5f;
         [Tooltip("혼자 들 때 화물이 몸 회전을 따라오는 속도(작을수록 묵직하게 늦게 따라옴).")]
         [SerializeField] private float m_CargoTurnFollow = 14f;
         private Vector3 m_CargoDir;           // 댐핑된 화물 방향(혼자 들기)
@@ -128,23 +130,10 @@ namespace Player
             return m_CargoDir;
         }
 
-        // 참가자(운반자+도우미)가 각자 자기 면에서 '들고 있다'고 보고 화물 중심 = 그 추정치들의 평균.
-        // 서로 반대로 당기면 평균이 안 움직여 양쪽 다 스프링에 잡히고, 같이 가면 그대로 간다(무빙아웃).
         private Vector3 SharedCargoCenter(int mySide)
         {
             Vector3 up = Vector3.up * (m_FrontHoldHeight + HalfExtentY());
-            Vector3 sum = transform.position - kSideDir[mySide] * (m_FrontHoldDist + HalfExtentAlong(mySide));
-            int n = 1;
-            foreach (var o in AllCarries())
-            {
-                if (o == null || o == this || o.m_NetHelping.Value != NetworkObjectId) continue;
-                int hs = o.m_NetHelpSide.Value;
-                sum += o.transform.position - kSideDir[hs] * (m_FrontHoldDist + HalfExtentAlong(hs));
-                n++;
-            }
-            Vector3 c = sum / n;
-            c.y = transform.position.y;   // 높이는 운반자 기준
-            return c + up;
+            return transform.position - kSideDir[mySide] * (m_FrontHoldDist + HalfExtentAlong(mySide)) + up;
         }
 
         private Vector3 CargoCenter()
@@ -180,29 +169,45 @@ namespace Player
             return false;
         }
 
-        /// <summary>같이 드는 중(운반자·도우미 공통, owner 물리): 자기 입력으로 움직인 뒤 자기 면 슬롯으로 스프링처럼 당겨진다.
-        /// 운반자가 놓으면 도우미는 자동 해제.</summary>
+        /// <summary>같이 들기 그룹 이동(운반자·도우미 공통, owner): 내 입력을 복제하고, 참가자 전원의 입력 평균을 이동 방향으로 돌려준다.
+        /// 같은 방향 = 풀속도, 반대 = 상쇄(정지), 직각 = 대각선. 각 클라가 로컬로 계산하므로 내 조작은 즉답.</summary>
+        public bool TryGetGroupMove(Vector3 myDir, out Vector3 group)
+        {
+            group = myDir;
+            PlayerCarry carrier;
+            if (IsHelping) { carrier = ResolveHelpTarget(); if (carrier == null || !carrier.HasMaterialHeld) { ReleaseHelp(); return false; } }
+            else if (IsSharedCarry) carrier = this;
+            else return false;
+
+            if ((m_NetMoveInput.Value - myDir).sqrMagnitude > 1e-4f) m_NetMoveInput.Value = myDir;
+
+            Vector3 sum = Vector3.zero; int n = 0;
+            void Add(PlayerCarry pc) { sum += pc == this ? myDir : pc.m_NetMoveInput.Value; n++; }
+            Add(carrier);
+            foreach (var o in AllCarries())
+                if (o != null && o != carrier && o.m_NetHelping.Value == carrier.NetworkObjectId) Add(o);
+            group = n > 0 ? Vector3.ClampMagnitude(sum / n, 1f) : myDir;
+            return true;
+        }
+
+        /// <summary>대형 유지용 약한 보정(owner): 각자 로컬 적분이라 조금씩 어긋나는 걸 자기 면 슬롯으로 살살 되돌린다(데드존 있음).</summary>
         public void ApplyTether(Rigidbody rb, float inputMag = 0f)
         {
             Vector3 target;
             if (IsHelping)
             {
                 var c = ResolveHelpTarget();
-                if (c == null || !c.HasMaterialHeld || c.m_NetSide.Value < 0) { if (c == null || !c.HasMaterialHeld) ReleaseHelp(); return; }
+                if (c == null || !c.HasMaterialHeld || c.m_NetSide.Value < 0) return;
                 target = c.SlotPos(m_NetHelpSide.Value);
             }
-            else if (IsSharedCarry) target = SlotPos(m_NetSide.Value);
-            else return;
+            else return;   // 운반자가 기준점(화물은 운반자 위치에서 나옴) — 도우미만 맞춘다
 
             Vector3 cur = rb.position;
             Vector3 err = new Vector3(target.x - cur.x, 0f, target.z - cur.z);
-            // 데드존: 상대 위치는 네트워크로 늦게 오므로 그 오차(≈속도×지연)만큼은 안 당긴다 — 안 그러면 계속 뒤로 끌려 느려짐
             float len = err.magnitude;
             if (len <= m_TetherSlack) return;
             err *= (len - m_TetherSlack) / len;
-            // 미는 사람은 약하게, 가만히 있는 사람은 세게 → 한 명이 밀면 상대가 끌려온다(무빙아웃). 반대로 밀면 둘 다 약하게 잡혀 제자리.
-            float k = Mathf.Lerp(m_TetherStiffness, m_TetherStiffness * 0.35f, Mathf.Clamp01(inputMag));
-            Vector3 corr = Vector3.ClampMagnitude(err * k, 7f);
+            Vector3 corr = Vector3.ClampMagnitude(err * m_TetherStiffness, 4f);
             var v = rb.linearVelocity;
             rb.linearVelocity = new Vector3(v.x + corr.x, v.y, v.z + corr.z);
         }
@@ -266,6 +271,7 @@ namespace Player
         {
             if (!IsHelping) return;
             m_NetHelping.Value = kNoHelp;
+            m_NetMoveInput.Value = Vector3.zero;
             m_HelpTarget = null;
         }
 
