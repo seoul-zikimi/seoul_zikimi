@@ -67,9 +67,11 @@ namespace Player
         private readonly NetworkVariable<int> m_NetRotation =   // 든 재료 yaw(R 회전) — 화물은 월드 방향 고정
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         [Tooltip("같이 들 때 각자를 자기 면 슬롯으로 당기는 스프링 세기(클수록 단단히 붙음).")]
-        [SerializeField] private float m_TetherStiffness = 14f;
+        [SerializeField] private float m_TetherStiffness = 16f;
+        [Tooltip("슬롯에서 이만큼 벗어날 때까진 안 당김(네트워크 지연 흡수).")]
+        [SerializeField] private float m_TetherSlack = 0.4f;
         [Tooltip("혼자 들 때 화물이 몸 회전을 따라오는 속도(작을수록 묵직하게 늦게 따라옴).")]
-        [SerializeField] private float m_CargoTurnFollow = 9f;
+        [SerializeField] private float m_CargoTurnFollow = 14f;
         private Vector3 m_CargoDir;           // 댐핑된 화물 방향(혼자 들기)
         private bool m_CargoDirInit;
         private PlayerCarry m_GrabCargoOf;    // 조준 중인 '남이 든 화물'의 운반자(클릭 = 같이 들기)
@@ -180,7 +182,7 @@ namespace Player
 
         /// <summary>같이 드는 중(운반자·도우미 공통, owner 물리): 자기 입력으로 움직인 뒤 자기 면 슬롯으로 스프링처럼 당겨진다.
         /// 운반자가 놓으면 도우미는 자동 해제.</summary>
-        public void ApplyTether(Rigidbody rb)
+        public void ApplyTether(Rigidbody rb, float inputMag = 0f)
         {
             Vector3 target;
             if (IsHelping)
@@ -194,7 +196,13 @@ namespace Player
 
             Vector3 cur = rb.position;
             Vector3 err = new Vector3(target.x - cur.x, 0f, target.z - cur.z);
-            Vector3 corr = Vector3.ClampMagnitude(err * m_TetherStiffness, 9f);
+            // 데드존: 상대 위치는 네트워크로 늦게 오므로 그 오차(≈속도×지연)만큼은 안 당긴다 — 안 그러면 계속 뒤로 끌려 느려짐
+            float len = err.magnitude;
+            if (len <= m_TetherSlack) return;
+            err *= (len - m_TetherSlack) / len;
+            // 미는 사람은 약하게, 가만히 있는 사람은 세게 → 한 명이 밀면 상대가 끌려온다(무빙아웃). 반대로 밀면 둘 다 약하게 잡혀 제자리.
+            float k = Mathf.Lerp(m_TetherStiffness, m_TetherStiffness * 0.35f, Mathf.Clamp01(inputMag));
+            Vector3 corr = Vector3.ClampMagnitude(err * k, 7f);
             var v = rb.linearVelocity;
             rb.linearVelocity = new Vector3(v.x + corr.x, v.y, v.z + corr.z);
         }
