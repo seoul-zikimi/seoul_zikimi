@@ -64,12 +64,16 @@ namespace Player
             new(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetHelpSide =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<Vector3> m_NetMoveInput =   // 같이 들 때 내 이동 입력(월드) — 전원이 평균내서 같은 그룹 속도로 움직임
+            new(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetRotation =   // 든 재료 yaw(R 회전) — 화물은 월드 방향 고정
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         [Tooltip("같이 들 때 각자를 자기 면 슬롯으로 당기는 스프링 세기(클수록 단단히 붙음).")]
-        [SerializeField] private float m_TetherStiffness = 14f;
+        [SerializeField] private float m_TetherStiffness = 6f;
+        [Tooltip("슬롯에서 이만큼 벗어날 때까진 안 당김(네트워크 지연 흡수).")]
+        [SerializeField] private float m_TetherSlack = 0.5f;
         [Tooltip("혼자 들 때 화물이 몸 회전을 따라오는 속도(작을수록 묵직하게 늦게 따라옴).")]
-        [SerializeField] private float m_CargoTurnFollow = 9f;
+        [SerializeField] private float m_CargoTurnFollow = 14f;
         private Vector3 m_CargoDir;           // 댐핑된 화물 방향(혼자 들기)
         private bool m_CargoDirInit;
         private PlayerCarry m_GrabCargoOf;    // 조준 중인 '남이 든 화물'의 운반자(클릭 = 같이 들기)
@@ -126,23 +130,10 @@ namespace Player
             return m_CargoDir;
         }
 
-        // 참가자(운반자+도우미)가 각자 자기 면에서 '들고 있다'고 보고 화물 중심 = 그 추정치들의 평균.
-        // 서로 반대로 당기면 평균이 안 움직여 양쪽 다 스프링에 잡히고, 같이 가면 그대로 간다(무빙아웃).
         private Vector3 SharedCargoCenter(int mySide)
         {
             Vector3 up = Vector3.up * (m_FrontHoldHeight + HalfExtentY());
-            Vector3 sum = transform.position - kSideDir[mySide] * (m_FrontHoldDist + HalfExtentAlong(mySide));
-            int n = 1;
-            foreach (var o in AllCarries())
-            {
-                if (o == null || o == this || o.m_NetHelping.Value != NetworkObjectId) continue;
-                int hs = o.m_NetHelpSide.Value;
-                sum += o.transform.position - kSideDir[hs] * (m_FrontHoldDist + HalfExtentAlong(hs));
-                n++;
-            }
-            Vector3 c = sum / n;
-            c.y = transform.position.y;   // 높이는 운반자 기준
-            return c + up;
+            return transform.position - kSideDir[mySide] * (m_FrontHoldDist + HalfExtentAlong(mySide)) + up;
         }
 
         private Vector3 CargoCenter()
@@ -178,46 +169,90 @@ namespace Player
             return false;
         }
 
-        /// <summary>같이 드는 중(운반자·도우미 공통, owner 물리): 자기 입력으로 움직인 뒤 자기 면 슬롯으로 스프링처럼 당겨진다.
-        /// 운반자가 놓으면 도우미는 자동 해제.</summary>
-        public void ApplyTether(Rigidbody rb)
+        /// <summary>같이 들기 그룹 이동(운반자·도우미 공통, owner): 내 입력을 복제하고, 참가자 전원의 입력 평균을 이동 방향으로 돌려준다.
+        /// 같은 방향 = 풀속도, 반대 = 상쇄(정지), 직각 = 대각선. 각 클라가 로컬로 계산하므로 내 조작은 즉답.</summary>
+        public bool TryGetGroupMove(Vector3 myDir, out Vector3 group)
+        {
+            group = myDir;
+            PlayerCarry carrier;
+            if (IsHelping) { carrier = ResolveHelpTarget(); if (carrier == null || !carrier.HasMaterialHeld) { ReleaseHelp(); return false; } }
+            else if (IsSharedCarry) carrier = this;
+            else return false;
+
+            if ((m_NetMoveInput.Value - myDir).sqrMagnitude > 1e-4f) m_NetMoveInput.Value = myDir;
+
+            Vector3 sum = Vector3.zero; int n = 0;
+            void Add(PlayerCarry pc) { sum += pc == this ? myDir : pc.m_NetMoveInput.Value; n++; }
+            Add(carrier);
+            foreach (var o in AllCarries())
+                if (o != null && o != carrier && o.m_NetHelping.Value == carrier.NetworkObjectId) Add(o);
+            group = n > 0 ? Vector3.ClampMagnitude(sum / n, 1f) : myDir;
+            return true;
+        }
+
+        /// <summary>대형 유지용 약한 보정(owner): 각자 로컬 적분이라 조금씩 어긋나는 걸 자기 면 슬롯으로 살살 되돌린다(데드존 있음).</summary>
+        public void ApplyTether(Rigidbody rb, float inputMag = 0f)
         {
             Vector3 target;
             if (IsHelping)
             {
                 var c = ResolveHelpTarget();
-                if (c == null || !c.HasMaterialHeld || c.m_NetSide.Value < 0) { if (c == null || !c.HasMaterialHeld) ReleaseHelp(); return; }
+                if (c == null || !c.HasMaterialHeld || c.m_NetSide.Value < 0) return;
                 target = c.SlotPos(m_NetHelpSide.Value);
             }
-            else if (IsSharedCarry) target = SlotPos(m_NetSide.Value);
-            else return;
+            else return;   // 운반자가 기준점(화물은 운반자 위치에서 나옴) — 도우미만 맞춘다
 
             Vector3 cur = rb.position;
             Vector3 err = new Vector3(target.x - cur.x, 0f, target.z - cur.z);
-            Vector3 corr = Vector3.ClampMagnitude(err * m_TetherStiffness, 9f);
+            float len = err.magnitude;
+            if (len <= m_TetherSlack) return;
+            err *= (len - m_TetherSlack) / len;
+            Vector3 corr = Vector3.ClampMagnitude(err * m_TetherStiffness, 4f);
             var v = rb.linearVelocity;
             rb.linearVelocity = new Vector3(v.x + corr.x, v.y, v.z + corr.z);
         }
 
         private static readonly Collider[] s_OverlapBuf = new Collider[16];
 
-        /// <summary>화물이 delta 만큼 움직이면 벽/배치 블록에 박히는가(owner 이동 판정). 플레이어·바닥 재료·트리거·자기 화물은 제외.</summary>
-        public bool CargoBlocked(Vector3 delta)
+        /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
+        /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
+        private BoxCollider m_CargoBox;   // 화물 콜라이더(AttachCargoPusher)
+
+        private static bool IsObstacle(Collider c, Transform self)
         {
-            if (!HasMaterialHeld || m_HeldDef == null) return false;
-            Vector3 center = CargoCenter() + delta;
-            Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.88f;
-            int n = Physics.OverlapBoxNonAlloc(center, half, s_OverlapBuf, CargoRot(), ~(1 << 2), QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < n; i++)
+            if (c == null || c.transform == self || c.transform.IsChildOf(self)) return false;
+            if (c.CompareTag("Player")) return false;                           // 사람은 밀리는 쪽(키네마틱 화물이 밈)
+            if (c.GetComponentInParent<PickupBody>() != null) return false;     // 바닥 재료도 차이는 쪽
+            if (c.GetComponentInParent<PlayerCarry>() != null) return false;    // 다른 플레이어(자식 콜라이더)
+            return true;
+        }
+
+        public void ResolveCargoCollision(ref Vector3 v, float dt)
+        {
+            if (!HasMaterialHeld || m_HeldDef == null || m_HeldVisual == null) return;
+            if (m_CargoBox == null) m_CargoBox = m_HeldVisual.GetComponent<BoxCollider>();
+            if (m_CargoBox == null) return;
+
+            Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.92f;
+            Quaternion rot = CargoRot();
+            for (int pass = 0; pass < 2; pass++)   // 0 = 지금 위치(겹침 해소) · 1 = 다음 틱 위치(예측 차단)
             {
-                var c = s_OverlapBuf[i];
-                if (c == null || c.transform == transform || c.transform.IsChildOf(transform)) continue;
-                if (c.CompareTag("Player")) continue;                           // 사람은 밀리는 쪽(키네마틱 화물이 밈)
-                if (c.GetComponentInParent<PickupBody>() != null) continue;     // 바닥 재료도 차이는 쪽
-                if (c.GetComponentInParent<PlayerCarry>() != null) continue;    // 다른 플레이어(자식 콜라이더)
-                return true;
+                Vector3 center = CargoCenter() + (pass == 1 ? v * dt * 1.5f : Vector3.zero);
+                int n = Physics.OverlapBoxNonAlloc(center, half, s_OverlapBuf, rot, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++)
+                {
+                    var c = s_OverlapBuf[i];
+                    if (!IsObstacle(c, transform)) continue;
+                    if (!Physics.ComputePenetration(m_CargoBox, center, rot, c, c.transform.position, c.transform.rotation, out var dir, out float dist))
+                        continue;
+                    dir.y = 0f;
+                    if (dir.sqrMagnitude < 1e-6f) continue;   // 위아래로만 겹침(바닥 등) — 수평 이동과 무관
+                    dir.Normalize();
+                    float into = Vector3.Dot(v, dir);          // dir = 화물을 밖으로 밀어내는 방향
+                    if (into < 0f) v -= dir * into;            // 파고드는 성분 제거(미끄러짐은 유지)
+                    if (pass == 0) v += dir * Mathf.Min(dist * 12f, 2.5f);   // 이미 겹쳐 있으면 살짝 밀어냄
+                }
             }
-            return false;
         }
 
         private PlayerCarry ResolveHelpTarget()
@@ -258,6 +293,7 @@ namespace Player
         {
             if (!IsHelping) return;
             m_NetHelping.Value = kNoHelp;
+            m_NetMoveInput.Value = Vector3.zero;
             m_HelpTarget = null;
         }
 

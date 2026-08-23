@@ -94,24 +94,15 @@ namespace Player
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
+            if (m_Carry != null && m_Carry.TryGetGroupMove(dir, out var group)) { dir = group; isSprinting = false; }   // 같이 들기: 전원 입력 평균(같은 방향=풀속도, 반대=상쇄)
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
             if (m_Carry != null) speed *= m_Carry.MoveMultiplier;     // 무거운 재료 혼자 들면 0.7배(동료가 붙으면 1)
             Vector3 v = dir * speed;
-            if (m_Carry != null && v.sqrMagnitude > 1e-6f)   // 앞에 든 화물이 벽/블록에 박히면 그쪽 이동 취소(축별로 → 벽 따라 미끄러짐)
-            {
-                float dt = Time.fixedDeltaTime * 2f;   // 한 틱 앞 + 여유
-                if (m_Carry.CargoBlocked(v * dt))
-                {
-                    Vector3 vx = new Vector3(v.x, 0f, 0f), vz = new Vector3(0f, 0f, v.z);
-                    bool okX = Mathf.Abs(v.x) > 1e-4f && !m_Carry.CargoBlocked(vx * dt);
-                    bool okZ = Mathf.Abs(v.z) > 1e-4f && !m_Carry.CargoBlocked(vz * dt);
-                    v = (okX ? vx : Vector3.zero) + (okZ ? vz : Vector3.zero);
-                }
-            }
+            if (m_Carry != null) m_Carry.ResolveCargoCollision(ref v, Time.fixedDeltaTime);   // 앞에 든 화물: 벽에 파고드는 속도만 깎고 겹치면 밀어냄
             m_Rb.linearVelocity = new Vector3(v.x + ExternalPush.x, m_Rb.linearVelocity.y, v.z + ExternalPush.z);   // Y 보존(중력·점프가 담당)
-            if (m_Carry != null) m_Carry.ApplyTether(m_Rb);   // 같이 들기: 자기 면 슬롯으로 스프링(반대로 당기면 서로 잡힘)
+            if (m_Carry != null) m_Carry.ApplyTether(m_Rb, input.magnitude);   // 같이 들기: 자기 면 슬롯으로 스프링(반대로 당기면 서로 잡힘)
         }
 
         // 접지 상태에서만 위로 임펄스. WASD를 같이 누르면 수평속도가 살아 있어 '방향 점프'가 됨.
