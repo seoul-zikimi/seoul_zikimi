@@ -214,23 +214,45 @@ namespace Player
 
         private static readonly Collider[] s_OverlapBuf = new Collider[16];
 
-        /// <summary>화물이 delta 만큼 움직이면 벽/배치 블록에 박히는가(owner 이동 판정). 플레이어·바닥 재료·트리거·자기 화물은 제외.</summary>
-        public bool CargoBlocked(Vector3 delta)
+        /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
+        /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
+        private BoxCollider m_CargoBox;   // 화물 콜라이더(AttachCargoPusher)
+
+        private static bool IsObstacle(Collider c, Transform self)
         {
-            if (!HasMaterialHeld || m_HeldDef == null) return false;
-            Vector3 center = CargoCenter() + delta;
-            Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.88f;
-            int n = Physics.OverlapBoxNonAlloc(center, half, s_OverlapBuf, CargoRot(), ~(1 << 2), QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < n; i++)
+            if (c == null || c.transform == self || c.transform.IsChildOf(self)) return false;
+            if (c.CompareTag("Player")) return false;                           // 사람은 밀리는 쪽(키네마틱 화물이 밈)
+            if (c.GetComponentInParent<PickupBody>() != null) return false;     // 바닥 재료도 차이는 쪽
+            if (c.GetComponentInParent<PlayerCarry>() != null) return false;    // 다른 플레이어(자식 콜라이더)
+            return true;
+        }
+
+        public void ResolveCargoCollision(ref Vector3 v, float dt)
+        {
+            if (!HasMaterialHeld || m_HeldDef == null || m_HeldVisual == null) return;
+            if (m_CargoBox == null) m_CargoBox = m_HeldVisual.GetComponent<BoxCollider>();
+            if (m_CargoBox == null) return;
+
+            Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.92f;
+            Quaternion rot = CargoRot();
+            for (int pass = 0; pass < 2; pass++)   // 0 = 지금 위치(겹침 해소) · 1 = 다음 틱 위치(예측 차단)
             {
-                var c = s_OverlapBuf[i];
-                if (c == null || c.transform == transform || c.transform.IsChildOf(transform)) continue;
-                if (c.CompareTag("Player")) continue;                           // 사람은 밀리는 쪽(키네마틱 화물이 밈)
-                if (c.GetComponentInParent<PickupBody>() != null) continue;     // 바닥 재료도 차이는 쪽
-                if (c.GetComponentInParent<PlayerCarry>() != null) continue;    // 다른 플레이어(자식 콜라이더)
-                return true;
+                Vector3 center = CargoCenter() + (pass == 1 ? v * dt * 1.5f : Vector3.zero);
+                int n = Physics.OverlapBoxNonAlloc(center, half, s_OverlapBuf, rot, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++)
+                {
+                    var c = s_OverlapBuf[i];
+                    if (!IsObstacle(c, transform)) continue;
+                    if (!Physics.ComputePenetration(m_CargoBox, center, rot, c, c.transform.position, c.transform.rotation, out var dir, out float dist))
+                        continue;
+                    dir.y = 0f;
+                    if (dir.sqrMagnitude < 1e-6f) continue;   // 위아래로만 겹침(바닥 등) — 수평 이동과 무관
+                    dir.Normalize();
+                    float into = Vector3.Dot(v, dir);          // dir = 화물을 밖으로 밀어내는 방향
+                    if (into < 0f) v -= dir * into;            // 파고드는 성분 제거(미끄러짐은 유지)
+                    if (pass == 0) v += dir * Mathf.Min(dist * 12f, 2.5f);   // 이미 겹쳐 있으면 살짝 밀어냄
+                }
             }
-            return false;
         }
 
         private PlayerCarry ResolveHelpTarget()
