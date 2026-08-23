@@ -100,7 +100,8 @@ namespace Player
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
             if (m_Carry != null) speed *= m_Carry.MoveMultiplier;     // 무거운 재료 혼자 들면 0.7배(동료가 붙으면 1)
             Vector3 v = dir * speed;
-            if (m_Carry != null) m_Carry.ResolveCargoCollision(ref v, Time.fixedDeltaTime);   // 앞에 든 화물: 벽에 파고드는 속도만 깎고 겹치면 밀어냄
+            // (화물-블록 충돌 차단은 통행에 방해돼 끔 — 2026-08-23. 화물은 다른 재료를 통과하고 사람만 밀어낸다)
+            // if (m_Carry != null) m_Carry.ResolveCargoCollision(ref v, Time.fixedDeltaTime);   // 앞에 든 화물: 벽에 파고드는 속도만 깎고 겹치면 밀어냄
             m_Rb.linearVelocity = new Vector3(v.x + ExternalPush.x, m_Rb.linearVelocity.y, v.z + ExternalPush.z);   // Y 보존(중력·점프가 담당)
             if (m_Carry != null) m_Carry.ApplyTether(m_Rb, input.magnitude);   // 같이 들기: 자기 면 슬롯으로 스프링(반대로 당기면 서로 잡힘)
         }
