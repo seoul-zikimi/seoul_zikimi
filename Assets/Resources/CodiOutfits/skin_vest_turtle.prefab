@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &354190624841326256
+--- !u!1 &299440163805778452
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,61 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5093623085979710044}
-  - component: {fileID: 8467701868698047650}
-  m_Layer: 0
-  m_Name: skin_vest_turtle
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &5093623085979710044
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 354190624841326256}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 3863306717493176168}
-  - {fileID: 4490420765773930471}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8467701868698047650
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 354190624841326256}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
-  DisplayName: "\uC548\uC804 \uC138\uD2B8"
-  Price: 100
-  TargetCharacter: char_turtle
-  Thumbnail: {fileID: 0}
-  ScaleMargin: 1.06
---- !u!1 &1019221081757851732
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4490420765773930471}
-  - component: {fileID: 1007784682615871935}
-  - component: {fileID: 7381162791852638846}
-  - component: {fileID: 5931489070891573750}
+  - component: {fileID: 4878995971551387917}
+  - component: {fileID: 5396845128084138294}
+  - component: {fileID: 3565773857252592325}
+  - component: {fileID: 3422212377010840006}
   m_Layer: 0
   m_Name: Item_skin_vest_turtle
   m_TagString: Untagged
@@ -70,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4490420765773930471
+--- !u!4 &4878995971551387917
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1019221081757851732}
+  m_GameObject: {fileID: 299440163805778452}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.26378065, y: -0.030589007, z: 0.0021791868, w: 0.9640951}
-  m_LocalPosition: {x: -0.0003, y: -0.1266, z: 0.0613}
-  m_LocalScale: {x: 0.48721808, y: 0.37960082, z: 0.690333}
+  m_LocalRotation: {x: -0.26441336, y: -0.0049176826, z: -0.003973591, w: 0.9643887}
+  m_LocalPosition: {x: -0.001, y: -0.127, z: 0.061}
+  m_LocalScale: {x: 0.4579736, y: 0.40237683, z: 0.7317529}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5093623085979710044}
-  m_LocalEulerAnglesHint: {x: -30.563, y: -4.004, z: 1.354}
---- !u!33 &1007784682615871935
+  m_Father: {fileID: 3824583398511092402}
+  m_LocalEulerAnglesHint: {x: -30.666, y: -0.492, z: -0.337}
+--- !u!33 &5396845128084138294
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1019221081757851732}
+  m_GameObject: {fileID: 299440163805778452}
   m_Mesh: {fileID: -1901923605265949594, guid: a87fbc6a038469642ace1e4a2c86aa3c, type: 3}
---- !u!23 &7381162791852638846
+--- !u!23 &3565773857252592325
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1019221081757851732}
+  m_GameObject: {fileID: 299440163805778452}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -142,24 +91,24 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5931489070891573750
+--- !u!114 &3422212377010840006
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1019221081757851732}
+  m_GameObject: {fileID: 299440163805778452}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c31b2a9e0d54f2f8b6a1c9d3e5f7a20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfitPiece
   BoneName: mixamorig:Spine1
-  BonePos: {x: -0.0003000152, y: -0.1266, z: 0.061299995}
-  BoneRot: {x: -0.26378065, y: -0.030589009, z: 0.002179186, w: 0.9640952}
-  WorldScale: {x: 0.48721814, y: 0.3796008, z: 0.69033295}
+  BonePos: {x: -0.0010000096, y: -0.12700002, z: 0.061}
+  BoneRot: {x: -0.2644134, y: -0.004917682, z: -0.003973587, w: 0.9643888}
+  WorldScale: {x: 0.4579736, y: 0.40237686, z: 0.7317528}
   Version: 3
---- !u!1 &2064567712436096767
+--- !u!1 &5263536790341510387
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -167,10 +116,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3863306717493176168}
-  - component: {fileID: 2364661600033069}
-  - component: {fileID: 8262283241408088847}
-  - component: {fileID: 7400747198247643095}
+  - component: {fileID: 5114401525948685063}
+  - component: {fileID: 2831047346495600745}
+  - component: {fileID: 8091542473875781935}
+  - component: {fileID: 3480175534119455397}
   m_Layer: 0
   m_Name: Item_skin_vest_turtle
   m_TagString: Untagged
@@ -178,36 +127,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3863306717493176168
+--- !u!4 &5114401525948685063
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2064567712436096767}
+  m_GameObject: {fileID: 5263536790341510387}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.43914872, y: 0.45939744, z: -0.52928954, w: 0.5620988}
-  m_LocalPosition: {x: -0.01, y: 0.492, z: -0.113}
-  m_LocalScale: {x: 0.41364828, y: 0.41280305, z: 0.31063172}
+  m_LocalRotation: {x: 0.43914863, y: 0.4593975, z: -0.52928966, w: 0.5620987}
+  m_LocalPosition: {x: -0.010000016, y: 0.4919999, z: -0.113000095}
+  m_LocalScale: {x: 0.43846723, y: 0.4375714, z: 0.3292698}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5093623085979710044}
+  m_Father: {fileID: 3824583398511092402}
   m_LocalEulerAnglesHint: {x: 78.521, y: 15.022, z: -74.255}
---- !u!33 &2364661600033069
+--- !u!33 &2831047346495600745
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2064567712436096767}
+  m_GameObject: {fileID: 5263536790341510387}
   m_Mesh: {fileID: 5582434627078613957, guid: 9f1fdd247d47c3242ba3c8a49aaf42e6, type: 3}
---- !u!23 &8262283241408088847
+--- !u!23 &8091542473875781935
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2064567712436096767}
+  m_GameObject: {fileID: 5263536790341510387}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -250,20 +199,71 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7400747198247643095
+--- !u!114 &3480175534119455397
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2064567712436096767}
+  m_GameObject: {fileID: 5263536790341510387}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c31b2a9e0d54f2f8b6a1c9d3e5f7a20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfitPiece
   BoneName: mixamorig:Head
-  BonePos: {x: -0.010000031, y: 0.49199998, z: -0.112999916}
-  BoneRot: {x: 0.43914875, y: 0.45939764, z: -0.5292897, w: 0.5620988}
-  WorldScale: {x: 0.41364843, y: 0.41280323, z: 0.31063187}
+  BonePos: {x: -0.010000029, y: 0.49199998, z: -0.11299999}
+  BoneRot: {x: 0.4391487, y: 0.45939773, z: -0.52928984, w: 0.5620987}
+  WorldScale: {x: 0.43846738, y: 0.43757173, z: 0.32926992}
   Version: 3
+--- !u!1 &9186308035841813267
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3824583398511092402}
+  - component: {fileID: 9182403406302735794}
+  m_Layer: 0
+  m_Name: skin_vest_turtle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3824583398511092402
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9186308035841813267}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5114401525948685063}
+  - {fileID: 4878995971551387917}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9182403406302735794
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9186308035841813267}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
+  DisplayName: "\uC548\uC804 \uC138\uD2B8"
+  Price: 100
+  TargetCharacter: char_turtle
+  Thumbnail: {fileID: 0}
+  ScaleMargin: 1.06
