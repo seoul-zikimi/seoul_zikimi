@@ -20,7 +20,8 @@ namespace CartoonFX
 #if UNITY_EDITOR
         void OnValidate()
         {
-            this.hideFlags = HideFlags.DontSaveInBuild;
+            // seoul_zikimi: DontSaveInBuild 제거 — Resources 프리팹(Weather3DVfxRig)에 중첩되면 resources.assets 쓰기 실패로 빌드가 깨짐
+            this.hideFlags = HideFlags.None;
             CalculateAndUpdateEmission();
         }
 
