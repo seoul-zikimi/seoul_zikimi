@@ -217,6 +217,8 @@ namespace Player
         /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
         /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
         private BoxCollider m_CargoBox;   // 화물 콜라이더(AttachCargoPusher)
+        private Vector3 m_BumpVel;        // 벽에 박았을 때 튕김 속도(감쇠)
+        private float m_BumpCooldown;
 
         private static bool IsObstacle(Collider c, Transform self)
         {
@@ -232,6 +234,9 @@ namespace Player
             if (!HasMaterialHeld || m_HeldDef == null || m_HeldVisual == null) return;
             if (m_CargoBox == null) m_CargoBox = m_HeldVisual.GetComponent<BoxCollider>();
             if (m_CargoBox == null) return;
+
+            // 튕김 잔상(감쇠) — 박은 뒤 몇 틱 동안 뒤로 밀려나는 느낌
+            if (m_BumpVel.sqrMagnitude > 1e-4f) { v += m_BumpVel; m_BumpVel = Vector3.Lerp(m_BumpVel, Vector3.zero, 1f - Mathf.Exp(-9f * dt)); }
 
             Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.92f;
             Quaternion rot = CargoRot();
@@ -249,7 +254,17 @@ namespace Player
                     if (dir.sqrMagnitude < 1e-6f) continue;   // 위아래로만 겹침(바닥 등) — 수평 이동과 무관
                     dir.Normalize();
                     float into = Vector3.Dot(v, dir);          // dir = 화물을 밖으로 밀어내는 방향
-                    if (into < 0f) v -= dir * into;            // 파고드는 성분 제거(미끄러짐은 유지)
+                    if (into < 0f)
+                    {
+                        v -= dir * into;                        // 파고드는 성분 제거(미끄러짐은 유지)
+                        if (pass == 1 && into < -1.2f && Time.time > m_BumpCooldown)   // 제법 빠르게 박았을 때: 통! 튕겨나옴 + 화물 찌그러짐
+                        {
+                            m_BumpCooldown = Time.time + 0.3f;
+                            m_BumpVel = dir * Mathf.Min(-into * 0.9f, 4f);
+                            GridJuice.Squish(m_HeldVisual, 0.18f);
+                            if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.PlayerBounce);
+                        }
+                    }
                     if (pass == 0) v += dir * Mathf.Min(dist * 12f, 2.5f);   // 이미 겹쳐 있으면 살짝 밀어냄
                 }
             }
@@ -900,10 +915,25 @@ namespace Player
                 m_HasTarget = c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
 
+                // 빈손(회수/공정): 평면 교차점 대신 '마우스 레이가 실제로 맞는 배치 블록'의 셀을 우선 — 블록 윗면을 보거나
+                // 블록 위에 서 있어도 클릭한 그 블록이 잡힌다(평면만 쓰면 층이 달라 엉뚱한 빈 칸을 가리킴).
+                if (!HasMaterial && m_Net != null &&
+                    Physics.Raycast(ray, out var bh, 100f, ~(1 << 2), QueryTriggerInteraction.Ignore) &&
+                    bh.collider.transform != transform && !bh.collider.transform.IsChildOf(transform) &&
+                    !bh.collider.CompareTag("Player"))
+                {
+                    var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
+                    if (m_Net.IsPickupable(bc) || (HasTool && m_Net.VisualAt(bc) != null))
+                    {
+                        m_Target = bc;
+                        m_HasTarget = bc.x >= xMin && bc.x < xMax && bc.z >= 0 && bc.z < s.z && bc.y >= 0 && bc.y < s.y;
+                    }
+                }
+
                 // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸.
                 // 중심점이 아니라 '블록이 차지한 셀 중 가장 가까운 셀'까지의 거리 — 큰 블록도 가장자리에 서면 닿는다.
                 if (m_HasTarget)
-                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(c),
+                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(m_Target),
                                                     GridContract.Origin, GridContract.Unit, kBuildReachCells);
             }
         }
