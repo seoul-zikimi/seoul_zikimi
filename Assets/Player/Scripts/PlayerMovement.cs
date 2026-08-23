@@ -9,6 +9,7 @@ namespace Player
         const float kWallReach  = 0.7f;   // 벽 감지 거리(캡슐 반경+α)
         const float kClimbRayH  = 0.4f;   // 벽 감지 레이 높이(발 근처) — 발이 벽 위로 오르면 꼭대기로 판정
 
+        private const int kCastMask = ~(1 << 2);   // Ignore Raycast 제외 — 앞에 든 화물(PlayerCarry)이 벽/바닥으로 안 잡히게
         private Rigidbody m_Rb;
         private PlayerCarry m_Carry;
         private PlayerConfigSO m_Config;
@@ -67,7 +68,7 @@ namespace Player
         private void SquishLandedOn()
         {
             foreach (var h in Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                                 0.5f, ~0, QueryTriggerInteraction.Ignore))
+                                                 0.5f, kCastMask, QueryTriggerInteraction.Ignore))
             {
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;
@@ -115,7 +116,7 @@ namespace Player
         public bool IsGrounded()
         {
             var hits = Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                          0.3f, ~0, QueryTriggerInteraction.Ignore);
+                                          0.3f, kCastMask, QueryTriggerInteraction.Ignore);
             foreach (var h in hits)
                 if (h.collider.transform != transform && !h.collider.transform.IsChildOf(transform))
                     return true;
@@ -128,7 +129,7 @@ namespace Player
         {
             inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             var origin = transform.position + Vector3.up * kClimbRayH;
-            foreach (var h in Physics.RaycastAll(origin, inDir, kWallReach, ~0, QueryTriggerInteraction.Ignore))
+            foreach (var h in Physics.RaycastAll(origin, inDir, kWallReach, kCastMask, QueryTriggerInteraction.Ignore))
             {
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;   // 자기/자식 제외
