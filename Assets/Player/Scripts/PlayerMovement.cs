@@ -94,7 +94,6 @@ namespace Player
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
-            if (m_Carry != null && m_Carry.TryGetSharedMove(dir, out var shared)) { dir = shared; isSprinting = false; }   // 같이 들기: 입력 벡터 합산(상쇄/가속)
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
@@ -112,6 +111,7 @@ namespace Player
                 }
             }
             m_Rb.linearVelocity = new Vector3(v.x + ExternalPush.x, m_Rb.linearVelocity.y, v.z + ExternalPush.z);   // Y 보존(중력·점프가 담당)
+            if (m_Carry != null) m_Carry.ApplyTether(m_Rb);   // 같이 들기: 자기 면 슬롯으로 스프링(반대로 당기면 서로 잡힘)
         }
 
         // 접지 상태에서만 위로 임펄스. WASD를 같이 누르면 수평속도가 살아 있어 '방향 점프'가 됨.

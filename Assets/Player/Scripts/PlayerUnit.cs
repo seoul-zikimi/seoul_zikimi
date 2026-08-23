@@ -164,18 +164,6 @@ namespace Player
 
             RecoverIfFallingThroughStage();
 
-            if (m_CarryForHelp == null) m_CarryForHelp = GetComponent<PlayerCarry>();
-            if (m_CarryForHelp != null && m_CarryForHelp.IsHelping)   // 같이 들기: 운반자 앞쪽에 붙어 끌려감(입력 무시)
-            {
-                m_Rb.useGravity = true;
-                Vector2 mi = m_InputHandler.MoveInput;
-                Vector3 hf = Vector3.ProjectOnPlane(m_CameraArm.forward, Vector3.up).normalized;
-                Vector3 hr = Vector3.ProjectOnPlane(m_CameraArm.right, Vector3.up).normalized;
-                Vector3 wd = hf * mi.y + hr * mi.x; if (wd.sqrMagnitude > 1f) wd.Normalize();
-                m_CarryForHelp.DriveHelper(m_Rb, wd);
-                return;
-            }
-
             if (m_InputHandler.ConsumeScaffold()) PlaceScaffold();   // 더블탭 Space = 발밑 비계 + 올라타기
             UpdateScaffolds();                                        // 기둥에서 벗어나면 비계 제거
 
@@ -192,8 +180,6 @@ namespace Player
                 if (m_InputHandler.ConsumeJump()) m_Movement.Jump();   // Space 점프(접지 시)
             }
         }
-
-        private PlayerCarry m_CarryForHelp;
 
         private void QueueSpawnOnGrid()
         {
