@@ -27,6 +27,8 @@ namespace GridSystem
         [SerializeField] private bool m_Walkable;              // 바닥처럼 플레이어가 위로 지나갈 수 있나(콜라이더 안 붙음)
         [SerializeField] private bool m_IsBreakable;            // 유리 등
         [SerializeField] private int  m_MaxSpawnCount = -1;     // 스폰 제한 (-1 = 무제한)
+        [Tooltip("무거운 재료: 혼자 들면 이동속도 0.7배(땀). 빈손 동료가 옆에 붙으면 정상 속도 — 협동 기믹.")]
+        [SerializeField] private bool m_IsHeavy;
 
         public int Id => m_Id;
         public Vector3Int Footprint => m_Footprint;
@@ -36,6 +38,7 @@ namespace GridSystem
         public bool Walkable => m_Walkable;
         public bool IsBreakable => m_IsBreakable;
         public int  MaxSpawnCount => m_MaxSpawnCount;
+        public bool IsHeavy => m_IsHeavy;
 
         /// <summary>요구 공정들을 합친 비트마스크. 채점 시 "완료 ⊇ 요구"를 한 번에 비교하려고 쓴다.</summary>
         public int RequiredMask

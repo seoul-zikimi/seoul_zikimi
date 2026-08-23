@@ -10,6 +10,7 @@ namespace Player
         const float kClimbRayH  = 0.4f;   // 벽 감지 레이 높이(발 근처) — 발이 벽 위로 오르면 꼭대기로 판정
 
         private Rigidbody m_Rb;
+        private PlayerCarry m_Carry;
         private PlayerConfigSO m_Config;
         private bool  m_IsClimbing;
         private float m_ClimbCooldown;    // 벽점프 직후 즉시 재부착 방지
@@ -93,6 +94,8 @@ namespace Player
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
+            if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
+            if (m_Carry != null) speed *= m_Carry.MoveMultiplier;     // 무거운 재료 혼자 들면 0.7배(동료가 붙으면 1)
             Vector3 v = dir * speed;
             m_Rb.linearVelocity = new Vector3(v.x + ExternalPush.x, m_Rb.linearVelocity.y, v.z + ExternalPush.z);   // Y 보존(중력·점프가 담당)
         }

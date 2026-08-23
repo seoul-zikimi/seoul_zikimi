@@ -16,8 +16,14 @@ namespace Player
     /// </summary>
     public class PlayerCarry : NetworkBehaviour
     {
-        [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 1.2f, 0f);
-        [SerializeField] private float m_BlockHoldRaise = 0.6f;   // 재료(블록)는 머리 안 가리게 더 위로
+        [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 1.2f, 0f);   // 도구 들 때(머리 위)
+        [Tooltip("재료는 원본 크기 그대로 몸 앞에 안고 간다(무빙아웃식). 앞으로 띄우는 거리(블록 반폭은 자동 가산)·높이.")]
+        [SerializeField] private float m_FrontHoldDist = 0.35f;
+        [SerializeField] private float m_FrontHoldHeight = 0.55f;
+        [Tooltip("무거운 재료를 혼자 들 때 이동속도 배율.")]
+        [SerializeField] private float m_HeavySoloSpeed = 0.7f;
+        [Tooltip("빈손 동료가 이 거리(화물 중심 기준) 안에 있으면 '같이 드는' 것으로 보고 정상 속도.")]
+        [SerializeField] private float m_HelpRadius = 2.2f;
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
         [SerializeField] private float m_GrabRange = 2.5f;
@@ -45,6 +51,17 @@ namespace Player
             new(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetTool =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // 무거운 재료를 혼자 끙끙 드는 중(땀 이펙트 · 전 클라 표시)
+        private readonly NetworkVariable<bool> m_NetStraining =
+            new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private MaterialDef m_HeldDef;        // 모든 클라: 든 재료 정의(화물 크기·무게)
+        private ParticleSystem m_SweatFx;     // 땀 이펙트(필요 시 생성)
+        private static PlayerCarry[] s_AllCarries;
+        private static float s_AllCarriesTime = -1f;
+
+        /// <summary>이동속도 배율(owner) — 무거운 재료 혼자 들면 0.7, 동료가 붙으면 1.</summary>
+        public float MoveMultiplier { get; private set; } = 1f;
+        public bool IsStraining => m_NetStraining.Value;
 
         private int m_Rotation;
         private int m_BuildHeight;
@@ -111,6 +128,7 @@ namespace Player
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
             if (m_ThrowAim != null) Destroy(m_ThrowAim);
             DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
@@ -120,7 +138,13 @@ namespace Player
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
 
         // 든 게 블록(재료)이면 머리 안 가리게 더 위로, 도구는 그대로. (복제값 기준 — 원격도 동일)
-        private Vector3 HeldOffset() => m_HoldOffset + (m_NetMaterialId.Value >= 0 ? Vector3.up * m_BlockHoldRaise : Vector3.zero);
+        // 재료 = 몸 앞(바라보는 방향)에 원본 크기로 안고 감 · 도구 = 머리 위
+        private Vector3 HeldOffset()
+        {
+            if (m_NetMaterialId.Value < 0) return m_HoldOffset;
+            float depth = (m_HeldDef != null ? Mathf.Max(1, m_HeldDef.Footprint.z) : 1) * GridContract.Unit;
+            return transform.forward * (m_FrontHoldDist + depth * 0.5f) + Vector3.up * m_FrontHoldHeight;
+        }
 
         private Vector3 m_HeldPrevPos;      // 든 비주얼 바운스/스웨이용 위치 추적
         private Vector3 m_HeldSwayVel;      // 부드럽게 감쇠한 이동속도(관성 스웨이)
@@ -131,8 +155,10 @@ namespace Player
             // 모든 클라: 든 비주얼이 플레이어를 따라감(+ 걸을 때 통통 밥 + 관성 스웨이)
             if (m_HeldVisual != null)
                 UpdateHeldVisual();
+            UpdateSweatFx();
 
             if (!IsOwner) return;
+            UpdateHeavyState();
             OwnerUpdate();
         }
 
@@ -1109,6 +1135,7 @@ namespace Player
         private void RebuildHeldVisual()
         {
             if (m_HeldVisual != null) { Destroy(m_HeldVisual); m_HeldVisual = null; }
+            m_HeldDef = null;
 
             int matId = m_NetMaterialId.Value;
             int tool = m_NetTool.Value;
@@ -1117,23 +1144,25 @@ namespace Player
             {
                 var def = FindMaterial(matId);
                 if (def == null) return;
+                m_HeldDef = def;
                 var fp = def.Footprint;
-                if (def.Prefab != null)   // 진짜 블록 외형(물 재질 등) — 중심 맞춰 작게 들기
+                float u = GridContract.Unit;
+                var size = new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * u;
+                if (def.Prefab != null)   // 진짜 블록 외형 — 원본 크기 그대로, 중심 정렬
                 {
                     m_HeldVisual = new GameObject("~Held");
                     var vis = Instantiate(def.Prefab, m_HeldVisual.transform);
-                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) → 머리 위 중앙 정렬
-                    m_HeldVisual.transform.localScale = Vector3.one * 0.35f;
+                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f) * u;   // 피벗(min-corner) → 중앙 정렬
                     foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
                 }
                 else                      // 프리팹 없음 → 공정색 큐브(폴백)
                 {
                     m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    m_HeldVisual.transform.localScale =
-                        new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * 0.35f;
+                    m_HeldVisual.transform.localScale = size;
                     Paint(m_HeldVisual, ColorForMask(def.RequiredMask));
                     StripCollider(m_HeldVisual);
                 }
+                AttachCargoPusher(m_HeldVisual, def.Prefab != null ? size : Vector3.one);   // 앞에 단 화물: 다른 플레이어를 밀어낸다
             }
             else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
@@ -1181,6 +1210,110 @@ namespace Player
 
         private MaterialDef FindMaterial(int id)
             => Catalog() != null ? Catalog().GetById(id) : null;
+
+        // ── 앞에 단 화물 = 키네마틱 박스 콜라이더: 다른 플레이어(다이내믹 바디)를 채서 밀어낸다(무빙아웃 개그).
+        // Ignore Raycast 레이어라 조준/줍기 레이캐스트는 안 막고, 본인 몸과는 충돌 무시.
+        private void AttachCargoPusher(GameObject cargo, Vector3 size)
+        {
+            foreach (var t in cargo.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = 2;   // Ignore Raycast
+            var box = cargo.AddComponent<BoxCollider>();
+            box.size = size * 0.92f;   // 모서리 살짝 여유(스치기만 해도 튕기지 않게)
+            box.center = Vector3.zero;
+            var rb = cargo.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            foreach (var own in GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(box, own, true);
+        }
+
+        // ── 무거운 재료: 혼자 들면 느림(땀) · 빈손 동료가 화물 옆에 붙으면 정상 속도(owner 판정 → 복제)
+        private void UpdateHeavyState()
+        {
+            bool heavy = HasMaterial && m_HeldMaterial.IsHeavy;
+            bool helped = false;
+            if (heavy)
+            {
+                if (s_AllCarries == null || Time.time - s_AllCarriesTime > 1f)
+                {
+                    s_AllCarries = FindObjectsByType<PlayerCarry>(FindObjectsSortMode.None);
+                    s_AllCarriesTime = Time.time;
+                }
+                Vector3 cargo = m_HeldVisual != null ? m_HeldVisual.transform.position : transform.position + HeldOffset();
+                foreach (var other in s_AllCarries)
+                {
+                    if (other == null || other == this) continue;
+                    if (other.m_NetMaterialId.Value >= 0 || other.m_NetTool.Value != 0) continue;   // 빈손만 도울 수 있음
+                    if ((other.transform.position - cargo).sqrMagnitude <= m_HelpRadius * m_HelpRadius) { helped = true; break; }
+                }
+            }
+            MoveMultiplier = heavy && !helped ? m_HeavySoloSpeed : 1f;
+            bool straining = heavy && !helped;
+            if (m_NetStraining.Value != straining) m_NetStraining.Value = straining;
+        }
+
+        // ── 땀 이펙트(모든 클라): 머리 옆에서 물방울 톡톡. 에셋 의존 없이 코드로 생성.
+        private void UpdateSweatFx()
+        {
+            bool on = m_NetStraining.Value;
+            if (!on && m_SweatFx == null) return;
+            if (m_SweatFx == null) m_SweatFx = BuildSweatFx(transform);
+            var em = m_SweatFx.emission;
+            if (em.enabled != on) em.enabled = on;
+        }
+
+        private static Texture2D s_DropTex;
+        private static ParticleSystem BuildSweatFx(Transform parent)
+        {
+            var go = new GameObject("~SweatFx");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0f, 1.45f, 0f);
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.loop = true; main.playOnAwake = true;
+            main.startLifetime = 0.7f;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1.2f, 2.2f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.10f, 0.16f);
+            main.startColor = new Color(0.55f, 0.80f, 1f, 0.95f);
+            main.gravityModifier = 1.2f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 24;
+            var em = ps.emission; em.rateOverTime = 7f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Hemisphere; sh.radius = 0.22f;
+            var r = ps.GetComponent<ParticleSystemRenderer>();
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
+            if (shader != null)
+            {
+                var mat = new Material(shader);
+                if (s_DropTex == null) s_DropTex = MakeDropTexture();
+                mat.mainTexture = s_DropTex;
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", s_DropTex);
+                if (mat.HasProperty("_Surface"))   // URP 파티클: 투명(알파 블렌드)
+                {
+                    mat.SetFloat("_Surface", 1f); mat.SetFloat("_Blend", 0f); mat.renderQueue = 3000;
+                    mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+                    mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+                    mat.SetInt("_ZWrite", 0);
+                }
+                r.material = mat;
+            }
+            return ps;
+        }
+
+        private static Texture2D MakeDropTexture()   // 부드러운 원(물방울)
+        {
+            const int n = 32;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x + 0.5f) / n - 0.5f, dy = (y + 0.5f) / n - 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                    float a = Mathf.Clamp01(1f - Mathf.SmoothStep(0.6f, 1f, d));
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            return tex;
+        }
 
         private static Color ColorForMask(int mask)
         {
