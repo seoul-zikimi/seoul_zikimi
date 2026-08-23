@@ -68,8 +68,6 @@ namespace Player
             new(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetRotation =   // 든 재료 yaw(R 회전) — 화물은 월드 방향 고정
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-        private Vector3 m_HeldSmoothPos;      // 화물 위치 스무딩
-        private bool m_HeldSmoothInit;
         [Tooltip("같이 들 때: 입력이 같은 방향이면 인원당 이만큼 가속(0.25 = 2명 1.25배). 반대면 상쇄.")]
         [SerializeField] private float m_CoopBoostPerHelper = 0.25f;
         private PlayerCarry m_GrabCargoOf;    // 조준 중인 '남이 든 화물'의 운반자(클릭 = 같이 들기)
@@ -106,15 +104,26 @@ namespace Player
         private float HalfExtentAlong(int side) => side < 2 ? HalfExtentXZ().y : HalfExtentXZ().x;
 
         /// <summary>화물 중심(모든 클라). 혼자면 모델이 보는 방향 앞, 같이 들면 운반자 면의 반대편(월드 고정).</summary>
+        private float HalfExtentY()
+            => (m_HeldDef != null ? Mathf.Max(1, m_HeldDef.Footprint.y) : 1) * (0.5f * GridContract.Unit);
+
+        /// <summary>화물 yaw(월드): 혼자 들면 몸 방향 + R 회전, 같이 들면 월드 고정(R 회전만).</summary>
+        private Quaternion CargoRot()
+        {
+            Quaternion r = Quaternion.Euler(0f, 90f * m_NetRotation.Value, 0f);
+            if (m_NetSide.Value >= 0) return r;
+            Vector3 f = FacingDir();
+            return Quaternion.LookRotation(f, Vector3.up) * r;
+        }
+
         private Vector3 CargoCenter()
         {
-            Vector3 up = Vector3.up * m_FrontHoldHeight;
+            Vector3 up = Vector3.up * (m_FrontHoldHeight + HalfExtentY());   // 밑면이 m_FrontHoldHeight 만큼 떠 있게
             int side = m_NetSide.Value;
             if (side >= 0)
                 return transform.position - kSideDir[side] * (m_FrontHoldDist + HalfExtentAlong(side)) + up;
             Vector3 f = FacingDir();
-            float half = Mathf.Abs(f.x) > Mathf.Abs(f.z) ? HalfExtentXZ().x : HalfExtentXZ().y;
-            return transform.position + f * (m_FrontHoldDist + half) + up;
+            return transform.position + f * (m_FrontHoldDist + HalfExtentXZ().y) + up;   // 블록이 몸과 같이 도니 앞쪽 반폭 = 로컬 z
         }
 
         /// <summary>side 면에 서는 사람의 발 위치(y = 운반자 y).</summary>
@@ -152,6 +161,27 @@ namespace Player
             Vector3 next = Vector3.Lerp(cur, new Vector3(pos.x, cur.y, pos.z), 1f - Mathf.Exp(-16f * Time.fixedDeltaTime));
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             rb.MovePosition(next);
+        }
+
+        private static readonly Collider[] s_OverlapBuf = new Collider[16];
+
+        /// <summary>화물이 delta 만큼 움직이면 벽/배치 블록에 박히는가(owner 이동 판정). 플레이어·바닥 재료·트리거·자기 화물은 제외.</summary>
+        public bool CargoBlocked(Vector3 delta)
+        {
+            if (!HasMaterialHeld || m_HeldDef == null) return false;
+            Vector3 center = CargoCenter() + delta;
+            Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.88f;
+            int n = Physics.OverlapBoxNonAlloc(center, half, s_OverlapBuf, CargoRot(), ~(1 << 2), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var c = s_OverlapBuf[i];
+                if (c == null || c.transform == transform || c.transform.IsChildOf(transform)) continue;
+                if (c.CompareTag("Player")) continue;                           // 사람은 밀리는 쪽(키네마틱 화물이 밈)
+                if (c.GetComponentInParent<PickupBody>() != null) continue;     // 바닥 재료도 차이는 쪽
+                if (c.GetComponentInParent<PlayerCarry>() != null) continue;    // 다른 플레이어(자식 콜라이더)
+                return true;
+            }
+            return false;
         }
 
         /// <summary>운반자(owner): 같이 드는 중이면 내 입력 + 도우미 입력을 합산한 이동 방향(크기 = 속도 배율).
@@ -357,18 +387,16 @@ namespace Player
             m_HeldSwayVel = Vector3.Lerp(m_HeldSwayVel, horiz, 8f * dt);               // 가감속 관성
             Vector3 sway = -m_HeldSwayVel * 0.045f;                                    // 가속 방향 반대로 살짝 처짐
 
-            Vector3 target = transform.position + HeldOffset();
-            if (!m_HeldSmoothInit || HasMaterialHeld == false) { m_HeldSmoothPos = target; m_HeldSmoothInit = true; }
-            else m_HeldSmoothPos = Vector3.Lerp(m_HeldSmoothPos, target, 1f - Mathf.Exp(-14f * dt));   // 몸 돌 때 화물이 부드럽게 따라옴
-            m_HeldVisual.transform.position = m_HeldSmoothPos + Vector3.up * bob + sway;
+            // 강체 부착: 위치·회전 모두 같은 facing에서 나오므로 몸이 도는 만큼만 같이 돈다(따로 미끄러짐 없음)
+            m_HeldVisual.transform.position = transform.position + HeldOffset() + Vector3.up * bob + sway;
 
             if (m_SwingCo == null)   // 망치질 스윙 코루틴이 회전을 쓰는 동안은 건드리지 않음
             {
                 // 재료는 월드 방향 고정(R 회전만 반영) — 몸을 돌려도 제자리 회전하지 않는다. 도구는 몸 회전 따라감.
-                Quaternion face = HasMaterialHeld ? Quaternion.Euler(0f, 90f * m_NetRotation.Value, 0f) : transform.rotation;
+                Quaternion face = HasMaterialHeld ? CargoRot() : transform.rotation;
                 var local = Quaternion.Inverse(face) * m_HeldSwayVel;                     // 몸 기준 기울임
                 Quaternion tilt = Quaternion.Euler(local.z * 4f, 0f, -local.x * 4f);
-                m_HeldVisual.transform.rotation = Quaternion.Slerp(m_HeldVisual.transform.rotation, face * tilt, 10f * dt);
+                m_HeldVisual.transform.rotation = face * tilt;
             }
         }
 
@@ -1398,7 +1426,6 @@ namespace Player
             {
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
                 m_HeldPrevPos = transform.position;   // 바운스 속도 계산 초기화(첫 프레임 튐 방지)
-                m_HeldSmoothInit = false;
                 m_HeldSwayVel = Vector3.zero;
                 GridJuice.Squish(m_HeldVisual, 0.22f);   // 집는 순간 뽁 — 손맛
             }
