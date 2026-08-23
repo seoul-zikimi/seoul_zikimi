@@ -18,7 +18,14 @@ namespace Player
         private Rigidbody m_Rb;
         private PlayerUnit m_Unit;
         private PlayerMovement m_Move;
+        private PlayerCarry m_Carry;
         private float m_Yaw;   // 현재 목표 yaw(마지막 방향 유지)
+
+        /// <summary>모델이 실제로 보고 있는 방향(수평) — 앞에 안은 재료 배치 등에 사용. 물리 루트는 회전 안 하므로 이걸 써야 한다.</summary>
+        public Vector3 Forward => m_Visual != null
+            ? Quaternion.Euler(0f, m_Visual.eulerAngles.y - m_YawOffset, 0f) * Vector3.forward
+            : transform.forward;
+        public Quaternion FacingRotation => Quaternion.LookRotation(Forward, Vector3.up);
 
         private void Awake()
         {
@@ -28,6 +35,7 @@ namespace Player
             m_Rb   = GetComponent<Rigidbody>();
             m_Unit = GetComponent<PlayerUnit>();
             m_Move = GetComponent<PlayerMovement>();
+            m_Carry = GetComponent<PlayerCarry>();
         }
 
         private void Update()
@@ -48,8 +56,13 @@ namespace Player
 
             // owner(또는 비네트워크 테스트): 이동/기어 방향으로 yaw 산출
             Vector3 dir;
-            if (m_Move != null && m_Move.IsClimbing && m_Arm != null)
+            if (m_Carry != null && m_Carry.TryGetHelperFacing(out var helpDir))
+                dir = helpDir;                                                // 같이 들기(도우미) → 운반자와 같은 방향
+            else if (m_Move != null && m_Move.IsClimbing && m_Arm != null)
+            {
                 dir = Vector3.ProjectOnPlane(m_Arm.forward, Vector3.up);   // 기어오르기 → 벽 보기
+                if (m_Carry != null && m_Carry.HasMaterialHeld) dir = -dir;   // 재료 안고 있으면 등 돌리고(재료가 벽 반대쪽) 올라감
+            }
             else
             {
                 Vector3 v = m_Rb != null ? m_Rb.linearVelocity : Vector3.zero; v.y = 0f;
