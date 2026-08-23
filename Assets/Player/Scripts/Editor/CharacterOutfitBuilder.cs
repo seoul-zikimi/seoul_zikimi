@@ -174,15 +174,20 @@ namespace Player.EditorTools
             }
         }
 
-        [MenuItem("Tools/Character/아웃핏 생성(후드만 · 거북·게)")]
-        static void BuildHoodiesOnly()
+        [MenuItem("Tools/Character/아웃핏 생성(거북 후드만)")]
+        static void BuildTurtleHoodieOnly() => BuildHoodieOnly("cloth_hoodie_turtle");
+
+        [MenuItem("Tools/Character/아웃핏 생성(게 후드만)")]
+        static void BuildCrabHoodieOnly() => BuildHoodieOnly("cloth_hoodie_crab");
+
+        static void BuildHoodieOnly(string id)
         {
             foreach (var it in kItems)
-                if (it.id == "cloth_hoodie_crab" || it.id == "cloth_hoodie_turtle")
-                    BuildOne(it.charId, it.id, it.display, it.file, it.kind, it.widthScale, it.offset);
+                if (it.id == id)
+                { BuildOne(it.charId, it.id, it.display, it.file, it.kind, it.widthScale, it.offset); break; }
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[OutfitBuilder] 후드 재생성 완료(거북·게)");
+            Debug.Log($"[OutfitBuilder] {id} 재생성 완료");
         }
 
         static bool BuildOne(string charId, string id, string display, string file, Kind kind, float widthScale, Vector3 offset)

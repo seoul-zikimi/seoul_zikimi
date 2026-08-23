@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &3218168581524712031
+--- !u!1 &2583082843152777980
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,8 +8,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7822967434434009626}
-  - component: {fileID: 8067392839892857912}
+  - component: {fileID: 2789700607698971740}
+  - component: {fileID: 8325857405490962269}
   m_Layer: 0
   m_Name: cloth_hoodie_turtle
   m_TagString: Untagged
@@ -17,29 +17,29 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7822967434434009626
+--- !u!4 &2789700607698971740
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3218168581524712031}
+  m_GameObject: {fileID: 2583082843152777980}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4161037579974753433}
+  - {fileID: 2599172167941807224}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8067392839892857912
+--- !u!114 &8325857405490962269
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3218168581524712031}
+  m_GameObject: {fileID: 2583082843152777980}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
@@ -50,7 +50,7 @@ MonoBehaviour:
   TargetCharacter: char_turtle
   Thumbnail: {fileID: 0}
   ScaleMargin: 1.06
---- !u!1 &8049854785372123168
+--- !u!1 &3386373542485978372
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -58,10 +58,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4161037579974753433}
-  - component: {fileID: 6503141052633817922}
-  - component: {fileID: 4666354588352660147}
-  - component: {fileID: 8520654201220086252}
+  - component: {fileID: 2599172167941807224}
+  - component: {fileID: 927801668952636006}
+  - component: {fileID: 8584925037261383254}
+  - component: {fileID: 2885287705456421388}
   m_Layer: 0
   m_Name: Item_cloth_hoodie_turtle
   m_TagString: Untagged
@@ -69,36 +69,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4161037579974753433
+--- !u!4 &2599172167941807224
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8049854785372123168}
+  m_GameObject: {fileID: 3386373542485978372}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.24351358, y: 0.0029186194, z: 0.013737248, w: 0.9697958}
-  m_LocalPosition: {x: 0.008, y: -0.1451, z: 0.1081}
-  m_LocalScale: {x: 0.51407355, y: 0.49183026, z: 0.8495968}
+  m_LocalRotation: {x: -0.24250774, y: -0.0014409187, z: -0.0028681434, w: 0.9701442}
+  m_LocalPosition: {x: -0.0021, y: 0.062, z: -0.0449}
+  m_LocalScale: {x: 0.47651404, y: 0.34968856, z: 0.777237}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7822967434434009626}
-  m_LocalEulerAnglesHint: {x: -28.19, y: -0.067, z: 1.64}
---- !u!33 &6503141052633817922
+  m_Father: {fileID: 2789700607698971740}
+  m_LocalEulerAnglesHint: {x: -28.07, y: -0.091, z: -0.316}
+--- !u!33 &927801668952636006
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8049854785372123168}
+  m_GameObject: {fileID: 3386373542485978372}
   m_Mesh: {fileID: -1901923605265949594, guid: 3876748be8369ce4fa5863de7913570a, type: 3}
---- !u!23 &4666354588352660147
+--- !u!23 &8584925037261383254
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8049854785372123168}
+  m_GameObject: {fileID: 3386373542485978372}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -142,20 +142,20 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8520654201220086252
+--- !u!114 &2885287705456421388
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8049854785372123168}
+  m_GameObject: {fileID: 3386373542485978372}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c31b2a9e0d54f2f8b6a1c9d3e5f7a20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfitPiece
   BoneName: mixamorig:Spine1
-  BonePos: {x: 0.007999978, y: -0.14510003, z: 0.10810001}
-  BoneRot: {x: -0.24351358, y: 0.0029186194, z: 0.013737248, w: 0.9697959}
-  WorldScale: {x: 0.5140736, y: 0.49183014, z: 0.8495968}
+  BonePos: {x: -0.0021000046, y: 0.06200002, z: -0.04490001}
+  BoneRot: {x: -0.24250776, y: -0.0014409219, z: -0.0028681443, w: 0.9701444}
+  WorldScale: {x: 0.47651404, y: 0.34968862, z: 0.777237}
   Version: 3
