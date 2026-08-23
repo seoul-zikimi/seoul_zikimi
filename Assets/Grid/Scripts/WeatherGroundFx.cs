@@ -338,7 +338,8 @@ namespace GridSystem
                 var from = new Vector3(x, area.max.y, z);
                 if (!RaycastGround(from, area.size.y + 5f, out point, out normal)) continue;
                 if (point.y > area.center.y + GroundTolerance) continue;   // 블록/구조물 위는 제외
-                if (normal.y < 0.6f) continue;                              // 벽면 제외
+                if (point.y < area.center.y - GroundTolerance) continue;   // 맵 바닥(그리드 층)보다 아래 — 데크 밖 바위·강물 위는 제외
+                if (normal.y < 0.92f) continue;                             // 평평한 바닥만(경사면·벽면 제외)
                 return true;
             }
             point = default; normal = Vector3.up;
@@ -356,6 +357,8 @@ namespace GridSystem
                 RaycastHit hit = m_Hits[i];
                 if (hit.distance >= best) continue;
                 if (hit.collider.CompareTag("Player")) continue;
+                if (hit.collider.CompareTag("Boundary")) continue;   // 투명 경계벽은 바닥이 아니다
+                if (hit.collider.isTrigger) continue;
                 if (hit.transform.IsChildOf(transform)) continue;   // 자기 데칼은 바닥이 아니다
                 best = hit.distance;
                 point = hit.point;
