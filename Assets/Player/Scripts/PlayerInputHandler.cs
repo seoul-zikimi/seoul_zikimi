@@ -6,16 +6,49 @@ namespace Player
 {
     public class PlayerInputHandler : NetworkBehaviour
     {
+        public static PlayerInputHandler Local { get; private set; }
+
         private PlayerControls m_Controls;
+        private InputAction m_Move, m_Sprint, m_Jump, m_Interact, m_Process, m_Revert;
+        private InputAction m_RotateHeld, m_Throw, m_ToggleOrder, m_CameraRotate, m_CameraZoom;
+        private InputAction m_EmoteWheel;
+        private readonly InputAction[] m_Emotes = new InputAction[10];
         private bool m_JumpQueued;
         private bool m_ScaffoldQueued;
         private float m_LastSpaceTime = -10f;
         private const float kDoubleTapWindow = 0.3f;
-        
-        public Vector2 MoveInput    { get; private set; }
-        public Vector2 CameraRotate { get; private set; }
-        public float   CameraZoom   { get; private set; }
-        public bool    IsSprinting  { get; private set; }
+
+        private Vector2 m_MobileMove, m_MobileLook, m_MobilePointer;
+        private float m_MobileZoom;
+        private bool m_MobileSprint, m_MobileProcess, m_MobileRevert, m_MobileThrow, m_HasMobilePointer;
+        private int m_InteractFrame = -1, m_RotateFrame = -1, m_OrderFrame = -1;
+        private int m_ProcessPressedFrame = -1, m_ProcessReleasedFrame = -1;
+        private int m_RevertPressedFrame = -1, m_RevertReleasedFrame = -1;
+        private int m_ThrowPressedFrame = -1, m_ThrowReleasedFrame = -1;
+
+        public Vector2 MoveInput => Vector2.ClampMagnitude((m_Move?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileMove, 1f);
+        public bool IsSprinting => (m_Sprint?.IsPressed() ?? false) || m_MobileSprint;
+        public Vector2 PointerPosition => m_HasMobilePointer
+            ? m_MobilePointer
+            : Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+        public bool InteractPressedThisFrame => (m_Interact?.WasPressedThisFrame() ?? false) || m_InteractFrame == Time.frameCount;
+        public bool RotateHeldPressedThisFrame => (m_RotateHeld?.WasPressedThisFrame() ?? false) || m_RotateFrame == Time.frameCount;
+        public bool ProcessPressedThisFrame => (m_Process?.WasPressedThisFrame() ?? false) || m_ProcessPressedFrame == Time.frameCount;
+        public bool ProcessReleasedThisFrame => (m_Process?.WasReleasedThisFrame() ?? false) || m_ProcessReleasedFrame == Time.frameCount;
+        public bool ProcessIsPressed => (m_Process?.IsPressed() ?? false) || m_MobileProcess;
+        public bool RevertPressedThisFrame => (m_Revert?.WasPressedThisFrame() ?? false) || m_RevertPressedFrame == Time.frameCount;
+        public bool RevertReleasedThisFrame => (m_Revert?.WasReleasedThisFrame() ?? false) || m_RevertReleasedFrame == Time.frameCount;
+        public bool RevertIsPressed => (m_Revert?.IsPressed() ?? false) || m_MobileRevert;
+        public bool ThrowPressedThisFrame => (m_Throw?.WasPressedThisFrame() ?? false) || m_ThrowPressedFrame == Time.frameCount;
+        public bool ThrowReleasedThisFrame => (m_Throw?.WasReleasedThisFrame() ?? false) || m_ThrowReleasedFrame == Time.frameCount;
+        public bool ThrowIsPressed => (m_Throw?.IsPressed() ?? false) || m_MobileThrow;
+        public bool ToolActionAvailable => GetComponent<PlayerCarry>()?.IsHoldingTool == true;
+        public bool ProcessActionAvailable => GetComponent<PlayerCarry>()?.CanProcessTarget == true;
+        public bool RevertActionAvailable => GetComponent<PlayerCarry>()?.CanRevertTarget == true;
+        public bool ThrowActionAvailable => GetComponent<PlayerCarry>()?.IsHolding == true;
+        public InputActionAsset ControlsAsset => m_Controls?.asset;
+        // 튜토리얼 진척도 등 읽기 전용 호환 프로퍼티. 실제 카메라는 ConsumeCameraRotate로 모바일 delta를 1회 소비한다.
+        public Vector2 CameraRotate => (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook;
 
         /// <summary>이번에 점프 눌림이 있었으면 true 반환 후 소비(FixedUpdate에서 1회 처리).</summary>
         public bool ConsumeJump()
@@ -33,13 +66,14 @@ namespace Player
             return true;
         }
 
-        // Space는 InputActions에 없어 직접 읽음(이 컴포넌트는 owner에서만 enabled).
-        // 첫 탭 = 점프 / 0.3초 내 두 번째 탭 = 비계.
+        // 기본 Space/패드 South/모바일 Jump 모두 같은 경로. 첫 탭=점프, 빠른 두 번째 탭=비계.
         private void Update()
         {
-            var kb = Keyboard.current;
-            if (kb == null || !kb.spaceKey.wasPressedThisFrame) return;
+            if (m_Jump?.WasPressedThisFrame() == true) QueueJumpTap();
+        }
 
+        private void QueueJumpTap()
+        {
             if (Time.time - m_LastSpaceTime <= kDoubleTapWindow)
             {
                 m_ScaffoldQueued = true;
@@ -52,6 +86,64 @@ namespace Player
             }
         }
 
+        public Vector2 ConsumeCameraRotate()
+        {
+            Vector2 result = (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook;
+            m_MobileLook = Vector2.zero;
+            return result;
+        }
+
+        public float ConsumeCameraZoom()
+        {
+            float result = (m_CameraZoom?.ReadValue<float>() ?? 0f) + m_MobileZoom;
+            m_MobileZoom = 0f;
+            return result;
+        }
+
+        public bool ConsumeToggleOrder() => (m_ToggleOrder?.WasPressedThisFrame() ?? false) || m_OrderFrame == Time.frameCount;
+        public bool EmoteWheelPressedThisFrame => m_EmoteWheel?.WasPressedThisFrame() ?? false;
+        public bool EmoteWheelReleasedThisFrame => m_EmoteWheel?.WasReleasedThisFrame() ?? false;
+
+        public int ConsumeEmoteIndex()
+        {
+            for (int i = 0; i < m_Emotes.Length; i++)
+                if (m_Emotes[i]?.WasPressedThisFrame() == true) return i;
+            return -1;
+        }
+
+        // 모바일 UI/터치 어댑터 입력 주입. UI 오브젝트 생성 없이 호출 가능한 순수 기능 포트.
+        public void SetMobileMove(Vector2 value) => m_MobileMove = Vector2.ClampMagnitude(value, 1f);
+        public void SetMobileSprint(bool value) => m_MobileSprint = value;
+        public void SetMobilePointer(Vector2 value) { m_MobilePointer = value; m_HasMobilePointer = true; }
+        public void AddMobileCameraDrag(Vector2 delta) => m_MobileLook += delta;
+        public void AddMobileZoom(float delta) => m_MobileZoom += delta;
+        public void PressMobileInteract() => m_InteractFrame = Time.frameCount;
+        public void PressMobileRotateHeld() => m_RotateFrame = Time.frameCount;
+        public void PressMobileToggleOrder() => m_OrderFrame = Time.frameCount;
+        public void PressMobileJump() => QueueJumpTap();
+        public void PressMobileScaffold() => m_ScaffoldQueued = true;
+        public void SetMobileProcess(bool value) => SetMobileButton(ref m_MobileProcess, value, ref m_ProcessPressedFrame, ref m_ProcessReleasedFrame);
+        public void SetMobileRevert(bool value) => SetMobileButton(ref m_MobileRevert, value, ref m_RevertPressedFrame, ref m_RevertReleasedFrame);
+        public void SetMobileThrow(bool value) => SetMobileButton(ref m_MobileThrow, value, ref m_ThrowPressedFrame, ref m_ThrowReleasedFrame);
+
+        private static void SetMobileButton(ref bool state, bool value, ref int pressedFrame, ref int releasedFrame)
+        {
+            if (state == value) return;
+            state = value;
+            if (value) pressedFrame = Time.frameCount; else releasedFrame = Time.frameCount;
+        }
+
+        public void ReleaseMobileInputs()
+        {
+            m_MobileMove = m_MobileLook = Vector2.zero;
+            m_MobileZoom = 0f;
+            m_MobileSprint = false;
+            SetMobileProcess(false);
+            SetMobileRevert(false);
+            SetMobileThrow(false);
+            m_HasMobilePointer = false;
+        }
+
         public override void OnNetworkSpawn()
         {
             if (!IsOwner)
@@ -60,22 +152,47 @@ namespace Player
                 return;
             }
 
-            m_Controls = new PlayerControls();
-            m_Controls.Player.Move.performed    += ctx => MoveInput = ctx.ReadValue<Vector2>();
-            m_Controls.Player.Move.canceled     += ctx => MoveInput = Vector2.zero;
-            m_Controls.Player.Sprint.performed  += ctx => IsSprinting = true;
-            m_Controls.Player.Sprint.canceled   += ctx => IsSprinting = false;
-            m_Controls.Camera.Rotate.performed  += ctx => CameraRotate = ctx.ReadValue<Vector2>();
-            m_Controls.Camera.Rotate.canceled   += ctx => CameraRotate = Vector2.zero;
-            m_Controls.Camera.Zoom.performed    += ctx => CameraZoom = ctx.ReadValue<float>();
-            m_Controls.Camera.Zoom.canceled     += ctx => CameraZoom = 0f;
+            Local = this;
+            m_Controls = GameplayInputBindings.CreateControls();
+            CacheActions();
+            GameplayInputBindings.OverridesChanged += ReloadBindingOverrides;
+            m_Controls.Enable();
+        }
+
+        private void CacheActions()
+        {
+            m_Move = m_Controls.asset.FindAction(GameplayInputBindings.Move, true);
+            m_Sprint = m_Controls.asset.FindAction(GameplayInputBindings.Sprint, true);
+            m_Jump = m_Controls.asset.FindAction(GameplayInputBindings.Jump, true);
+            m_Interact = m_Controls.asset.FindAction(GameplayInputBindings.Interact, true);
+            m_Process = m_Controls.asset.FindAction(GameplayInputBindings.Process, true);
+            m_Revert = m_Controls.asset.FindAction(GameplayInputBindings.Revert, true);
+            m_RotateHeld = m_Controls.asset.FindAction(GameplayInputBindings.RotateHeld, true);
+            m_Throw = m_Controls.asset.FindAction(GameplayInputBindings.Throw, true);
+            m_ToggleOrder = m_Controls.asset.FindAction(GameplayInputBindings.ToggleOrder, true);
+            m_EmoteWheel = m_Controls.asset.FindAction(GameplayInputBindings.EmoteWheel, true);
+            for (int i = 0; i < m_Emotes.Length; i++)
+                m_Emotes[i] = m_Controls.asset.FindAction($"Player/Emote{i + 1}", true);
+            m_CameraRotate = m_Controls.asset.FindAction(GameplayInputBindings.CameraRotate, true);
+            m_CameraZoom = m_Controls.asset.FindAction(GameplayInputBindings.CameraZoom, true);
+        }
+
+        private void ReloadBindingOverrides()
+        {
+            if (m_Controls == null) return;
+            m_Controls.Disable();
+            GameplayInputBindings.ApplySavedOverrides(m_Controls.asset);
             m_Controls.Enable();
         }
 
         public override void OnNetworkDespawn()
         {
+            GameplayInputBindings.OverridesChanged -= ReloadBindingOverrides;
             m_Controls?.Disable();
+            m_Controls?.Dispose();
             m_Controls=null;
+            if (Local == this) Local = null;
+            ReleaseMobileInputs();
         }
     }
 }

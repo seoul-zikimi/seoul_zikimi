@@ -67,6 +67,14 @@ public class AnswerHudDriver : MonoBehaviour
 
     private void Update()
     {
+        var gameplayInput = Player.PlayerInputHandler.Local;
+        if (gameplayInput != null && gameplayInput.ConsumeToggleOrder() && m_Preview != null)
+            m_Preview.ToggleVisibility();
+
+        // TODO(모바일 휴대폰 UI): 모바일에서는 단순 토글 대신 전체화면 패널을 열고,
+        // 좌측=완공 계획도(RenderTexture), 우측=재료 카탈로그가 되도록 별도 레이아웃을 연결한다.
+        // 패널이 열려 있는 동안 AnswerPanelFocus.Active 또는 별도 입력 잠금으로 월드 터치를 차단할 것.
+
         if (m_Hud == null || m_Preview == null || Mouse.current == null) { AnswerPanelFocus.Active = false; return; }
 
         var rect = m_Hud.SurfaceRect;

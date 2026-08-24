@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 namespace GridSystem
@@ -77,9 +76,6 @@ namespace GridSystem
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
-                m_Visible = !m_Visible;
-
             bool show = Show();
 
             // 2vs2: 팀B의 인월드 고스트는 자기 구역(x+구역폭)에 보여야 한다 — 채점 오프셋(GridNetwork.ScoreAgainst)과 동일 기준.
@@ -117,6 +113,9 @@ namespace GridSystem
 
         private bool Building() => m_Loop == null || m_Loop.IsBuilding;
         private bool Show() => m_Visible && m_Built && Building();
+
+        /// <summary>키보드·패드·모바일 주문 버튼이 공통으로 호출하는 UI 비의존 토글.</summary>
+        public void ToggleVisibility() => m_Visible = !m_Visible;
 
         private void Build()
         {

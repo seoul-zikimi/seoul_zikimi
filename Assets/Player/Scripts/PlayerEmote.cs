@@ -1,6 +1,5 @@
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Player
 {
@@ -10,6 +9,7 @@ namespace Player
     /// </summary>
     public class PlayerEmote : NetworkBehaviour
     {
+        public static PlayerEmote Local { get; private set; }
         [SerializeField] private GameObject[] m_EmoteFx = new GameObject[10];   // 0=F1 … 9=F10 (비면 이모지 폴백)
         [SerializeField] private Texture2D m_EmojiAtlas;                        // TMP EmojiOne(4x4) — 이모지 팝용
         [SerializeField] private Texture2D m_ThumbsDownTex;                     // 붐따 👎 (Noto Emoji 개별 PNG)
@@ -23,38 +23,33 @@ namespace Player
         private void Update()
         {
             if (!IsOwner) return;
-            var kb = Keyboard.current;
-            if (kb == null) return;
-
-            for (int i = 0; i < 10 && i < m_EmoteFx.Length; i++)
-            {
-                var key = kb[(Key)((int)Key.F1 + i)];   // Key.F1~F12는 연속 enum
-                if (key != null && key.wasPressedThisFrame) { Emote(i); break; }
-            }
-
-            UpdateWheel(kb);
+            var input = PlayerInputHandler.Local;
+            if (input == null) return;
+            int emote = input.ConsumeEmoteIndex();
+            if (emote >= 0) TriggerEmote(emote);
+            UpdateWheel(input);
         }
 
         // [07/26 기획] T 꾹 = 이모티콘 선택 UI 표시(누른 동안), 버튼 클릭 = 발동, 떼면 닫힘.
-        private void UpdateWheel(Keyboard kb)
+        private void UpdateWheel(PlayerInputHandler input)
         {
-            if (kb.tKey.wasPressedThisFrame)
+            if (input.EmoteWheelPressedThisFrame)
             {
                 if (UIManager.Instance != null)
                 {
                     m_Wheel = UIManager.Instance.ShowHUDUI<EmoteWheelUI>();
                     if (m_Wheel != null)
                     {
-                        m_Wheel.OnPick = i => { Emote(i); HideWheel(); };
+                        m_Wheel.OnPick = i => { TriggerEmote(i); HideWheel(); };
                         m_Wheel.gameObject.SetActive(true);
                     }
                 }
             }
-            else if (kb.tKey.wasReleasedThisFrame)
+            else if (input.EmoteWheelReleasedThisFrame)
             {
                 // 오버워치식: 마우스가 가리키던 섹터를 T 떼는 순간 발동(클릭 불필요)
                 if (m_Wheel != null && m_Wheel.gameObject.activeSelf && m_Wheel.HoverIndex >= 0)
-                    Emote(m_Wheel.HoverIndex);
+                    TriggerEmote(m_Wheel.HoverIndex);
                 HideWheel();
             }
         }
@@ -64,11 +59,21 @@ namespace Player
             if (m_Wheel != null) m_Wheel.gameObject.SetActive(false);
         }
 
-        public override void OnNetworkDespawn() => HideWheel();
+        public override void OnNetworkSpawn()
+        {
+            if (IsOwner) Local = this;
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            if (Local == this) Local = null;
+            HideWheel();
+        }
 
         // owner 로컬 즉시 재생 + 서버 경유로 다른 클라에도(내 이모트가 남들한테 보이게).
-        private void Emote(int index)
+        public void TriggerEmote(int index)
         {
+            if (!IsOwner || index < 0 || index >= m_EmoteFx.Length) return;
             // 파티클(F1 하트)은 머리에 붙게 낮게, 이모지 팝은 위에서 떠오르게
             float h = m_EmoteFx[index] != null ? 1.6f : 2.2f;
             Vector3 pos = transform.position + Vector3.up * h;
