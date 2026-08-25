@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>맵 기획 그리드 툴 — 사용 설명서</title>
+<style>
+  :root{
+    --bg:#1e2126; --panel:#262a31; --panel2:#2d323b; --border:#3a404b;
+    --text:#e6e9ee; --dim:#9aa3b0; --accent:#4da3ff; --warn:#ffd166;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Segoe UI','Malgun Gothic',sans-serif; background:var(--bg); color:var(--text);
+    font-size:14px; line-height:1.7;
+  }
+  .wrap{max-width:820px; margin:0 auto; padding:36px 24px 80px;}
+  h1{font-size:24px; margin-bottom:6px;}
+  .sub{color:var(--dim); margin-bottom:28px;}
+  h2{font-size:17px; margin:36px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border);
+    color:var(--accent);}
+  h3{font-size:14px; margin:18px 0 6px; color:var(--warn);}
+  p{margin-bottom:10px;}
+  ul,ol{margin:0 0 12px 20px;}
+  li{margin-bottom:4px;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-bottom-width:2px;
+    border-radius:4px; padding:1px 6px; font-family:Consolas,monospace; font-size:12px;}
+  .btn{display:inline-block; background:var(--panel2); border:1px solid var(--border);
+    border-radius:4px; padding:0 7px; font-size:12.5px; white-space:nowrap;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:14px 16px; margin-bottom:12px;}
+  .tip{border-left:3px solid var(--accent); padding-left:12px; color:var(--dim); margin:10px 0;}
+  .warn{border-left:3px solid var(--warn);}
+  table{width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13px;}
+  th,td{border:1px solid var(--border); padding:6px 10px; text-align:left;}
+  th{background:var(--panel2); color:var(--dim); font-weight:600; white-space:nowrap;}
+  td:first-child{white-space:nowrap;}
+  code{background:var(--panel2); border-radius:3px; padding:1px 5px; font-family:Consolas,monospace; font-size:12.5px;}
+  .flow{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0 14px;}
+  .flow span{background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:5px 10px;}
+  .flow em{color:var(--dim); font-style:normal;}
+  .star{color:var(--warn);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>🗺️ 맵 기획 그리드 툴 — 사용 설명서</h1>
+<p class="sub">피그마 대신 쓰는 블럭 설계도면 툴. <code>tools/map-planner.html</code> 더블클릭으로 실행.</p>
+
+<h2>1. 전체 흐름</h2>
+<div class="flow">
+  <span>맵 이름·셀 크기 설정</span><em>→</em>
+  <span>파츠 등록 (색·이미지·메모)</span><em>→</em>
+  <span>시트에 도면 그리기</span><em>→</em>
+  <span>🖼️ PNG로 기획서 첨부</span><em>→</em>
+  <span>📦 바르코 핸드오프로 에셋 생성</span>
+</div>
+
+<h2>2. 상단 바</h2>
+<table>
+  <tr><th>항목</th><th>설명</th></tr>
+  <tr><td>맵 이름</td><td>내보내는 이미지 제목과 파일명에 사용됨</td></tr>
+  <tr><td>셀 크기(m)</td><td>1칸의 실제 크기. 좌표 표시와 실측 크기 계산에 반영 (게임 기준: 1칸 = 1m)</td></tr>
+  <tr><td><span class="btn">↩ 실행취소 / ↪ 다시실행</span></td><td><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd>. 그리기·삭제 등 모든 편집에 적용</td></tr>
+  <tr><td><span class="btn">💾 저장(JSON)</span></td><td>작업 전체를 <code>.mapplan.json</code> 파일로 백업 (다운로드 폴더)</td></tr>
+  <tr><td><span class="btn">📂 불러오기</span></td><td>저장했던 <code>.mapplan.json</code>을 다시 열기</td></tr>
+  <tr><td><span class="btn">🖼️ 이미지 내보내기</span></td><td>현재 시트를 기획서용 PNG로 저장 — 제목·실측 크기·도면·파츠 리스트(범례) 포함, 2배 해상도</td></tr>
+  <tr><td><span class="btn">🖼️ 전체 시트</span></td><td>모든 시트를 PNG로 한꺼번에 저장</td></tr>
+  <tr><td><span class="btn">📦 바르코 핸드오프</span></td><td>파츠별 이미지·메모·프롬프트·사용 칸수를 모은 <code>.varco.json</code> 생성 (아래 7번 참고)</td></tr>
+</table>
+
+<h2>3. 시트 (층 / 뷰)</h2>
+<p>시트 하나 = 도면 한 장. 층별 평면도(1층, 2층…)나 정면도·측면도를 각각 시트로 만들어 관리한다.</p>
+<ul>
+  <li><span class="btn">＋</span> 새 시트 추가 (이름·가로/세로 칸수 지정, 실측 크기 미리보기)</li>
+  <li><b>더블클릭</b> — 이름/크기 수정. 크기를 줄이면 밖으로 나간 부분은 잘림 (좌상단 기준 유지)</li>
+  <li><span class="btn">⧉</span> 복제 — 아래층 도면을 복사해 위층 그릴 때 유용</li>
+  <li><span class="btn">✕</span> 삭제 — 마지막 남은 시트 1개는 삭제 불가</li>
+</ul>
+<p class="tip">층별 시트 이름을 "1층", "2층"처럼 지어두면 나중에 유니티 자동 배치(정답 데이터 변환)로 연결하기 좋다.</p>
+
+<h2>4. 파츠</h2>
+<p>도면에 칠할 재료 목록. 색깔로 구분되며 시트별 사용 칸수가 실시간 표시된다.</p>
+<ul>
+  <li><span class="btn">＋</span> 파츠 추가 / <b>더블클릭</b> 수정 / <span class="btn">✕</span> 삭제 (배치된 셀도 함께 지워짐)</li>
+  <li><b>공정 여부</b> <span class="star">★</span> — 체크하면 플레이어가 건축하는 파츠라는 표시. PNG 범례에도 ★로 나옴</li>
+  <li><b>메모</b> — 크기·비율 등 (예: <code>4×4×6m</code>). PNG 범례와 바르코 핸드오프에 포함</li>
+  <li><b>레퍼런스 이미지</b> — 클릭해서 선택, 드래그, 또는 <kbd>Ctrl+V</kbd> 붙여넣기. 자동으로 축소 저장되고 팔레트에 썸네일 표시</li>
+  <li><b>VARCO 프롬프트</b> — 직접 적어도 되고, 비워두면 클로드가 레퍼런스+메모 보고 자동 생성</li>
+</ul>
+
+<h2>5. 그리기 도구</h2>
+<table>
+  <tr><th>도구</th><th>키</th><th>설명</th></tr>
+  <tr><td>✏️ 펜</td><td><kbd>B</kbd></td><td>드래그로 자유롭게 칠하기. <kbd>Shift</kbd>+드래그 = 직선</td></tr>
+  <tr><td>▭ 사각형</td><td><kbd>R</kbd></td><td>드래그한 영역을 사각형으로 채움 (미리보기 표시)</td></tr>
+  <tr><td>🪣 채우기</td><td><kbd>G</kbd></td><td>같은 색으로 이어진 영역을 한 번에 채움</td></tr>
+  <tr><td>╱ 직선</td><td><kbd>L</kbd></td><td>두 점 사이 직선</td></tr>
+  <tr><td>💉 스포이드</td><td><kbd>I</kbd></td><td>클릭한 셀의 파츠를 선택 파츠로</td></tr>
+</table>
+<ul>
+  <li><b>우클릭 드래그</b> = 항상 지우개 (도구 무관)</li>
+  <li><kbd>E</kbd> 또는 팔레트의 "지우개" = 지우개 선택</li>
+  <li><kbd>1</kbd>~<kbd>9</kbd> = 파츠 빠른 선택</li>
+  <li><kbd>Ctrl</kbd>+휠 또는 좌측 줌 슬라이더 = 확대/축소</li>
+  <li>격자는 5칸마다 굵은 선 + 좌표 숫자. 하단 상태바에 마우스 위치의 칸/미터 좌표 표시</li>
+</ul>
+
+<h2>6. 저장 방식 (중요)</h2>
+<div class="card warn tip">
+  <p>작업 내용은 <b>브라우저 localStorage에 자동저장</b>된다 (하단에 "자동저장됨" 표시).
+  같은 PC·같은 브라우저로 다시 열면 이어서 작업 가능.</p>
+  <p><b>단, 브라우저 데이터를 삭제하면 날아간다.</b> 맵 하나 끝낼 때마다
+  <span class="btn">💾 저장(JSON)</span>으로 파일 백업을 남길 것.
+  내보낸 파일은 전부 다운로드 폴더에 떨어진다.</p>
+</div>
+
+<h2>7. 바르코 연동 (에셋 생성 자동화)</h2>
+<ol>
+  <li>파츠마다 레퍼런스 이미지와 메모를 채워둔다</li>
+  <li><span class="btn">📦 바르코 핸드오프</span> → <code>맵이름.varco.json</code> 다운로드</li>
+  <li>바르코에서 커스텀 워크플로우 창을 하나 열어둔다</li>
+  <li>클로드 코드에 그 JSON을 주면서 "바르코 돌려줘" → 클로드가 파츠별 묘사 프롬프트 작성 + 이미지 업로드 + 3D 생성 실행까지 자동 진행</li>
+</ol>
+<p class="tip">HTML 툴 자체에는 AI가 없다. 툴은 데이터 포장(JSON)까지만 하고, 프롬프트 생성과 바르코 실행은 클로드 코드가 담당하는 구조.</p>
+
+<h2>8. 단축키 모음</h2>
+<table>
+  <tr><th>키</th><th>동작</th></tr>
+  <tr><td><kbd>B</kbd> / <kbd>R</kbd> / <kbd>G</kbd> / <kbd>L</kbd> / <kbd>I</kbd></td><td>펜 / 사각형 / 채우기 / 직선 / 스포이드</td></tr>
+  <tr><td><kbd>E</kbd></td><td>지우개 선택</td></tr>
+  <tr><td><kbd>1</kbd>~<kbd>9</kbd></td><td>파츠 빠른 선택</td></tr>
+  <tr><td><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></td><td>실행취소 / 다시실행</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+휠</td><td>줌</td></tr>
+  <tr><td>우클릭 드래그</td><td>지우기</td></tr>
+  <tr><td><kbd>Shift</kbd>+펜 드래그</td><td>직선</td></tr>
+</table>
+
+</div>
+</body>
+</html>
