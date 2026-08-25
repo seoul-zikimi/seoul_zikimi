@@ -100,6 +100,10 @@
   #pImgDrop.has img{max-width:100%; max-height:130px; display:block;}
   #pImgDrop .rm{position:absolute; top:4px; right:4px; display:none;}
   #pImgDrop.has .rm{display:block;}
+  .proc-chip{border:1px solid var(--border); border-radius:12px; padding:2px 10px; cursor:pointer;
+    background:var(--bg); color:var(--dim); user-select:none; font-size:12px;}
+  .proc-chip.on{background:#31415a; border-color:var(--accent); color:var(--text); font-weight:600;}
+  .proc-chip.add{border-style:dashed;}
 
   .hint{color:var(--dim); font-size:11px; line-height:1.5; margin-top:6px;}
 </style>
@@ -131,7 +135,7 @@
       <h2>파츠 <button id="btnAddPart" title="파츠 추가">＋</button></h2>
       <div class="part-item" id="eraserItem"><div class="sw"></div><div class="nm">지우개</div></div>
       <div id="partList"></div>
-      <div class="hint">숫자키 1~9로 빠른 선택 · 더블클릭: 수정 · ✕ 삭제<br>★ = 공정 파츠 · 수정창에서 레퍼런스 이미지 첨부</div>
+      <div class="hint">숫자키 1~9로 빠른 선택 · 더블클릭: 수정 · ✕ 삭제<br>★ = 공정 있음(마우스 올리면 표시) · 수정창에서 이미지 첨부</div>
     </div>
     <div class="section">
       <h2>도구</h2>
@@ -170,7 +174,9 @@
   <div class="row"><label>이름</label><input id="pName" type="text" placeholder="예: 근정전 기둥"></div>
   <div class="row"><label>색상</label><input id="pColor" type="color" value="#4da3ff">
     <div id="presetColors" style="display:flex;gap:4px;flex-wrap:wrap;"></div></div>
-  <div class="row"><label>공정 여부</label><input id="pPrefab" type="checkbox"> <span style="color:var(--dim)">체크 = 플레이어가 건축하는 파츠</span></div>
+  <div class="row" style="align-items:flex-start;"><label style="padding-top:4px">공정</label>
+    <div id="pProcTags" style="flex:1; display:flex; flex-wrap:wrap; gap:5px; align-items:center;"></div>
+  </div>
   <div class="row"><label>메모</label><input id="pMemo" type="text" placeholder="크기·비율 등 (예: 4×4×6m)"></div>
   <div class="row" style="align-items:flex-start;"><label style="padding-top:4px">레퍼런스</label>
     <div id="pImgDrop" title="클릭해서 선택하거나, 이미지를 드래그/붙여넣기(Ctrl+V)">
@@ -217,15 +223,29 @@ const MARGIN = 26;         // 좌표 라벨 여백(px)
 let undoStack = [], redoStack = [];
 const UNDO_MAX = 60;
 
+const DEFAULT_PROCESSES = ['망치질', '페인트칠'];
 function defaultState(){
   return {
     name: '',
     cellMeters: 1,
     partSeq: 1,
-    parts: [],   // {id, name, color, prefab, memo}
+    processes: [...DEFAULT_PROCESSES],  // 공정 태그 목록 (사용자 추가 가능)
+    parts: [],   // {id, name, color, processes:[], memo, prompt, img}
     sheets: [ mkSheet('1층', 30, 20) ],
     activeSheet: 0,
   };
+}
+// 구버전 데이터(공정 여부 boolean) → 공정 태그 배열로 이행
+function migrate(st){
+  if(!Array.isArray(st.processes)) st.processes = [...DEFAULT_PROCESSES];
+  for(const p of st.parts || []){
+    if(!Array.isArray(p.processes))
+      p.processes = p.prefab ? ['망치질'] : [];
+    delete p.prefab;
+    for(const t of p.processes)
+      if(!st.processes.includes(t)) st.processes.push(t);
+  }
+  return st;
 }
 function mkSheet(name, w, h){
   return { name, w, h, cells: new Array(w*h).fill(0) };
@@ -246,7 +266,7 @@ function markDirty(){
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ state = JSON.parse(raw); return; }
+    if(raw){ state = migrate(JSON.parse(raw)); return; }
   }catch(e){ console.warn(e); }
   state = defaultState();
 }
@@ -534,14 +554,15 @@ function renderPartList(){
   state.parts.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'part-item' + (p.id === activePartId ? ' active' : '');
+    const procs = p.processes || [];
     div.innerHTML = `<div class="sw"></div>${p.img ? '<img class="thumb">' : ''}<span class="nm"></span>
-      ${p.prefab ? '<span class="pf">★</span>' : ''}
+      ${procs.length ? '<span class="pf">★</span>' : ''}
       <span class="cnt">${counts[p.id]||0}</span>
       <span class="ops"><button class="del" title="삭제">✕</button></span>`;
     div.querySelector('.sw').style.background = p.color;
     if(p.img) div.querySelector('.thumb').src = p.img;
     div.querySelector('.nm').textContent = (i<9 ? (i+1)+'. ' : '') + p.name;
-    div.title = p.memo || '';
+    div.title = [procs.length ? '공정: ' + procs.join('·') : '', p.memo || ''].filter(Boolean).join('\n');
     div.addEventListener('click', () => { activePartId = p.id; renderPartList(); });
     div.addEventListener('dblclick', () => openPartDialog(p.id));
     div.querySelector('.del').addEventListener('click', ev => {
@@ -621,13 +642,54 @@ dlgPart.addEventListener('paste', e => {
   if(item) importImageFile(item.getAsFile());
 });
 
+/* 공정 태그 칩 */
+let dlgProcs = new Set();   // 편집 중인 파츠의 선택 공정
+function renderProcChips(){
+  const wrap = document.getElementById('pProcTags');
+  wrap.innerHTML = '';
+  for(const t of state.processes){
+    const chip = document.createElement('span');
+    chip.className = 'proc-chip' + (dlgProcs.has(t) ? ' on' : '');
+    chip.textContent = t;
+    chip.title = '클릭: 켜기/끄기 · 우클릭: 태그 목록에서 삭제';
+    chip.addEventListener('click', () => {
+      dlgProcs.has(t) ? dlgProcs.delete(t) : dlgProcs.add(t);
+      renderProcChips();
+    });
+    chip.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if(DEFAULT_PROCESSES.includes(t)){ alert('기본 공정 태그는 삭제할 수 없습니다.'); return; }
+      const used = state.parts.filter(p => (p.processes||[]).includes(t)).length;
+      if(!confirm(`공정 태그 "${t}"을(를) 삭제할까요?` + (used ? ` (파츠 ${used}개에서 함께 제거됨)` : ''))) return;
+      pushUndo();
+      state.processes = state.processes.filter(x => x !== t);
+      for(const p of state.parts) p.processes = (p.processes||[]).filter(x => x !== t);
+      dlgProcs.delete(t);
+      renderProcChips(); renderPartList(); markDirty();
+    });
+    wrap.appendChild(chip);
+  }
+  const add = document.createElement('span');
+  add.className = 'proc-chip add';
+  add.textContent = '＋ 태그 추가';
+  add.addEventListener('click', () => {
+    const t = (window.prompt('새 공정 태그 이름 (예: 자르기)') || '').trim();
+    if(!t) return;
+    if(!state.processes.includes(t)){ state.processes.push(t); markDirty(); }
+    dlgProcs.add(t);
+    renderProcChips();
+  });
+  wrap.appendChild(add);
+}
+
 function openPartDialog(id){
   editPartId = id;
   const p = id != null ? partById(id) : null;
   document.getElementById('dlgPartTitle').textContent = p ? '파츠 수정' : '파츠 추가';
   document.getElementById('pName').value  = p ? p.name : '';
   document.getElementById('pColor').value = p ? p.color : PRESETS[state.parts.length % PRESETS.length];
-  document.getElementById('pPrefab').checked = p ? !!p.prefab : true;
+  dlgProcs = new Set(p ? (p.processes||[]) : ['망치질']);
+  renderProcChips();
   document.getElementById('pMemo').value  = p ? (p.memo||'') : '';
   document.getElementById('pPrompt').value = p ? (p.prompt||'') : '';
   setDlgImg(p ? (p.img||null) : null);
@@ -644,7 +706,7 @@ document.getElementById('pOk').addEventListener('click', () => {
   const vals = {
     name,
     color: document.getElementById('pColor').value,
-    prefab: document.getElementById('pPrefab').checked,
+    processes: state.processes.filter(t => dlgProcs.has(t)),
     memo: document.getElementById('pMemo').value.trim(),
     prompt: document.getElementById('pPrompt').value.trim(),
     img: dlgImg,
@@ -764,7 +826,7 @@ document.getElementById('btnExportVarco').addEventListener('click', () => {
     cellMeters: state.cellMeters,
     exportedAt: new Date().toISOString(),
     parts: state.parts.map(p => ({
-      id: p.id, name: p.name, prefab: !!p.prefab,
+      id: p.id, name: p.name, processes: p.processes || [],
       memo: p.memo || '', prompt: p.prompt || '',
       usage: usage[p.id] || {},
       referenceImage: p.img || null,
@@ -782,7 +844,7 @@ document.getElementById('fileInput').addEventListener('change', async e => {
     const st = JSON.parse(await f.text());
     if(!st.sheets || !st.parts) throw new Error('형식이 다릅니다');
     pushUndo();
-    state = st;
+    state = migrate(st);
     afterStateSwap();
   }catch(err){ alert('불러오기 실패: ' + err.message); }
   e.target.value = '';
@@ -835,7 +897,8 @@ function exportSheetPng(sheetIdx){
       g.fillRect(16, ly+3, 14, 14);
       g.strokeStyle = 'rgba(0,0,0,.3)'; g.strokeRect(16.5, ly+3.5, 13, 13);
       g.fillStyle = '#1a1a1a';
-      const label = p.name + (p.prefab ? ' ★공정' : '') + ' — ' + counts[p.id] + '칸'
+      const procs = p.processes || [];
+      const label = p.name + (procs.length ? ' ★' + procs.join('·') : '') + ' — ' + counts[p.id] + '칸'
         + (p.memo ? '  (' + p.memo + ')' : '');
       g.fillText(label, 38, ly + 5);
       ly += rowH;
