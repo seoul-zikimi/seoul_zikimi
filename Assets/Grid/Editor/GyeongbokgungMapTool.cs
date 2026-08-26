@@ -391,28 +391,60 @@ namespace GridSystem.EditorTools
             var fenceMat = EnsureMaterial("Mat_GbkFence", new Color(0.66f, 0.65f, 0.62f));
             const float fh = 0.9f, ft = 0.5f;          // 높이·두께
             const float fxMin = -2f, fxMax = 31f, fzMin = -2f, fzMax = 21f;
+            // 벽은 충돌 담당. VARCO 돌울타리 모델(_Fit)이 있으면 박스 렌더러를 끄고 세그먼트를 줄지어 세운다.
+            var fenceSeg = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/경복궁_돌울타리_Fit.prefab");
+            GameObject FenceWall(string name, Vector3 c, Vector3 size)
+            {
+                var b = AddBox(root, name, c, size, fenceMat);
+                b.isStatic = true;
+                if (fenceSeg != null) b.GetComponent<Renderer>().enabled = false;
+                return b;
+            }
             // 남쪽: 중앙 x11.5~18.5 비움(어도)
-            AddBox(root, "Fence_S_L", new Vector3((fxMin + 11.5f) * 0.5f, fh * 0.5f, fzMin), new Vector3(11.5f - fxMin, fh, ft), fenceMat).isStatic = true;
-            AddBox(root, "Fence_S_R", new Vector3((18.5f + fxMax) * 0.5f, fh * 0.5f, fzMin), new Vector3(fxMax - 18.5f, fh, ft), fenceMat).isStatic = true;
+            FenceWall("Fence_S_L", new Vector3((fxMin + 11.5f) * 0.5f, fh * 0.5f, fzMin), new Vector3(11.5f - fxMin, fh, ft));
+            FenceWall("Fence_S_R", new Vector3((18.5f + fxMax) * 0.5f, fh * 0.5f, fzMin), new Vector3(fxMax - 18.5f, fh, ft));
             // 북쪽: 중앙 x13~17 비움(북문)
-            AddBox(root, "Fence_N_L", new Vector3((fxMin + 13f) * 0.5f, fh * 0.5f, fzMax), new Vector3(13f - fxMin, fh, ft), fenceMat).isStatic = true;
-            AddBox(root, "Fence_N_R", new Vector3((17f + fxMax) * 0.5f, fh * 0.5f, fzMax), new Vector3(fxMax - 17f, fh, ft), fenceMat).isStatic = true;
+            FenceWall("Fence_N_L", new Vector3((fxMin + 13f) * 0.5f, fh * 0.5f, fzMax), new Vector3(13f - fxMin, fh, ft));
+            FenceWall("Fence_N_R", new Vector3((17f + fxMax) * 0.5f, fh * 0.5f, fzMax), new Vector3(fxMax - 17f, fh, ft));
             // 동·서쪽: 통짜
-            AddBox(root, "Fence_E", new Vector3(fxMax, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin), fenceMat).isStatic = true;
-            AddBox(root, "Fence_W", new Vector3(fxMin, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin), fenceMat).isStatic = true;
+            FenceWall("Fence_E", new Vector3(fxMax, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin));
+            FenceWall("Fence_W", new Vector3(fxMin, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin));
+            if (fenceSeg != null)
+            {
+                void SegRow(float a0, float a1, float fixedCoord, bool alongX)
+                {
+                    int n = Mathf.Max(1, Mathf.RoundToInt((a1 - a0) / 2.1f));
+                    float step = (a1 - a0) / n;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var s = (GameObject)PrefabUtility.InstantiatePrefab(fenceSeg, root.transform);
+                        s.name = "FenceSeg";
+                        float a = a0 + step * (i + 0.5f);
+                        s.transform.localPosition = alongX ? new Vector3(a, 0f, fixedCoord) : new Vector3(fixedCoord, 0f, a);
+                        s.transform.localRotation = Quaternion.Euler(0f, alongX ? 0f : 90f, 0f);
+                        s.transform.localScale = new Vector3(step / 2.1f, 1f, 1f) ;   // 줄 길이에 딱 맞게 미세 스케일
+                    }
+                }
+                SegRow(fxMin, 11.5f, fzMin, true); SegRow(18.5f, fxMax, fzMin, true);
+                SegRow(fxMin, 13f, fzMax, true); SegRow(17f, fxMax, fzMax, true);
+                SegRow(fzMin, fzMax, fxMin, false); SegRow(fzMin, fzMax, fxMax, false);
+            }
             // 울타리 기둥(모서리 4 + 게이트 양옆) — 난간 느낌 보강
             foreach (var (px, pz) in new[] { (fxMin, fzMin), (fxMax, fzMin), (fxMin, fzMax), (fxMax, fzMax), (11.5f, fzMin), (18.5f, fzMin) })
                 AddBox(root, $"FencePost_{px}_{pz}", new Vector3(px, 0.65f, pz), new Vector3(0.8f, 1.3f, 0.8f), fenceMat).isStatic = true;
 
             // ── 사방신 석상 받침대 4종 — 동청룡(靑)·서백호(白)·남주작(赤)·북현무(黑). 이름으로 기믹이 찾는다 ──
+            // VARCO 받침대 모델(_Fit)이 있으면 그걸 쓰고, 색 발광 판(Top)은 방위 신호로 항상 유지한다.
             void Pedestal(string name, Vector3 pos, Color tint)
             {
                 var baseMat = EnsureMaterial($"Mat_GbkPedestal_{name}", tint);
                 var g = new GameObject($"Pedestal_{name}");
                 g.transform.SetParent(root.transform, false);
                 g.transform.localPosition = pos;
-                AddBox(g, "Base", new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.5f, 2.4f), baseMat).isStatic = true;
-                AddBox(g, "Top", new Vector3(0f, 0.7f, 0f), new Vector3(1.7f, 0.4f, 1.7f), baseMat).isStatic = true;
+                var prop = PlaceProp(g, "경복궁_받침대", "Model", Vector3.zero);
+                if (prop == null)
+                    AddBox(g, "Base", new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.5f, 2.4f), baseMat).isStatic = true;
+                AddBox(g, "Top", new Vector3(0f, prop != null ? 0.95f : 0.7f, 0f), new Vector3(1.7f, 0.25f, 1.7f), baseMat).isStatic = true;
             }
             Pedestal("East",  new Vector3(28.5f, 0f,  9.5f), new Color(0.30f, 0.45f, 0.75f));   // 청룡
             Pedestal("West",  new Vector3(-0.5f, 0f,  3.0f), new Color(0.88f, 0.88f, 0.90f));   // 백호
@@ -422,7 +454,11 @@ namespace GridSystem.EditorTools
             // ── 드므(방화수 항아리) 4개 — 건물 네 귀퉁이. 양동이 물 리필 지점(기믹이 이름으로 찾는다) ──
             var bronze = EnsureMaterial("Mat_GbkBronze", new Color(0.42f, 0.33f, 0.20f));
             foreach (var (dx, dz, i) in new[] { (3f, 1.8f, 1), (26f, 1.8f, 2), (3f, 17.2f, 3), (26f, 17.2f, 4) })
-                AddCylinder(root, $"Deumeu_{i}", new Vector3(dx, 0.45f, dz), new Vector3(1.2f, 0.45f, 1.2f), bronze);
+                if (PlaceProp(root, "경복궁_드므", $"Deumeu_{i}", new Vector3(dx, 0f, dz)) == null)
+                    AddCylinder(root, $"Deumeu_{i}", new Vector3(dx, 0.45f, dz), new Vector3(1.2f, 0.45f, 1.2f), bronze);
+
+            // 돌계단(어도 문턱, 장식) — 모델 있을 때만
+            PlaceProp(root, "경복궁_돌계단", "EntranceSteps", new Vector3(15f, 0f, -2.1f));
 
             // 석상 낙하 지점(광장 중앙, 근정전 정면 앞) — 기믹이 이름으로 찾는 빈 마커
             AddSpotless(root, "GuardianDropPoint", new Vector3(15f, 0f, 1f));
@@ -486,6 +522,31 @@ namespace GridSystem.EditorTools
 
         // Spot_ 접두사 없는 빈 마커 — MapLoader의 시스템 오브젝트 스폰 규약을 타지 않는 기믹 전용 지점.
         private static void AddSpotless(GameObject root, string name, Vector3 pos) => AddSpot(root, name, pos);
+
+        // VARCO 배경 소품(_Fit, 바닥 피벗) 배치 — 모델 적용 툴이 만들어둔 경우에만. 서 있을 수 있게 콜라이더 보장.
+        private static GameObject PlaceProp(GameObject root, string fitName, string instanceName, Vector3 pos, float yRot = 0f)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/{fitName}_Fit.prefab");
+            if (prefab == null) return null;
+            var inst = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root.transform);
+            inst.name = instanceName;
+            inst.transform.localPosition = pos;
+            inst.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
+            if (inst.GetComponentInChildren<Collider>() == null)
+            {
+                var rends = inst.GetComponentsInChildren<Renderer>();
+                if (rends.Length > 0)
+                {
+                    var b = rends[0].bounds;
+                    foreach (var r in rends) b.Encapsulate(r.bounds);
+                    var bc = inst.AddComponent<BoxCollider>();
+                    bc.center = inst.transform.InverseTransformPoint(b.center);
+                    bc.size = Vector3.Scale(b.size, new Vector3(
+                        1f / inst.transform.lossyScale.x, 1f / inst.transform.lossyScale.y, 1f / inst.transform.lossyScale.z));
+                }
+            }
+            return inst;
+        }
 
         private static GameObject AddCylinder(GameObject root, string name, Vector3 pos, Vector3 scale, Material mat)
         {

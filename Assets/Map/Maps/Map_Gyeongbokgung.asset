@@ -34,6 +34,7 @@ MonoBehaviour:
   m_NamsanGimmicks: {fileID: 0}
   m_LotteGimmicks: {fileID: 0}
   m_DdpGimmicks: {fileID: 0}
+  m_GyeongbokgungGimmicks: {fileID: 11400000, guid: 8c3bc79eaf6ec3e42903168e9bf4f8f6, type: 2}
   m_Bgm:
     Building: {fileID: 0}
     Urgent: {fileID: 0}

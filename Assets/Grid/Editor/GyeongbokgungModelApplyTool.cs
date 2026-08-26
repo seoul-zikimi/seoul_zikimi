@@ -84,9 +84,47 @@ namespace GridSystem.EditorTools
                 Debug.Log($"[경복궁모델] 적용: {defName} ← {modelName}.glb (footprint {fp.x}×{fp.y}×{fp.z}, 회전 {yRot}°)");
             }
 
+            // ── 배경 소품(드므·받침대·돌울타리·돌계단) — _Fit(바닥 피벗)만 만들어두면 맵 생성 툴이 그레이박스 대신 쓴다 ──
+            foreach (var (name, size) in kProps)
+            {
+                var model = LoadModel(name);
+                if (model == null) { skipped++; continue; }
+                if (BuildFitPrefab(model, $"{kDir}/{name}_Fit.prefab", size, 0f, size, groundPivot: true) != null) applied++;
+            }
+
+            // 박석 마당 텍스처(Models/경복궁_텍스처_박석.png가 있으면) — 남산 ApplyTexture 관행
+            ApplyCourtTexture();
+
             AssetDatabase.SaveAssets();
             Debug.Log($"[경복궁모델] 완료 ✔ 적용 {applied}건 / 건너뜀 {skipped}건 (GLB 없음 등)\n" +
-                      $"바로 플레이하면 새 모델로 보입니다. 배경까지 다시 만들려면 'Tools ▸ Map ▸ ★ 경복궁 맵 생성'을 재실행하세요.");
+                      $"바로 플레이하면 새 모델로 보입니다. 배경 소품(드므·울타리 등)을 적용했다면 'Tools ▸ Map ▸ ★ 경복궁 맵 생성'을 재실행해 배경에 반영하세요.");
+        }
+
+        // 배경 소품: (모델 이름, 목표 크기). _Fit은 바닥 피벗(중심 XZ, 바닥 y0).
+        private static readonly (string name, Vector3 size)[] kProps =
+        {
+            ("경복궁_드므",     new Vector3(1.3f, 1.5f, 1.3f)),
+            ("경복궁_받침대",   new Vector3(2.4f, 0.9f, 2.4f)),
+            ("경복궁_돌울타리", new Vector3(2.1f, 1.1f, 0.55f)),
+            ("경복궁_돌계단",   new Vector3(4f, 1.2f, 2.5f)),
+        };
+
+        // 박석 타일 텍스처를 마당 머티리얼에 입힌다(색은 흰색으로 — 텍스처 원색 유지). 파일 없으면 조용히 통과.
+        private static void ApplyCourtTexture()
+        {
+            Texture2D tex = null;
+            foreach (var ext in new[] { "png", "jpg" })
+            {
+                tex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{kModelDir}/경복궁_텍스처_박석.{ext}");
+                if (tex != null) break;
+            }
+            var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Map/Materials/Mat_GbkCourt.mat");
+            if (tex == null || mat == null) return;
+            mat.SetTexture("_BaseMap", tex);
+            mat.SetTextureScale("_BaseMap", new Vector2(9f, 7f));
+            mat.SetColor("_BaseColor", Color.white);
+            EditorUtility.SetDirty(mat);
+            Debug.Log("[경복궁모델] 박석 텍스처 적용 → Mat_GbkCourt");
         }
 
         private static GameObject LoadModel(string name)
@@ -183,9 +221,10 @@ namespace GridSystem.EditorTools
             finally { Object.DestroyImmediate(root); }
         }
 
-        // 모델을 Y축 회전 후 목표 크기 상자에 맞춰(축별 스케일) 래핑한 프리팹 생성. 피벗 = min-corner(블록 규약).
+        // 모델을 Y축 회전 후 목표 크기 상자에 맞춰(축별 스케일) 래핑한 프리팹 생성.
+        // 기본 피벗 = min-corner(블록 규약). groundPivot=true면 중심 XZ + 바닥 y0(배경 소품용).
         private static GameObject BuildFitPrefab(GameObject model, string prefabPath, Vector3 targetSize,
-                                                 float yRot, Vector3 cellSize)
+                                                 float yRot, Vector3 cellSize, bool groundPivot = false)
         {
             var root = new GameObject(Path.GetFileNameWithoutExtension(prefabPath));
             var inst = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
@@ -215,9 +254,17 @@ namespace GridSystem.EditorTools
 
             b = rends[0].bounds;
             foreach (var r in rends) b.Encapsulate(r.bounds);
-            // min-corner가 (여백/2) 지점에 오도록 — 블록이 [0..fp] 칸 중앙에 앉는다
-            var margin = (cellSize - targetSize) * 0.5f;
-            inst.transform.localPosition -= b.min - margin;
+            if (groundPivot)
+            {
+                var c = b.center;
+                inst.transform.localPosition -= new Vector3(c.x, b.min.y, c.z);
+            }
+            else
+            {
+                // min-corner가 (여백/2) 지점에 오도록 — 블록이 [0..fp] 칸 중앙에 앉는다
+                var margin = (cellSize - targetSize) * 0.5f;
+                inst.transform.localPosition -= b.min - margin;
+            }
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
