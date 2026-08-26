@@ -340,8 +340,8 @@ namespace GridSystem.EditorTools
             var baseSt  = EnsureMaterial("Mat_GbkStoneBase",new Color(0.58f, 0.56f, 0.52f));   // 기단석
             var mtn     = EnsureMaterial("Mat_GbkMountain", new Color(0.38f, 0.50f, 0.38f));   // 북악산
 
-            // 박석 마당 — 그리드 전체 + 회랑 안쪽까지 넉넉하게. 상판 y=0.
-            AddBox(root, "Courtyard", new Vector3(15f, -0.5f, 10f), new Vector3(56f, 1f, 46f), stone).isStatic = true;
+            // 박석 마당 — 실제 근정전처럼 '개큰' 돌 광장(08/27 피드백). 회랑은 저 바깥에서 두른다. 상판 y=0.
+            AddBox(root, "Courtyard", new Vector3(15f, -0.5f, 10f), new Vector3(78f, 1f, 58f), stone).isStatic = true;
 
             // 건물 기단(월대 느낌) — 정답 footprint보다 살짝 넓은 얇은 단(장식, 상판 y=0.12)
             AddBox(root, "StoneBase", new Vector3(15f, 0.06f, 9.5f), new Vector3(24f, 0.12f, 15f), baseSt).isStatic = true;
@@ -377,15 +377,16 @@ namespace GridSystem.EditorTools
                 AddBox(root, name + "_Wall", new Vector3(c.x, 1.1f, c.z), new Vector3(size.x, 2.2f, size.z), redCol).isStatic = true;
                 AddBox(root, name + "_Roof", new Vector3(c.x, 2.5f, c.z), new Vector3(size.x + 1.2f, 0.6f, size.z + 1.2f), darkTile).isStatic = true;
             }
-            Cloister("Cloister_N", new Vector3(15f, 0f, 24f), new Vector3(52f, 0f, 2f));
-            Cloister("Cloister_W", new Vector3(-9f, 0f, 10f), new Vector3(2f, 0f, 30f));
-            Cloister("Cloister_E", new Vector3(39f, 0f, 10f), new Vector3(2f, 0f, 30f));
-            Cloister("Cloister_S1", new Vector3(2f, 0f, -4f), new Vector3(24f, 0f, 2f));
-            Cloister("Cloister_S2", new Vector3(28f, 0f, -4f), new Vector3(24f, 0f, 2f));
+            // 회랑은 광장 바깥 멀리 — 실제 근정전 비례(돌 울타리 링과 회랑 사이에 넓은 광장이 남는다)
+            Cloister("Cloister_N", new Vector3(15f, 0f, 36f), new Vector3(74f, 0f, 2f));
+            Cloister("Cloister_W", new Vector3(-21f, 0f, 11f), new Vector3(2f, 0f, 52f));
+            Cloister("Cloister_E", new Vector3(51f, 0f, 11f), new Vector3(2f, 0f, 52f));
+            Cloister("Cloister_S1", new Vector3(-3.5f, 0f, -14f), new Vector3(35f, 0f, 2f));
+            Cloister("Cloister_S2", new Vector3(33.5f, 0f, -14f), new Vector3(35f, 0f, 2f));
 
             // 근정문(남쪽 중앙) — 몸체 + 큰 지붕
-            AddBox(root, "Gate_Body", new Vector3(15f, 1.8f, -4f), new Vector3(8f, 3.6f, 3f), redCol).isStatic = true;
-            AddBox(root, "Gate_Roof", new Vector3(15f, 4.1f, -4f), new Vector3(10f, 1f, 4.5f), darkTile).isStatic = true;
+            AddBox(root, "Gate_Body", new Vector3(15f, 1.8f, -14f), new Vector3(8f, 3.6f, 3f), redCol).isStatic = true;
+            AddBox(root, "Gate_Roof", new Vector3(15f, 4.1f, -14f), new Vector3(10f, 1f, 4.5f), darkTile).isStatic = true;
 
             // ── 돌 울타리(월대 난간 느낌) — 광장을 두르는 낮은 화강암 담. 남쪽 중앙은 어도(정문 통로)로 비움 ──
             var fenceMat = EnsureMaterial("Mat_GbkFence", new Color(0.66f, 0.65f, 0.62f));
@@ -463,10 +464,10 @@ namespace GridSystem.EditorTools
             // 석상 낙하 지점(광장 중앙, 근정전 정면 앞) — 기믹이 이름으로 찾는 빈 마커
             AddSpotless(root, "GuardianDropPoint", new Vector3(15f, 0f, 1f));
 
-            // 북악산 원경(북쪽) — 큰 경사 박스 두 장
-            var m1 = AddBox(root, "Mountain_1", new Vector3(5f, 4f, 48f), new Vector3(50f, 22f, 16f), mtn);
+            // 북악산 원경(북쪽) — 회랑이 밀려난 만큼 산도 뒤로
+            var m1 = AddBox(root, "Mountain_1", new Vector3(5f, 4f, 60f), new Vector3(56f, 24f, 16f), mtn);
             m1.transform.rotation = Quaternion.Euler(-38f, 0f, 0f); m1.isStatic = true;
-            var m2 = AddBox(root, "Mountain_2", new Vector3(34f, 2f, 52f), new Vector3(44f, 18f, 14f), mtn);
+            var m2 = AddBox(root, "Mountain_2", new Vector3(36f, 2f, 64f), new Vector3(48f, 20f, 14f), mtn);
             m2.transform.rotation = Quaternion.Euler(-42f, 8f, 0f); m2.isStatic = true;
 
             // ── 마커 5종 ──
