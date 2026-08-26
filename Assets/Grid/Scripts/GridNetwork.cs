@@ -340,10 +340,21 @@ namespace GridSystem
             if (targets.Count == 0) return false;
 
             var hit = targets[Random.Range(0, targets.Count)];
-            CannonHitFxRpc(CellWorld(hit));
+            // 포탄이 날아가는 동안 파괴를 미룬다 — 착탄 연출과 블록 소멸이 같은 순간에 보이게
+            CannonShotFxRpc(ServerCannonSource, CellWorld(hit));
+            StartCoroutine(CannonLandThenDestroy(hit));
+            return true;
+        }
+
+        /// <summary>대포 발사 위치(시전자) — ItemNetwork가 사용 직전에 넣어준다(서버 전용).</summary>
+        public Vector3 ServerCannonSource;
+
+        private System.Collections.IEnumerator CannonLandThenDestroy(Vector3Int hit)
+        {
+            yield return new WaitForSeconds(ItemFx.kCannonFlightSeconds);
+            if (m_ServerGrid == null) yield break;
             foreach (var co in m_ServerGrid.Collapse(hit)) RemoveCollapsed(co);
             foreach (var co in m_ServerGrid.SettleUnsupported()) RemoveCollapsed(co);
-            return true;
         }
 
         // 그 재료가 요구하는 공정이 전부 끝났는가(채점과 같은 기준인 RequiredMask 사용).
@@ -353,8 +364,12 @@ namespace GridSystem
             return need != 0 && (completedMask & need) == need;
         }
 
+        // 발사 → 포탄이 포물선으로 날아가고, 착탄 순간 폭발 연출(모든 클라).
         [Rpc(SendTo.Everyone)]
-        private void CannonHitFxRpc(Vector3 center)
+        private void CannonShotFxRpc(Vector3 from, Vector3 to)
+            => ItemFx.CannonShot(from, to, () => CannonImpactFx(to));
+
+        private static void CannonImpactFx(Vector3 center)
         {
             GridJuice.CollapseBurst(center, GridContract.Unit);
             GridJuice.GroundHit(center, 1.6f);

@@ -44,6 +44,8 @@ namespace GridSystem
             public int Weather;         // 이 팀 진영에 걸린 날씨(WeatherKind, Sunny=없음)
             public bool Fog;            // 화면 가림
             public bool WeatherImmune;  // 우산 — 날씨의 게임플레이 피해 무시
+            // 만료 시각(NGO ServerTime 초) — HUD가 남은 시간을 표기(만료 판정은 서버 배열이 담당)
+            public float MoveUntil, ProcUntil, OrderUntil, WeatherUntil, FogUntil, ImmuneUntil;
 
             public static TeamEffects None => new()
             {
@@ -55,10 +57,18 @@ namespace GridSystem
             {
                 s.SerializeValue(ref MoveMul); s.SerializeValue(ref ProcessMul); s.SerializeValue(ref OrderBlocked);
                 s.SerializeValue(ref Weather); s.SerializeValue(ref Fog); s.SerializeValue(ref WeatherImmune);
+                s.SerializeValue(ref MoveUntil); s.SerializeValue(ref ProcUntil); s.SerializeValue(ref OrderUntil);
+                s.SerializeValue(ref WeatherUntil); s.SerializeValue(ref FogUntil); s.SerializeValue(ref ImmuneUntil);
             }
             public bool Equals(TeamEffects o) => MoveMul == o.MoveMul && ProcessMul == o.ProcessMul
-                && OrderBlocked == o.OrderBlocked && Weather == o.Weather && Fog == o.Fog && WeatherImmune == o.WeatherImmune;
+                && OrderBlocked == o.OrderBlocked && Weather == o.Weather && Fog == o.Fog && WeatherImmune == o.WeatherImmune
+                && MoveUntil == o.MoveUntil && ProcUntil == o.ProcUntil && OrderUntil == o.OrderUntil
+                && WeatherUntil == o.WeatherUntil && FogUntil == o.FogUntil && ImmuneUntil == o.ImmuneUntil;
         }
+
+        /// <summary>클라·서버 공용 시계(NGO ServerTime) — 만료 시각 표기 기준.</summary>
+        private static float NetNow()
+            => NetworkManager.Singleton != null ? (float)NetworkManager.Singleton.ServerTime.Time : Time.time;
 
         private readonly NetworkList<ItemEntry> m_Items = new();
         private readonly NetworkVariable<TeamEffects> m_FxA =
@@ -114,7 +124,48 @@ namespace GridSystem
             m_Items.OnListChanged -= OnItemsChanged;
             if (m_VisualRoot != null) Destroy(m_VisualRoot);
             if (m_EnemyZoneRig != null) Destroy(m_EnemyZoneRig.gameObject);
+            foreach (var kv in m_HeldBubbles) if (kv.Value != null) Destroy(kv.Value.gameObject);
+            m_HeldBubbles.Clear();
             if (s_Instance == this) s_Instance = null;
+        }
+
+        // ── 소지 아이템 버블: 복제 목록(Held/Holder)만 보고 각 클라가 스스로 관리 ──
+        private readonly System.Collections.Generic.Dictionary<ulong, HeldItemBubble> m_HeldBubbles = new();
+        private static readonly System.Collections.Generic.Dictionary<ulong, CompetitiveItemKind> s_WantBubbles = new();
+        private static readonly System.Collections.Generic.List<ulong> s_BubbleGone = new();
+
+        private void SyncHeldBubbles()
+        {
+            s_WantBubbles.Clear();
+            foreach (var e in m_Items)
+                if (e.Held) s_WantBubbles[e.Holder] = (CompetitiveItemKind)e.Kind;
+
+            s_BubbleGone.Clear();
+            foreach (var kv in m_HeldBubbles)
+            {
+                if (kv.Value != null && s_WantBubbles.TryGetValue(kv.Key, out var kind)) { kv.Value.SetKind(kind); continue; }
+                if (kv.Value != null) Destroy(kv.Value.gameObject);
+                s_BubbleGone.Add(kv.Key);
+            }
+            foreach (var id in s_BubbleGone) m_HeldBubbles.Remove(id);
+
+            foreach (var kv in s_WantBubbles)
+            {
+                if (m_HeldBubbles.ContainsKey(kv.Key)) continue;
+                var t = FindPlayerTransform(kv.Key);
+                if (t == null) continue;
+                m_HeldBubbles[kv.Key] = HeldItemBubble.Create(t, kv.Value);
+            }
+        }
+
+        // 클라에서 원격 clientId로 GetPlayerNetworkObject를 부르면 예외라, 관측 목록에서 직접 찾는다.
+        private static Transform FindPlayerTransform(ulong clientId)
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null || nm.SpawnManager == null) return null;
+            foreach (var no in nm.SpawnManager.SpawnedObjectsList)
+                if (no.IsPlayerObject && no.OwnerClientId == clientId) return no.transform;
+            return null;
         }
 
         // ── 조회/조작 API ─────────────────────────────────────────
@@ -160,17 +211,75 @@ namespace GridSystem
         /// <summary>내 팀이 주문 해킹당했는가(주문 HUD 안내용).</summary>
         public static bool LocalOrderBlocked() => LocalEffects().OrderBlocked;
 
-        /// <summary>내 팀에 걸린 상태 한 줄 요약(없으면 ""). HUD 표시용.</summary>
+        /// <summary>대포 조준 연출용 — 상대 진영 중심(월드). 비대전/미배정이면 fallback.</summary>
+        public static Vector3 EnemyZoneAimPoint(Vector3 fallback)
+        {
+            if (s_Instance == null || s_Instance.m_Loop == null || !s_Instance.m_Loop.IsVersus
+                || s_Instance.m_Grid == null) return fallback;
+            int my = s_Instance.m_Loop.LocalTeam;
+            if (my < 0) return fallback;
+            var b = s_Instance.ZoneWorldBounds(1 - my);
+            return new Vector3(b.center.x, b.min.y + 1.5f, b.center.z);
+        }
+
+        /// <summary>HUD 버프 아이콘용 상태 항목 — 어떤 아이템 효과가 몇 초/총 몇 초 남았는지.</summary>
+        public struct LocalStatus
+        {
+            public CompetitiveItemKind Kind;
+            public float Remaining;
+            public float Total;
+        }
+
+        private static CompetitiveItemDefinitionCatalog s_ClientDefs;   // 총 지속시간 조회용(클라 로컬)
+
+        /// <summary>내 팀에 걸린 효과 목록을 채운다(HUD 버프 바 — 매 프레임 호출해 카운트다운).</summary>
+        public static void GetLocalStatuses(System.Collections.Generic.List<LocalStatus> list)
+        {
+            list.Clear();
+            var fx = LocalEffects();
+            float now = NetNow();
+            s_ClientDefs ??= CompetitiveItemDefinitionCatalog.CreateDefault();
+
+            void Add(CompetitiveItemKind kind, float until)
+            {
+                float rem = until - now;
+                if (rem <= 0f) return;
+                list.Add(new LocalStatus
+                {
+                    Kind = kind, Remaining = rem,
+                    Total = Mathf.Max(0.01f, s_ClientDefs.Get(kind).EffectDurationSeconds),
+                });
+            }
+
+            switch ((WeatherKind)fx.Weather)
+            {
+                case WeatherKind.Rain: Add(CompetitiveItemKind.Rain, fx.WeatherUntil); break;
+                case WeatherKind.Snow: Add(CompetitiveItemKind.Snow, fx.WeatherUntil); break;
+                case WeatherKind.StrongWind: Add(CompetitiveItemKind.StrongWind, fx.WeatherUntil); break;
+                case WeatherKind.Typhoon: Add(CompetitiveItemKind.Typhoon, fx.WeatherUntil); break;
+            }
+            if (fx.Fog) Add(CompetitiveItemKind.Fog, fx.FogUntil);
+            if (fx.WeatherImmune) Add(CompetitiveItemKind.Umbrella, fx.ImmuneUntil);
+            if (fx.MoveMul < 1f) Add(CompetitiveItemKind.MovementSlow, fx.MoveUntil);
+            else if (fx.MoveMul > 1f) Add(CompetitiveItemKind.MovementBoost, fx.MoveUntil);
+            if (fx.ProcessMul < 1f) Add(CompetitiveItemKind.ProcessSlow, fx.ProcUntil);
+            else if (fx.ProcessMul > 1f) Add(CompetitiveItemKind.ProcessBoost, fx.ProcUntil);
+            if (fx.OrderBlocked) Add(CompetitiveItemKind.OrderHack, fx.OrderUntil);
+        }
+
+        /// <summary>내 팀에 걸린 상태 한 줄 요약 + 남은 초(없으면 ""). HUD 표시용 — 매 프레임 갱신되어 카운트다운.</summary>
         public static string LocalStatusLine()
         {
             var fx = LocalEffects();
+            float now = NetNow();
+            string T(float until) { int s = Mathf.CeilToInt(until - now); return s > 0 ? $" {s}초" : ""; }
             var parts = new System.Collections.Generic.List<string>();
-            if (fx.Weather != (int)WeatherKind.Sunny) parts.Add(WeatherName((WeatherKind)fx.Weather));
-            if (fx.Fog) parts.Add("안개");
-            if (fx.WeatherImmune) parts.Add("우산(날씨 면역)");
-            if (fx.MoveMul < 1f) parts.Add("이동 느림"); else if (fx.MoveMul > 1f) parts.Add("이동 빠름");
-            if (fx.ProcessMul < 1f) parts.Add("공정 느림"); else if (fx.ProcessMul > 1f) parts.Add("공정 빠름");
-            if (fx.OrderBlocked) parts.Add("주문 차단");
+            if (fx.Weather != (int)WeatherKind.Sunny) parts.Add(WeatherName((WeatherKind)fx.Weather) + T(fx.WeatherUntil));
+            if (fx.Fog) parts.Add("안개" + T(fx.FogUntil));
+            if (fx.WeatherImmune) parts.Add("우산(날씨 면역)" + T(fx.ImmuneUntil));
+            if (fx.MoveMul < 1f) parts.Add("이동 느림" + T(fx.MoveUntil)); else if (fx.MoveMul > 1f) parts.Add("이동 빠름" + T(fx.MoveUntil));
+            if (fx.ProcessMul < 1f) parts.Add("공정 느림" + T(fx.ProcUntil)); else if (fx.ProcessMul > 1f) parts.Add("공정 빠름" + T(fx.ProcUntil));
+            if (fx.OrderBlocked) parts.Add("주문 차단" + T(fx.OrderUntil));
             return parts.Count == 0 ? "" : string.Join(" · ", parts);
         }
 
@@ -253,6 +362,7 @@ namespace GridSystem
             if (!IsSpawned) return;
 
             SyncLocalWeatherFx();   // 연출은 모든 클라가 각자(서버 게이트보다 앞)
+            SyncHeldBubbles();      // 마리오카트식 소지 아이템 버블(모든 클라)
 
             if (!IsServer || m_Loop == null || !m_Loop.IsVersus) return;
 
@@ -341,16 +451,24 @@ namespace GridSystem
         }
         private float m_NextSlipToast;   // 로컬 전용(수신 클라 기준)
 
-        // 당한 팀 전원 화면에 '상대가 뭘 썼는지' 문구 + 살짝 흔들림. 버프(Ally)는 안 보냄.
+        // 대상 팀 전원 화면에 알림 — 공격: 빨강 "상대가 X 사용!" + 흔들림 / 버프: 초록 "아군이 X 사용!"(시전자 제외).
         [Rpc(SendTo.Everyone)]
-        private void ItemUsedNoticeRpc(int kind, int targetTeam)
+        private void ItemUsedNoticeRpc(int kind, int targetTeam, bool buff, ulong casterId)
         {
             if (m_Loop == null || m_Loop.LocalTeam != targetTeam) return;
             var nm = NetworkManager.Singleton;
+            if (buff && nm != null && nm.LocalClientId == casterId) return;   // 시전자는 금색 "사용!" 토스트로 이미 봄
             var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
             if (po == null) return;
+            string name = KindName((CompetitiveItemKind)kind);
+            if (buff)
+            {
+                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f,
+                    $"아군이 {name} 사용!", new Color(0.25f, 0.85f, 0.35f));
+                return;
+            }
             GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f,
-                $"상대가 {KindName((CompetitiveItemKind)kind)} 사용!", new Color(1f, 0.25f, 0.2f));
+                $"상대가 {name} 사용!", new Color(1f, 0.25f, 0.2f));
             GridJuice.FovPunch(Camera.main, -2f);
         }
 
@@ -364,7 +482,12 @@ namespace GridSystem
             if (weather != m_ShownWeather || fx.Fog != m_ShownFog)
             {
                 m_ShownWeather = weather; m_ShownFog = fx.Fog;
-                TeamWeatherFx.Get().Set(weather, fx.Fog);
+                var host = TeamWeatherFx.Get();
+                // 2vs2 아이템 날씨는 내 진영에만 내리게 존 영역 전달(협동/미배정 = 맵 전체)
+                int my = m_Loop != null ? m_Loop.LocalTeam : -1;
+                host.SetTemporaryArea(m_Loop != null && m_Loop.IsVersus && my >= 0 && m_Grid != null
+                    ? ZoneWorldBounds(my) : (Bounds?)null);
+                host.Set(weather, fx.Fog);
             }
             SyncZoneFogFx();
             SyncEnemyZoneWeather();
@@ -462,11 +585,17 @@ namespace GridSystem
                 int team = m_Loop.GetTeam(sender);
                 if (team < 0) return;                      // 팀 미배정이면 소비하지 않는다
                 m_Items.RemoveAt(i);
+                // 대포 발사 위치 = 시전자(포탄 궤적 연출용) — Use 안에서 ServerCannonDestroy가 읽는다
+                if ((CompetitiveItemKind)e.Kind == CompetitiveItemKind.Cannon && m_Net != null)
+                    m_Net.ServerCannonSource = HolderPos(sender, transform.position);
                 m_UseService?.Use((CompetitiveItemKind)e.Kind, sender.ToString(), TeamId(team));
-                // 공격 아이템이면 당한 팀 전원에게 알림(문구+흔들림) — '뭐에 당했는지' 즉시 보이게
+                // 대상 팀 전원에게 알림 — 공격이면 당한 팀에 빨강, 버프면 아군에 초록('누구한테 쓴 건지' 가시화)
                 var def = m_Definitions?.Get((CompetitiveItemKind)e.Kind);
-                if (def != null && def.TargetSide == ItemTargetSide.Enemy)
-                    ItemUsedNoticeRpc(e.Kind, 1 - team);
+                if (def != null)
+                {
+                    bool buff = def.TargetSide == ItemTargetSide.Ally;
+                    ItemUsedNoticeRpc(e.Kind, buff ? team : 1 - team, buff, sender);
+                }
                 return;
             }
         }
@@ -501,7 +630,7 @@ namespace GridSystem
         {
             int team = TeamIndex(teamId);
             if (team < 0) return;
-            var fx = Fx(team); fx.MoveMul = multiplier; SetFx(team, fx);
+            var fx = Fx(team); fx.MoveMul = multiplier; fx.MoveUntil = NetNow() + durationSeconds; SetFx(team, fx);
             m_MoveUntil[team] = Time.time + durationSeconds;
         }
 
@@ -509,7 +638,7 @@ namespace GridSystem
         {
             int team = TeamIndex(teamId);
             if (team < 0) return;
-            var fx = Fx(team); fx.ProcessMul = multiplier; SetFx(team, fx);
+            var fx = Fx(team); fx.ProcessMul = multiplier; fx.ProcUntil = NetNow() + durationSeconds; SetFx(team, fx);
             m_ProcUntil[team] = Time.time + durationSeconds;
         }
 
@@ -517,7 +646,7 @@ namespace GridSystem
         {
             int team = TeamIndex(teamId);
             if (team < 0) return;
-            var fx = Fx(team); fx.OrderBlocked = true; SetFx(team, fx);
+            var fx = Fx(team); fx.OrderBlocked = true; fx.OrderUntil = NetNow() + durationSeconds; SetFx(team, fx);
             m_OrderUntil[team] = Time.time + durationSeconds;
         }
 
@@ -525,7 +654,7 @@ namespace GridSystem
         {
             int team = TeamIndex(teamId);
             if (team < 0) return;
-            var fx = Fx(team); fx.Fog = true; SetFx(team, fx);
+            var fx = Fx(team); fx.Fog = true; fx.FogUntil = NetNow() + durationSeconds; SetFx(team, fx);
             m_FogUntil[team] = Time.time + durationSeconds;
             Debug.Log($"[Item] 안개 → 팀{teamId} {durationSeconds}초");
         }
@@ -535,7 +664,7 @@ namespace GridSystem
             int team = TeamIndex(teamId);
             if (team < 0) return;
             // 이미 날씨가 걸려 있으면 새 날씨로 교체 + 타이머 초기화(기획서 규칙)
-            var fx = Fx(team); fx.Weather = (int)weather; SetFx(team, fx);
+            var fx = Fx(team); fx.Weather = (int)weather; fx.WeatherUntil = NetNow() + durationSeconds; SetFx(team, fx);
             m_WeatherUntil[team] = Time.time + durationSeconds;
             Debug.Log($"[Item] 날씨 {weather} → 팀{teamId} {durationSeconds}초");
         }
@@ -544,7 +673,7 @@ namespace GridSystem
         {
             int team = TeamIndex(teamId);
             if (team < 0) return;
-            var fx = Fx(team); fx.WeatherImmune = true; SetFx(team, fx);
+            var fx = Fx(team); fx.WeatherImmune = true; fx.ImmuneUntil = NetNow() + durationSeconds; SetFx(team, fx);
             m_ImmuneUntil[team] = Time.time + durationSeconds;
             Debug.Log($"[Item] 우산(날씨 면역) → 팀{teamId} {durationSeconds}초");
         }
