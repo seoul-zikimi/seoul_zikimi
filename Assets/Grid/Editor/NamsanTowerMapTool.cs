@@ -379,8 +379,8 @@ namespace GridSystem.EditorTools
             // ── 마커 8종 ──
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));                 // 짓는 곳(데크 동쪽)
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(2f, kGroundY, -10f));     // 아랫동네(팔각정·케이블카 사이)
-            AddSpot(root, "Spot_HammerStation", new Vector3(-1f, kGroundY, -12f));       // 팔각정 옆(지상 가공)
-            AddSpot(root, "Spot_PaintStation", new Vector3(-7f, 0f, 2f));                // 데크 위
+            AddSpot(root, "Spot_HammerStation", new Vector3(-1f, kGroundY, -12f));       // 팔각정 옆 지상(마커 Y = 접지점)
+            AddSpot(root, "Spot_PaintStation", new Vector3(-7f, 0f, 2f));                // 데크 위(〃 — 데크 상판 y=0)
             AddSpot(root, "Spot_CableCarStation", new Vector3(10f, kGroundY + 0.1f, -11f));   // 하차장(낮은 단 위)
             AddSpot(root, "Spot_CableCarOrigin", new Vector3(30f, kGroundY - 11.8f, -36f));   // 저 아래 도시 터미널에서 올라온다
             AddSpot(root, "Spot_ElevatorLower", new Vector3(10f, kGroundY, -6.2f));      // 로비 건물 정면(땅)

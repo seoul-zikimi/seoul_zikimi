@@ -111,8 +111,8 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));          // 그리드 시작(팀A 왼쪽 아래)
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(8f, 0f, -4f));    // 협동 모드용(2vs2는 구역 중앙 자동)
             AddSpot(root, "Spot_DeliveryZone", new Vector3(4f, 0f, -5f));        // 재료 배송 자리(그리드 앞)
-            AddSpot(root, "Spot_HammerStation", new Vector3(-4f, 0f, 5f));       // 그리드 왼쪽 옆
-            AddSpot(root, "Spot_PaintStation", new Vector3(-4f, 0f, 11f));
+            AddSpot(root, "Spot_HammerStation", new Vector3(-4f, 0f, 5f));       // 그리드 왼쪽 옆(마커 Y = 접지점)
+            AddSpot(root, "Spot_PaintStation", new Vector3(-4f, 0f, 11f));       // 〃
             return root;
         }
 
