@@ -39,8 +39,11 @@ namespace GridSystem
         private Transform m_DropPoint;
         private readonly List<PickupEntry> m_Scratch = new();
         private readonly GameObject[] m_Spirits = new GameObject[4];
+        private readonly GameObject[] m_Statues = new GameObject[4];   // 받침대 위에 안착한 석상 비주얼(클라 로컬)
         private float m_NextScanAt;
         private float m_NextDropAllowedAt;   // 서버 전용 — 낙하 최소 간격
+
+        private const float kPedestalTopY = 0.95f;   // 받침대 상판 높이 — 석상이 이 위에 앉는다
 
         /// <summary>4방위 전부 안착 — 화마 봉인. FireNetwork가 매 틱 조회한다(null-safe).</summary>
         public static bool IsSealed => Instance != null && Instance.Active && Instance.m_PlacedMask.Value == 0b1111;
@@ -76,7 +79,11 @@ namespace GridSystem
         {
             if (Instance == this) Instance = null;
             m_PlacedMask.OnValueChanged -= OnPlacedChanged;
-            for (int i = 0; i < 4; i++) if (m_Spirits[i] != null) Destroy(m_Spirits[i]);
+            for (int i = 0; i < 4; i++)
+            {
+                if (m_Spirits[i] != null) Destroy(m_Spirits[i]);
+                if (m_Statues[i] != null) Destroy(m_Statues[i]);
+            }
         }
 
         public void ServerReset()
@@ -260,14 +267,39 @@ namespace GridSystem
             for (int i = 0; i < 4; i++)
             {
                 bool want = (mask & (1 << i)) != 0 && m_Pedestals[i] != null;
+                if (want && m_Statues[i] == null)
+                    m_Statues[i] = BuildPlacedStatue(i, m_Pedestals[i].position + Vector3.up * kPedestalTopY);
+                else if (!want && m_Statues[i] != null)
+                {
+                    Destroy(m_Statues[i]);
+                    m_Statues[i] = null;
+                }
+
                 if (want && m_Spirits[i] == null)
-                    m_Spirits[i] = BuildSpirit(i, m_Pedestals[i].position + Vector3.up * 2.6f);
+                    m_Spirits[i] = BuildSpirit(i, m_Pedestals[i].position + Vector3.up * (kPedestalTopY + 2.9f));
                 else if (!want && m_Spirits[i] != null)
                 {
                     Destroy(m_Spirits[i]);
                     m_Spirits[i] = null;
                 }
             }
+        }
+
+        // 안착한 석상 — 재료 def의 프리팹(min-corner 피벗, 2×2×2)을 받침대 상판 정중앙에 앉힌다.
+        private GameObject BuildPlacedStatue(int kind, Vector3 topCenter)
+        {
+            var ids = Config.StatueMaterialIds;
+            var def = (Grid != null && Grid.Catalog != null && kind < ids.Length) ? Grid.Catalog.GetById(ids[kind]) : null;
+            if (def == null || def.Prefab == null) return null;
+
+            var root = new GameObject($"~PlacedStatue_{kKindNames[kind]}");
+            root.transform.position = topCenter;
+            var vis = Instantiate(def.Prefab, root.transform);
+            var fp = def.Footprint;
+            vis.transform.localPosition = new Vector3(-fp.x * 0.5f, 0f, -fp.z * 0.5f);   // min-corner → 중앙 정렬(바닥 기준)
+            foreach (var c in root.GetComponentsInChildren<Collider>()) Destroy(c);
+            GridJuice.Squish(root, 0.25f);   // 안착 순간 뽁
+            return root;
         }
 
         private GameObject BuildSpirit(int kind, Vector3 pos)

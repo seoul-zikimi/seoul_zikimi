@@ -49,7 +49,7 @@ namespace GridSystem
         [Min(0f)] public float StatueDropMinGapSeconds = 20f;
 
         [Tooltip("석상을 받침대 위에 올린 것으로 인정하는 수평 거리(m). 받침대 근처에 놓거나 던지면 안착.")]
-        [Min(0.5f)] public float PedestalSnapRange = 1.8f;
+        [Min(0.5f)] public float PedestalSnapRange = 2.5f;
 
         [Tooltip("틀린 받침대에 놓았을 때 튕겨내는 거리(m).")]
         [Min(0.5f)] public float RejectBounceDistance = 3.5f;
