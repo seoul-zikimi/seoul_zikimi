@@ -407,7 +407,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerEmote
   ShowTopMostFoldoutHeaderGroup: 1
   m_EmoteFx:
-  - {fileID: 6855314210357232287, guid: 7c2a9b83b809a0848915fabd9596b68b, type: 3}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -417,9 +416,8 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  m_EmojiAtlas: {fileID: 2800000, guid: dffef66376be4fa480fb02b19edbe903, type: 3}
-  m_ThumbsDownTex: {fileID: 2800000, guid: b7d41f3a9c2e58e4d8a2f19c3b6d7e52, type: 3}
-  m_ThumbsUpTex: {fileID: 2800000, guid: 8cb81382697c4bf18ced8069c735a6cd, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!114 &913370001122334455
 MonoBehaviour:
   m_ObjectHideFlags: 0
