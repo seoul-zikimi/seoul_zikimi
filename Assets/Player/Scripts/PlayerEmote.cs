@@ -12,7 +12,8 @@ namespace Player
     /// </summary>
     public class PlayerEmote : NetworkBehaviour
     {
-        [Tooltip("대사별 추가 파티클(선택) — 인덱스 = EmoteDefs.All 순서. 비워도 됨(말풍선+보이스만).")]
+        [Tooltip("대사별 추가 파티클(선택) — 인덱스 = EmoteDefs.All 순서. 비워도 됨(말풍선+아이콘+보이스만).\n"
+               + "대사와 상관없는 이펙트를 물리면 오해를 부른다(예: 망치 대사에 Broken Heart) — 확실할 때만 채울 것.")]
         [SerializeField] private GameObject[] m_EmoteFx = new GameObject[11];
 
         private EmoteWheelUI m_Wheel;   // T 홀드 동안 표시되는 선택 패널(프리팹 HUD)
@@ -78,7 +79,8 @@ namespace Player
         {
             if (index < 0 || index >= EmoteDefs.Count) return;
 
-            EmoteBubble.ShowText(EmoteDefs.All[index].Line, pos);
+            // 말풍선(+ 대사별 아이콘 — 있는 대사만. '망치 갖다줘!' 등은 망치 이모티콘이 붙는다)
+            EmoteBubble.ShowText(EmoteDefs.All[index].Line, EmoteDefs.Icon(index), pos);
 
             // 보이스: 클립이 준비된 대사만 재생(3D — 멀면 작게, SFX 볼륨 슬라이더 적용)
             var voice = EmoteDefs.Voice(index);
