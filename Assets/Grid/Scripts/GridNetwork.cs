@@ -113,6 +113,71 @@ namespace GridSystem
             m_VisualRoot = new GameObject("~GridVisuals");
             m_Cells.OnListChanged += OnCellsChanged;
             RebuildVisuals();   // 늦참: 이미 복제된 리스트로 즉시 재구성
+
+            // 기본 제공 블록 스폰은 한 프레임 뒤 — 정답 선택(GameLoopManager.OnNetworkSpawn)이
+            // 컴포넌트 스폰 순서와 무관하게 끝난 뒤를 보장하기 위함.
+            if (IsServer) StartCoroutine(SpawnPresetsNextFrame());
+        }
+
+        private System.Collections.IEnumerator SpawnPresetsNextFrame()
+        {
+            yield return null;
+            ServerSpawnPresetBlocks();
+        }
+
+        /// <summary>
+        /// 서버: 정답의 preset 셀을 '완성된 진짜 블록'(전 공정 완료)으로 미리 배치.
+        /// MapAnswerData.SpawnPresetBlocks가 켜진 맵만(경복궁 등) — 배경이 비주얼을 담당하는 맵(광통교)은 스킵.
+        /// 라운드 시작·재시작마다 호출된다. 정답은 셀 단위 저장이라 블록 앵커를 복원해야 하는데,
+        /// (y,z,x) 오름차순으로 훑으면 각 블록의 min-corner(=앵커, rotationStep 0 기준)가 먼저 나온다.
+        /// </summary>
+        public void ServerSpawnPresetBlocks()
+        {
+            if (!IsServer || m_ServerGrid == null) return;
+            var ans = m_Manager.Answer;
+            var catalog = m_Manager.Catalog;
+            if (ans == null || catalog == null || !ans.SpawnPresetBlocks) return;
+
+            var presets = new List<AnswerCell>();
+            foreach (var a in ans.Cells)
+                if (ans.IsPreset(a.cell)) presets.Add(a);
+            if (presets.Count == 0) return;
+            presets.Sort((p, q) => p.cell.y != q.cell.y ? p.cell.y - q.cell.y
+                                 : p.cell.z != q.cell.z ? p.cell.z - q.cell.z
+                                 : p.cell.x - q.cell.x);
+
+            var used = new HashSet<Vector3Int>();
+            foreach (var a in presets)
+            {
+                if (used.Contains(a.cell)) continue;
+                var def = catalog.GetById(a.materialId);
+                if (def == null) continue;
+
+                // footprint 전 셀이 같은 재료의 preset인지 검증(데이터 오류 방어) — 아니면 이 블록은 스킵
+                bool valid = true;
+                foreach (var c in GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep))
+                    if (!ans.IsPreset(c) || !ans.TryGet(c, out var ac) || ac.materialId != a.materialId)
+                    { valid = false; break; }
+                if (!valid || !m_ServerGrid.CanPlace(a.cell, def, a.rotationStep)) continue;
+
+                ulong owner = ++m_OwnerCounter;
+                m_ServerGrid.Place(a.cell, def, a.rotationStep, owner);
+                // 완성품 상태: 고정 + 요구 공정 전부(canonical 순서대로 적용해야 순차 규칙에 안 걸림)
+                foreach (var p in ProcessOrder.Sequence)
+                    if (p == ProcessType.Fixed || (def.RequiredMask & (int)p) != 0)
+                        m_ServerGrid.TryApplyProcess(a.cell, p, def);
+                int mask = (int)ProcessType.Fixed | def.RequiredMask;
+
+                foreach (var c in GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep))
+                {
+                    used.Add(c);
+                    m_Cells.Add(new CellEntry
+                    {
+                        cell = c, materialId = a.materialId, rotationStep = a.rotationStep,
+                        completedProcessMask = mask, ownerObjectId = owner,
+                    });
+                }
+            }
         }
 
         public override void OnNetworkDespawn()
