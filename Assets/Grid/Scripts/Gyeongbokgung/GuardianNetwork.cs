@@ -42,6 +42,7 @@ namespace GridSystem
         private readonly GameObject[] m_Statues = new GameObject[4];   // 받침대 위에 안착한 석상 비주얼(클라 로컬)
         private float m_NextScanAt;
         private float m_NextDropAllowedAt;   // 서버 전용 — 낙하 최소 간격
+        private float m_NextBlockedLogAt;    // 서버 전용 — 낙하 막힘 경고 스로틀
 
         private const float kPedestalTopY = 0.95f;   // 받침대 상판 높이 — 석상이 이 위에 앉는다
 
@@ -124,16 +125,26 @@ namespace GridSystem
             int dropped = m_DroppedCount.Value;
             var percents = Config.StatueDropPercents;
             var ids = Config.StatueMaterialIds;
-            if (m_Drop != null && m_DropPoint != null &&
-                dropped < Mathf.Min(percents.Length, ids.Length) &&
-                Net != null && Net.ScorePercent >= percents[dropped] &&
-                Now >= m_NextDropAllowedAt)
+            if (dropped < Mathf.Min(percents.Length, ids.Length) && Net != null &&
+                Net.ScorePercent >= percents[dropped] && Now >= m_NextDropAllowedAt)
             {
+                if (m_Drop == null || m_DropPoint == null)
+                {
+                    // 낙하 조건은 됐는데 인프라가 없다 — 원인 즉시 보이게(5초 스로틀)
+                    if (Time.time >= m_NextBlockedLogAt)
+                    {
+                        m_NextBlockedLogAt = Time.time + 5f;
+                        Debug.LogWarning($"[경복궁] 석상 낙하 대기: 진행도 {Net.ScorePercent:F0}% ≥ {percents[dropped]}% 인데 " +
+                                         $"{(m_Drop == null ? "MaterialDropField 없음" : "GuardianDropPoint 마커를 못 찾음(맵 생성 재실행 필요?)")}");
+                    }
+                    return;
+                }
                 Vector3 to = m_DropPoint.position;
                 Vector3 from = to + new Vector3(Random.Range(-1f, 1f), 26f, Random.Range(-1f, 1f));
                 m_Drop.ServerDeliver(ids[dropped], from, to);
                 m_DroppedCount.Value = dropped + 1;
                 m_NextDropAllowedAt = Now + Config.StatueDropMinGapSeconds;
+                Debug.Log($"[경복궁] 사방신 석상 낙하 {dropped + 1}/4 ({kKindNames[dropped]}) — 진행도 {Net.ScorePercent:F0}%");
                 StatueDropFxRpc(to, dropped);
             }
 
