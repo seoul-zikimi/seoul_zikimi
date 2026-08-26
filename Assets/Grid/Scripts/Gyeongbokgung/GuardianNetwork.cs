@@ -120,15 +120,18 @@ namespace GridSystem
         {
             if (Loop == null || !Loop.IsBuilding) return;
 
-            // ① '건축 시간' 문턱 → 석상 낙하 (기획서: 건축 시간 10분의 20/30/45/60% 도달마다 = 2분/3분/4분30초/6분)
-            // 점수 진행도가 아니라 경과 시간 기준! 제한시간이 무제한(자유모드)이면 10분을 기준으로 삼는다.
+            // ① 석상 낙하 — 하이브리드: '건축 시간' 문턱(기획서 20/30/45/60%) OR '점수 진행도' 문턱, 먼저 오는 쪽.
+            // 빠른 팀은 진행도로 일찍 받고(스피드런 보상), 느린 팀도 시간이 하한을 보장(데스 스파이럴 방지).
+            // 제한시간이 무제한(자유모드)이면 10분을 기준으로 삼는다.
             int dropped = m_DroppedCount.Value;
             var percents = Config.StatueDropPercents;
+            var scorePercents = Config.StatueDropScorePercents;
             var ids = Config.StatueMaterialIds;
             float limit = Loop.TimeLimit;
             if (limit <= 0f || float.IsInfinity(limit)) limit = 600f;
-            if (dropped < Mathf.Min(percents.Length, ids.Length) &&
-                Loop.Elapsed >= limit * percents[dropped] * 0.01f && Now >= m_NextDropAllowedAt)
+            bool timeHit  = dropped < percents.Length && Loop.Elapsed >= limit * percents[dropped] * 0.01f;
+            bool scoreHit = dropped < scorePercents.Length && Net != null && Net.ScorePercent >= scorePercents[dropped];
+            if (dropped < ids.Length && (timeHit || scoreHit) && Now >= m_NextDropAllowedAt)
             {
                 if (m_Drop == null || m_DropPoint == null)
                 {
@@ -146,7 +149,7 @@ namespace GridSystem
                 m_Drop.ServerDeliver(ids[dropped], from, to);
                 m_DroppedCount.Value = dropped + 1;
                 m_NextDropAllowedAt = Now + Config.StatueDropMinGapSeconds;
-                Debug.Log($"[경복궁] 사방신 석상 낙하 {dropped + 1}/4 ({kKindNames[dropped]}) — 경과 {Loop.Elapsed:F0}초");
+                Debug.Log($"[경복궁] 사방신 석상 낙하 {dropped + 1}/4 ({kKindNames[dropped]}) — 경과 {Loop.Elapsed:F0}초, 진행도 {(Net != null ? Net.ScorePercent : 0f):F0}% ({(scoreHit ? "진행도" : "시간")} 문턱)");
                 StatueDropFxRpc(to, dropped);
             }
 

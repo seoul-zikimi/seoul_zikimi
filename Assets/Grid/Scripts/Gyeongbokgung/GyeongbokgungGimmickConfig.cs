@@ -42,6 +42,10 @@ namespace GridSystem
         [Tooltip("석상이 낙하하는 '건축 시간' 진행률(%) 문턱들 — 제한시간 기준. 기획: 20/30/45/60 (10분이면 2분/3분/4분30초/6분).")]
         public float[] StatueDropPercents = { 20f, 30f, 45f, 60f };
 
+        [Tooltip("석상 낙하의 '점수 진행도'(%) 문턱들 — 시간 문턱과 하이브리드: 둘 중 먼저 도달하는 쪽에 낙하.\n" +
+                 "빠른 팀은 진행도로 일찍 받고(스피드런 보상), 느린 팀도 시간이 하한을 보장(데스 스파이럴 방지).")]
+        public float[] StatueDropScorePercents = { 25f, 40f, 60f, 80f };
+
         [Tooltip("석상 재료 id (동=청룡, 서=백호, 남=주작, 북=현무 순). GyeongbokgungMapTool이 만드는 def와 일치해야 한다.")]
         public int[] StatueMaterialIds = { 50, 51, 52, 53 };
 
