@@ -115,8 +115,10 @@ namespace GridSystem
 
         private static void Play(ParticleSystem system)
         {
-            if (system != null)
-                system.Play(true);
+            if (system == null) return;
+            // 미리 채움 — 이미터가 9m 위라 안 채우면 켠 뒤 수 초(눈은 더) 동안 하늘이 비어 보인다
+            system.Simulate(Mathf.Min(system.main.startLifetime.constant, 10f), true, true);
+            system.Play(true);
         }
     }
 }

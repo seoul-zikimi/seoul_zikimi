@@ -140,8 +140,8 @@ namespace GridSystem
             if (body != null && !body.isKinematic)
                 body.AddForce(impulse, ForceMode.VelocityChange);
             // Player 어셈블리는 GridSystem을 참조하므로 역참조를 만들지 않는다.
-            // 공개 Stun(float) 계약을 메시지 경계로 호출해 어셈블리 의존 방향을 유지한다.
-            player.SendMessage("Stun", 0.8f, SendMessageOptions.DontRequireReceiver);
+            // 공개 StunSlip(float) 계약을 메시지 경계로 호출해 어셈블리 의존 방향을 유지한다.
+            player.SendMessage("StunSlip", 0.8f, SendMessageOptions.DontRequireReceiver);
         }
 
         private void OnEnvironmentChanged(bool previousValue, bool newValue) => ApplyVisualsAndNotify();

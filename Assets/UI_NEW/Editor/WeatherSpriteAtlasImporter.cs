@@ -49,7 +49,9 @@ namespace SeoulZikimi.UI.New.Editor
 
         private static void EnsureSprite(string path)
         {
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            // 무조건 ImportAsset을 먼저 부르면 리로드마다 12장 강제 임포트가 돌아
+            // "Asset Database is set to Read Only" / "assets queued up" 경고가 난다.
+            // 이미 임포트된 에셋은 GetAtPath로 충분 — 설정이 틀린 것만 재임포트한다.
             var importer = AssetImporter.GetAtPath(path) as TextureImporter;
             if (importer == null) return;
 
