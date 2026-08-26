@@ -7,9 +7,9 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 /// <summary>
-/// 최초 실행 인트로 — 상경 컷씬 슬라이드쇼(페이드 전환) + 초기 캐릭터 선택.
+/// 최초 실행 인트로 — 건축레인저 결성 컷씬 슬라이드쇼(페이드 전환) + 초기 캐릭터 선택.
 /// 완료 시 SaveService.IntroSeen 저장, 이후엔 다시 뜨지 않음(설정에서 재시청 없음 — 필요 시 IntroSeen 리셋).
-/// 소라게는 Resources/Characters/char_hermitcrab.prefab 이 생기면 자동으로 선택 가능해진다.
+/// 카드는 Resources/Characters/{id}.prefab 이 있을 때만 선택 가능(달팽이·거북이·소라게 모두 열려 있음).
 /// </summary>
 public sealed class IntroCutscene : MonoBehaviour
 {
@@ -22,14 +22,18 @@ public sealed class IntroCutscene : MonoBehaviour
 
     private static readonly Slide[] kSlides =
     {
-        new("UI_pngs/0.intro/Intro_1_Station",
-            "부푼 꿈을 안고 서울역에 도착한 삼총사.\n\"서울은... 뭔가 다르다!\""),
-        new("UI_pngs/0.intro/Intro_2_Street",
-            "서울의 동물들은 다들 으리으리한 등껍질을 뽐내고 있었다.\n\"우, 우리 등껍질이 초라해 보여...\""),
+        new("UI_pngs/0.intro/Intro_1_Disaster",
+            "어느 날, 원인불명의 재난이 서울을 덮쳤다.\n남산타워도, 광화문도, 서울역도... 와르르."),
         new("UI_pngs/0.intro/Intro_3_Poster",
-            "그때 눈에 들어온 공고 한 장.\n\"명소 복구 건축 인력 모집 — 보수 확실 보장!\""),
-        new("UI_pngs/0.intro/Intro_4_Dream",
-            "\"돈 모아서 우리도 으리으리한 등껍질 장만하자!\"\n셋은 그 자리에서 지원서를 냈다."),
+            "그때 거리에 나붙은 공고 한 장.\n[서울시 명소 재건 사업 긴급 인력 모집] 보수 확실 보장!"),
+        new("UI_pngs/0.intro/Intro_2_Shell",
+            "\"추락 시 다치지 않는 자 우대 (등껍질 보유자 등)\"\n\"...어? 우리 등껍질 있는데?\""),
+        new("UI_pngs/0.intro/Intro_4_Huddle",
+            "등껍질 삼총사, 그 자리에서 의기투합.\n\"우리가 서울을 다시 세운다!\""),
+        new("UI_pngs/0.intro/Intro_5_Rangers",
+            "그렇게 탄생한 자칭 히어로,\n건축레인저!"),
+        new("UI_pngs/0.intro/Intro_6_Work",
+            "...히어로도 땀은 흘려야 한다.\n보수는 확실하다니까, 일단 짓자!"),
     };
 
     private struct Pick
@@ -44,7 +48,7 @@ public sealed class IntroCutscene : MonoBehaviour
     {
         new("", "달팽이", "UI_pngs/0.intro/Select_default"),
         new("char_turtle", "거북이", "UI_pngs/0.intro/Select_char_turtle"),
-        new("char_hermitcrab", "소라게", "UI_pngs/0.intro/Select_char_hermitcrab"),
+        new("char_crab", "소라게", "UI_pngs/0.intro/Select_char_hermitcrab"),
     };
 
     private const float kFadeSeconds = 0.4f;
@@ -123,7 +127,7 @@ public sealed class IntroCutscene : MonoBehaviour
         if (advanceImage != null)
             advanceImage.color = new Color(0f, 0f, 0f, 0f);
 
-        var hint = JobsnailUiKit.Label("Hint", root, "클릭해서 계속  ▸", 20, new Color(1f, 1f, 1f, 0.65f), TextAlignmentOptions.BottomRight, Vector2.zero, Vector2.zero);
+        var hint = JobsnailUiKit.Label("Hint", root, "클릭해서 계속 >", 20, new Color(1f, 1f, 1f, 0.65f), TextAlignmentOptions.BottomRight, Vector2.zero, Vector2.zero);
         hint.raycastTarget = false;   // 클릭은 아래 AdvanceCatcher가 받도록
         var hintRt = hint.rectTransform;
         hintRt.anchorMin = new Vector2(0.72f, 0.005f);
@@ -135,7 +139,7 @@ public sealed class IntroCutscene : MonoBehaviour
         var skipImage = skip.GetComponent<Image>();
         if (skipImage != null)
             skipImage.color = new Color(0f, 0f, 0f, 0.35f);
-        JobsnailUiKit.Label("Label", skip.transform, "건너뛰기 ≫", 18, new Color(1f, 1f, 1f, 0.85f), TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
+        JobsnailUiKit.Label("Label", skip.transform, "건너뛰기 >>", 18, new Color(1f, 1f, 1f, 0.85f), TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
     }
 
     private void Update()
@@ -221,9 +225,9 @@ public sealed class IntroCutscene : MonoBehaviour
 
         JobsnailUiKit.Box("Backdrop", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.13f, 0.10f, 0.08f, 1f));
 
-        JobsnailUiKit.Label("Title", root, "함께할 파트너를 선택하세요!", 44, JobsnailUiKit.Cream, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero)
+        JobsnailUiKit.Label("Title", root, "첫 번째 레인저를 선택하세요!", 44, JobsnailUiKit.Cream, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero)
             .rectTransform.SetAnchors(new Vector2(0f, 0.84f), new Vector2(1f, 0.96f));
-        JobsnailUiKit.Label("SubTitle", root, "나머지 친구들은 나중에 마이페이지 옷장에서 코인으로 데려올 수 있어요.", 22, new Color(1f, 1f, 1f, 0.55f), TextAlignmentOptions.Center, Vector2.zero, Vector2.zero)
+        JobsnailUiKit.Label("SubTitle", root, "나머지 레인저는 보수를 모아 마이페이지 옷장에서 영입할 수 있어요.", 22, new Color(1f, 1f, 1f, 0.55f), TextAlignmentOptions.Center, Vector2.zero, Vector2.zero)
             .rectTransform.SetAnchors(new Vector2(0f, 0.79f), new Vector2(1f, 0.85f));
 
         m_CardFrames = new Image[kPicks.Length];
@@ -237,7 +241,7 @@ public sealed class IntroCutscene : MonoBehaviour
         m_ConfirmImage = m_ConfirmButton.GetComponent<Image>();
         if (m_ConfirmImage != null)
             m_ConfirmImage.color = JobsnailUiKit.SoftGray;
-        JobsnailUiKit.Label("Label", m_ConfirmButton.transform, "이 친구와 시작하기!", 26, JobsnailUiKit.Brown, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
+        JobsnailUiKit.Label("Label", m_ConfirmButton.transform, "이 레인저로 출동!", 26, JobsnailUiKit.Brown, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
         m_ConfirmButton.interactable = false;
 
         JuicyButton.AttachAll(gameObject);

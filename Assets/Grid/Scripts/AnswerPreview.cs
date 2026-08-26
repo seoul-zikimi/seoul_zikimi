@@ -166,10 +166,12 @@ namespace GridSystem
             camGO.transform.SetParent(m_Root.transform, true);
             m_Cam = camGO.AddComponent<Camera>();
             m_Cam.targetTexture = m_RT;
-            m_Cam.clearFlags = CameraClearFlags.SolidColor;
-            m_Cam.backgroundColor = new Color(0.08f, 0.09f, 0.12f, 1f);
+            // 배경: 검정 단색 대신 맵과 같은 하늘(씬 스카이박스) + 모델 밑 잔디 바닥 — 폰 화면이 어둡지 않게
+            m_Cam.clearFlags = CameraClearFlags.Skybox;
+            m_Cam.backgroundColor = new Color(0.62f, 0.78f, 0.92f, 1f);   // 스카이박스 없을 때 폴백 하늘색
             m_Cam.fieldOfView = 40f;
             float radius = Mathf.Max(1.5f, b.extents.magnitude + 1f);
+            MakeGround(b, radius);
             Vector3 dir = new Vector3(0.8f, 0.9f, -0.8f).normalized;   // 기준 쿼터뷰 방향
             m_PivotCenter = b.center;
             m_HomeCenter = b.center;
@@ -190,6 +192,28 @@ namespace GridSystem
 
             m_Built = true;
             Ready?.Invoke(this);   // RT 준비됨 → HUD가 RawImage.texture 갱신
+        }
+
+        // 미니씬 바닥(잔디 톤 평면) — 모델 바운드 바닥 높이에 깔고 줌 한계보다 넉넉히 넓게
+        private void MakeGround(Bounds b, float radius)
+        {
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            ground.name = "~AnswerGround";
+            ground.transform.SetParent(m_Root.transform, true);
+            ground.transform.position = new Vector3(b.center.x, b.min.y - 0.02f, b.center.z);
+            ground.transform.localScale = Vector3.one * Mathf.Max(2f, radius * 1.6f);   // Plane 원형 10유닛
+            var col = ground.GetComponent<Collider>();
+            if (col != null) Destroy(col);                                               // 픽킹은 바운드 기반 — 콜라이더 불필요
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader != null)
+            {
+                var mat = new Material(shader);
+                var grass = new Color(0.60f, 0.76f, 0.44f, 1f);
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", grass);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", grass);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f);
+                ground.GetComponent<Renderer>().sharedMaterial = mat;
+            }
         }
 
         // ── HUD 브리지(Assembly-CSharp 드라이버가 구독) ──

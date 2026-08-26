@@ -63,6 +63,7 @@ namespace SeoulZikimi.UI.New
         public event Action<string> TextChatRequested;
         public event Action<int> TeamRequested;
         public event Action<int> MapRequested;
+        public event Action<int> MapStepRequested;   // 맵 좌우 화살표(-1 / +1)
         public event Action<int> ModeRequested;
         public event Action WeatherRequested;
 
@@ -92,7 +93,8 @@ namespace SeoulZikimi.UI.New
             mapSelector?.onClick.AddListener(() => ToggleOptions(mapOptionsRoot, modeOptionsRoot));
             modeSelector?.onClick.AddListener(() => ToggleOptions(modeOptionsRoot, mapOptionsRoot));
             weatherToggle?.onClick.AddListener(() => WeatherRequested?.Invoke());
-            BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다
+            BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다(바인딩도 여기서)
+            BuildMapArrows();
             BindOptions(modeOptionButtons, index => ModeRequested?.Invoke(index), modeOptionsRoot);
         }
 
@@ -184,8 +186,40 @@ namespace SeoulZikimi.UI.New
                 bestRecordValue.text = string.IsNullOrWhiteSpace(value) ? "없음" : value;
         }
 
+        private Button mapPrevArrow, mapNextArrow;
+
+        // 맵 썸네일 좌우 화살표(피그마 '맵 화살표' 18x56) — 드롭다운 없이 이전/다음 맵으로. 방장만 보인다.
+        private void BuildMapArrows()
+        {
+            if (mapThumbnail == null) return;
+            mapPrevArrow = MakeArrow("MapArrow_L", "UI_NEW/02_세션 화면/맵 화살표 왼쪽", new Vector2(0f, 0.5f), new Vector2(-24f, 0f), -1);
+            mapNextArrow = MakeArrow("MapArrow_R", "UI_NEW/02_세션 화면/맵 화살표 오른쪽", new Vector2(1f, 0.5f), new Vector2(24f, 0f), +1);
+        }
+
+        private Button MakeArrow(string name, string spritePath, Vector2 anchor, Vector2 offset, int step)
+        {
+            var sprite = Resources.Load<Sprite>(spritePath);
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(mapThumbnail.transform, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = offset;
+            rt.sizeDelta = sprite != null ? new Vector2(sprite.rect.width, sprite.rect.height) : new Vector2(18f, 56f);
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.preserveAspect = true;
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() => { mapOptionsRoot?.SetActive(false); MapStepRequested?.Invoke(step); });
+            JuicyButton.Attach(btn);
+            return btn;
+        }
+
         public void SetSettings(string mapName, string modeName, Sprite thumbnail, bool weatherOn, bool editable)
         {
+            if (mapPrevArrow != null) mapPrevArrow.gameObject.SetActive(editable);
+            if (mapNextArrow != null) mapNextArrow.gameObject.SetActive(editable);
             if (mapValue != null) mapValue.text = mapName ?? string.Empty;
             if (modeValue != null) modeValue.text = modeName ?? string.Empty;
             if (mapThumbnail != null)

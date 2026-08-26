@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1805941011798658281
+--- !u!1 &4839212386684770160
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,60 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2055090084248113307}
-  - component: {fileID: 8326608497057280531}
-  m_Layer: 0
-  m_Name: skin_hairband_poop_turtle
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2055090084248113307
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1805941011798658281}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 4280803862345583802}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8326608497057280531
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1805941011798658281}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
-  DisplayName: "\uB625 \uBA38\uB9AC\uB760"
-  Price: 400
-  TargetCharacter: char_turtle
-  Thumbnail: {fileID: 0}
-  ScaleMargin: 1.06
---- !u!1 &7441631855370560837
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4280803862345583802}
-  - component: {fileID: 7517127968941427085}
-  - component: {fileID: 1710214569010460167}
-  - component: {fileID: 1917218658205225673}
+  - component: {fileID: 3924561603679625578}
+  - component: {fileID: 4571110484643014606}
+  - component: {fileID: 6520106440933115159}
+  - component: {fileID: 1505995142549000287}
   m_Layer: 0
   m_Name: Item_skin_hairband_poop_turtle
   m_TagString: Untagged
@@ -69,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4280803862345583802
+--- !u!4 &3924561603679625578
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7441631855370560837}
+  m_GameObject: {fileID: 4839212386684770160}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.0010983115, y: -0.017673803, z: 0.024366966, w: 0.99954623}
-  m_LocalPosition: {x: -0.011, y: 0.325, z: 0}
-  m_LocalScale: {x: 0.62495035, y: 0.62495035, z: 0.6249505}
+  m_LocalRotation: {x: 0.0010982372, y: -0.017673813, z: 0.02436696, w: 0.9995463}
+  m_LocalPosition: {x: -0.007, y: 0.453, z: -0}
+  m_LocalScale: {x: 0.87330425, y: 0.8733042, z: 0.87330467}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2055090084248113307}
+  m_Father: {fileID: 4925816200802431840}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &7517127968941427085
+--- !u!33 &4571110484643014606
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7441631855370560837}
+  m_GameObject: {fileID: 4839212386684770160}
   m_Mesh: {fileID: -1901923605265949594, guid: b7dcdc632b6e7de46a0e2b6001e6c96a, type: 3}
---- !u!23 &1710214569010460167
+--- !u!23 &6520106440933115159
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7441631855370560837}
+  m_GameObject: {fileID: 4839212386684770160}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -141,20 +91,70 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1917218658205225673
+--- !u!114 &1505995142549000287
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7441631855370560837}
+  m_GameObject: {fileID: 4839212386684770160}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c31b2a9e0d54f2f8b6a1c9d3e5f7a20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfitPiece
   BoneName: mixamorig:Head
-  BonePos: {x: -0.010999971, y: 0.3250001, z: -0.0000000068053208}
-  BoneRot: {x: 0.0010983034, y: -0.017673811, z: 0.02436697, w: 0.9995467}
-  WorldScale: {x: 0.62495035, y: 0.6249503, z: 0.6249505}
+  BonePos: {x: -0.0070000375, y: 0.45299998, z: 0.00000007737122}
+  BoneRot: {x: 0.0010982824, y: -0.01767381, z: 0.024366964, w: 0.9995465}
+  WorldScale: {x: 0.8733041, y: 0.87330407, z: 0.87330455}
   Version: 3
+--- !u!1 &5845410231794692429
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4925816200802431840}
+  - component: {fileID: 2597153621687531680}
+  m_Layer: 0
+  m_Name: skin_hairband_poop_turtle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4925816200802431840
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5845410231794692429}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3924561603679625578}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2597153621687531680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5845410231794692429}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 114a59294355b324f940d0c7e99fd6a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
+  DisplayName: "\uB625 \uBA38\uB9AC\uB760"
+  Price: 400
+  TargetCharacter: char_turtle
+  Thumbnail: {fileID: 0}
+  ScaleMargin: 1.06

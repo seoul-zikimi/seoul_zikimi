@@ -133,10 +133,22 @@ namespace GridSystem
             if (s_Instance == this) s_Instance = null;
         }
 
+        private GridManager m_GridForArea;
         private void Update()
         {
-            if (m_Rig != null)
-                m_Rig.Follow(Camera.main);
+            if (m_Rig == null) return;
+            // 그리드가 있으면 맵 전체(그리드+여백)에 내리게, 없으면(테스트 씬) 카메라 앞
+            if (m_GridForArea == null) m_GridForArea = FindFirstObjectByType<GridManager>();
+            if (m_GridForArea != null)
+            {
+                Vector3Int size = m_GridForArea.EffectiveSize;
+                Vector3 o = GridContract.Origin;
+                const float margin = 10f;
+                var area = new Bounds(new Vector3(o.x + size.x * 0.5f, o.y + size.y * 0.5f, o.z + size.z * 0.5f),
+                                      new Vector3(size.x + margin * 2f, size.y, size.z + margin * 2f));
+                m_Rig.CoverArea(area);
+            }
+            else m_Rig.Follow(Camera.main);
         }
     }
 }

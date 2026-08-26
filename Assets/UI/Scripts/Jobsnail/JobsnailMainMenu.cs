@@ -68,7 +68,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
 
         JobsnailUiKit.CoverFill(JobsnailUiKit.Image("Main_BG", root, JobsnailUiKit.Sprite("UI_pngs/1.main/Main_BG")));   // 화면 꽉 채움(레터박스 X)
 
-        var logo = JobsnailUiKit.Rect("Logo", root, new Vector2(0.08f, 0.76f), new Vector2(0.38f, 0.96f), Vector2.zero, Vector2.zero);
+        var logo = JobsnailUiKit.Rect("Logo", root, new Vector2(0.05f, 0.70f), new Vector2(0.45f, 0.985f), Vector2.zero, Vector2.zero);   // 새 로고(건축레인저 : 서울) — 더 큼직하게
         var logoImage = logo.gameObject.AddComponent<Image>();
         logoImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/Logo");
         logoImage.preserveAspect = true;

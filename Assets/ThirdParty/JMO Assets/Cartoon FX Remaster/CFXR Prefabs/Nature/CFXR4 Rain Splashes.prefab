@@ -9619,7 +9619,7 @@ MonoBehaviour:
   fadeOutReference: {fileID: 0}
 --- !u!114 &1172081452124834318
 MonoBehaviour:
-  m_ObjectHideFlags: 16
+  m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}

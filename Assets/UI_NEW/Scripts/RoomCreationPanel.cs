@@ -36,6 +36,11 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private Button[] mapOptionButtons;
         [SerializeField] private Button[] modeOptionButtons;
 
+        // 방 이름 비워두고 만들면 쓰는 기본 이름(플레이스홀더에도 표시) — 열 때마다 랜덤
+        private static readonly string[] DefaultNameAdjectives = { "튼튼한", "성실한", "느긋한", "야무진", "든든한", "부지런한", "씩씩한", "꼼꼼한" };
+        private static readonly string[] DefaultNameNouns = { "소라게", "달팽이", "거북이", "개미", "비버", "두더지", "딱따구리", "일개미" };
+        private string defaultRoomName = "";
+
         private static readonly string[] MapFallbacks = { "(001) 광통교", "(002) 남산타워", "(003) 서울광장" };
         private static readonly string[] Modes = { "타임어택 모드", "대전 모드(아이템전)", "대전 모드", "자유 건축 모드" };
 
@@ -85,6 +90,8 @@ namespace SeoulZikimi.UI.New
         private void ResetForm()
         {
             roomNameInput.text = string.Empty;
+            defaultRoomName = $"{DefaultNameAdjectives[UnityEngine.Random.Range(0, DefaultNameAdjectives.Length)]} {DefaultNameNouns[UnityEngine.Random.Range(0, DefaultNameNouns.Length)]} 구합니다";
+            if (roomNameInput.placeholder is Text placeholder) placeholder.text = defaultRoomName;
             passwordInput.text = string.Empty;
             mapIndex = mapCatalogIndices.Count > 0 ? mapCatalogIndices[0] : 0;   // 첫 선택 가능 맵(공터 제외)
             modeIndex = 0;
@@ -179,8 +186,8 @@ namespace SeoulZikimi.UI.New
 
         private void RefreshValidation()
         {
-            submitButton.interactable = !string.IsNullOrWhiteSpace(roomNameInput.text)
-                && (visibility == RoomVisibility.Public || !string.IsNullOrWhiteSpace(passwordInput.text));
+            // 방 이름은 비워도 됨(기본 이름 사용) — 비밀방만 비밀번호 필수
+            submitButton.interactable = visibility == RoomVisibility.Public || !string.IsNullOrWhiteSpace(passwordInput.text);
         }
 
         private void Submit()
@@ -188,7 +195,8 @@ namespace SeoulZikimi.UI.New
             if (!submitButton.interactable)
                 return;
 
-            CreateRequested?.Invoke(new CreateRoomRequest(roomNameInput.text.Trim(), visibility, passwordInput.text, mapIndex, modeIndex, weatherEnabled));
+            string roomName = string.IsNullOrWhiteSpace(roomNameInput.text) ? defaultRoomName : roomNameInput.text.Trim();
+            CreateRequested?.Invoke(new CreateRoomRequest(roomName, visibility, passwordInput.text, mapIndex, modeIndex, weatherEnabled));
         }
 
         public void CompleteCreation() => router.Show(UiNewScreen.Lobby);

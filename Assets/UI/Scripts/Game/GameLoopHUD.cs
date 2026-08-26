@@ -17,7 +17,7 @@ using UnityEngine.UI;
 public sealed class GameLoopHUD : UIHUD
 {
     private enum GOs { TopBar, EndRequestCluster, InGameSettingsPopup, ResultPanel, StartBanner, StarRow }
-    private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast, CoinReward }
+    private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast, CoinReward, ReceiptNo, IssueDate }
     private enum Imgs { P0, P1, P2, P3, GradeStar0, GradeStar1, GradeStar2, GradeStamp }
     private enum Raws { ResultImage }
     private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
@@ -44,6 +44,7 @@ public sealed class GameLoopHUD : UIHUD
     private bool m_CraneViewing;      // true = 정산서 숨기고 크레인샷 보는 중
     private Button m_CraneToggleBtn;  // 정산서↔크레인샷 토글(프리팹 바인딩, 정산 중에만 표시)
     private Sprite m_EndBaked, m_EndBlank;   // 종료 요청 버튼 스프라이트(텍스트 구움 / 빈 흰색)
+    private string m_VersusLine;             // 2vs2 정산 승패 한 줄(업무결과 칸)
 
     // ── 부트스트랩: GameScene 진입 시 프리팹 HUD 표시 ──
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -141,6 +142,8 @@ public sealed class GameLoopHUD : UIHUD
         if (m_ResultPanel != null) m_ResultPanel.SetActive(false);
         if (m_StartBanner != null) m_StartBanner.SetActive(false);
 
+        EmphasizeTimer();
+
         // 텍스트 애니메이터: 큰 순간 텍스트만 예쁘게(글자별 물결·흔들)
         AddJuicyText(m_ResultGradeText, 5f, 4.5f, 0.45f, 8f);                 // 등급(EXCELLENT! 등)
         AddJuicyText(m_StartBanner != null ? m_StartBanner.GetComponent<TextMeshProUGUI>() : null, 6f, 5f, 0.4f, 6f); // 배너(완성!!/공사 시작!)
@@ -152,6 +155,25 @@ public sealed class GameLoopHUD : UIHUD
 
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
+    }
+
+    // 타이머 강조: 글자 주변에 부드러운 흰 빛 번짐(Underlay 를 halo 로) — 유리 알약 배경(프리팹) 위에서 은은하게 빛나게
+    private void EmphasizeTimer()
+    {
+        if (m_TimerText == null) return;
+        var mat = m_TimerText.fontMaterial;   // 공유 머티리얼 복제(이 HUD 전용)
+        mat.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+        mat.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(1f, 1f, 1f, 0.55f));
+        mat.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, 0f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.5f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.8f);
+        // 밝은 배경(눈·하늘)에서 흰 halo 가 묻히지 않게 얇은 어두운 테두리 한 겹(대비용). 빼려면 이 두 줄 → DisableKeyword.
+        mat.EnableKeyword(ShaderUtilities.Keyword_Outline);
+        mat.SetColor(ShaderUtilities.ID_OutlineColor, new Color(0.15f, 0.12f, 0.10f, 0.55f));
+        mat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.09f);
+        mat.SetFloat(ShaderUtilities.ID_FaceDilate, 0.05f);
+        m_TimerText.UpdateMeshPadding();
     }
 
     // 텍스트 애니메이터 부착(중복 방지) — 큰 순간 TMP만 글자별 물결·흔들
@@ -410,6 +432,13 @@ public sealed class GameLoopHUD : UIHUD
             if (m_CoinRewardText != null)
                 m_CoinRewardText.text = (newBest ? "신기록!  " : "") + $"+{coins}코인  (보유 {SaveService.Coins}코인)";
 
+            // 영수증 메타(정산번호 'JKM-' 뒤 / 발행 일자) — 리마스터 배경 칸
+            var now = System.DateTime.Now;
+            var receiptNo = Get<TextMeshProUGUI>((int)Texts.ReceiptNo);
+            if (receiptNo != null) receiptNo.text = UnityEngine.Random.Range(100000, 1000000).ToString();   // 6자리 난수(칸 좁아 한 줄)
+            var issueDate = Get<TextMeshProUGUI>((int)Texts.IssueDate);
+            if (issueDate != null) issueDate.text = now.ToString("yyyy.MM.dd");
+
             // 2vs2: 내 팀 기준 승/패를 맵별 전적에 기록(무승부 제외). 키는 로비 전적 표시와 동일하게 맵 DisplayName.
             if (versus && m_Loop.WinnerTeam >= 0)
             {
@@ -435,9 +464,10 @@ public sealed class GameLoopHUD : UIHUD
                 int enemyPct = Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent);
                 int w = m_Loop.WinnerTeam;
                 string verdict = w == -1 ? "무승부 (DRAW)" : (w == myTeam ? "승리!" : "패배...");   // 폰트가 한글/ASCII만 지원 — 이모지 금지
-                m_ResultScoreText.text = $"{verdict}\n우리 팀 {pct}%  :  상대 팀 {enemyPct}%";
+                m_VersusLine = $"{verdict}  우리 {pct}% : 상대 {enemyPct}%";
             }
-            else m_ResultScoreText.text = $"건축 {pct} % 완료";   // 인트로 중엔 코루틴이 숫자 담당
+            else m_VersusLine = null;
+            m_ResultScoreText.text = pct.ToString();   // '건축 완료율 [  ]%' — 숫자만(라벨·%는 배경). 인트로 중엔 코루틴이 숫자 담당
         }
 
         if (m_ResultStructText != null)
@@ -449,7 +479,7 @@ public sealed class GameLoopHUD : UIHUD
         if (m_ResultTimeText != null)
         {
             int e = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
-            m_ResultTimeText.text = $"소요시간     {e / 60} : {e % 60:00}";
+            m_ResultTimeText.text = $"{e / 60} : {e % 60:00}";   // 라벨은 영수증 배경이 담당 — 숫자만
 
             // DDP 유구 발굴 보너스 — 그 맵에서 유물을 캤을 때만 한 줄 덧붙인다.
             // (전용 텍스트 슬롯을 만들면 결과 패널 프리팹을 건드려야 해서 여기 붙였다)
@@ -469,14 +499,22 @@ public sealed class GameLoopHUD : UIHUD
 
         if (m_ResultGradeText != null)
         {
-            bool useStamp = pct >= 90 && m_ResultGradeImage != null && m_ResultGradeImage.sprite != null;
-            if (m_ResultGradeImage != null) m_ResultGradeImage.gameObject.SetActive(useStamp);
-            m_ResultGradeText.gameObject.SetActive(!useStamp);
+            // 도장: 완성도별 3종(EXCELLENT ≥90 / GOOD JOB ≥50 / TRY AGAIN). 스프라이트 없으면 글자 폴백.
+            var stampSprite = InGameUiSkin.Load(pct >= 90 ? "Stamp_Excellent" : pct >= 50 ? "Stamp_GoodJob" : "Stamp_TryAgain");
+            bool useStamp = stampSprite != null && m_ResultGradeImage != null;
+            if (m_ResultGradeImage != null)
+            {
+                if (useStamp) m_ResultGradeImage.sprite = stampSprite;
+                m_ResultGradeImage.gameObject.SetActive(useStamp);
+            }
 
-            if (pct >= 90) { m_ResultGradeText.text = "EXCELLENT!"; m_ResultGradeText.color = new Color(0.85f, 0.15f, 0.12f, 1f); }
-            else if (pct >= 70) { m_ResultGradeText.text = "GREAT!"; m_ResultGradeText.color = new Color(0.90f, 0.45f, 0.10f, 1f); }
-            else if (pct >= 50) { m_ResultGradeText.text = "GOOD!"; m_ResultGradeText.color = new Color(0.30f, 0.55f, 0.85f, 1f); }
+            // '업무결과' 칸: 2vs2 는 승패 한 줄, 협동은 도장이 말해주니 비움(도장 없을 때만 등급 글자)
+            if (!string.IsNullOrEmpty(m_VersusLine)) { m_ResultGradeText.text = m_VersusLine; m_ResultGradeText.color = new Color(0.27f, 0.22f, 0.18f, 1f); }
+            else if (useStamp) m_ResultGradeText.text = "";
+            else if (pct >= 90) { m_ResultGradeText.text = "EXCELLENT!"; m_ResultGradeText.color = new Color(0.85f, 0.15f, 0.12f, 1f); }
+            else if (pct >= 50) { m_ResultGradeText.text = "GOOD JOB!"; m_ResultGradeText.color = new Color(0.90f, 0.45f, 0.10f, 1f); }
             else { m_ResultGradeText.text = "TRY AGAIN"; m_ResultGradeText.color = new Color(0.45f, 0.40f, 0.35f, 1f); }
+            m_ResultGradeText.gameObject.SetActive(true);
         }
 
         // 완성도별 별점 채움(개수 = StarCount). 인트로가 팝 애니메이션 담당.
@@ -499,7 +537,7 @@ public sealed class GameLoopHUD : UIHUD
         if (stamp != null) stamp.localScale = Vector3.zero;
         if (m_ResultStars != null)                            // 별 전부 숨김(아래서 하나씩 팝)
             foreach (var s in m_ResultStars) if (s != null) s.rectTransform.localScale = Vector3.zero;
-        if (m_ResultScoreText != null) m_ResultScoreText.text = "건축 0 % 완료";
+        if (m_ResultScoreText != null) m_ResultScoreText.text = "0";
 
         float t = 0f; const float dur = 0.55f;
         while (t < dur)
@@ -507,10 +545,10 @@ public sealed class GameLoopHUD : UIHUD
             t += Time.unscaledDeltaTime;
             float k = Mathf.Clamp01(t / dur);
             int cur = Mathf.RoundToInt(Mathf.Lerp(0f, pct, 1f - (1f - k) * (1f - k)));   // ease-out
-            if (m_ResultScoreText != null) m_ResultScoreText.text = $"건축 {cur} % 완료";
+            if (m_ResultScoreText != null) m_ResultScoreText.text = cur.ToString();
             yield return null;
         }
-        if (m_ResultScoreText != null) m_ResultScoreText.text = $"건축 {pct} % 완료";
+        if (m_ResultScoreText != null) m_ResultScoreText.text = pct.ToString();
 
         if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
         float t2 = 0f; const float dur2 = 0.28f;

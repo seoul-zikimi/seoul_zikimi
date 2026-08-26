@@ -20,3 +20,4 @@ MonoBehaviour:
   m_Walkable: 0
   m_IsBreakable: 0
   m_MaxSpawnCount: 4
+  m_IsHeavy: 1

@@ -36,7 +36,7 @@ public class CarryHudUI : UIHUD
     public void PopHint()
     {
         var hint = Get<GameObject>((int)GOs.HintPanel);
-        if (hint != null) GridSystem.GridJuice.Squish(hint, 0.05f);
+        if (hint != null && hint.activeInHierarchy) GridSystem.GridJuice.Squish(hint, 0.05f);   // 리마스터에선 패널 숨김 → 스킵
     }
 
     /// <summary>E 공정 로딩바. screenPos = 스크린 픽셀 좌표(Overlay 캔버스라 그대로 대입).</summary>

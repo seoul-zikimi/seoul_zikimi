@@ -13,7 +13,7 @@ public static class CarryHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/CarryHudUI.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "RemasterMarker";
+    public const string kRemasterMarker = "RemasterMarker_v14";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate CarryHud Prefab")]
     public static void Generate()
@@ -25,15 +25,16 @@ public static class CarryHudPrefabGenerator
         root.AddComponent<CarryHudUI>();
 
         // ── 좌상단 조작법/상태 패널 ──
-        // 리마스터: 조작법은 ControlsTooltipHUD(피그마 18,26 435x166)가 맡고, 여기는 툴팁 바로 아래 상황 힌트 한 줄만.
-        var hint = Panel("HintPanel", root.transform, new Color(0f, 0f, 0f, 0.45f));
-        InGameUiSkin.TopLeft((RectTransform)hint.transform, 18, 200, 435, 26);
-        var hintText = MakeText("HintText", hint.transform, 16, TextAnchor.MiddleLeft);
+        // 리마스터: 조작법은 ControlsTooltipHUD 가 맡고, 여기는 타이머 바로 아래(상단 중앙) 상황 힌트 한 줄만.
+        var hint = Panel("HintPanel", root.transform, new Color(0f, 0f, 0f, 0.35f));
+        InGameUiSkin.TopCenter((RectTransform)hint.transform, 669 - 260, 92, 520, 26);
+        var hintText = MakeText("HintText", hint.transform, 16, TextAnchor.MiddleCenter);
         hintText.rectTransform.anchorMin = Vector2.zero;
         hintText.rectTransform.anchorMax = Vector2.one;
         hintText.rectTransform.offsetMin = new Vector2(8f, 6f);
         hintText.rectTransform.offsetMax = new Vector2(-8f, -6f);
         hintText.horizontalOverflow = HorizontalWrapMode.Wrap;   // 패널 안에서 줄바꿈(밖으로 안 삐져나감)
+        hint.SetActive(false);   // 상황 힌트 줄은 안 쓰기로(2026-08-23) — 바인딩 유지용으로 노드만 남김
 
         // ── E 공정 / Z 되돌리기 로딩바(위치는 런타임에 스크린 좌표로 지정) ──
         MakeBar("ProcessBar", root.transform, new Color(0.35f, 0.60f, 1.00f));

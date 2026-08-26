@@ -789,6 +789,14 @@ namespace GridSystem
             // 단 자유 형상(잘라낸 곡면 조각)은 자동 보정을 끈다 — 조각이 제멋대로 돌아가 곡면이 어긋난다.
             GridFootprint.PlaceRotatedPrefab(go, GridCoordinates.CellToWorld(minCell), def.Footprint, rot, u,
                                              autoYaw: !def.FreeformVisual);
+            // 평평한 윗면(Walkable)엔 날씨 덮개(눈/웅덩이)를 자식으로 — 블록과 같이 생기고 사라진다
+            if (def.Walkable)
+            {
+                bool swap = (rot & 1) == 1;
+                float fx = (swap ? def.Footprint.z : def.Footprint.x) * u, fz = (swap ? def.Footprint.x : def.Footprint.z) * u;
+                Vector3 top = GridCoordinates.CellToWorld(minCell) + new Vector3(fx * 0.5f, def.Footprint.y * u, fz * 0.5f);
+                WeatherGroundFx.DecorateBlockTop(go, top, new Vector2(fx, fz));
+            }
             // 물리는 ~Solid가 담당 → 프리팹 콜라이더 제거. 단, 카메라 시야가림 페이드(CameraObstructionFader)가
             // 잡을 수 있게 렌더러마다 메시 AABB 트리거 콜라이더를 부여(트리거라 충돌·지지·집기 레이엔 안 걸림).
             foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>건축 레인저: 서울</title>
+<meta name="description" content="등껍질 삼총사가 서울의 무너진 명소를 복구하는 1~4인 협동 건축 게임.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --cream:#FFF6E6; --cream-2:#FBE9C8; --clay:#E9C79A;
+  --navy:#1B2340; --navy-2:#232C4F; --ink:#2A2216; --ink-soft:#6B5A40;
+  --helmet:#F5B400; --helmet-deep:#D99A00; --dancheong:#2F7D5B; --coral:#FF7A59;
+  --display:'Jua','Noto Sans KR',sans-serif;
+  --body:'Noto Sans KR',system-ui,-apple-system,'Malgun Gothic',sans-serif;
+  --mono:'IBM Plex Mono','Consolas',monospace;
+  --tape:repeating-linear-gradient(135deg,var(--helmet) 0 18px,var(--ink) 18px 36px);
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{word-break:keep-all;font-family:var(--body);color:var(--ink);background:var(--cream);line-height:1.65;overflow-x:hidden}
+img,video{max-width:100%;display:block}
+a{color:inherit}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.15;text-wrap:balance}
+.wrap{width:min(1180px,calc(100% - 48px));margin-inline:auto}
+.eyebrow{font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dancheong)}
+.dark .eyebrow{color:var(--helmet)}
+section{padding:88px 0}
+.sec-head{max-width:720px;margin-bottom:40px}
+.sec-head h2{font-size:clamp(2rem,4.5vw,3rem);margin:.35em 0 .3em}
+.sec-head p{color:var(--ink-soft);font-size:1.05rem}
+.dark{background:var(--navy);color:#F4EEDF}
+.dark .sec-head p{color:#C9C2B0}
+.tape{height:14px;background:var(--tape)}
+:focus-visible{outline:3px solid var(--helmet);outline-offset:3px}
+.cap{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;color:var(--ink-soft)}
+.dark .cap{color:#A8A191}
+
+nav{position:sticky;top:0;z-index:20;background:rgba(27,35,64,.85);backdrop-filter:blur(10px);color:#fff}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+nav .brand{font-family:var(--display);font-size:1.25rem;display:flex;align-items:center;gap:10px;text-decoration:none}
+nav .brand i{width:14px;height:14px;border-radius:50%;background:var(--helmet);display:inline-block}
+nav ul{display:flex;gap:26px;list-style:none;font-size:.92rem;font-weight:500}
+nav ul a{text-decoration:none;opacity:.85}
+nav ul a:hover{opacity:1;color:var(--helmet)}
+@media(max-width:720px){nav ul{display:none}}
+
+/* HERO */
+.hero{position:relative;min-height:clamp(560px,100svh,900px);display:grid;place-items:end start;color:#fff;overflow:hidden;padding:0}
+.hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,35,64,.05) 25%,rgba(27,35,64,.9) 100%)}
+.hero .wrap{position:relative;z-index:1;padding:120px 0 200px}
+.hero .badge{display:inline-flex;gap:8px;align-items:center;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);padding:6px 14px;border-radius:999px;font-size:.82rem;font-weight:500;backdrop-filter:blur(6px)}
+.hero h1{font-size:clamp(3.2rem,9vw,7.2rem);line-height:1;margin:18px 0 8px;text-shadow:0 6px 30px rgba(0,0,0,.35)}
+.hero h1 .seoul{color:var(--helmet);display:block;font-size:.62em;letter-spacing:.04em}
+.hero .lead{max-width:34ch;font-size:clamp(1.05rem,1.6vw,1.3rem);text-shadow:0 2px 12px rgba(0,0,0,.4);margin-bottom:28px}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--display);font-size:1.15rem;padding:14px 28px;border-radius:999px;text-decoration:none;display:inline-flex;align-items:center;gap:10px;transition:transform .15s,box-shadow .15s}
+.btn.primary{background:var(--helmet);color:var(--ink);box-shadow:0 8px 0 var(--helmet-deep)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 10px 0 var(--helmet-deep)}
+.btn.ghost{border:2px solid rgba(255,255,255,.6);color:#fff}
+.btn.ghost:hover{background:rgba(255,255,255,.12)}
+
+/* VIDEO */
+.trailer{padding:0;background:var(--navy);position:relative}
+.trailer .frame{position:relative;width:min(1180px,100%);margin:-120px auto 0;z-index:2;border-radius:var(--r);overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45);border:4px solid var(--ink);background:#000}
+.trailer video{width:100%;aspect-ratio:16/9;object-fit:cover}
+.trailer .play{position:absolute;inset:0;display:grid;place-items:center;background:rgba(27,35,64,.25);pointer-events:none}
+.trailer .play span{display:grid;place-items:center;width:96px;height:96px;border-radius:50%;background:var(--helmet);color:var(--ink);font-size:2.2rem;box-shadow:0 8px 0 var(--helmet-deep)}
+.trailer .soon{position:absolute;left:20px;bottom:20px;background:var(--ink);color:var(--helmet);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;padding:6px 12px;border-radius:8px}
+.trailer .pad{height:120px}
+@media(max-width:760px){.hero .wrap{padding-bottom:110px}.trailer .frame{margin-top:-40px;border-radius:0;border-width:0}.trailer .pad{height:48px}}
+
+/* MOSAIC */
+.mosaic{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:190px;gap:14px}
+.shot{position:relative;border-radius:18px;overflow:hidden;background:var(--navy-2);box-shadow:0 10px 30px rgba(42,34,22,.1)}
+.shot img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.shot:hover img{transform:scale(1.04)}
+.shot .lbl{position:absolute;left:0;right:0;bottom:0;padding:34px 16px 14px;background:linear-gradient(0deg,rgba(27,35,64,.85),transparent);color:#fff;font-family:var(--display);font-size:1.1rem;line-height:1.2}
+.shot .lbl small{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;opacity:.8;margin-top:2px}
+.s-a{grid-column:span 4;grid-row:span 2}
+.s-b{grid-column:span 2;grid-row:span 1}
+.s-c{grid-column:span 2;grid-row:span 1}
+.s-d{grid-column:span 2;grid-row:span 1}
+.s-e{grid-column:span 2;grid-row:span 1}
+.s-f{grid-column:span 2;grid-row:span 1}
+@media(max-width:900px){.mosaic{grid-template-columns:repeat(2,1fr);grid-auto-rows:170px}.mosaic .shot{grid-column:span 2;grid-row:span 1}.s-a{grid-row:span 2}}
+
+/* LOOP — compact */
+.loop-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;counter-reset:s}
+.lp{background:#fff;border:1px solid #F0E2C4;border-radius:16px;padding:18px 16px;text-align:center;position:relative}
+.lp::before{counter-increment:s;content:counter(s,decimal-leading-zero);font-family:var(--mono);font-size:.7rem;color:var(--coral);letter-spacing:.1em;display:block}
+.lp .ic{font-size:2.2rem;line-height:1;margin:6px 0}
+.lp h3{font-size:1.3rem}
+.lp p{font-size:.82rem;color:var(--ink-soft);margin-top:4px}
+.lp:not(:last-child)::after{content:"›";position:absolute;right:-11px;top:50%;transform:translateY(-50%);font-family:var(--display);font-size:1.8rem;color:var(--clay)}
+@media(max-width:860px){.loop-row{grid-template-columns:repeat(2,1fr)}.lp::after{display:none}}
+
+/* STORY */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.panel{background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:0 10px 30px rgba(42,34,22,.08);transform:rotate(var(--tilt,0));transition:transform .2s}
+.panel:hover{transform:rotate(0) translateY(-6px)}
+.panel .img{aspect-ratio:16/10;overflow:hidden;background:var(--cream-2)}
+.panel img{width:100%;height:100%;object-fit:cover}
+.panel .txt{padding:14px 18px 18px}
+.panel h3{font-size:1.2rem}
+.panel p{font-size:.88rem;color:var(--ink-soft);margin-top:2px}
+@media(max-width:900px){.strip{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.strip{grid-template-columns:1fr}}
+
+/* CHARS */
+.chars{background:var(--cream-2)}
+.chars .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.char{position:relative;background:var(--cream);border-radius:var(--r);padding:16px 16px 22px;text-align:center;border:3px solid transparent;transition:border-color .2s,transform .2s}
+.char:hover{border-color:var(--helmet);transform:translateY(-4px)}
+.char .pic{aspect-ratio:3/4;border-radius:16px;overflow:hidden;background:#fff}
+.char .pic img{width:100%;height:100%;object-fit:cover;object-position:center 20%}
+.char h3{font-size:1.7rem;margin:14px 0 0}
+.char .role{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;color:var(--dancheong)}
+.char .tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--helmet);font-family:var(--mono);font-size:.7rem;padding:4px 12px;border-radius:999px;letter-spacing:.12em;white-space:nowrap}
+@media(max-width:760px){.chars .grid{grid-template-columns:1fr}}
+
+/* SEASONS */
+.seasons{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.season{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:4/3;background:var(--navy-2)}
+.season img{width:100%;height:100%;object-fit:cover}
+.season .ic{position:absolute;top:12px;left:12px;width:54px;height:54px;background:rgba(255,255,255,.9);border-radius:14px;padding:6px}
+.season .lbl{position:absolute;left:0;right:0;bottom:0;padding:30px 14px 12px;background:linear-gradient(0deg,rgba(27,35,64,.85),transparent);color:#fff;font-family:var(--display);font-size:1.2rem}
+.season .lbl small{display:block;font-family:var(--body);font-size:.78rem;opacity:.85;font-weight:400}
+@media(max-width:860px){.seasons{grid-template-columns:repeat(2,1fr)}}
+
+/* MODES */
+.modes .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.mode{background:var(--navy-2);border-radius:var(--r);padding:26px;border:1px solid rgba(255,255,255,.08)}
+.mode .k{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;color:var(--helmet)}
+.mode h3{font-size:1.8rem;margin:4px 0 6px}
+.mode p{color:#C9C2B0;font-size:.92rem}
+.mode .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.mode .meta span{font-family:var(--mono);font-size:.7rem;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.08)}
+.mode.feat{background:linear-gradient(160deg,#2A3460,#1B2340);border-color:rgba(245,180,0,.35)}
+@media(max-width:860px){.modes .grid{grid-template-columns:1fr}}
+
+/* MYPAGE */
+.mypage .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.mypage .col{display:grid;gap:16px}
+.mypage img{border-radius:18px;width:100%;height:100%;object-fit:cover;box-shadow:0 10px 30px rgba(42,34,22,.1)}
+@media(max-width:760px){.mypage .grid{grid-template-columns:1fr}}
+
+/* KEYS */
+.keys{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:26px}
+.keys div{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #F0E2C4;border-radius:12px;padding:8px 12px;font-size:.86rem}
+kbd{font-family:var(--mono);font-weight:600;font-size:.78rem;padding:4px 8px;background:var(--cream-2);border:1px solid var(--clay);border-bottom-width:3px;border-radius:7px}
+
+/* FINAL */
+.final{text-align:center;padding:100px 0;background:linear-gradient(180deg,var(--cream),var(--cream-2))}
+.final img{width:170px;margin:0 auto 8px}
+.final h2{font-size:clamp(2.2rem,5vw,3.6rem)}
+.final p{color:var(--ink-soft);max-width:46ch;margin:14px auto 28px}
+footer{background:var(--navy);color:#A8A191;padding:32px 0;font-size:.82rem}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer b{color:#fff;font-family:var(--display);font-weight:400;font-size:1rem}
+
+.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.panel,.char,.btn,.shot img{transition:none}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><i></i>건축 레인저: 서울</a>
+    <ul>
+      <li><a href="#play">플레이</a></li>
+      <li><a href="#story">이야기</a></li>
+      <li><a href="#chars">레인저</a></li>
+      <li><a href="#seasons">사계절</a></li>
+      <li><a href="#modes">모드</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <img class="bg" src="../assets/hero.jpg" alt="노을 지는 서울, 창 너머로 남산타워가 보이는 작업실">
+  <div class="wrap">
+    <span class="badge">🏗️ 1~4인 협동 건축 · PC</span>
+    <h1>건축 레인저<span class="seoul">: 서울</span></h1>
+    <p class="lead">등껍질 삼총사가 안전모를 쓰고 서울의 무너진 명소를 다시 세운다. 주문하고, 던지고, 쌓고, 망치질하라 — 제한 시간 안에!</p>
+    <div class="cta-row">
+      <a class="btn primary" href="#play">플레이 장면 보기</a>
+      <a class="btn ghost" href="#story">이야기</a>
+    </div>
+  </div>
+</header>
+
+<section class="trailer">
+  <div class="frame">
+    <!-- 시연 영상이 준비되면 아래 <source src>를 채우고 .play/.soon 오버레이를 지우세요 -->
+    <video poster="../assets/play_gwang_hud.jpg" controls preload="none" playsinline>
+      <!-- <source src="../assets/trailer.mp4" type="video/mp4"> -->
+    </video>
+    <div class="play"><span>▶</span></div>
+    <div class="soon">TRAILER · COMING SOON</div>
+  </div>
+  <div class="pad"></div>
+</section>
+
+<section id="play">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">In-Game</span>
+      <h2>현장은 이렇게 생겼다</h2>
+      <p>휴대폰으로 재료를 주문하면 배송 구역에 진짜 물건이 떨어진다. 들고, 던지고, 정답 도면 위에 맞춰 놓고, 망치질. 고정 안 하면 와르르.</p>
+    </div>
+    <div class="mosaic rv">
+      <figure class="shot s-a"><img src="../assets/play_namsan_phone.jpg" alt="남산타워 현장에서 휴대폰으로 재료를 주문하는 장면"><figcaption class="lbl">남산타워 현장, 휴대폰으로 재료 주문<small>NAMSAN · ORDER</small></figcaption></figure>
+      <figure class="shot s-b"><img src="../assets/play_gwang_top.jpg" alt="청계천 광통교 건설 현장 부감"><figcaption class="lbl">광통교, 돌다리를 쌓는 중<small>GWANGTONGGYO</small></figcaption></figure>
+      <figure class="shot s-c"><img src="../assets/play_namsan_city.jpg" alt="남산 위에서 본 서울 시내"><figcaption class="lbl">남산에서 내려다본 서울<small>NAMSAN · VIEW</small></figcaption></figure>
+      <figure class="shot s-d"><img src="../assets/play_namsan_heart.jpg" alt="남산 전망대 하트 조형물 앞 현장" style="object-position:left"><figcaption class="lbl">전망대 층, 하트 앞 공사<small>NAMSAN · DECK</small></figcaption></figure>
+      <figure class="shot s-e"><img src="../assets/play_gwang_hud.jpg" alt="광통교 현장, 정답 도면과 주문 UI"><figcaption class="lbl">정답 도면 · 배송 구역 · 주문 폰<small>HUD</small></figcaption></figure>
+      <figure class="shot s-f"><img src="../assets/play_snow.jpg" alt="눈 내리는 남산 현장"><figcaption class="lbl">눈 내리는 날의 공사<small>WINTER · SNOW</small></figcaption></figure>
+    </div>
+    <div class="loop-row rv" style="margin-top:40px">
+      <div class="lp"><div class="ic">📱</div><h3>주문</h3><p>휴대폰으로 재료 호출</p></div>
+      <div class="lp"><div class="ic">🏃</div><h3>운반</h3><p>들거나 친구에게 던지기</p></div>
+      <div class="lp"><div class="ic">🧱</div><h3>배치</h3><p>반투명 정답 위에 딱</p></div>
+      <div class="lp"><div class="ic">🔨</div><h3>공정</h3><p>망치 고정 → 페인트</p></div>
+      <div class="lp"><div class="ic">⭐</div><h3>채점</h3><p>완성도 → 별 → 코인</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="tape"></div>
+
+<section class="story" id="story">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Prologue</span>
+      <h2>으리으리한 등껍질을 위하여</h2>
+    </div>
+    <div class="strip">
+      <article class="panel rv" style="--tilt:-1.2deg"><div class="img"><img src="../assets/intro1.jpg" alt="서울역에 도착한 삼총사"></div><div class="txt"><h3>서울은… 뭔가 다르다!</h3><p>부푼 꿈을 안고 서울역에 도착한 삼총사.</p></div></article>
+      <article class="panel rv" style="--tilt:1deg"><div class="img"><img src="../assets/intro2.jpg" alt="화려한 등껍질을 뽐내는 서울의 동물들"></div><div class="txt"><h3>우리 등껍질이 초라해 보여…</h3><p>서울의 동물들은 다들 으리으리한 등껍질을 뽐내고 있었다.</p></div></article>
+      <article class="panel rv" style="--tilt:-0.8deg"><div class="img"><img src="../assets/intro3.jpg" alt="명소 복구 건축 인력 모집 공고" style="object-position:center 30%"></div><div class="txt"><h3>명소 복구 건축 인력 모집</h3><p>보수 확실 보장! 경력 무관 · 성실한 분 환영.</p></div></article>
+      <article class="panel rv" style="--tilt:1.3deg"><div class="img"><img src="../assets/intro4.jpg" alt="황금 등껍질을 꿈꾸는 삼총사"></div><div class="txt"><h3>돈 모아서 우리도 장만하자!</h3><p>셋은 그 자리에서 지원서를 냈다.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="chars" id="chars">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">The Rangers</span>
+      <h2>등껍질 삼총사</h2>
+    </div>
+    <div class="grid">
+      <article class="char rv"><span class="tag">DEFAULT</span><div class="pic"><img src="../assets/char_snail.jpg" alt="달팽이 레인저"></div><h3>달팽이</h3><span class="role">SNAIL</span></article>
+      <article class="char rv"><span class="tag">300 COIN</span><div class="pic"><img src="../assets/char_turtle.jpg" alt="거북이 레인저"></div><h3>거북이</h3><span class="role">TURTLE</span></article>
+      <article class="char rv"><span class="tag">300 COIN</span><div class="pic"><img src="../assets/char_crab.jpg" alt="소라게 레인저"></div><h3>소라게</h3><span class="role">HERMIT CRAB</span></article>
+    </div>
+  </div>
+</section>
+
+<section id="seasons">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Seasons &amp; Weather</span>
+      <h2>같은 현장, 다른 계절</h2>
+      <p>방을 만들 때 계절을 고르거나 랜덤에 맡기세요. 비와 눈엔 미끄러지고, 강풍엔 재료가 날아갑니다.</p>
+    </div>
+    <div class="seasons rv">
+      <figure class="season"><img src="../assets/play_spring.jpg" alt="봄의 광통교"><img class="ic" src="../assets/w_CherryBlossom.png" alt=""><figcaption class="lbl">봄<small>벚꽃 · 화창함 · 비</small></figcaption></figure>
+      <figure class="season"><img src="../assets/play_gwang_top.jpg" alt="여름의 광통교"><img class="ic" src="../assets/w_Typhoon.png" alt=""><figcaption class="lbl">여름<small>화창함 · 비 · 태풍</small></figcaption></figure>
+      <figure class="season"><img src="../assets/play_autumn.jpg" alt="단풍이 날리는 광통교"><img class="ic" src="../assets/w_AutumnLeaves.png" alt=""><figcaption class="lbl">가을<small>단풍 · 화창함 · 비</small></figcaption></figure>
+      <figure class="season"><img src="../assets/play_winter.jpg" alt="겨울의 남산"><img class="ic" src="../assets/w_Snow.png" alt=""><figcaption class="lbl">겨울<small>눈 · 강풍 · 화창함</small></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<div class="tape"></div>
+
+<section class="modes dark" id="modes">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Game Modes</span>
+      <h2>협동하거나, 티격태격하거나</h2>
+    </div>
+    <div class="grid">
+      <article class="mode feat rv"><span class="k">MODE 01</span><h3>타임어택 협동</h3><p>2~4명이 한 팀. 제한 시간 안에 정답 도면과 똑같이 지으면 고득점.</p><div class="meta"><span>2–4인</span><span>코인 보상</span><span>최고기록</span></div></article>
+      <article class="mode rv"><span class="k">MODE 02</span><h3>2 vs 2 대결</h3><p>투명 벽으로 나뉜 대칭 공터에서 7분 승부. 대포·지진·안개·날씨 아이템으로 상대를 방해하세요.</p><div class="meta"><span>4인</span><span>7분</span><span>아이템 13종</span></div></article>
+      <article class="mode rv"><span class="k">MODE 03</span><h3>자유 건축</h3><p>타이머도 채점도 없이 마음껏. 완성작은 기록책에 스크랩됩니다.</p><div class="meta"><span>1–4인</span><span>무제한</span></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="mypage">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">My Page</span>
+      <h2>번 돈으로 등껍질을 꾸민다</h2>
+      <p>옷장에서 등껍질·옷·머리띠를 갈아입히고, 기록책에서 맵별 최고 완성도와 자유 모드 작품을 모아 보세요.</p>
+    </div>
+    <div class="grid rv">
+      <img src="../assets/ui_closet.jpg" alt="마이페이지 옷장 화면">
+      <div class="col">
+        <img src="../assets/ui_record.jpg" alt="기록책 — 맵별 최고 완성도">
+        <img src="../assets/ui_freemode.jpg" alt="자유 모드 기록 스크랩북">
+      </div>
+    </div>
+    <div class="keys rv">
+      <div><kbd>WASD</kbd> 이동</div><div><kbd>Click</kbd> 집기 · 배치</div><div><kbd>G</kbd> 던지기</div><div><kbd>E</kbd> 망치 · 페인트</div><div><kbd>Tab</kbd> 정답 도면</div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap rv">
+    <img src="../assets/snail.png" alt="">
+    <h2>등껍질을 장만하는 그날까지</h2>
+    <p>제1회 서울 플레이업 AI 게임 챌린지 출품작. 친구와 함께 서울의 명소를 다시 세워 보세요.</p>
+    <div class="cta-row" style="justify-content:center">
+      <a class="btn primary" href="#top">빌드 다운로드 (준비 중)</a>
+      <a class="btn ghost" style="border-color:var(--ink);color:var(--ink)" href="mailto:jikimiseoul@gmail.com">팀에 연락하기</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><b>건축 레인저: 서울</b><br>팀 서울지키미 · Unity 6</div>
+    <div>서울의 공간, 명소, 도시 이미지를 활용한 게임<br>© 2026 Team Seoul Zikimi</div>
+  </div>
+</footer>
+
+<script>
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
+if(location.search.includes('static')){document.querySelectorAll('.rv').forEach(el=>el.classList.add('in'))}else{document.querySelectorAll('.rv').forEach(el=>io.observe(el))}
+</script>
+</body>
+</html>

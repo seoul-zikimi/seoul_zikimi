@@ -31,7 +31,7 @@ namespace GridSystem
         public static bool ExternalSolidAt(Vector3Int cell, float unit)
         {
             Vector3 center = GridCoordinates.CellToWorld(cell) + Vector3.one * (0.5f * unit);
-            var hits = Physics.OverlapBox(center, Vector3.one * (0.45f * unit), Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+            var hits = Physics.OverlapBox(center, Vector3.one * (0.45f * unit), Quaternion.identity, ~(1 << 2), QueryTriggerInteraction.Ignore);   // Ignore Raycast 제외(플레이어가 앞에 든 화물은 지지 아님)
             foreach (var h in hits)
             {
                 if (h.CompareTag("Player") || h.CompareTag("Boundary")) continue;

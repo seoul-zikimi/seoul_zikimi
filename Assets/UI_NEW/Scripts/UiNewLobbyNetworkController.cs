@@ -28,6 +28,7 @@ namespace SeoulZikimi.UI.New
             view.StartRequested += StartGame;
             view.TeamRequested += SelectTeam;
             view.MapRequested += SelectMap;
+            view.MapStepRequested += StepMap;
             view.ModeRequested += SelectMode;
             view.WeatherRequested += ToggleWeather;
         }
@@ -41,6 +42,7 @@ namespace SeoulZikimi.UI.New
             view.StartRequested -= StartGame;
             view.TeamRequested -= SelectTeam;
             view.MapRequested -= SelectMap;
+            view.MapStepRequested -= StepMap;
             view.ModeRequested -= SelectMode;
             view.WeatherRequested -= ToggleWeather;
         }
@@ -169,6 +171,15 @@ namespace SeoulZikimi.UI.New
         private void SelectTeam(int team) => lobbyNet?.SelectLocalTeam(team);
 
         private void SelectMap(int index) { lobbyNet?.HostSelectMap(index); _ = SaveMetadataAsync(); }
+
+        // 좌우 화살표: 카탈로그 순서로 순환(이전/다음)
+        private void StepMap(int step)
+        {
+            if (lobbyNet == null) return;
+            int count = GridSystem.MapCatalog.Instance != null ? Mathf.Max(1, GridSystem.MapCatalog.Instance.Count) : 1;
+            int next = ((lobbyNet.SelectedMap + step) % count + count) % count;
+            SelectMap(next);
+        }
         private void SelectMode(int index) { lobbyNet?.HostSelectMode(index); _ = SaveMetadataAsync(); }
         private void ToggleWeather() { lobbyNet?.HostToggleWeather(); _ = SaveMetadataAsync(); }
 
