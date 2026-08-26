@@ -276,7 +276,7 @@ public sealed class GameLoopHUD : UIHUD
             if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
             {
                 float beat = Mathf.Abs(Mathf.Sin(Time.unscaledTime * 5f));
-                m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.14f * beat);
+                PulseTimerLine(1f + 0.14f * beat);
                 m_TimerText.color = Color.Lerp(new Color(1f, 0.20f, 0.16f, 1f), Color.white, beat * 0.35f);
                 EnsureVignette();
                 if (m_Vignette != null) m_Vignette.intensity.Override(0.16f + 0.14f * beat);
@@ -285,7 +285,7 @@ public sealed class GameLoopHUD : UIHUD
             {
                 if (m_Loop.IsBuilding && secs != m_LastTimerSecs) m_TimerTick = 1f;   // 초 넘어갈 때 톡
                 m_TimerTick = Mathf.Max(0f, m_TimerTick - Time.unscaledDeltaTime * 6f);
-                m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.12f * m_TimerTick);
+                PulseTimerLine(1f + 0.12f * m_TimerTick);
                 m_TimerText.color = m_Loop.IsBuilding && m_Loop.TimeLeft <= 60f ? new Color(1f, 0.28f, 0.22f, 1f) : Color.white;   // 1분 미만 빨강(기획서 3.2)
                 if (m_Vignette != null) m_Vignette.intensity.Override(0f);
             }
@@ -671,6 +671,28 @@ public sealed class GameLoopHUD : UIHUD
     }
 
     // ── 막판 비네트(화면 가장자리 빨간 두근두근) ──
+    // 시계 줄(첫 줄)만 펌핑 — 아래 '우리:상대'·아이템 줄은 고정.
+    // rect 통짜 스케일이면 전 줄이 같이 흔들려서, 첫 줄 글자 버텍스만 라인 중심 기준으로 키운다(레이아웃 불변).
+    private void PulseTimerLine(float scale)
+    {
+        m_TimerText.rectTransform.localScale = Vector3.one;
+        if (Mathf.Approximately(scale, 1f)) return;
+        m_TimerText.ForceMeshUpdate();
+        var ti = m_TimerText.textInfo;
+        if (ti.lineCount == 0) return;
+        var line = ti.lineInfo[0];
+        Vector3 center = (line.lineExtents.min + line.lineExtents.max) * 0.5f;
+        for (int i = line.firstCharacterIndex; i <= line.lastCharacterIndex && i < ti.characterCount; i++)
+        {
+            var ch = ti.characterInfo[i];
+            if (!ch.isVisible) continue;
+            var verts = ti.meshInfo[ch.materialReferenceIndex].vertices;
+            for (int v = 0; v < 4; v++)
+                verts[ch.vertexIndex + v] = center + (verts[ch.vertexIndex + v] - center) * scale;
+        }
+        m_TimerText.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices);
+    }
+
     private Volume m_UrgentVolume;
     private UnityEngine.Rendering.Universal.Vignette m_Vignette;
 

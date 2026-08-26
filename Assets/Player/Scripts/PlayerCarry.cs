@@ -608,10 +608,10 @@ namespace Player
 
         private void UpdateEKey(Keyboard kb)
         {
-            // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
-            // (도구를 들었다 = 공정할 의도). 대포만 예외로 '꾹 눌렀다 떼면 발사'.
+            // [기획] 2vs2 아이템은 '든 채로 E'. 도구를 들고 있어도 아이템이 우선 발동한다
+            // (아이템은 소모품 — 쓰고 나면 E는 다시 공정으로 돌아감). 대포만 '꾹 눌렀다 떼면 발사'.
             var items = GridSystem.ItemNetwork.Instance;
-            if (!HasTool && items != null && items.LocalHasItem)
+            if (items != null && items.LocalHasItem)
             {
                 if (items.LocalHoldsCannon) { UpdateCannonCharge(kb, items); return; }
                 if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }

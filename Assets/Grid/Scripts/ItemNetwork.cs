@@ -71,6 +71,7 @@ namespace GridSystem
         private GridNetwork m_Net;
         private CompetitiveItemSpawnDirector m_Director;   // 서버 전용
         private CompetitiveItemUseService m_UseService;    // 서버 전용(대상 팀 결정 + 효과 실행)
+        private CompetitiveItemDefinitionCatalog m_Definitions;   // 서버 전용(사용 알림의 대상 팀 판정)
         private uint m_NextId;
         // 서버 전용 만료 시각(Time.time). [0]=팀A, [1]=팀B
         private readonly float[] m_MoveUntil = new float[2];
@@ -99,7 +100,7 @@ namespace GridSystem
             m_Items.OnListChanged += OnItemsChanged;
             if (IsServer)
             {
-                var definitions = CompetitiveItemDefinitionCatalog.CreateDefault();
+                var definitions = m_Definitions = CompetitiveItemDefinitionCatalog.CreateDefault();
                 m_Director = DefaultCompetitiveItemFactory.CreateSpawnDirector(this, new UnityRandom(), definitions);
                 var effects = DefaultCompetitiveItemFactory.CreateEffects(
                     definitions, this, this, this, this, this, this, this, this);
@@ -112,6 +113,7 @@ namespace GridSystem
         {
             m_Items.OnListChanged -= OnItemsChanged;
             if (m_VisualRoot != null) Destroy(m_VisualRoot);
+            if (m_EnemyZoneRig != null) Destroy(m_EnemyZoneRig.gameObject);
             if (s_Instance == this) s_Instance = null;
         }
 
@@ -227,10 +229,22 @@ namespace GridSystem
             var zone = m_Grid.ZoneSize;
             float u = GridContract.Unit;
             int team = beneficiaryTeamId == kTeamB ? 1 : beneficiaryTeamId == kTeamA ? 0 : Random.Range(0, 2);
-            float x = (team * zone.x + Random.Range(0.5f, zone.x - 0.5f)) * u;
-            float z = Random.Range(0.5f, zone.z - 0.5f) * u;
             Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
-            return new Vector3(baseW.x + x, baseW.y + 0.45f, baseW.z + z);
+
+            // 맵마다 지면이 그리드 범위를 다 못 덮는다(롯데월드 B존 동쪽 끝 = 호수 위 허공).
+            // 위에서 레이캐스트로 실제 지면에 붙이고, 지면이 1m 넘게 꺼진 곳(물속 등)은 재추첨.
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                float x = (team * zone.x + Random.Range(0.5f, zone.x - 0.5f)) * u;
+                float z = Random.Range(0.5f, zone.z - 0.5f) * u;
+                var probe = new Vector3(baseW.x + x, baseW.y + 30f, baseW.z + z);
+                if (Physics.Raycast(probe, Vector3.down, out var hit, 60f)
+                    && hit.point.y > baseW.y - 1f)
+                    return new Vector3(probe.x, hit.point.y + 0.45f, probe.z);
+            }
+            // 폴백: 존 중앙(모든 맵에서 지면 보장)
+            return new Vector3(baseW.x + (team + 0.5f) * zone.x * u, baseW.y + 0.45f,
+                               baseW.z + zone.z * 0.5f * u);
         }
 
         // ── 서버 루프: 규칙 진행 + 완성도 보고 + 근접 획득 + 배율 만료 ──
@@ -318,6 +332,26 @@ namespace GridSystem
             if (po == null) return;
             var rb = po.GetComponent<Rigidbody>();
             if (rb != null && !rb.isKinematic) rb.AddForce(impulse, ForceMode.VelocityChange);
+            // 날씨 틱마다(1초) 밀리므로 문구는 스로틀 — 매초 도배 방지
+            if (Time.time >= m_NextSlipToast)
+            {
+                m_NextSlipToast = Time.time + 3f;
+                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.2f, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+            }
+        }
+        private float m_NextSlipToast;   // 로컬 전용(수신 클라 기준)
+
+        // 당한 팀 전원 화면에 '상대가 뭘 썼는지' 문구 + 살짝 흔들림. 버프(Ally)는 안 보냄.
+        [Rpc(SendTo.Everyone)]
+        private void ItemUsedNoticeRpc(int kind, int targetTeam)
+        {
+            if (m_Loop == null || m_Loop.LocalTeam != targetTeam) return;
+            var nm = NetworkManager.Singleton;
+            var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
+            if (po == null) return;
+            GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f,
+                $"상대가 {KindName((CompetitiveItemKind)kind)} 사용!", new Color(1f, 0.25f, 0.2f));
+            GridJuice.FovPunch(Camera.main, -2f);
         }
 
         // 내 팀 상태를 로컬 연출(날씨 파티클·안개)에 반영 — 값이 바뀔 때만.
@@ -327,9 +361,60 @@ namespace GridSystem
         {
             var fx = LocalEffects();
             var weather = (WeatherKind)fx.Weather;
-            if (weather == m_ShownWeather && fx.Fog == m_ShownFog) return;
-            m_ShownWeather = weather; m_ShownFog = fx.Fog;
-            TeamWeatherFx.Get().Set(weather, fx.Fog);
+            if (weather != m_ShownWeather || fx.Fog != m_ShownFog)
+            {
+                m_ShownWeather = weather; m_ShownFog = fx.Fog;
+                TeamWeatherFx.Get().Set(weather, fx.Fog);
+            }
+            SyncZoneFogFx();
+            SyncEnemyZoneWeather();
+        }
+
+        // 상대 팀에 걸린 '날씨'를 내 화면에도 상대 진영 위에만 표시 — 시전자/아군이 적용을 본다.
+        // (당한 팀 본인 화면은 TeamWeatherFx가 맵 전체로 그림 — 안개 구름과 같은 역할 분담)
+        private Weather3DVfxRig m_EnemyZoneRig;
+        private WeatherKind m_ShownEnemyWeather = WeatherKind.Sunny;
+        private void SyncEnemyZoneWeather()
+        {
+            if (m_Loop == null || !m_Loop.IsVersus || m_Grid == null) return;
+            int my = m_Loop.LocalTeam;
+            if (my < 0) return;
+            var weather = (WeatherKind)Fx(1 - my).Weather;
+            if (weather == m_ShownEnemyWeather) return;
+            m_ShownEnemyWeather = weather;
+            if (m_EnemyZoneRig == null)
+            {
+                var prefab = Resources.Load<Weather3DVfxRig>("UI_NEW/Weather/3D/Weather3DVfxRig");
+                if (prefab == null) return;
+                m_EnemyZoneRig = Instantiate(prefab);
+                m_EnemyZoneRig.name = "~EnemyZoneWeather";
+            }
+            m_EnemyZoneRig.CoverArea(ZoneWorldBounds(1 - my));
+            m_EnemyZoneRig.SetWeather(weather);
+        }
+
+        // 안개 걸린 '다른' 팀 구역 위에 구름 표시 — 시전자/아군도 적용 여부를 본다.
+        // 내 팀 안개는 카메라 포그(TeamWeatherFx)가 담당하므로 구름 생략.
+        private void SyncZoneFogFx()
+        {
+            if (m_Loop == null || !m_Loop.IsVersus || m_Grid == null) return;
+            int my = m_Loop.LocalTeam;
+            for (int team = 0; team < 2; team++)
+            {
+                bool want = Fx(team).Fog && team != my;
+                if (want) ZoneFogFx.Show(team, ZoneWorldBounds(team));
+                else ZoneFogFx.Hide(team);
+            }
+        }
+
+        private Bounds ZoneWorldBounds(int team)
+        {
+            var zone = m_Grid.ZoneSize;
+            float u = GridContract.Unit;
+            Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
+            var min = new Vector3(baseW.x + team * zone.x * u, baseW.y, baseW.z);
+            var size = new Vector3(zone.x * u, zone.y * u * 0.5f, zone.z * u);   // 높이 절반 — 구름은 낮게 깔림
+            return new Bounds(min + size * 0.5f, size);
         }
 
         // 지속 효과 만료(서버) — 시간이 지난 것만 기본값으로 되돌린다.
@@ -378,6 +463,10 @@ namespace GridSystem
                 if (team < 0) return;                      // 팀 미배정이면 소비하지 않는다
                 m_Items.RemoveAt(i);
                 m_UseService?.Use((CompetitiveItemKind)e.Kind, sender.ToString(), TeamId(team));
+                // 공격 아이템이면 당한 팀 전원에게 알림(문구+흔들림) — '뭐에 당했는지' 즉시 보이게
+                var def = m_Definitions?.Get((CompetitiveItemKind)e.Kind);
+                if (def != null && def.TargetSide == ItemTargetSide.Enemy)
+                    ItemUsedNoticeRpc(e.Kind, 1 - team);
                 return;
             }
         }
@@ -483,7 +572,8 @@ namespace GridSystem
                 case NetworkListEvent<ItemEntry>.EventType.RemoveAt:
                     RemoveVisual(e.Value.Id);
                     var col = KindColor((CompetitiveItemKind)e.Value.Kind);
-                    if (e.Value.Held) ItemFx.Used(HolderPos(e.Value.Holder, e.Value.Pos), col);   // 사용
+                    if (e.Value.Held) ItemFx.Used(HolderPos(e.Value.Holder, e.Value.Pos), col,
+                        KindName((CompetitiveItemKind)e.Value.Kind));   // 사용 — 팡 + "○○ 사용!" 문구
                     else ItemFx.Expired(e.Value.Pos, col);                                        // 미사용 소멸
                     break;
 
@@ -510,17 +600,9 @@ namespace GridSystem
         private void AddVisual(ItemEntry e)
         {
             if (m_VisualRoot == null || e.Held || m_Visuals.ContainsKey(e.Id)) return;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var go = ItemFx.MakeItemBox(e.Pos, KindColor((CompetitiveItemKind)e.Kind));   // 무지개 '?' 상자
             go.name = $"~Item_{e.Id}";
-            go.transform.SetParent(m_VisualRoot.transform, false);
-            go.transform.position = e.Pos;
-            go.transform.localScale = Vector3.one * 0.55f;
-            var col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-            var color = KindColor((CompetitiveItemKind)e.Kind);
-            go.GetComponent<Renderer>().sharedMaterial =
-                new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = color };
-            ItemFx.DecorateOrb(go, color);   // 팝인 + 둥실 + 반짝이
+            go.transform.SetParent(m_VisualRoot.transform, true);
             m_Visuals[e.Id] = go;
         }
 
