@@ -35,12 +35,18 @@ namespace GridSystem
         [Tooltip("드므(물 항아리)에서 이 거리 안에 있으면 양동이가 자동으로 채워진다(m).")]
         [Min(0.5f)] public float DeumeuRefillRange = 2.2f;
 
+        [Tooltip("불타는 블록 위 화염 이펙트 크기 배율.")]
+        [Min(0.2f)] public float FlameScale = 2.2f;
+
         [Header("사방신 석상")]
         [Tooltip("석상이 낙하하는 건축 진행도(%) 문턱들. 기획: 20/30/45/60.")]
         public float[] StatueDropPercents = { 20f, 30f, 45f, 60f };
 
         [Tooltip("석상 재료 id (동=청룡, 서=백호, 남=주작, 북=현무 순). GyeongbokgungMapTool이 만드는 def와 일치해야 한다.")]
         public int[] StatueMaterialIds = { 50, 51, 52, 53 };
+
+        [Tooltip("진행도가 한 번에 여러 문턱을 넘어도 석상은 이 간격(초)을 두고 한 개씩만 낙하한다(우르르 방지).")]
+        [Min(0f)] public float StatueDropMinGapSeconds = 20f;
 
         [Tooltip("석상을 받침대 위에 올린 것으로 인정하는 수평 거리(m). 받침대 근처에 놓거나 던지면 안착.")]
         [Min(0.5f)] public float PedestalSnapRange = 1.8f;

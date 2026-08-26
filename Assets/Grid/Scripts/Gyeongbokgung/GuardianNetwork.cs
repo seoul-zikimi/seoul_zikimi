@@ -40,6 +40,7 @@ namespace GridSystem
         private readonly List<PickupEntry> m_Scratch = new();
         private readonly GameObject[] m_Spirits = new GameObject[4];
         private float m_NextScanAt;
+        private float m_NextDropAllowedAt;   // 서버 전용 — 낙하 최소 간격
 
         /// <summary>4방위 전부 안착 — 화마 봉인. FireNetwork가 매 틱 조회한다(null-safe).</summary>
         public static bool IsSealed => Instance != null && Instance.Active && Instance.m_PlacedMask.Value == 0b1111;
@@ -83,6 +84,7 @@ namespace GridSystem
             if (!IsServer || !Active) return;
             m_PlacedMask.Value = 0;
             m_DroppedCount.Value = 0;
+            m_NextDropAllowedAt = 0f;
             // 바닥 석상 픽업은 MaterialDropField.ServerReset()이 함께 정리한다.
         }
 
@@ -110,18 +112,21 @@ namespace GridSystem
         {
             if (Loop == null || !Loop.IsBuilding) return;
 
-            // ① 진행도 문턱 → 석상 낙하 (순서대로 하나씩)
+            // ① 진행도 문턱 → 석상 낙하 (순서대로 하나씩. ScorePercent는 이미 0~100 스케일!)
+            // 진행도가 한 번에 여러 문턱을 뛰어넘어도 최소 간격을 두고 한 개씩만 떨어뜨린다(우르르 방지).
             int dropped = m_DroppedCount.Value;
             var percents = Config.StatueDropPercents;
             var ids = Config.StatueMaterialIds;
             if (m_Drop != null && m_DropPoint != null &&
                 dropped < Mathf.Min(percents.Length, ids.Length) &&
-                Net != null && Net.ScorePercent * 100f >= percents[dropped])
+                Net != null && Net.ScorePercent >= percents[dropped] &&
+                Now >= m_NextDropAllowedAt)
             {
                 Vector3 to = m_DropPoint.position;
                 Vector3 from = to + new Vector3(Random.Range(-1f, 1f), 26f, Random.Range(-1f, 1f));
                 m_Drop.ServerDeliver(ids[dropped], from, to);
                 m_DroppedCount.Value = dropped + 1;
+                m_NextDropAllowedAt = Now + Config.StatueDropMinGapSeconds;
                 StatueDropFxRpc(to, dropped);
             }
 

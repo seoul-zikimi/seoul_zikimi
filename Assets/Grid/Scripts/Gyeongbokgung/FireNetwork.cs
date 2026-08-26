@@ -323,11 +323,17 @@ namespace GridSystem
             }
         }
 
-        private static GameObject BuildFlame(Vector3 pos)
+        private GameObject BuildFlame(Vector3 pos)
         {
+            float scale = Config != null ? Config.FlameScale : 2.2f;
             // CFXR 사본이 Resources/Fx/Fire에 있으면 그걸, 없으면 절차 생성 불꽃(발광 큐브 3개 깜빡임)
             var prefab = Resources.Load<GameObject>("Fx/Fire");
-            if (prefab != null) return Instantiate(prefab, pos, Quaternion.identity);
+            if (prefab != null)
+            {
+                var fx = Instantiate(prefab, pos, Quaternion.identity);
+                fx.transform.localScale *= scale;
+                return fx;
+            }
 
             var root = new GameObject("~Flame");
             root.transform.position = pos;
@@ -343,6 +349,7 @@ namespace GridSystem
                 var flick = q.AddComponent<FlameFlicker>();
                 flick.Phase = i * 1.7f;
             }
+            root.transform.localScale = Vector3.one * (0.6f * scale);   // 폴백도 배율 반영
             return root;
         }
 
