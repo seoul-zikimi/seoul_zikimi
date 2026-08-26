@@ -639,10 +639,21 @@ namespace GridSystem
         }
 
         // ── 비주얼 (모든 클라이언트가 리스트로 재구성) ───────────────────────
+        // 리스트 이벤트는 '셀 하나'마다 온다 — 멀티셀 블록 하나만 놓아도 수십 번, 프리셋 스폰이면 수백 번.
+        // 이벤트마다 전체 비주얼을 재구성하면 O(n²) 인스턴스화로 수십 초 멈춘다(경복궁 프리셋에서 실측 ~1분).
+        // → 더티 플래그만 세우고 LateUpdate에서 프레임당 1번만 재구성한다.
+        private bool m_VisualsDirty, m_ScoreDirty;
+
         private void OnCellsChanged(NetworkListEvent<CellEntry> _)
         {
-            RebuildVisuals();
-            if (IsServer) RecomputeScore();
+            m_VisualsDirty = true;
+            if (IsServer) m_ScoreDirty = true;
+        }
+
+        private void LateUpdate()
+        {
+            if (m_VisualsDirty) { m_VisualsDirty = false; RebuildVisuals(); }
+            if (m_ScoreDirty)   { m_ScoreDirty = false; RecomputeScore(); }
         }
 
         public void RecomputeScore()

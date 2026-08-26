@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: "\uACBD\uBCF5\uAD81_\uB9C8\uB8E8_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 41
-  m_Footprint: {x: 6, y: 1, z: 5}
-  m_Prefab: {fileID: 5759583282434346730, guid: b60b25ba8f5219341a73cacd6d6a3baf, type: 3}
+  m_Footprint: {x: 8, y: 1, z: 4}
+  m_Prefab: {fileID: 3037391411532470804, guid: 65ba40dbb0826d44db462d6b9928275a, type: 3}
   m_RequiredProcesses: 
   m_MustBeFixed: 0
   m_Walkable: 0

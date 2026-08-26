@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c11bfe3d9b1ffb47a62e4a2621c2a83, type: 3}
   m_Name: Ans_Gyeongbokgung
   m_EditorClassIdentifier: GridSystem::GridSystem.MapAnswerData
-  m_GridSize: {x: 30, y: 15, z: 20}
+  m_GridSize: {x: 30, y: 13, z: 20}
   m_Cells:
   - cell: {x: 5, y: 0, z: 4}
     materialId: 30
@@ -2174,809 +2174,671 @@ MonoBehaviour:
   - cell: {x: 25, y: 5, z: 13}
     materialId: 36
     rotationStep: 0
-  - cell: {x: 6, y: 6, z: 5}
+  - cell: {x: 7, y: 4, z: 6}
     materialId: 41
     rotationStep: 0
-  - cell: {x: 6, y: 6, z: 6}
+  - cell: {x: 7, y: 4, z: 7}
     materialId: 41
     rotationStep: 0
-  - cell: {x: 6, y: 6, z: 7}
+  - cell: {x: 7, y: 4, z: 8}
     materialId: 41
     rotationStep: 0
-  - cell: {x: 6, y: 6, z: 8}
+  - cell: {x: 7, y: 4, z: 9}
     materialId: 41
     rotationStep: 0
-  - cell: {x: 6, y: 6, z: 9}
+  - cell: {x: 8, y: 4, z: 6}
     materialId: 41
     rotationStep: 0
-  - cell: {x: 7, y: 6, z: 5}
+  - cell: {x: 8, y: 4, z: 7}
     materialId: 41
+    rotationStep: 0
+  - cell: {x: 8, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 8, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 6}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 7}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 8}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 9}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 7, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 7, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 7, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 7, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 8, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 8, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 8, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 8, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 9, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 10, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 11, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 12, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 13, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 14, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 15, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 16, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 17, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 18, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 19, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 20, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 21, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 10}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 11}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 12}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 22, y: 4, z: 13}
+    materialId: 41
+    rotationStep: 0
+  - cell: {x: 7, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 7, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 7, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 7, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 7, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 8, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 8, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 8, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 8, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 8, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 8, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 9, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 9, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 9, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 9, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 9, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 9, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 10, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 10, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 10, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 10, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 10, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 10, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 11, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 11, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 11, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 11, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 11, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 11, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 12, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 12, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 12, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 12, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 12, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 12, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 13, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 13, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 13, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 13, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 13, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 13, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 14, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 14, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 14, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 14, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 14, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 14, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 15, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 15, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 15, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 15, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 15, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 15, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 16, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 16, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 16, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 16, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 16, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 16, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 17, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 17, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 17, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 17, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 17, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 17, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 18, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 18, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 18, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 18, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 18, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 18, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 19, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 19, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 19, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 19, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 19, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 19, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 20, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 20, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 20, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 20, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 20, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 20, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 21, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 21, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 21, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 21, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 21, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 21, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 5}
-    materialId: 41
+  - cell: {x: 22, y: 5, z: 6}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 22, y: 6, z: 6}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 22, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 5}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 6}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 7}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 8}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 9}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 6, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 6, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 6, y: 6, z: 12}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 6, y: 6, z: 13}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 6, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 7, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 7, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 7, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 7, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 7, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 7, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 8, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 8, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 8, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 8, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 8, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 8, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 9, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 9, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 9, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 9, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 9, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 9, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 10, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 10, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 10, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 10, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 10, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 10, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 11, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 11, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 11, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 11, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 11, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 11, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 12, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 12, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 12, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 12, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 12, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 12, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 13, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 13, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 13, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 13, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 13, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 13, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 14, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 14, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 14, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 14, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 14, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 14, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 15, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 15, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 15, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 15, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 15, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 15, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 16, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 16, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 16, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 16, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 16, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 16, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 17, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 17, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 17, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 17, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 17, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 17, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 18, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 18, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 18, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 18, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 18, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 18, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 19, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 19, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 19, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 19, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 19, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 19, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 20, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 20, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 20, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 20, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 20, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 20, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 21, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 21, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 21, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 21, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 21, y: 6, z: 13}
-    materialId: 41
+    materialId: 38
     rotationStep: 0
-  - cell: {x: 21, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 12}
-    materialId: 41
+  - cell: {x: 22, y: 5, z: 13}
+    materialId: 38
     rotationStep: 0
   - cell: {x: 22, y: 6, z: 13}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 22, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 10}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 11}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 12}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 13}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 23, y: 6, z: 14}
-    materialId: 41
-    rotationStep: 0
-  - cell: {x: 7, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 7, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 8, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 8, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 9, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 9, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 10, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 10, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 11, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 11, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 12, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 12, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 13, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 13, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 14, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 14, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 15, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 15, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 16, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 16, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 17, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 17, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 18, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 18, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 19, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 19, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 20, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 20, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 21, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 21, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 22, y: 7, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 22, y: 8, z: 6}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 7, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 7, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 8, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 8, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 9, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 9, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 10, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 10, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 11, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 11, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 12, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 12, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 13, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 13, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 14, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 14, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 15, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 15, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 16, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 16, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 17, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 17, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 18, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 18, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 19, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 19, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 20, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 20, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 21, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 21, y: 8, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 22, y: 7, z: 13}
-    materialId: 38
-    rotationStep: 0
-  - cell: {x: 22, y: 8, z: 13}
     materialId: 38
     rotationStep: 0
-  - cell: {x: 7, y: 7, z: 7}
+  - cell: {x: 7, y: 5, z: 7}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 7, z: 8}
+  - cell: {x: 7, y: 5, z: 8}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 7, z: 9}
+  - cell: {x: 7, y: 5, z: 9}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 7, z: 10}
+  - cell: {x: 7, y: 5, z: 10}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 7, z: 11}
+  - cell: {x: 7, y: 5, z: 11}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 7, z: 12}
+  - cell: {x: 7, y: 5, z: 12}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 8, z: 7}
+  - cell: {x: 7, y: 6, z: 7}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 8, z: 8}
+  - cell: {x: 7, y: 6, z: 8}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 8, z: 9}
+  - cell: {x: 7, y: 6, z: 9}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 8, z: 10}
+  - cell: {x: 7, y: 6, z: 10}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 8, z: 11}
+  - cell: {x: 7, y: 6, z: 11}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 7, y: 8, z: 12}
+  - cell: {x: 7, y: 6, z: 12}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 7, z: 7}
+  - cell: {x: 22, y: 5, z: 7}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 7, z: 8}
+  - cell: {x: 22, y: 5, z: 8}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 7, z: 9}
+  - cell: {x: 22, y: 5, z: 9}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 7, z: 10}
+  - cell: {x: 22, y: 5, z: 10}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 7, z: 11}
+  - cell: {x: 22, y: 5, z: 11}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 7, z: 12}
+  - cell: {x: 22, y: 5, z: 12}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 8, z: 7}
+  - cell: {x: 22, y: 6, z: 7}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 8, z: 8}
+  - cell: {x: 22, y: 6, z: 8}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 8, z: 9}
+  - cell: {x: 22, y: 6, z: 9}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 8, z: 10}
+  - cell: {x: 22, y: 6, z: 10}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 8, z: 11}
+  - cell: {x: 22, y: 6, z: 11}
     materialId: 39
     rotationStep: 0
-  - cell: {x: 22, y: 8, z: 12}
+  - cell: {x: 22, y: 6, z: 12}
     materialId: 39
+    rotationStep: 0
+  - cell: {x: 5, y: 7, z: 4}
+    materialId: 33
+    rotationStep: 0
+  - cell: {x: 5, y: 7, z: 5}
+    materialId: 33
+    rotationStep: 0
+  - cell: {x: 5, y: 7, z: 6}
+    materialId: 33
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 4}
+    materialId: 33
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 5}
+    materialId: 33
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 6}
+    materialId: 33
     rotationStep: 0
   - cell: {x: 5, y: 9, z: 4}
     materialId: 33
@@ -2987,22 +2849,22 @@ MonoBehaviour:
   - cell: {x: 5, y: 9, z: 6}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 4}
+  - cell: {x: 6, y: 7, z: 4}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 5}
+  - cell: {x: 6, y: 7, z: 5}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 6}
+  - cell: {x: 6, y: 7, z: 6}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 4}
+  - cell: {x: 6, y: 8, z: 4}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 5}
+  - cell: {x: 6, y: 8, z: 5}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 6}
+  - cell: {x: 6, y: 8, z: 6}
     materialId: 33
     rotationStep: 0
   - cell: {x: 6, y: 9, z: 4}
@@ -3014,22 +2876,22 @@ MonoBehaviour:
   - cell: {x: 6, y: 9, z: 6}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 4}
+  - cell: {x: 7, y: 7, z: 4}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 5}
+  - cell: {x: 7, y: 7, z: 5}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 6}
+  - cell: {x: 7, y: 7, z: 6}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 4}
+  - cell: {x: 7, y: 8, z: 4}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 5}
+  - cell: {x: 7, y: 8, z: 5}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 6}
+  - cell: {x: 7, y: 8, z: 6}
     materialId: 33
     rotationStep: 0
   - cell: {x: 7, y: 9, z: 4}
@@ -3041,24 +2903,24 @@ MonoBehaviour:
   - cell: {x: 7, y: 9, z: 6}
     materialId: 33
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 4}
+  - cell: {x: 24, y: 7, z: 4}
     materialId: 33
-    rotationStep: 0
-  - cell: {x: 7, y: 10, z: 5}
+    rotationStep: 3
+  - cell: {x: 23, y: 7, z: 4}
     materialId: 33
-    rotationStep: 0
-  - cell: {x: 7, y: 10, z: 6}
+    rotationStep: 3
+  - cell: {x: 22, y: 7, z: 4}
     materialId: 33
-    rotationStep: 0
-  - cell: {x: 7, y: 11, z: 4}
+    rotationStep: 3
+  - cell: {x: 24, y: 8, z: 4}
     materialId: 33
-    rotationStep: 0
-  - cell: {x: 7, y: 11, z: 5}
+    rotationStep: 3
+  - cell: {x: 23, y: 8, z: 4}
     materialId: 33
-    rotationStep: 0
-  - cell: {x: 7, y: 11, z: 6}
+    rotationStep: 3
+  - cell: {x: 22, y: 8, z: 4}
     materialId: 33
-    rotationStep: 0
+    rotationStep: 3
   - cell: {x: 24, y: 9, z: 4}
     materialId: 33
     rotationStep: 3
@@ -3068,22 +2930,22 @@ MonoBehaviour:
   - cell: {x: 22, y: 9, z: 4}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 24, y: 10, z: 4}
+  - cell: {x: 24, y: 7, z: 5}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 23, y: 10, z: 4}
+  - cell: {x: 23, y: 7, z: 5}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 22, y: 10, z: 4}
+  - cell: {x: 22, y: 7, z: 5}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 24, y: 11, z: 4}
+  - cell: {x: 24, y: 8, z: 5}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 23, y: 11, z: 4}
+  - cell: {x: 23, y: 8, z: 5}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 22, y: 11, z: 4}
+  - cell: {x: 22, y: 8, z: 5}
     materialId: 33
     rotationStep: 3
   - cell: {x: 24, y: 9, z: 5}
@@ -3095,22 +2957,22 @@ MonoBehaviour:
   - cell: {x: 22, y: 9, z: 5}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 24, y: 10, z: 5}
+  - cell: {x: 24, y: 7, z: 6}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 23, y: 10, z: 5}
+  - cell: {x: 23, y: 7, z: 6}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 22, y: 10, z: 5}
+  - cell: {x: 22, y: 7, z: 6}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 24, y: 11, z: 5}
+  - cell: {x: 24, y: 8, z: 6}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 23, y: 11, z: 5}
+  - cell: {x: 23, y: 8, z: 6}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 22, y: 11, z: 5}
+  - cell: {x: 22, y: 8, z: 6}
     materialId: 33
     rotationStep: 3
   - cell: {x: 24, y: 9, z: 6}
@@ -3122,24 +2984,24 @@ MonoBehaviour:
   - cell: {x: 22, y: 9, z: 6}
     materialId: 33
     rotationStep: 3
-  - cell: {x: 24, y: 10, z: 6}
+  - cell: {x: 5, y: 7, z: 15}
     materialId: 33
-    rotationStep: 3
-  - cell: {x: 23, y: 10, z: 6}
+    rotationStep: 1
+  - cell: {x: 6, y: 7, z: 15}
     materialId: 33
-    rotationStep: 3
-  - cell: {x: 22, y: 10, z: 6}
+    rotationStep: 1
+  - cell: {x: 7, y: 7, z: 15}
     materialId: 33
-    rotationStep: 3
-  - cell: {x: 24, y: 11, z: 6}
+    rotationStep: 1
+  - cell: {x: 5, y: 8, z: 15}
     materialId: 33
-    rotationStep: 3
-  - cell: {x: 23, y: 11, z: 6}
+    rotationStep: 1
+  - cell: {x: 6, y: 8, z: 15}
     materialId: 33
-    rotationStep: 3
-  - cell: {x: 22, y: 11, z: 6}
+    rotationStep: 1
+  - cell: {x: 7, y: 8, z: 15}
     materialId: 33
-    rotationStep: 3
+    rotationStep: 1
   - cell: {x: 5, y: 9, z: 15}
     materialId: 33
     rotationStep: 1
@@ -3149,22 +3011,22 @@ MonoBehaviour:
   - cell: {x: 7, y: 9, z: 15}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 5, y: 10, z: 15}
+  - cell: {x: 5, y: 7, z: 14}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 6, y: 10, z: 15}
+  - cell: {x: 6, y: 7, z: 14}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 7, y: 10, z: 15}
+  - cell: {x: 7, y: 7, z: 14}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 5, y: 11, z: 15}
+  - cell: {x: 5, y: 8, z: 14}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 6, y: 11, z: 15}
+  - cell: {x: 6, y: 8, z: 14}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 7, y: 11, z: 15}
+  - cell: {x: 7, y: 8, z: 14}
     materialId: 33
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 14}
@@ -3176,22 +3038,22 @@ MonoBehaviour:
   - cell: {x: 7, y: 9, z: 14}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 5, y: 10, z: 14}
+  - cell: {x: 5, y: 7, z: 13}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 6, y: 10, z: 14}
+  - cell: {x: 6, y: 7, z: 13}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 7, y: 10, z: 14}
+  - cell: {x: 7, y: 7, z: 13}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 5, y: 11, z: 14}
+  - cell: {x: 5, y: 8, z: 13}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 6, y: 11, z: 14}
+  - cell: {x: 6, y: 8, z: 13}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 7, y: 11, z: 14}
+  - cell: {x: 7, y: 8, z: 13}
     materialId: 33
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 13}
@@ -3203,24 +3065,24 @@ MonoBehaviour:
   - cell: {x: 7, y: 9, z: 13}
     materialId: 33
     rotationStep: 1
-  - cell: {x: 5, y: 10, z: 13}
+  - cell: {x: 24, y: 7, z: 15}
     materialId: 33
-    rotationStep: 1
-  - cell: {x: 6, y: 10, z: 13}
+    rotationStep: 2
+  - cell: {x: 24, y: 7, z: 14}
     materialId: 33
-    rotationStep: 1
-  - cell: {x: 7, y: 10, z: 13}
+    rotationStep: 2
+  - cell: {x: 24, y: 7, z: 13}
     materialId: 33
-    rotationStep: 1
-  - cell: {x: 5, y: 11, z: 13}
+    rotationStep: 2
+  - cell: {x: 24, y: 8, z: 15}
     materialId: 33
-    rotationStep: 1
-  - cell: {x: 6, y: 11, z: 13}
+    rotationStep: 2
+  - cell: {x: 24, y: 8, z: 14}
     materialId: 33
-    rotationStep: 1
-  - cell: {x: 7, y: 11, z: 13}
+    rotationStep: 2
+  - cell: {x: 24, y: 8, z: 13}
     materialId: 33
-    rotationStep: 1
+    rotationStep: 2
   - cell: {x: 24, y: 9, z: 15}
     materialId: 33
     rotationStep: 2
@@ -3230,22 +3092,22 @@ MonoBehaviour:
   - cell: {x: 24, y: 9, z: 13}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 24, y: 10, z: 15}
+  - cell: {x: 23, y: 7, z: 15}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 24, y: 10, z: 14}
+  - cell: {x: 23, y: 7, z: 14}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 24, y: 10, z: 13}
+  - cell: {x: 23, y: 7, z: 13}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 24, y: 11, z: 15}
+  - cell: {x: 23, y: 8, z: 15}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 24, y: 11, z: 14}
+  - cell: {x: 23, y: 8, z: 14}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 24, y: 11, z: 13}
+  - cell: {x: 23, y: 8, z: 13}
     materialId: 33
     rotationStep: 2
   - cell: {x: 23, y: 9, z: 15}
@@ -3257,22 +3119,22 @@ MonoBehaviour:
   - cell: {x: 23, y: 9, z: 13}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 23, y: 10, z: 15}
+  - cell: {x: 22, y: 7, z: 15}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 23, y: 10, z: 14}
+  - cell: {x: 22, y: 7, z: 14}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 23, y: 10, z: 13}
+  - cell: {x: 22, y: 7, z: 13}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 23, y: 11, z: 15}
+  - cell: {x: 22, y: 8, z: 15}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 23, y: 11, z: 14}
+  - cell: {x: 22, y: 8, z: 14}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 23, y: 11, z: 13}
+  - cell: {x: 22, y: 8, z: 13}
     materialId: 33
     rotationStep: 2
   - cell: {x: 22, y: 9, z: 15}
@@ -3284,24 +3146,24 @@ MonoBehaviour:
   - cell: {x: 22, y: 9, z: 13}
     materialId: 33
     rotationStep: 2
-  - cell: {x: 22, y: 10, z: 15}
-    materialId: 33
-    rotationStep: 2
-  - cell: {x: 22, y: 10, z: 14}
-    materialId: 33
-    rotationStep: 2
-  - cell: {x: 22, y: 10, z: 13}
-    materialId: 33
-    rotationStep: 2
-  - cell: {x: 22, y: 11, z: 15}
-    materialId: 33
-    rotationStep: 2
-  - cell: {x: 22, y: 11, z: 14}
-    materialId: 33
-    rotationStep: 2
-  - cell: {x: 22, y: 11, z: 13}
-    materialId: 33
-    rotationStep: 2
+  - cell: {x: 8, y: 7, z: 4}
+    materialId: 34
+    rotationStep: 0
+  - cell: {x: 8, y: 7, z: 5}
+    materialId: 34
+    rotationStep: 0
+  - cell: {x: 8, y: 7, z: 6}
+    materialId: 34
+    rotationStep: 0
+  - cell: {x: 8, y: 8, z: 4}
+    materialId: 34
+    rotationStep: 0
+  - cell: {x: 8, y: 8, z: 5}
+    materialId: 34
+    rotationStep: 0
+  - cell: {x: 8, y: 8, z: 6}
+    materialId: 34
+    rotationStep: 0
   - cell: {x: 8, y: 9, z: 4}
     materialId: 34
     rotationStep: 0
@@ -3311,22 +3173,22 @@ MonoBehaviour:
   - cell: {x: 8, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 10, z: 4}
+  - cell: {x: 9, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 10, z: 5}
+  - cell: {x: 9, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 10, z: 6}
+  - cell: {x: 9, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 11, z: 4}
+  - cell: {x: 9, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 11, z: 5}
+  - cell: {x: 9, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 11, z: 6}
+  - cell: {x: 9, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 4}
@@ -3338,22 +3200,22 @@ MonoBehaviour:
   - cell: {x: 9, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 10, z: 4}
+  - cell: {x: 10, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 10, z: 5}
+  - cell: {x: 10, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 10, z: 6}
+  - cell: {x: 10, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 11, z: 4}
+  - cell: {x: 10, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 11, z: 5}
+  - cell: {x: 10, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 11, z: 6}
+  - cell: {x: 10, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 4}
@@ -3365,22 +3227,22 @@ MonoBehaviour:
   - cell: {x: 10, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 10, z: 4}
+  - cell: {x: 11, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 10, z: 5}
+  - cell: {x: 11, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 10, z: 6}
+  - cell: {x: 11, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 11, z: 4}
+  - cell: {x: 11, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 11, z: 5}
+  - cell: {x: 11, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 11, z: 6}
+  - cell: {x: 11, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 4}
@@ -3392,22 +3254,22 @@ MonoBehaviour:
   - cell: {x: 11, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 10, z: 4}
+  - cell: {x: 12, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 10, z: 5}
+  - cell: {x: 12, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 10, z: 6}
+  - cell: {x: 12, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 11, z: 4}
+  - cell: {x: 12, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 11, z: 5}
+  - cell: {x: 12, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 11, z: 6}
+  - cell: {x: 12, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 4}
@@ -3419,22 +3281,22 @@ MonoBehaviour:
   - cell: {x: 12, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 10, z: 4}
+  - cell: {x: 13, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 10, z: 5}
+  - cell: {x: 13, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 10, z: 6}
+  - cell: {x: 13, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 11, z: 4}
+  - cell: {x: 13, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 11, z: 5}
+  - cell: {x: 13, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 11, z: 6}
+  - cell: {x: 13, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 4}
@@ -3446,22 +3308,22 @@ MonoBehaviour:
   - cell: {x: 13, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 10, z: 4}
+  - cell: {x: 14, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 10, z: 5}
+  - cell: {x: 14, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 10, z: 6}
+  - cell: {x: 14, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 11, z: 4}
+  - cell: {x: 14, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 11, z: 5}
+  - cell: {x: 14, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 11, z: 6}
+  - cell: {x: 14, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 4}
@@ -3473,22 +3335,22 @@ MonoBehaviour:
   - cell: {x: 14, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 10, z: 4}
+  - cell: {x: 15, y: 7, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 10, z: 5}
+  - cell: {x: 15, y: 7, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 10, z: 6}
+  - cell: {x: 15, y: 7, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 11, z: 4}
+  - cell: {x: 15, y: 8, z: 4}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 11, z: 5}
+  - cell: {x: 15, y: 8, z: 5}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 11, z: 6}
+  - cell: {x: 15, y: 8, z: 6}
     materialId: 34
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 4}
@@ -3500,23 +3362,23 @@ MonoBehaviour:
   - cell: {x: 15, y: 9, z: 6}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 15, y: 10, z: 4}
-    materialId: 34
+  - cell: {x: 16, y: 7, z: 4}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 10, z: 5}
-    materialId: 34
+  - cell: {x: 16, y: 7, z: 5}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 10, z: 6}
-    materialId: 34
+  - cell: {x: 16, y: 7, z: 6}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 11, z: 4}
-    materialId: 34
+  - cell: {x: 16, y: 8, z: 4}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 11, z: 5}
-    materialId: 34
+  - cell: {x: 16, y: 8, z: 5}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 11, z: 6}
-    materialId: 34
+  - cell: {x: 16, y: 8, z: 6}
+    materialId: 35
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 4}
     materialId: 35
@@ -3527,22 +3389,22 @@ MonoBehaviour:
   - cell: {x: 16, y: 9, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 10, z: 4}
+  - cell: {x: 17, y: 7, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 10, z: 5}
+  - cell: {x: 17, y: 7, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 10, z: 6}
+  - cell: {x: 17, y: 7, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 11, z: 4}
+  - cell: {x: 17, y: 8, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 11, z: 5}
+  - cell: {x: 17, y: 8, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 11, z: 6}
+  - cell: {x: 17, y: 8, z: 6}
     materialId: 35
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 4}
@@ -3554,22 +3416,22 @@ MonoBehaviour:
   - cell: {x: 17, y: 9, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 10, z: 4}
+  - cell: {x: 18, y: 7, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 10, z: 5}
+  - cell: {x: 18, y: 7, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 10, z: 6}
+  - cell: {x: 18, y: 7, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 11, z: 4}
+  - cell: {x: 18, y: 8, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 11, z: 5}
+  - cell: {x: 18, y: 8, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 11, z: 6}
+  - cell: {x: 18, y: 8, z: 6}
     materialId: 35
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 4}
@@ -3581,22 +3443,22 @@ MonoBehaviour:
   - cell: {x: 18, y: 9, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 10, z: 4}
+  - cell: {x: 19, y: 7, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 10, z: 5}
+  - cell: {x: 19, y: 7, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 10, z: 6}
+  - cell: {x: 19, y: 7, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 11, z: 4}
+  - cell: {x: 19, y: 8, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 11, z: 5}
+  - cell: {x: 19, y: 8, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 11, z: 6}
+  - cell: {x: 19, y: 8, z: 6}
     materialId: 35
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 4}
@@ -3608,22 +3470,22 @@ MonoBehaviour:
   - cell: {x: 19, y: 9, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 10, z: 4}
+  - cell: {x: 20, y: 7, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 10, z: 5}
+  - cell: {x: 20, y: 7, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 10, z: 6}
+  - cell: {x: 20, y: 7, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 11, z: 4}
+  - cell: {x: 20, y: 8, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 11, z: 5}
+  - cell: {x: 20, y: 8, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 11, z: 6}
+  - cell: {x: 20, y: 8, z: 6}
     materialId: 35
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 4}
@@ -3635,22 +3497,22 @@ MonoBehaviour:
   - cell: {x: 20, y: 9, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 10, z: 4}
+  - cell: {x: 21, y: 7, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 10, z: 5}
+  - cell: {x: 21, y: 7, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 10, z: 6}
+  - cell: {x: 21, y: 7, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 11, z: 4}
+  - cell: {x: 21, y: 8, z: 4}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 11, z: 5}
+  - cell: {x: 21, y: 8, z: 5}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 11, z: 6}
+  - cell: {x: 21, y: 8, z: 6}
     materialId: 35
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 4}
@@ -3662,23 +3524,23 @@ MonoBehaviour:
   - cell: {x: 21, y: 9, z: 6}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 21, y: 10, z: 4}
-    materialId: 35
+  - cell: {x: 8, y: 7, z: 13}
+    materialId: 34
     rotationStep: 0
-  - cell: {x: 21, y: 10, z: 5}
-    materialId: 35
+  - cell: {x: 8, y: 7, z: 14}
+    materialId: 34
     rotationStep: 0
-  - cell: {x: 21, y: 10, z: 6}
-    materialId: 35
+  - cell: {x: 8, y: 7, z: 15}
+    materialId: 34
     rotationStep: 0
-  - cell: {x: 21, y: 11, z: 4}
-    materialId: 35
+  - cell: {x: 8, y: 8, z: 13}
+    materialId: 34
     rotationStep: 0
-  - cell: {x: 21, y: 11, z: 5}
-    materialId: 35
+  - cell: {x: 8, y: 8, z: 14}
+    materialId: 34
     rotationStep: 0
-  - cell: {x: 21, y: 11, z: 6}
-    materialId: 35
+  - cell: {x: 8, y: 8, z: 15}
+    materialId: 34
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 13}
     materialId: 34
@@ -3689,22 +3551,22 @@ MonoBehaviour:
   - cell: {x: 8, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 10, z: 13}
+  - cell: {x: 9, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 10, z: 14}
+  - cell: {x: 9, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 10, z: 15}
+  - cell: {x: 9, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 11, z: 13}
+  - cell: {x: 9, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 11, z: 14}
+  - cell: {x: 9, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 8, y: 11, z: 15}
+  - cell: {x: 9, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 13}
@@ -3716,22 +3578,22 @@ MonoBehaviour:
   - cell: {x: 9, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 10, z: 13}
+  - cell: {x: 10, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 10, z: 14}
+  - cell: {x: 10, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 10, z: 15}
+  - cell: {x: 10, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 11, z: 13}
+  - cell: {x: 10, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 11, z: 14}
+  - cell: {x: 10, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 9, y: 11, z: 15}
+  - cell: {x: 10, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 13}
@@ -3743,22 +3605,22 @@ MonoBehaviour:
   - cell: {x: 10, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 10, z: 13}
+  - cell: {x: 11, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 10, z: 14}
+  - cell: {x: 11, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 10, z: 15}
+  - cell: {x: 11, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 11, z: 13}
+  - cell: {x: 11, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 11, z: 14}
+  - cell: {x: 11, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 10, y: 11, z: 15}
+  - cell: {x: 11, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 13}
@@ -3770,22 +3632,22 @@ MonoBehaviour:
   - cell: {x: 11, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 10, z: 13}
+  - cell: {x: 12, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 10, z: 14}
+  - cell: {x: 12, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 10, z: 15}
+  - cell: {x: 12, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 11, z: 13}
+  - cell: {x: 12, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 11, z: 14}
+  - cell: {x: 12, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 11, y: 11, z: 15}
+  - cell: {x: 12, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 13}
@@ -3797,22 +3659,22 @@ MonoBehaviour:
   - cell: {x: 12, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 10, z: 13}
+  - cell: {x: 13, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 10, z: 14}
+  - cell: {x: 13, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 10, z: 15}
+  - cell: {x: 13, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 11, z: 13}
+  - cell: {x: 13, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 11, z: 14}
+  - cell: {x: 13, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 12, y: 11, z: 15}
+  - cell: {x: 13, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 13}
@@ -3824,22 +3686,22 @@ MonoBehaviour:
   - cell: {x: 13, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 10, z: 13}
+  - cell: {x: 14, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 10, z: 14}
+  - cell: {x: 14, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 10, z: 15}
+  - cell: {x: 14, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 11, z: 13}
+  - cell: {x: 14, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 11, z: 14}
+  - cell: {x: 14, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 13, y: 11, z: 15}
+  - cell: {x: 14, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 13}
@@ -3851,22 +3713,22 @@ MonoBehaviour:
   - cell: {x: 14, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 10, z: 13}
+  - cell: {x: 15, y: 7, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 10, z: 14}
+  - cell: {x: 15, y: 7, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 10, z: 15}
+  - cell: {x: 15, y: 7, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 11, z: 13}
+  - cell: {x: 15, y: 8, z: 13}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 11, z: 14}
+  - cell: {x: 15, y: 8, z: 14}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 14, y: 11, z: 15}
+  - cell: {x: 15, y: 8, z: 15}
     materialId: 34
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 13}
@@ -3878,23 +3740,23 @@ MonoBehaviour:
   - cell: {x: 15, y: 9, z: 15}
     materialId: 34
     rotationStep: 0
-  - cell: {x: 15, y: 10, z: 13}
-    materialId: 34
+  - cell: {x: 16, y: 7, z: 13}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 10, z: 14}
-    materialId: 34
+  - cell: {x: 16, y: 7, z: 14}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 10, z: 15}
-    materialId: 34
+  - cell: {x: 16, y: 7, z: 15}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 11, z: 13}
-    materialId: 34
+  - cell: {x: 16, y: 8, z: 13}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 11, z: 14}
-    materialId: 34
+  - cell: {x: 16, y: 8, z: 14}
+    materialId: 35
     rotationStep: 0
-  - cell: {x: 15, y: 11, z: 15}
-    materialId: 34
+  - cell: {x: 16, y: 8, z: 15}
+    materialId: 35
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 13}
     materialId: 35
@@ -3905,22 +3767,22 @@ MonoBehaviour:
   - cell: {x: 16, y: 9, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 10, z: 13}
+  - cell: {x: 17, y: 7, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 10, z: 14}
+  - cell: {x: 17, y: 7, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 10, z: 15}
+  - cell: {x: 17, y: 7, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 11, z: 13}
+  - cell: {x: 17, y: 8, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 11, z: 14}
+  - cell: {x: 17, y: 8, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 16, y: 11, z: 15}
+  - cell: {x: 17, y: 8, z: 15}
     materialId: 35
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 13}
@@ -3932,22 +3794,22 @@ MonoBehaviour:
   - cell: {x: 17, y: 9, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 10, z: 13}
+  - cell: {x: 18, y: 7, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 10, z: 14}
+  - cell: {x: 18, y: 7, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 10, z: 15}
+  - cell: {x: 18, y: 7, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 11, z: 13}
+  - cell: {x: 18, y: 8, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 11, z: 14}
+  - cell: {x: 18, y: 8, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 17, y: 11, z: 15}
+  - cell: {x: 18, y: 8, z: 15}
     materialId: 35
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 13}
@@ -3959,22 +3821,22 @@ MonoBehaviour:
   - cell: {x: 18, y: 9, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 10, z: 13}
+  - cell: {x: 19, y: 7, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 10, z: 14}
+  - cell: {x: 19, y: 7, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 10, z: 15}
+  - cell: {x: 19, y: 7, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 11, z: 13}
+  - cell: {x: 19, y: 8, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 11, z: 14}
+  - cell: {x: 19, y: 8, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 18, y: 11, z: 15}
+  - cell: {x: 19, y: 8, z: 15}
     materialId: 35
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 13}
@@ -3986,22 +3848,22 @@ MonoBehaviour:
   - cell: {x: 19, y: 9, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 10, z: 13}
+  - cell: {x: 20, y: 7, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 10, z: 14}
+  - cell: {x: 20, y: 7, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 10, z: 15}
+  - cell: {x: 20, y: 7, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 11, z: 13}
+  - cell: {x: 20, y: 8, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 11, z: 14}
+  - cell: {x: 20, y: 8, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 19, y: 11, z: 15}
+  - cell: {x: 20, y: 8, z: 15}
     materialId: 35
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 13}
@@ -4013,22 +3875,22 @@ MonoBehaviour:
   - cell: {x: 20, y: 9, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 10, z: 13}
+  - cell: {x: 21, y: 7, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 10, z: 14}
+  - cell: {x: 21, y: 7, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 10, z: 15}
+  - cell: {x: 21, y: 7, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 11, z: 13}
+  - cell: {x: 21, y: 8, z: 13}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 11, z: 14}
+  - cell: {x: 21, y: 8, z: 14}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 20, y: 11, z: 15}
+  - cell: {x: 21, y: 8, z: 15}
     materialId: 35
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 13}
@@ -4040,23 +3902,41 @@ MonoBehaviour:
   - cell: {x: 21, y: 9, z: 15}
     materialId: 35
     rotationStep: 0
-  - cell: {x: 21, y: 10, z: 13}
-    materialId: 35
+  - cell: {x: 5, y: 7, z: 7}
+    materialId: 37
     rotationStep: 0
-  - cell: {x: 21, y: 10, z: 14}
-    materialId: 35
+  - cell: {x: 5, y: 7, z: 8}
+    materialId: 37
     rotationStep: 0
-  - cell: {x: 21, y: 10, z: 15}
-    materialId: 35
+  - cell: {x: 5, y: 7, z: 9}
+    materialId: 37
     rotationStep: 0
-  - cell: {x: 21, y: 11, z: 13}
-    materialId: 35
+  - cell: {x: 5, y: 7, z: 10}
+    materialId: 37
     rotationStep: 0
-  - cell: {x: 21, y: 11, z: 14}
-    materialId: 35
+  - cell: {x: 5, y: 7, z: 11}
+    materialId: 37
     rotationStep: 0
-  - cell: {x: 21, y: 11, z: 15}
-    materialId: 35
+  - cell: {x: 5, y: 7, z: 12}
+    materialId: 37
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 7}
+    materialId: 37
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 8}
+    materialId: 37
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 9}
+    materialId: 37
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 10}
+    materialId: 37
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 11}
+    materialId: 37
+    rotationStep: 0
+  - cell: {x: 5, y: 8, z: 12}
+    materialId: 37
     rotationStep: 0
   - cell: {x: 5, y: 9, z: 7}
     materialId: 37
@@ -4076,40 +3956,40 @@ MonoBehaviour:
   - cell: {x: 5, y: 9, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 7}
+  - cell: {x: 6, y: 7, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 8}
+  - cell: {x: 6, y: 7, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 9}
+  - cell: {x: 6, y: 7, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 10}
+  - cell: {x: 6, y: 7, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 11}
+  - cell: {x: 6, y: 7, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 10, z: 12}
+  - cell: {x: 6, y: 7, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 7}
+  - cell: {x: 6, y: 8, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 8}
+  - cell: {x: 6, y: 8, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 9}
+  - cell: {x: 6, y: 8, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 10}
+  - cell: {x: 6, y: 8, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 11}
+  - cell: {x: 6, y: 8, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 5, y: 11, z: 12}
+  - cell: {x: 6, y: 8, z: 12}
     materialId: 37
     rotationStep: 0
   - cell: {x: 6, y: 9, z: 7}
@@ -4130,40 +4010,40 @@ MonoBehaviour:
   - cell: {x: 6, y: 9, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 7}
+  - cell: {x: 7, y: 7, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 8}
+  - cell: {x: 7, y: 7, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 9}
+  - cell: {x: 7, y: 7, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 10}
+  - cell: {x: 7, y: 7, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 11}
+  - cell: {x: 7, y: 7, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 10, z: 12}
+  - cell: {x: 7, y: 7, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 7}
+  - cell: {x: 7, y: 8, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 8}
+  - cell: {x: 7, y: 8, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 9}
+  - cell: {x: 7, y: 8, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 10}
+  - cell: {x: 7, y: 8, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 11}
+  - cell: {x: 7, y: 8, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 6, y: 11, z: 12}
+  - cell: {x: 7, y: 8, z: 12}
     materialId: 37
     rotationStep: 0
   - cell: {x: 7, y: 9, z: 7}
@@ -4184,40 +4064,40 @@ MonoBehaviour:
   - cell: {x: 7, y: 9, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 7}
+  - cell: {x: 22, y: 7, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 8}
+  - cell: {x: 22, y: 7, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 9}
+  - cell: {x: 22, y: 7, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 10}
+  - cell: {x: 22, y: 7, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 11}
+  - cell: {x: 22, y: 7, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 10, z: 12}
+  - cell: {x: 22, y: 7, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 11, z: 7}
+  - cell: {x: 22, y: 8, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 11, z: 8}
+  - cell: {x: 22, y: 8, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 11, z: 9}
+  - cell: {x: 22, y: 8, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 11, z: 10}
+  - cell: {x: 22, y: 8, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 11, z: 11}
+  - cell: {x: 22, y: 8, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 7, y: 11, z: 12}
+  - cell: {x: 22, y: 8, z: 12}
     materialId: 37
     rotationStep: 0
   - cell: {x: 22, y: 9, z: 7}
@@ -4238,40 +4118,40 @@ MonoBehaviour:
   - cell: {x: 22, y: 9, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 10, z: 7}
+  - cell: {x: 23, y: 7, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 10, z: 8}
+  - cell: {x: 23, y: 7, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 10, z: 9}
+  - cell: {x: 23, y: 7, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 10, z: 10}
+  - cell: {x: 23, y: 7, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 10, z: 11}
+  - cell: {x: 23, y: 7, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 10, z: 12}
+  - cell: {x: 23, y: 7, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 11, z: 7}
+  - cell: {x: 23, y: 8, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 11, z: 8}
+  - cell: {x: 23, y: 8, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 11, z: 9}
+  - cell: {x: 23, y: 8, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 11, z: 10}
+  - cell: {x: 23, y: 8, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 11, z: 11}
+  - cell: {x: 23, y: 8, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 22, y: 11, z: 12}
+  - cell: {x: 23, y: 8, z: 12}
     materialId: 37
     rotationStep: 0
   - cell: {x: 23, y: 9, z: 7}
@@ -4292,40 +4172,40 @@ MonoBehaviour:
   - cell: {x: 23, y: 9, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 10, z: 7}
+  - cell: {x: 24, y: 7, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 10, z: 8}
+  - cell: {x: 24, y: 7, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 10, z: 9}
+  - cell: {x: 24, y: 7, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 10, z: 10}
+  - cell: {x: 24, y: 7, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 10, z: 11}
+  - cell: {x: 24, y: 7, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 10, z: 12}
+  - cell: {x: 24, y: 7, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 11, z: 7}
+  - cell: {x: 24, y: 8, z: 7}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 11, z: 8}
+  - cell: {x: 24, y: 8, z: 8}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 11, z: 9}
+  - cell: {x: 24, y: 8, z: 9}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 11, z: 10}
+  - cell: {x: 24, y: 8, z: 10}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 11, z: 11}
+  - cell: {x: 24, y: 8, z: 11}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 23, y: 11, z: 12}
+  - cell: {x: 24, y: 8, z: 12}
     materialId: 37
     rotationStep: 0
   - cell: {x: 24, y: 9, z: 7}
@@ -4346,41 +4226,53 @@ MonoBehaviour:
   - cell: {x: 24, y: 9, z: 12}
     materialId: 37
     rotationStep: 0
-  - cell: {x: 24, y: 10, z: 7}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 6}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 10, z: 8}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 7}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 10, z: 9}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 8}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 10, z: 10}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 9}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 10, z: 11}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 10}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 10, z: 12}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 11}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 11, z: 7}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 12}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 11, z: 8}
-    materialId: 37
+  - cell: {x: 7, y: 10, z: 13}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 11, z: 9}
-    materialId: 37
+  - cell: {x: 7, y: 11, z: 6}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 11, z: 10}
-    materialId: 37
+  - cell: {x: 7, y: 11, z: 7}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 11, z: 11}
-    materialId: 37
+  - cell: {x: 7, y: 11, z: 8}
+    materialId: 40
     rotationStep: 0
-  - cell: {x: 24, y: 11, z: 12}
-    materialId: 37
+  - cell: {x: 7, y: 11, z: 9}
+    materialId: 40
+    rotationStep: 0
+  - cell: {x: 7, y: 11, z: 10}
+    materialId: 40
+    rotationStep: 0
+  - cell: {x: 7, y: 11, z: 11}
+    materialId: 40
+    rotationStep: 0
+  - cell: {x: 7, y: 11, z: 12}
+    materialId: 40
+    rotationStep: 0
+  - cell: {x: 7, y: 11, z: 13}
+    materialId: 40
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 6}
     materialId: 40
@@ -4406,52 +4298,52 @@ MonoBehaviour:
   - cell: {x: 7, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 6}
+  - cell: {x: 8, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 7}
+  - cell: {x: 8, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 8}
+  - cell: {x: 8, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 9}
+  - cell: {x: 8, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 10}
+  - cell: {x: 8, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 11}
+  - cell: {x: 8, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 12}
+  - cell: {x: 8, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 13, z: 13}
+  - cell: {x: 8, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 6}
+  - cell: {x: 8, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 7}
+  - cell: {x: 8, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 8}
+  - cell: {x: 8, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 9}
+  - cell: {x: 8, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 10}
+  - cell: {x: 8, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 11}
+  - cell: {x: 8, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 12}
+  - cell: {x: 8, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 7, y: 14, z: 13}
+  - cell: {x: 8, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 6}
@@ -4478,52 +4370,52 @@ MonoBehaviour:
   - cell: {x: 8, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 6}
+  - cell: {x: 9, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 7}
+  - cell: {x: 9, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 8}
+  - cell: {x: 9, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 9}
+  - cell: {x: 9, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 10}
+  - cell: {x: 9, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 11}
+  - cell: {x: 9, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 12}
+  - cell: {x: 9, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 13, z: 13}
+  - cell: {x: 9, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 6}
+  - cell: {x: 9, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 7}
+  - cell: {x: 9, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 8}
+  - cell: {x: 9, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 9}
+  - cell: {x: 9, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 10}
+  - cell: {x: 9, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 11}
+  - cell: {x: 9, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 12}
+  - cell: {x: 9, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 8, y: 14, z: 13}
+  - cell: {x: 9, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 6}
@@ -4550,52 +4442,52 @@ MonoBehaviour:
   - cell: {x: 9, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 6}
+  - cell: {x: 10, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 7}
+  - cell: {x: 10, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 8}
+  - cell: {x: 10, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 9}
+  - cell: {x: 10, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 10}
+  - cell: {x: 10, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 11}
+  - cell: {x: 10, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 12}
+  - cell: {x: 10, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 13, z: 13}
+  - cell: {x: 10, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 6}
+  - cell: {x: 10, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 7}
+  - cell: {x: 10, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 8}
+  - cell: {x: 10, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 9}
+  - cell: {x: 10, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 10}
+  - cell: {x: 10, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 11}
+  - cell: {x: 10, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 12}
+  - cell: {x: 10, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 9, y: 14, z: 13}
+  - cell: {x: 10, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 6}
@@ -4622,52 +4514,52 @@ MonoBehaviour:
   - cell: {x: 10, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 6}
+  - cell: {x: 11, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 7}
+  - cell: {x: 11, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 8}
+  - cell: {x: 11, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 9}
+  - cell: {x: 11, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 10}
+  - cell: {x: 11, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 11}
+  - cell: {x: 11, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 12}
+  - cell: {x: 11, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 13, z: 13}
+  - cell: {x: 11, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 6}
+  - cell: {x: 11, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 7}
+  - cell: {x: 11, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 8}
+  - cell: {x: 11, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 9}
+  - cell: {x: 11, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 10}
+  - cell: {x: 11, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 11}
+  - cell: {x: 11, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 12}
+  - cell: {x: 11, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 10, y: 14, z: 13}
+  - cell: {x: 11, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 6}
@@ -4694,52 +4586,52 @@ MonoBehaviour:
   - cell: {x: 11, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 6}
+  - cell: {x: 12, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 7}
+  - cell: {x: 12, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 8}
+  - cell: {x: 12, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 9}
+  - cell: {x: 12, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 10}
+  - cell: {x: 12, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 11}
+  - cell: {x: 12, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 12}
+  - cell: {x: 12, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 13, z: 13}
+  - cell: {x: 12, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 6}
+  - cell: {x: 12, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 7}
+  - cell: {x: 12, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 8}
+  - cell: {x: 12, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 9}
+  - cell: {x: 12, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 10}
+  - cell: {x: 12, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 11}
+  - cell: {x: 12, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 12}
+  - cell: {x: 12, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 11, y: 14, z: 13}
+  - cell: {x: 12, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 6}
@@ -4766,52 +4658,52 @@ MonoBehaviour:
   - cell: {x: 12, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 6}
+  - cell: {x: 13, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 7}
+  - cell: {x: 13, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 8}
+  - cell: {x: 13, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 9}
+  - cell: {x: 13, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 10}
+  - cell: {x: 13, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 11}
+  - cell: {x: 13, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 12}
+  - cell: {x: 13, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 13, z: 13}
+  - cell: {x: 13, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 6}
+  - cell: {x: 13, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 7}
+  - cell: {x: 13, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 8}
+  - cell: {x: 13, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 9}
+  - cell: {x: 13, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 10}
+  - cell: {x: 13, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 11}
+  - cell: {x: 13, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 12}
+  - cell: {x: 13, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 12, y: 14, z: 13}
+  - cell: {x: 13, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 6}
@@ -4838,52 +4730,52 @@ MonoBehaviour:
   - cell: {x: 13, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 6}
+  - cell: {x: 14, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 7}
+  - cell: {x: 14, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 8}
+  - cell: {x: 14, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 9}
+  - cell: {x: 14, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 10}
+  - cell: {x: 14, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 11}
+  - cell: {x: 14, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 12}
+  - cell: {x: 14, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 13, z: 13}
+  - cell: {x: 14, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 6}
+  - cell: {x: 14, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 7}
+  - cell: {x: 14, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 8}
+  - cell: {x: 14, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 9}
+  - cell: {x: 14, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 10}
+  - cell: {x: 14, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 11}
+  - cell: {x: 14, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 12}
+  - cell: {x: 14, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 13, y: 14, z: 13}
+  - cell: {x: 14, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 6}
@@ -4910,52 +4802,52 @@ MonoBehaviour:
   - cell: {x: 14, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 6}
+  - cell: {x: 15, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 7}
+  - cell: {x: 15, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 8}
+  - cell: {x: 15, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 9}
+  - cell: {x: 15, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 10}
+  - cell: {x: 15, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 11}
+  - cell: {x: 15, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 12}
+  - cell: {x: 15, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 13, z: 13}
+  - cell: {x: 15, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 6}
+  - cell: {x: 15, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 7}
+  - cell: {x: 15, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 8}
+  - cell: {x: 15, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 9}
+  - cell: {x: 15, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 10}
+  - cell: {x: 15, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 11}
+  - cell: {x: 15, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 12}
+  - cell: {x: 15, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 14, y: 14, z: 13}
+  - cell: {x: 15, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 6}
@@ -4982,52 +4874,52 @@ MonoBehaviour:
   - cell: {x: 15, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 6}
+  - cell: {x: 16, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 7}
+  - cell: {x: 16, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 8}
+  - cell: {x: 16, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 9}
+  - cell: {x: 16, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 10}
+  - cell: {x: 16, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 11}
+  - cell: {x: 16, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 12}
+  - cell: {x: 16, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 13, z: 13}
+  - cell: {x: 16, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 6}
+  - cell: {x: 16, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 7}
+  - cell: {x: 16, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 8}
+  - cell: {x: 16, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 9}
+  - cell: {x: 16, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 10}
+  - cell: {x: 16, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 11}
+  - cell: {x: 16, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 12}
+  - cell: {x: 16, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 15, y: 14, z: 13}
+  - cell: {x: 16, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 6}
@@ -5054,52 +4946,52 @@ MonoBehaviour:
   - cell: {x: 16, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 6}
+  - cell: {x: 17, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 7}
+  - cell: {x: 17, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 8}
+  - cell: {x: 17, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 9}
+  - cell: {x: 17, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 10}
+  - cell: {x: 17, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 11}
+  - cell: {x: 17, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 12}
+  - cell: {x: 17, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 13, z: 13}
+  - cell: {x: 17, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 6}
+  - cell: {x: 17, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 7}
+  - cell: {x: 17, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 8}
+  - cell: {x: 17, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 9}
+  - cell: {x: 17, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 10}
+  - cell: {x: 17, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 11}
+  - cell: {x: 17, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 12}
+  - cell: {x: 17, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 16, y: 14, z: 13}
+  - cell: {x: 17, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 6}
@@ -5126,52 +5018,52 @@ MonoBehaviour:
   - cell: {x: 17, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 6}
+  - cell: {x: 18, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 7}
+  - cell: {x: 18, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 8}
+  - cell: {x: 18, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 9}
+  - cell: {x: 18, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 10}
+  - cell: {x: 18, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 11}
+  - cell: {x: 18, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 12}
+  - cell: {x: 18, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 13, z: 13}
+  - cell: {x: 18, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 6}
+  - cell: {x: 18, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 7}
+  - cell: {x: 18, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 8}
+  - cell: {x: 18, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 9}
+  - cell: {x: 18, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 10}
+  - cell: {x: 18, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 11}
+  - cell: {x: 18, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 12}
+  - cell: {x: 18, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 17, y: 14, z: 13}
+  - cell: {x: 18, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 6}
@@ -5198,52 +5090,52 @@ MonoBehaviour:
   - cell: {x: 18, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 6}
+  - cell: {x: 19, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 7}
+  - cell: {x: 19, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 8}
+  - cell: {x: 19, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 9}
+  - cell: {x: 19, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 10}
+  - cell: {x: 19, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 11}
+  - cell: {x: 19, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 12}
+  - cell: {x: 19, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 13, z: 13}
+  - cell: {x: 19, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 6}
+  - cell: {x: 19, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 7}
+  - cell: {x: 19, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 8}
+  - cell: {x: 19, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 9}
+  - cell: {x: 19, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 10}
+  - cell: {x: 19, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 11}
+  - cell: {x: 19, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 12}
+  - cell: {x: 19, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 18, y: 14, z: 13}
+  - cell: {x: 19, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 6}
@@ -5270,52 +5162,52 @@ MonoBehaviour:
   - cell: {x: 19, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 6}
+  - cell: {x: 20, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 7}
+  - cell: {x: 20, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 8}
+  - cell: {x: 20, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 9}
+  - cell: {x: 20, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 10}
+  - cell: {x: 20, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 11}
+  - cell: {x: 20, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 12}
+  - cell: {x: 20, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 13, z: 13}
+  - cell: {x: 20, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 6}
+  - cell: {x: 20, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 7}
+  - cell: {x: 20, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 8}
+  - cell: {x: 20, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 9}
+  - cell: {x: 20, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 10}
+  - cell: {x: 20, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 11}
+  - cell: {x: 20, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 12}
+  - cell: {x: 20, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 19, y: 14, z: 13}
+  - cell: {x: 20, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 6}
@@ -5342,52 +5234,52 @@ MonoBehaviour:
   - cell: {x: 20, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 6}
+  - cell: {x: 21, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 7}
+  - cell: {x: 21, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 8}
+  - cell: {x: 21, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 9}
+  - cell: {x: 21, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 10}
+  - cell: {x: 21, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 11}
+  - cell: {x: 21, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 12}
+  - cell: {x: 21, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 13, z: 13}
+  - cell: {x: 21, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 6}
+  - cell: {x: 21, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 7}
+  - cell: {x: 21, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 8}
+  - cell: {x: 21, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 9}
+  - cell: {x: 21, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 10}
+  - cell: {x: 21, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 11}
+  - cell: {x: 21, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 12}
+  - cell: {x: 21, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 20, y: 14, z: 13}
+  - cell: {x: 21, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 6}
@@ -5414,52 +5306,52 @@ MonoBehaviour:
   - cell: {x: 21, y: 12, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 6}
+  - cell: {x: 22, y: 10, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 7}
+  - cell: {x: 22, y: 10, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 8}
+  - cell: {x: 22, y: 10, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 9}
+  - cell: {x: 22, y: 10, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 10}
+  - cell: {x: 22, y: 10, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 11}
+  - cell: {x: 22, y: 10, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 12}
+  - cell: {x: 22, y: 10, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 13, z: 13}
+  - cell: {x: 22, y: 10, z: 13}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 6}
+  - cell: {x: 22, y: 11, z: 6}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 7}
+  - cell: {x: 22, y: 11, z: 7}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 8}
+  - cell: {x: 22, y: 11, z: 8}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 9}
+  - cell: {x: 22, y: 11, z: 9}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 10}
+  - cell: {x: 22, y: 11, z: 10}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 11}
+  - cell: {x: 22, y: 11, z: 11}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 12}
+  - cell: {x: 22, y: 11, z: 12}
     materialId: 40
     rotationStep: 0
-  - cell: {x: 21, y: 14, z: 13}
+  - cell: {x: 22, y: 11, z: 13}
     materialId: 40
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 6}
@@ -5484,54 +5376,6 @@ MonoBehaviour:
     materialId: 40
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 13}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 6}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 7}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 8}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 9}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 10}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 11}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 12}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 13, z: 13}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 6}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 7}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 8}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 9}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 10}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 11}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 12}
-    materialId: 40
-    rotationStep: 0
-  - cell: {x: 22, y: 14, z: 13}
     materialId: 40
     rotationStep: 0
   m_PresetCells:
@@ -5910,26 +5754,26 @@ MonoBehaviour:
   - {x: 6, y: 5, z: 11}
   - {x: 6, y: 5, z: 12}
   - {x: 6, y: 5, z: 13}
-  - {x: 7, y: 7, z: 13}
-  - {x: 7, y: 8, z: 13}
-  - {x: 8, y: 7, z: 13}
-  - {x: 8, y: 8, z: 13}
-  - {x: 9, y: 7, z: 13}
-  - {x: 9, y: 8, z: 13}
-  - {x: 10, y: 7, z: 13}
-  - {x: 10, y: 8, z: 13}
-  - {x: 7, y: 7, z: 7}
-  - {x: 7, y: 7, z: 8}
-  - {x: 7, y: 7, z: 9}
-  - {x: 7, y: 7, z: 10}
-  - {x: 7, y: 7, z: 11}
-  - {x: 7, y: 7, z: 12}
-  - {x: 7, y: 8, z: 7}
-  - {x: 7, y: 8, z: 8}
-  - {x: 7, y: 8, z: 9}
-  - {x: 7, y: 8, z: 10}
-  - {x: 7, y: 8, z: 11}
-  - {x: 7, y: 8, z: 12}
+  - {x: 7, y: 5, z: 13}
+  - {x: 7, y: 6, z: 13}
+  - {x: 8, y: 5, z: 13}
+  - {x: 8, y: 6, z: 13}
+  - {x: 9, y: 5, z: 13}
+  - {x: 9, y: 6, z: 13}
+  - {x: 10, y: 5, z: 13}
+  - {x: 10, y: 6, z: 13}
+  - {x: 7, y: 5, z: 7}
+  - {x: 7, y: 5, z: 8}
+  - {x: 7, y: 5, z: 9}
+  - {x: 7, y: 5, z: 10}
+  - {x: 7, y: 5, z: 11}
+  - {x: 7, y: 5, z: 12}
+  - {x: 7, y: 6, z: 7}
+  - {x: 7, y: 6, z: 8}
+  - {x: 7, y: 6, z: 9}
+  - {x: 7, y: 6, z: 10}
+  - {x: 7, y: 6, z: 11}
+  - {x: 7, y: 6, z: 12}
   m_SpawnPresetBlocks: 1
   m_StartPilePosition: {x: 0, y: 0, z: 0}
   m_TimeLimitSeconds: 600

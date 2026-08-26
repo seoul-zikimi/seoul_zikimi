@@ -9,7 +9,7 @@ namespace GridSystem.EditorTools
     /// ★ 경복궁 근정전 테스트 맵 원클릭 생성 — 기획 시트(08/26, 8칸 상한·칸모듈 통짜안) 기반.
     /// · 파츠 MaterialDef 11종(id 30~40) + 색큐브 폴백 프리팹 → 전역 MaterialCatalog에 등록
     ///   (VARCO 모델이 나오면 각 def의 Prefab만 교체하면 됨)
-    /// · 중층 전각 정답 52블록: 1층 칸모듈 14 → 하층 기와 10 → 마루 6 → 2층 칸모듈 10 → 상층 기와 10 → 지붕 2
+    /// · 중층 전각 정답 49블록: 1층 칸모듈 14 → 하층 기와 10 → 마루 4(테두리보다 1칸 낮게) → 2층 칸모듈 10 → 상층 기와 10 → 지붕 1
     ///   (원 기획 98블록 대비 절반 수준 — 실루엣 동일. 블록 수 감이 목적인 테스트 맵)
     /// · 마루·지붕은 아래층 기와 안쪽 테두리에 1칸 걸치게 넓혀서 '허공 배치 거부' 규칙을 통과시킨다
     ///   (걸침 없이 구멍 크기 그대로면 WouldBeSupported=false → 플레이어가 놓을 수 없음)
@@ -28,7 +28,7 @@ namespace GridSystem.EditorTools
         // ⚠ GameScene의 GridManager가 물고 있는 '전역 재료 카탈로그' — 여기 없는 재료는 주문이 무시된다.
         private const string kGlobalMaterialCatalogPath = "Assets/Prefabs/Map/1_KwangTongGyo/1_GwangTongGyo_MaterialCatalog.asset";
 
-        private static readonly Vector3Int kGridSize = new Vector3Int(30, 15, 20);
+        private static readonly Vector3Int kGridSize = new Vector3Int(30, 13, 20);
         private const float kTimeLimitSeconds = 600f;   // 10분 — 최종전 후보. 밸런스는 플레이 테스트로
 
         // ── 파츠 정의(칸모듈 통짜안) : 이름, id, footprint(가로,높이,세로), 공정, 색, 하중부재, 무거움 ──
@@ -58,14 +58,17 @@ namespace GridSystem.EditorTools
             // 2층 몸체 — 망치질+페인트칠(단청) 2공정. 최종전 작업량은 여기서 나온다.
             new Part{ Name="경복궁_2층벽모듈",     Id=38, Fp=new Vector3Int(4,2,1), Procs=kFixPaint, Color=new Color(0.87f,0.55f,0.25f), MustFix=true },
             new Part{ Name="경복궁_2층벽모듈_측면", Id=39, Fp=new Vector3Int(1,2,6), Procs=kFixPaint, Color=new Color(0.80f,0.48f,0.20f), MustFix=true },
-            // 지붕 — 좌우 두 덩어리. 상층 기와 안쪽 테두리에 1칸 걸치는 크기(지지 확보).
-            new Part{ Name="경복궁_지붕",          Id=40, Fp=new Vector3Int(8,3,8), Procs=kFix,      Color=new Color(0.30f,0.42f,0.72f), Heavy=true },
-            // 2층 마루 — 하층 기와 안쪽 테두리에 1칸 걸치는 바닥판. 공정 없음(놓으면 자동 고정), 가벼움.
-            new Part{ Name="경복궁_마루",          Id=41, Fp=new Vector3Int(6,1,5), Procs=kNone,     Color=new Color(0.76f,0.60f,0.38f) },
+            // 지붕 — 삼각 왕관 한 덩어리. 8칸 상한의 유일한 예외(마지막에 다 같이 올리는 클라이맥스 블록).
+            // 반쪽 2개 잇기는 폐기(08/27) — 슬라이스 프리팹의 머티리얼 참조가 glb 교체마다 깨져서 투명화 사고.
+            new Part{ Name="경복궁_지붕",          Id=40, Fp=new Vector3Int(16,3,8), Procs=kFix,     Color=new Color(0.30f,0.42f,0.72f), Heavy=true },
+            // 2층 마루 — 하층 기와와 '같은 층'에서 안쪽 구멍(16×8)을 메우는 바닥판. 윗면이 기와 윗면과 평평.
+            // 아래는 배경 프리팹의 1층 천장(Ceiling1F)이 받친다. 공정 없음(놓으면 자동 고정), 가벼움.
+            new Part{ Name="경복궁_마루",          Id=41, Fp=new Vector3Int(8,1,4), Procs=kNone,     Color=new Color(0.76f,0.60f,0.38f) },
         };
 
-        // ── 근정전 조립(정답): (파츠 id, 앵커 셀=min-corner). 총 52블록, 높이 15 ──
-        // 층 구성: 1층 벽 y0-2 → 하층 기와 y3-5 → 마루 y6 → 2층 벽 y7-8 → 상층 기와 y9-11 → 지붕 y12-14
+        // ── 근정전 조립(정답): (파츠 id, 앵커 셀=min-corner). 총 49블록, 높이 13 ──
+        // 층 구성: 1층 벽 y0-2 → 하층 기와 y3-5 + 마루 y4(기와 테두리보다 1칸 낮게 움푹) →
+        //          2층 벽 y5-6(아랫단이 기와 뒤에 가려짐 — 실제 근정전 프로파일) → 상층 기와 y7-9 → 지붕 y10-12
         private static readonly (int id, Vector3Int anchor)[] kPalace =
         {
             // 1층 벽 링 x5..24, z4..15 (문은 앞뒤 중앙)
@@ -78,37 +81,37 @@ namespace GridSystem.EditorTools
             (34, new Vector3Int( 7, 3,  3)), (34, new Vector3Int(15, 3,  3)),
             (34, new Vector3Int( 7, 3, 14)), (34, new Vector3Int(15, 3, 14)),
             (36, new Vector3Int( 4, 3,  6)), (36, new Vector3Int(23, 3,  6)),
-            // 마루 y6 — x6..23, z5..14 (하층 기와 안쪽 테두리에 1칸 걸침 → 지지 OK, 2층의 바닥)
-            (41, new Vector3Int( 6, 6,  5)), (41, new Vector3Int(12, 6,  5)), (41, new Vector3Int(18, 6,  5)),
-            (41, new Vector3Int( 6, 6, 10)), (41, new Vector3Int(12, 6, 10)), (41, new Vector3Int(18, 6, 10)),
-            // 2층 벽 링 x7..22, z6..13 (마루 위, 안쪽으로 후퇴)
-            (38, new Vector3Int( 7, 7,  6)), (38, new Vector3Int(11, 7,  6)), (38, new Vector3Int(15, 7,  6)), (38, new Vector3Int(19, 7,  6)),
-            (38, new Vector3Int( 7, 7, 13)), (38, new Vector3Int(11, 7, 13)), (38, new Vector3Int(15, 7, 13)), (38, new Vector3Int(19, 7, 13)),
-            (39, new Vector3Int( 7, 7,  7)), (39, new Vector3Int(22, 7,  7)),
+            // 마루 y4 — 하층 기와 안쪽 구멍(x7..22, z6..13)을 테두리보다 1칸 낮게 메움(움푹 들어간 2층 바닥)
+            (41, new Vector3Int( 7, 4,  6)), (41, new Vector3Int(15, 4,  6)),
+            (41, new Vector3Int( 7, 4, 10)), (41, new Vector3Int(15, 4, 10)),
+            // 2층 벽 링 x7..22, z6..13 (마루 위 — 아랫단 1칸이 기와 테두리 뒤에 가려진다)
+            (38, new Vector3Int( 7, 5,  6)), (38, new Vector3Int(11, 5,  6)), (38, new Vector3Int(15, 5,  6)), (38, new Vector3Int(19, 5,  6)),
+            (38, new Vector3Int( 7, 5, 13)), (38, new Vector3Int(11, 5, 13)), (38, new Vector3Int(15, 5, 13)), (38, new Vector3Int(19, 5, 13)),
+            (39, new Vector3Int( 7, 5,  7)), (39, new Vector3Int(22, 5,  7)),
             // 상층 기와 링 x5..24, z4..15
-            (33, new Vector3Int( 5, 9,  4)), (33, new Vector3Int(22, 9,  4)), (33, new Vector3Int( 5, 9, 13)), (33, new Vector3Int(22, 9, 13)),
-            (34, new Vector3Int( 8, 9,  4)), (35, new Vector3Int(16, 9,  4)),
-            (34, new Vector3Int( 8, 9, 13)), (35, new Vector3Int(16, 9, 13)),
-            (37, new Vector3Int( 5, 9,  7)), (37, new Vector3Int(22, 9,  7)),
-            // 지붕 x7..22, z6..13 (좌우 두 덩어리 — 상층 기와 안쪽 테두리에 1칸 걸침)
-            (40, new Vector3Int( 7, 12, 6)), (40, new Vector3Int(15, 12, 6)),
+            (33, new Vector3Int( 5, 7,  4)), (33, new Vector3Int(22, 7,  4)), (33, new Vector3Int( 5, 7, 13)), (33, new Vector3Int(22, 7, 13)),
+            (34, new Vector3Int( 8, 7,  4)), (35, new Vector3Int(16, 7,  4)),
+            (34, new Vector3Int( 8, 7, 13)), (35, new Vector3Int(16, 7, 13)),
+            (37, new Vector3Int( 5, 7,  7)), (37, new Vector3Int(22, 7,  7)),
+            // 지붕 x7..22, z6..13 (한 덩어리 — 상층 기와 안쪽 테두리에 1칸 걸침)
+            (40, new Vector3Int( 7, 10, 6)),
         };
 
-        // ── 모서리기와 회전: 각 모서리가 바깥을 보도록 시계방향(위에서 볼 때 +Y 회전)으로 90°씩.
-        // 남서(정면 왼쪽) = 기준 0. 모델의 기본 방향이 어긋나 있으면 kCornerRotOffset 하나만 조절해 전체 보정.
+        // ── 회전 배치: 모서리기와(바깥을 보게 시계방향 90°씩) + 지붕 반쪽(오른쪽 180°).
+        // 남서(정면 왼쪽) = 기준 0. 모서리 모델의 기본 방향이 어긋나 있으면 kCornerRotOffset 하나만 조절해 전체 보정.
         private const int kCornerRotOffset = 0;
-        private static readonly Dictionary<Vector3Int, int> kCornerRots = new Dictionary<Vector3Int, int>
+        private static readonly Dictionary<Vector3Int, int> kRotByAnchor = new Dictionary<Vector3Int, int>
         {
             // 하층 기와 (y3)
             { new Vector3Int( 4, 3,  3), 0 },   // 남서
             { new Vector3Int( 4, 3, 14), 1 },   // 북서
             { new Vector3Int(23, 3, 14), 2 },   // 북동
             { new Vector3Int(23, 3,  3), 3 },   // 남동
-            // 상층 기와 (y9)
-            { new Vector3Int( 5, 9,  4), 0 },   // 남서
-            { new Vector3Int( 5, 9, 13), 1 },   // 북서
-            { new Vector3Int(22, 9, 13), 2 },   // 북동
-            { new Vector3Int(22, 9,  4), 3 },   // 남동
+            // 상층 기와 (y7)
+            { new Vector3Int( 5, 7,  4), 0 },   // 남서
+            { new Vector3Int( 5, 7, 13), 1 },   // 북서
+            { new Vector3Int(22, 7, 13), 2 },   // 북동
+            { new Vector3Int(22, 7,  4), 3 },   // 남동
         };
 
         // ── 기본 제공(preset) 블록 앵커 — 라운드 시작 시 완성 상태로 미리 깔림(채점 제외).
@@ -126,7 +129,7 @@ namespace GridSystem.EditorTools
             // 동쪽 세로 기와(23,3,6)는 제외 — 동쪽 벽이 뒤 1칸만 프리셋이라 기와 절반이 허공에 뜬다
             new Vector3Int( 4, 3, 14), new Vector3Int(23, 3, 14),   // 하층 기와: 뒤 모서리 2
             new Vector3Int( 7, 3, 14), new Vector3Int(15, 3, 14),   // 하층 기와: 뒤 직선 2
-            new Vector3Int( 7, 7,  7), new Vector3Int( 7, 7, 13),   // 2층: 서쪽 측면 + 뒤 왼쪽 모듈
+            new Vector3Int( 7, 5,  7), new Vector3Int( 7, 5, 13),   // 2층: 서쪽 측면 + 뒤 왼쪽 모듈
         };
 
         [MenuItem("Tools/Map/★ 경복궁 맵 생성 (테스트)")]
@@ -173,7 +176,9 @@ namespace GridSystem.EditorTools
             foreach (var (id, anchor) in kPalace)
             {
                 bool preset = kPresetAnchors.Contains(anchor);
-                int rot = kCornerRots.TryGetValue(anchor, out int r) ? (r + kCornerRotOffset) & 3 : 0;
+                int rot = 0;
+                if (kRotByAnchor.TryGetValue(anchor, out int r))
+                    rot = (id == 33 ? r + kCornerRotOffset : r) & 3;   // 오프셋 보정은 모서리기와에만
                 foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, defs[id].Footprint, rot))
                 {
                     if (c.x < 0 || c.y < 0 || c.z < 0 || c.x >= kGridSize.x || c.y >= kGridSize.y || c.z >= kGridSize.z)
@@ -308,7 +313,19 @@ namespace GridSystem.EditorTools
             // 건물 기단(월대 느낌) — 정답 footprint보다 살짝 넓은 얇은 단(장식, 상판 y=0.12)
             AddBox(root, "StoneBase", new Vector3(15f, 0.06f, 9.5f), new Vector3(24f, 0.12f, 15f), baseSt).isStatic = true;
 
-            // (2층 마루는 이제 플레이어가 직접 까는 블록 — 배경 발판 없음)
+            // 마루 받침 까치발 — 긴 들보 대신 앞뒤 벽 안쪽 면에 붙는 짧은 받침목 8개(08/26 피드백: 통 들보 보기 싫음).
+            // 초기 비활성 → GyeongbokgungCorbels가 '1층 벽 링 완공'을 감지하면 활성화(시공 순서: 벽 → 까치발 → 마루).
+            // 앞 스터브는 아래칸 z6, 뒤 스터브는 z13을 덮어 마루 4장 전부의 지지(ExternalSupportBelow)를 보장한다.
+            var beamMat = EnsureMaterial("Mat_GbkCeiling", new Color(0.33f, 0.26f, 0.20f));
+            var stubRoot = new GameObject("MaruCorbels");
+            stubRoot.transform.SetParent(root.transform, false);
+            foreach (float bx in new[] { 8.5f, 12.5f, 16.5f, 20.5f })
+            {
+                AddBox(stubRoot, $"Corbel_F_x{bx}", new Vector3(bx, 3.7f, 5.75f), new Vector3(0.6f, 0.5f, 1.5f), beamMat).isStatic = true;
+                AddBox(stubRoot, $"Corbel_B_x{bx}", new Vector3(bx, 3.7f, 14.25f), new Vector3(0.6f, 0.5f, 1.5f), beamMat).isStatic = true;
+            }
+            stubRoot.SetActive(false);
+            root.AddComponent<GyeongbokgungCorbels>().StubRoot = stubRoot;
 
             // 서쪽 시공 비계: 계단(0.5씩 12단, 남→북으로 오르며 y6까지) + 상부 발판(하층 기와 옆에 붙는다)
             for (int s = 0; s < 12; s++)
