@@ -366,8 +366,8 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_GridManager", new Vector3(0f, kDeckY, 0f));                 // 짓는 곳(데크)
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(2f, kPlazaY + 0.1f, -16f));  // 광장 남쪽
             AddSpot(root, "Spot_DeliveryZone", new Vector3(-5f, kPlazaY + 0.1f, -17f));     // 광장 남서 — 재료는 여기로
-            AddSpot(root, "Spot_PaintStation", new Vector3(-9f, kPlazaY + 0.3f, -20f));     // 광장 남서(0.3 — 바닥 파묻힘 방지)
-            AddSpot(root, "Spot_HammerStation", new Vector3(1f, kPlazaY + 0.3f, -20f));     // 광장 남쪽(〃)
+            AddSpot(root, "Spot_PaintStation", new Vector3(-9f, kPlazaY, -20f));            // 광장 남서(마커 Y = 접지점 — MapLoader가 반높이 올린다)
+            AddSpot(root, "Spot_HammerStation", new Vector3(1f, kPlazaY, -20f));            // 광장 남쪽(〃)
 
             // 이간수문 물길 경로(서→동 일직선, 수로 중앙 z=-12) — WaterGateNetwork가 0번부터 순서대로 잇는다.
             // 하류(동쪽)가 램프 입구 쪽이라, 재료를 상류에 넣으면 램프 앞까지 흘러간다.

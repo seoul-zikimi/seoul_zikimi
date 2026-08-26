@@ -197,6 +197,64 @@ namespace GridSystem.Tests
             }
         }
 
+        // ── 접지 보정(QA: "맵마다 망치박스가 땅에 쳐박혀있어요") ─────────────────────────
+        // Spot_ 마커 Y = 오브젝트가 놓일 '바닥 높이'. 작업대는 1×1×1 큐브라 마커 자리에 중심을 놓으면
+        // 아래 절반이 묻힌다 → MapLoader.GroundedSpotPosition이 반높이만큼 올려준다.
+        // 맵툴마다 +0.3 같은 보정값을 손으로 넣던 관행이 다시 새어 들어오지 않게 계산만 못 박아 둔다.
+
+        static GameObject Station(Vector3 scale)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);   // 작업대 프리팹과 같은 구성(콜라이더 있는 1×1×1 큐브)
+            go.transform.localScale = scale;
+            return go;
+        }
+
+        static float BottomY(GameObject go, Vector3 placed) => placed.y - 0.5f * go.transform.lossyScale.y;
+
+        [Test]
+        public void 스테이션_마커에_놓으면_하단이_지면에_닿는다()
+        {
+            var go = Station(Vector3.one);
+            try
+            {
+                const float ground = -4f;   // DDP 어울림광장처럼 지면이 0이 아닌 맵도 같아야 한다
+                var placed = MapLoader.GroundedSpotPosition(go, new Vector3(1f, ground, -20f));
+
+                Assert.GreaterOrEqual(BottomY(go, placed), ground - 0.001f,
+                    "작업대 하단이 지면보다 아래 — 마커 Y를 '접지점'이 아니라 '중심'으로 쓰고 있습니다(땅에 파묻힘).");
+                Assert.AreEqual(ground, BottomY(go, placed), 0.001f, "하단이 지면에 정확히 닿아야 합니다(뜨지도 묻히지도 않게).");
+                Assert.AreEqual(1f, placed.x, 0.001f, "X/Z는 마커 그대로여야 합니다.");
+                Assert.AreEqual(-20f, placed.z, 0.001f, "X/Z는 마커 그대로여야 합니다.");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void 스테이션_크기를_바꿔도_하단이_지면에_닿는다()
+        {
+            var go = Station(new Vector3(1f, 2.4f, 1f));
+            try
+            {
+                var placed = MapLoader.GroundedSpotPosition(go, new Vector3(0f, 0f, 0f));
+                Assert.AreEqual(0f, BottomY(go, placed), 0.001f,
+                    "스케일을 키우면 그만큼 더 올라가야 합니다 — 반높이가 하드코딩되면 큰 작업대가 다시 묻힙니다.");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void 콜라이더_없는_마커는_보정하지_않는다()
+        {
+            var go = new GameObject("PlayerSpawnPoint");   // 스폰·배송 마커는 위치만 쓰는 빈 오브젝트
+            try
+            {
+                var spot = new Vector3(2f, -2.5f, -10f);
+                Assert.AreEqual(spot, MapLoader.GroundedSpotPosition(go, spot),
+                    "빈 마커까지 올리면 플레이어 스폰이 공중에 뜹니다 — 콜라이더가 있는 대상만 보정합니다.");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
         [Test]
         public void 레거시_DeliveryPoint가_남아있지_않다()
         {
