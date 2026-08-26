@@ -300,7 +300,7 @@ namespace GridSystem.EditorTools
         {
             var root = new GameObject("MapBg_Gyeongbokgung");
 
-            var stone   = EnsureMaterial("Mat_GbkCourt",    new Color(0.72f, 0.69f, 0.63f));   // 박석 마당
+            var stone   = EnsureMaterial("Mat_GbkCourt",    new Color(0.74f, 0.73f, 0.70f));   // 박석 돌 광장(실물 화강암 톤)
             var wood    = EnsureMaterial("Mat_GbkWood",     new Color(0.62f, 0.45f, 0.28f));   // 비계·마루
             var redCol  = EnsureMaterial("Mat_GbkRedWall",  new Color(0.62f, 0.20f, 0.16f));   // 회랑 벽(적색)
             var darkTile= EnsureMaterial("Mat_GbkRoofTile", new Color(0.30f, 0.33f, 0.38f));   // 회랑·문 지붕
@@ -354,6 +354,46 @@ namespace GridSystem.EditorTools
             AddBox(root, "Gate_Body", new Vector3(15f, 1.8f, -4f), new Vector3(8f, 3.6f, 3f), redCol).isStatic = true;
             AddBox(root, "Gate_Roof", new Vector3(15f, 4.1f, -4f), new Vector3(10f, 1f, 4.5f), darkTile).isStatic = true;
 
+            // ── 돌 울타리(월대 난간 느낌) — 광장을 두르는 낮은 화강암 담. 남쪽 중앙은 어도(정문 통로)로 비움 ──
+            var fenceMat = EnsureMaterial("Mat_GbkFence", new Color(0.66f, 0.65f, 0.62f));
+            const float fh = 0.9f, ft = 0.5f;          // 높이·두께
+            const float fxMin = -2f, fxMax = 31f, fzMin = -2f, fzMax = 21f;
+            // 남쪽: 중앙 x11.5~18.5 비움(어도)
+            AddBox(root, "Fence_S_L", new Vector3((fxMin + 11.5f) * 0.5f, fh * 0.5f, fzMin), new Vector3(11.5f - fxMin, fh, ft), fenceMat).isStatic = true;
+            AddBox(root, "Fence_S_R", new Vector3((18.5f + fxMax) * 0.5f, fh * 0.5f, fzMin), new Vector3(fxMax - 18.5f, fh, ft), fenceMat).isStatic = true;
+            // 북쪽: 중앙 x13~17 비움(북문)
+            AddBox(root, "Fence_N_L", new Vector3((fxMin + 13f) * 0.5f, fh * 0.5f, fzMax), new Vector3(13f - fxMin, fh, ft), fenceMat).isStatic = true;
+            AddBox(root, "Fence_N_R", new Vector3((17f + fxMax) * 0.5f, fh * 0.5f, fzMax), new Vector3(fxMax - 17f, fh, ft), fenceMat).isStatic = true;
+            // 동·서쪽: 통짜
+            AddBox(root, "Fence_E", new Vector3(fxMax, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin), fenceMat).isStatic = true;
+            AddBox(root, "Fence_W", new Vector3(fxMin, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin), fenceMat).isStatic = true;
+            // 울타리 기둥(모서리 4 + 게이트 양옆) — 난간 느낌 보강
+            foreach (var (px, pz) in new[] { (fxMin, fzMin), (fxMax, fzMin), (fxMin, fzMax), (fxMax, fzMax), (11.5f, fzMin), (18.5f, fzMin) })
+                AddBox(root, $"FencePost_{px}_{pz}", new Vector3(px, 0.65f, pz), new Vector3(0.8f, 1.3f, 0.8f), fenceMat).isStatic = true;
+
+            // ── 사방신 석상 받침대 4종 — 동청룡(靑)·서백호(白)·남주작(赤)·북현무(黑). 이름으로 기믹이 찾는다 ──
+            void Pedestal(string name, Vector3 pos, Color tint)
+            {
+                var baseMat = EnsureMaterial($"Mat_GbkPedestal_{name}", tint);
+                var g = new GameObject($"Pedestal_{name}");
+                g.transform.SetParent(root.transform, false);
+                g.transform.localPosition = pos;
+                AddBox(g, "Base", new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.5f, 2.4f), baseMat).isStatic = true;
+                AddBox(g, "Top", new Vector3(0f, 0.7f, 0f), new Vector3(1.7f, 0.4f, 1.7f), baseMat).isStatic = true;
+            }
+            Pedestal("East",  new Vector3(28.5f, 0f,  9.5f), new Color(0.30f, 0.45f, 0.75f));   // 청룡
+            Pedestal("West",  new Vector3(-0.5f, 0f,  3.0f), new Color(0.88f, 0.88f, 0.90f));   // 백호
+            Pedestal("South", new Vector3(21f,   0f, -0.5f), new Color(0.72f, 0.28f, 0.25f));   // 주작
+            Pedestal("North", new Vector3(15f,   0f, 19.5f), new Color(0.18f, 0.18f, 0.22f));   // 현무
+
+            // ── 드므(방화수 항아리) 4개 — 건물 네 귀퉁이. 양동이 물 리필 지점(기믹이 이름으로 찾는다) ──
+            var bronze = EnsureMaterial("Mat_GbkBronze", new Color(0.42f, 0.33f, 0.20f));
+            foreach (var (dx, dz, i) in new[] { (3f, 1.8f, 1), (26f, 1.8f, 2), (3f, 17.2f, 3), (26f, 17.2f, 4) })
+                AddCylinder(root, $"Deumeu_{i}", new Vector3(dx, 0.45f, dz), new Vector3(1.2f, 0.45f, 1.2f), bronze);
+
+            // 석상 낙하 지점(광장 중앙, 근정전 정면 앞) — 기믹이 이름으로 찾는 빈 마커
+            AddSpotless(root, "GuardianDropPoint", new Vector3(15f, 0f, 1f));
+
             // 북악산 원경(북쪽) — 큰 경사 박스 두 장
             var m1 = AddBox(root, "Mountain_1", new Vector3(5f, 4f, 48f), new Vector3(50f, 22f, 16f), mtn);
             m1.transform.rotation = Quaternion.Euler(-38f, 0f, 0f); m1.isStatic = true;
@@ -365,7 +405,7 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(15f, 0f, -1f));   // 근정문 앞
             AddSpot(root, "Spot_HammerStation", new Vector3(8f, 0f, 1f));        // 마당 남서
             AddSpot(root, "Spot_PaintStation", new Vector3(22f, 0f, 1f));        // 마당 남동
-            AddSpot(root, "Spot_DeliveryZone", new Vector3(28f, 0f, 10f));       // 마당 동쪽(자재 하역)
+            AddSpot(root, "Spot_DeliveryZone", new Vector3(28.5f, 0f, 15.5f));   // 마당 동북(자재 하역 — 동쪽 받침대와 간섭 없게)
             return root;
         }
 
@@ -397,6 +437,21 @@ namespace GridSystem.EditorTools
             var go = new GameObject(name);
             go.transform.SetParent(root.transform, false);
             go.transform.localPosition = pos;
+        }
+
+        // Spot_ 접두사 없는 빈 마커 — MapLoader의 시스템 오브젝트 스폰 규약을 타지 않는 기믹 전용 지점.
+        private static void AddSpotless(GameObject root, string name, Vector3 pos) => AddSpot(root, name, pos);
+
+        private static GameObject AddCylinder(GameObject root, string name, Vector3 pos, Vector3 scale, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = name;
+            go.transform.SetParent(root.transform, false);
+            go.transform.localPosition = pos;
+            go.transform.localScale = scale;
+            if (mat != null) go.GetComponent<Renderer>().sharedMaterial = mat;
+            go.isStatic = true;
+            return go;
         }
 
         private static Material EnsureMaterial(string name, Color color)
