@@ -120,13 +120,15 @@ namespace GridSystem
         {
             if (Loop == null || !Loop.IsBuilding) return;
 
-            // ① 진행도 문턱 → 석상 낙하 (순서대로 하나씩. ScorePercent는 이미 0~100 스케일!)
-            // 진행도가 한 번에 여러 문턱을 뛰어넘어도 최소 간격을 두고 한 개씩만 떨어뜨린다(우르르 방지).
+            // ① '건축 시간' 문턱 → 석상 낙하 (기획서: 건축 시간 10분의 20/30/45/60% 도달마다 = 2분/3분/4분30초/6분)
+            // 점수 진행도가 아니라 경과 시간 기준! 제한시간이 무제한(자유모드)이면 10분을 기준으로 삼는다.
             int dropped = m_DroppedCount.Value;
             var percents = Config.StatueDropPercents;
             var ids = Config.StatueMaterialIds;
-            if (dropped < Mathf.Min(percents.Length, ids.Length) && Net != null &&
-                Net.ScorePercent >= percents[dropped] && Now >= m_NextDropAllowedAt)
+            float limit = Loop.TimeLimit;
+            if (limit <= 0f || float.IsInfinity(limit)) limit = 600f;
+            if (dropped < Mathf.Min(percents.Length, ids.Length) &&
+                Loop.Elapsed >= limit * percents[dropped] * 0.01f && Now >= m_NextDropAllowedAt)
             {
                 if (m_Drop == null || m_DropPoint == null)
                 {
@@ -134,7 +136,7 @@ namespace GridSystem
                     if (Time.time >= m_NextBlockedLogAt)
                     {
                         m_NextBlockedLogAt = Time.time + 5f;
-                        Debug.LogWarning($"[경복궁] 석상 낙하 대기: 진행도 {Net.ScorePercent:F0}% ≥ {percents[dropped]}% 인데 " +
+                        Debug.LogWarning($"[경복궁] 석상 낙하 대기: 경과 {Loop.Elapsed:F0}s ≥ 문턱 {limit * percents[dropped] * 0.01f:F0}s 인데 " +
                                          $"{(m_Drop == null ? "MaterialDropField 없음" : "GuardianDropPoint 마커를 못 찾음(맵 생성 재실행 필요?)")}");
                     }
                     return;
@@ -144,7 +146,7 @@ namespace GridSystem
                 m_Drop.ServerDeliver(ids[dropped], from, to);
                 m_DroppedCount.Value = dropped + 1;
                 m_NextDropAllowedAt = Now + Config.StatueDropMinGapSeconds;
-                Debug.Log($"[경복궁] 사방신 석상 낙하 {dropped + 1}/4 ({kKindNames[dropped]}) — 진행도 {Net.ScorePercent:F0}%");
+                Debug.Log($"[경복궁] 사방신 석상 낙하 {dropped + 1}/4 ({kKindNames[dropped]}) — 경과 {Loop.Elapsed:F0}초");
                 StatueDropFxRpc(to, dropped);
             }
 

@@ -39,7 +39,7 @@ namespace GridSystem
         [Min(0.2f)] public float FlameScale = 2.2f;
 
         [Header("사방신 석상")]
-        [Tooltip("석상이 낙하하는 건축 진행도(%) 문턱들. 기획: 20/30/45/60.")]
+        [Tooltip("석상이 낙하하는 '건축 시간' 진행률(%) 문턱들 — 제한시간 기준. 기획: 20/30/45/60 (10분이면 2분/3분/4분30초/6분).")]
         public float[] StatueDropPercents = { 20f, 30f, 45f, 60f };
 
         [Tooltip("석상 재료 id (동=청룡, 서=백호, 남=주작, 북=현무 순). GyeongbokgungMapTool이 만드는 def와 일치해야 한다.")]
