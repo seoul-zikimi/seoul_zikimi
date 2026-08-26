@@ -67,10 +67,11 @@ function setActive(v) {
 // ---------- git / gh 실행 ----------
 function run(cmd, args, cwd, timeoutMs = 10 * 60 * 1000) {
   return new Promise((resolve, reject) => {
+    // shell 사용 금지 — 인자에 공백·한글 있으면 셸 인용 문제로 깨짐 (git/gh는 .exe라 불필요)
     execFile(
       cmd,
       args,
-      { cwd, timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024, shell: process.platform === "win32" },
+      { cwd, timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024 },
       (err, stdout, stderr) => {
         if (err) reject(new Error(`${cmd} ${args.join(" ")} 실패: ${(stderr || err.message).slice(0, 800)}`));
         else resolve(stdout.trim());
@@ -254,6 +255,7 @@ async function handleNewIssue(thread, opts = {}) {
 - 형식: "원인 추정" 1~2줄, "수정 방법" 2~3줄, 관련 파일 경로 명시.
 - 관련 코드를 못 찾았거나 코드 수정으로 해결할 이슈가 아니면(기획 논의, 에셋 제작 등) 그렇다고 솔직히 말할 것.
 - 한국어로 작성.
+- 말투는 원시인처럼: 짧고 단순한 문장, 조사·존댓말 생략. 예: "원인 찾음. LobbyPanel 버튼 연결 빠짐. 고치면 됨." "우가"·"크르릉" 같은 의성어는 쓰지 말 것. 파일 경로·클래스명·기술 내용은 정확하게.
 
 === QA 이슈 ===
 제목: ${issue.title}
@@ -317,10 +319,12 @@ async function handleConfirm(thread, approvedBy) {
 아래 QA 이슈를 아래 수정 계획대로 수정하라.
 
 규칙:
+- **스레드 대화에 수정 계획에 대한 피드백·변경 지시가 있으면(예: "~로 해서 진행하죠", "~는 빼고") 그 지시가 계획보다 우선이다.** 계획과 대화가 충돌하면 대화의 최신 지시를 따르고 보고에 명시하라.
 - git 명령은 실행하지 말 것. 파일 수정만. (커밋·푸시는 외부에서 처리함)
 - 수정 후 무엇을 어떻게 바꿨는지 3~5줄로 요약 보고 (변경 파일 경로 포함).
 - 계획대로 하다가 문제 발견하면 합리적으로 조정하되 보고에 명시.
 - 한국어로 작성.
+- 보고 말투는 원시인처럼: 짧고 단순한 문장, 조사·존댓말 생략. "우가"·"크르릉" 같은 의성어는 쓰지 말 것. 파일 경로·클래스명·코드 내용은 정확하게. 코드 자체는 평범하고 전문적으로 작성.
 
 === QA 이슈 ===
 제목: ${issue.title}
@@ -351,17 +355,26 @@ ${s.plan}`;
       return;
     }
 
-    const commitMsg = `fix(qa): ${issue.title}\n\nDiscord QA: ${threadUrl}\n승인: ${approvedBy}\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>`;
-    await git(["commit", "-m", commitMsg]);
+    // 여러 줄 메시지는 인자 인용 문제를 피하려고 파일로 전달
+    const commitMsg = `fix(qa): ${issue.title}\n\n${result}\n\nDiscord QA: ${threadUrl}\n승인: ${approvedBy}\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>`;
+    const msgFile = path.join(DATA_DIR, "commit-msg.txt");
+    fs.writeFileSync(msgFile, commitMsg, "utf8");
+    await git(["commit", "-F", msgFile]);
     await git(["push", "-f", "-u", REMOTE, branch]);
 
     if (CREATE_PR) {
       try {
+        const prBodyFile = path.join(DATA_DIR, "pr-body.md");
+        fs.writeFileSync(
+          prBodyFile,
+          `디스코드 QA 이슈 자동 수정.\n\n이슈: ${threadUrl}\n승인: ${approvedBy}\n\n${result}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`,
+          "utf8"
+        );
         prUrl = await run(
           "gh",
           ["pr", "create", "--head", branch, "--base", MAIN_BRANCH,
            "--title", `fix(qa): ${issue.title}`,
-           "--body", `디스코드 QA 이슈 자동 수정.\n\n이슈: ${threadUrl}\n승인: ${approvedBy}\n\n${result}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`],
+           "--body-file", prBodyFile],
           WORKSPACE
         );
       } catch (e) {
