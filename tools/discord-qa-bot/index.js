@@ -9,6 +9,7 @@ const {
 const { spawn, execFile } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { buildReport } = require("./usage-report");
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const FORUM_ID = process.env.QA_FORUM_CHANNEL_ID;
@@ -21,6 +22,10 @@ const CREATE_PR = (process.env.CREATE_PR || "true") === "true";
 const WORKSPACE =
   process.env.BOT_WORKSPACE ||
   path.join(path.dirname(REPO_ROOT || "."), path.basename(REPO_ROOT || "repo") + "-qa-workspace");
+
+// 토큰 리포트: 채널 ID 넣으면 매일 TOKEN_REPORT_HOUR시에 자동 보고 (안 넣으면 /tokenusage만 동작)
+const REPORT_CHANNEL_ID = process.env.TOKEN_REPORT_CHANNEL_ID || "";
+const REPORT_HOUR = parseInt(process.env.TOKEN_REPORT_HOUR || "10", 10);
 
 const EMOJI_OK = "✅";
 const EMOJI_NO = "❌";
@@ -482,13 +487,36 @@ client.once(Events.ClientReady, async () => {
           },
         ],
       },
+      { name: "tokenusage", description: "토큰 사용량 리포트 — 내 세션 vs QA봇 (오늘·7일·누적)" },
     ]);
-    console.log("슬래시 명령어 등록 완료: /callclaude /stopclaude /qastatus /askclaude");
+    console.log("슬래시 명령어 등록 완료: /callclaude /stopclaude /qastatus /askclaude /tokenusage");
   } catch (e) {
     console.error("명령어 등록 실패:", e.message);
   }
 
   if (isActive()) scanBacklog().catch((e) => console.error("백로그 스캔 실패:", e));
+
+  // 매일 REPORT_HOUR시 이후 첫 체크 때 어제분 토큰 리포트를 채널에 올림 (하루 1회, 봇 일시정지와 무관)
+  if (REPORT_CHANNEL_ID) {
+    const tryDailyReport = async () => {
+      const now = new Date();
+      if (now.getHours() < REPORT_HOUR) return;
+      const todayKey = now.toLocaleDateString("sv"); // YYYY-MM-DD (로컬 기준)
+      if (state._lastTokenReport === todayKey) return;
+      state._lastTokenReport = todayKey; // 실패해도 당일 재시도 폭주 방지 — 다음날 다시 시도
+      saveState();
+      try {
+        const ch = await client.channels.fetch(REPORT_CHANNEL_ID);
+        const report = await buildReport({ repoRoot: REPO_ROOT, workspace: WORKSPACE, mode: "yesterday" });
+        await ch.send(report.slice(0, 2000));
+        console.log("일일 토큰 리포트 전송 완료");
+      } catch (e) {
+        console.error("일일 토큰 리포트 실패:", e.message);
+      }
+    };
+    tryDailyReport();
+    setInterval(tryDailyReport, 5 * 60 * 1000);
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -549,6 +577,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         `🙋 접수. 이 글 다시 분석함${note ? ` — 요청: "${note}"` : ""}. 계획 곧 올림.`
       );
       enqueue(() => handleNewIssue(ch, { force: true, note }));
+    } else if (interaction.commandName === "tokenusage") {
+      await interaction.deferReply(); // 로그 파싱에 몇 초 걸릴 수 있음
+      try {
+        const report = await buildReport({ repoRoot: REPO_ROOT, workspace: WORKSPACE, mode: "today" });
+        await interaction.editReply(report.slice(0, 2000));
+      } catch (e) {
+        await interaction.editReply(`⚠️ 리포트 생성 실패: ${e.message}`);
+      }
     }
   } catch (e) {
     console.error("명령어 처리 실패:", e);

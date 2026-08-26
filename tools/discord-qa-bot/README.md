@@ -8,6 +8,7 @@ QA 포럼에 글이 올라오면 → Claude Code가 `origin/main` 최신 기준�
 - `/stopclaude` — 일시정지 (하던 작업 하나는 마저 끝냄)
 - `/qastatus` — 현황 보기
 - `/askclaude [note]` — **그 글 안에서** 입력하면 그 글만 다시 분석 (완료된 글에 추가 요청할 때. 일시정지 중에도 동작. `note`에 시킬 내용 적으면 반영)
+- `/tokenusage` — 토큰 사용량 리포트 (내 세션 vs QA봇, 오늘·최근 7일·전체 누적, API 단가 환산 금액)
 
 봇 프로세스는 켜져 있어야 명령어를 받음. 프로세스 시작 직후에는 마지막 상태를 기억함 (첫 실행은 일시정지 상태).
 
@@ -63,6 +64,14 @@ npm install -g pm2
 pm2 start index.js --name qa-bot
 pm2 save
 ```
+
+## 토큰 사용량 자동 리포트 (선택)
+
+Claude Code 세션 로그(`~/.claude/projects`)를 파싱해 "내 세션 vs QA봇" 토큰 사용량·API 환산 금액을 보고함.
+
+- `/tokenusage` — 아무 설정 없이 바로 사용 가능
+- 매일 자동 보고: 디스코드에 보고용 채널 하나 만들고 ID 복사 → `.env`에 `TOKEN_REPORT_CHANNEL_ID` 설정 → 봇 재시작. 매일 `TOKEN_REPORT_HOUR`시(기본 10시) 이후 어제분 리포트를 하루 1회 올림 (봇이 꺼져 있던 날은 건너뜀)
+- 금액은 API 단가 환산 추정치 — 구독 요금제(Max 등)면 실제 청구액이 아니라 "API였으면 이 정도" 참고용
 
 ## 참고
 
