@@ -411,6 +411,7 @@ namespace Player
         {
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
+            if (IsOwner) GridSystem.LocalPlayerHands.Clear();
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
             if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
             m_HelpTarget = null;
@@ -442,6 +443,8 @@ namespace Player
             UpdateSweatFx();
 
             if (!IsOwner) return;
+            // 기믹 쪽(GridSystem)은 PlayerCarry를 참조할 수 없다 — 손 상태만 창구에 실어 보낸다.
+            GridSystem.LocalPlayerHands.IsHoldingAnything = IsHolding;
             UpdateHeavyState();
             OwnerUpdate();
         }

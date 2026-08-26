@@ -41,7 +41,8 @@ public static class JobsnailLobbyUiPrefabGenerator
 
         BuildSessionListScroll(listPanel.transform);
         Text("SessionStatus", pcRoot, "방 목록을 불러오는 중...", 18, new Color(0.25f, 0.18f, 0.12f, 1f), new Vector2(0, -8), new Vector2(520, 34), TextAnchor.MiddleCenter);
-        Button("BackButton", pcRoot, "메인으로", new Vector2(-485, -290), new Vector2(105, 50), 18, Color.white);
+        // 리스트 패널(주황 상자, 0.22~0.78 × 0.18~0.70) 우하단 '안쪽' — 모니터 그림 밖으로 나가지 않게.
+        Button("BackButton", pcRoot, "메인으로", new Vector2(286, -220), new Vector2(105, 50), 18, Color.white);
         return root;
     }
 

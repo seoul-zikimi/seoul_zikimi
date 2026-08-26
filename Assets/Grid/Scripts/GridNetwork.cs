@@ -584,15 +584,28 @@ namespace GridSystem
         {
             if (m_Manager.Answer == null) return;
             var s = m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog);   // 협동=전체 / 2vs2=팀A 구역
-            m_Score.Value = Snap(s);
+            m_Score.Value = Snap(s, m_ServerBonus);
             if (m_Loop != null && m_Loop.IsVersus)   // 팀B: 같은 정답을 구역폭만큼 밀어서 채점
-                m_ScoreB.Value = Snap(m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog, new Vector3Int(m_Manager.ZoneSize.x, 0, 0)));
+                m_ScoreB.Value = Snap(m_ServerGrid.ScoreAgainst(m_Manager.Answer, m_Manager.Catalog, new Vector3Int(m_Manager.ZoneSize.x, 0, 0)), m_ServerBonusB);
         }
 
-        private static ScoreSnapshot Snap(GridScore s) => new ScoreSnapshot
+        // 건축 외 보너스 누적(서버 전용). RecomputeScore가 스냅샷을 통째로 덮어쓰기 때문에
+        // 보너스를 m_Score에 직접 쓰면 다음 블록 배치에서 날아간다 — 여기 모아뒀다가 매번 같이 싣는다.
+        private int m_ServerBonus, m_ServerBonusB;
+
+        /// <summary>서버 전용: 건축 외 보너스 점수를 더한다(DDP 유구 출토 등). 즉시 복제된다.</summary>
+        public void ServerAddBonus(int points, int team = 0)
+        {
+            if (!IsServer || points == 0) return;
+            if (team == 1) m_ServerBonusB += points;
+            else m_ServerBonus += points;
+            RecomputeScore();
+        }
+
+        private static ScoreSnapshot Snap(GridScore s, int bonus) => new ScoreSnapshot
         {
             score = s.score, maxScore = s.maxScore, answerCells = s.answerCellCount,
-            placedCorrect = s.placedCorrect, processCorrect = s.processCorrect,
+            placedCorrect = s.placedCorrect, processCorrect = s.processCorrect, bonus = bonus,
         };
 
         /// <summary>게임 재시작용: 서버 그리드·복제 리스트를 비운다(→ 비주얼/점수 자동 0 갱신).</summary>
@@ -602,6 +615,7 @@ namespace GridSystem
             m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 2vs2면 2배 폭 유지
             m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
             m_OwnerCounter = 0;
+            m_ServerBonus = m_ServerBonusB = 0;   // 보너스도 라운드마다 초기화
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
             if (m_DropField != null) m_DropField.ServerReset();   // 바닥 재료도 정리
             RecomputeScore();   // 새 정답 기준으로 점수 즉시 재계산(빈 그리드라 OnCellsChanged가 안 떠도)
@@ -633,6 +647,21 @@ namespace GridSystem
                     minCell = e.cell, sumCenter = center, count = 1, topY = top,
                     materialId = e.materialId, completedMask = e.completedProcessMask,
                 };
+            }
+
+            // ── 완성 교체 ──
+            // 큰 곡면 모델을 잘라 짓는 맵(DDP)은, 조각이 아무리 잘 맞아도 잘린 단면 때문에
+            // 완성본이 매끈하게 안 보인다. 정답을 다 맞춘 순간엔 조각을 감추고 '자르기 전 통짜' 하나로 갈아 끼운다.
+            // 복제 상태(m_Cells + 정답)만으로 판정하므로 전 클라가 같은 결과를 낸다 — 따로 복제할 게 없다.
+            var completed = CompletedModelForMap(out var completedAnchor);
+            if (completed != null && AnswerFullySatisfied())
+            {
+                var whole = Instantiate(completed, m_VisualRoot.transform);
+                whole.name = "~CompletedModel";
+                whole.transform.SetPositionAndRotation(GridCoordinates.CellToWorld(completedAnchor), Quaternion.identity);
+                foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);   // 물리는 아래 셀 콜라이더가 담당
+                AddCellColliders(catalog, u);
+                return;
             }
 
             var done = new HashSet<ulong>();
@@ -674,8 +703,13 @@ namespace GridSystem
                 SpawnProcessMarker(pos, next);
             }
 
-            // 단단함: 미고정 하중부재(공정 전)만 통과(부딪혀 무너뜨림). 그 외(바닥·물·공정완료 전부)는 막음.
-            // 플레이어는 중력+캡슐 → 막힌 블록 '위에 서고' '옆을 못 지나감'. (Walkable은 Y고정 시절 잔재 — 더는 통과시키지 않음)
+            AddCellColliders(catalog, u);
+        }
+
+        // 단단함: 미고정 하중부재(공정 전)만 통과(부딪혀 무너뜨림). 그 외(바닥·물·공정완료 전부)는 막음.
+        // 플레이어는 중력+캡슐 → 막힌 블록 '위에 서고' '옆을 못 지나감'. (Walkable은 Y고정 시절 잔재 — 더는 통과시키지 않음)
+        private void AddCellColliders(MaterialCatalog catalog, float u)
+        {
             foreach (var e in m_Cells)
             {
                 var def = catalog != null ? catalog.GetById(e.materialId) : null;
@@ -683,6 +717,38 @@ namespace GridSystem
                 if (def.MustBeFixed && (e.completedProcessMask & (int)ProcessType.Fixed) == 0) continue;   // 미고정 하중부재 → 통과(무너뜨림)
                 AddCellCollider(e.cell, u);                                                                 // 그 외 전부 → 막음
             }
+        }
+
+        /// <summary>이 맵에 '완성체 통짜 모델'이 지정돼 있으면 돌려준다(없으면 null).</summary>
+        private GameObject CompletedModelForMap(out Vector3Int anchor)
+        {
+            anchor = default;
+            var cat = MapCatalog.Instance;
+            var def = (cat != null && m_Loop != null) ? cat.Get(m_Loop.MapIndex) : null;
+            if (def == null || def.CompletedModel == null) return null;
+            anchor = def.CompletedModelAnchor;
+            return def.CompletedModel;
+        }
+
+        /// <summary>정답의 모든 칸이 올바른 재료로 채워졌고 요구 공정까지 다 끝났는가.
+        /// 복제된 셀 목록만 보므로 서버·클라 모두 같은 답을 낸다.</summary>
+        private bool AnswerFullySatisfied()
+        {
+            var ans = m_Manager.Answer;
+            if (ans == null) return false;
+            var cells = ans.Cells;
+            if (cells == null || cells.Count == 0) return false;
+
+            var catalog = m_Manager.Catalog;
+            foreach (var a in cells)
+            {
+                if (!TryGetCell(a.cell, out int mid, out int mask)) return false;
+                if (mid != a.materialId) return false;
+                var def = catalog != null ? catalog.GetById(mid) : null;
+                int req = def != null ? def.RequiredMask : 0;
+                if ((mask & req) != req) return false;
+            }
+            return true;
         }
 
         /// <summary>cell을 덮는 블록 비주얼 루트(프리팹/큐브). 없으면 null — 스퀴시 등 쫀득 연출용.</summary>
@@ -720,7 +786,9 @@ namespace GridSystem
             float u = GridContract.Unit;
             var go = Instantiate(def.Prefab, m_VisualRoot.transform);
             // 피벗=min-corner 가정 + 메시가 footprint와 90° 다르면 자동 보정.
-            GridFootprint.PlaceRotatedPrefab(go, GridCoordinates.CellToWorld(minCell), def.Footprint, rot, u);
+            // 단 자유 형상(잘라낸 곡면 조각)은 자동 보정을 끈다 — 조각이 제멋대로 돌아가 곡면이 어긋난다.
+            GridFootprint.PlaceRotatedPrefab(go, GridCoordinates.CellToWorld(minCell), def.Footprint, rot, u,
+                                             autoYaw: !def.FreeformVisual);
             // 평평한 윗면(Walkable)엔 날씨 덮개(눈/웅덩이)를 자식으로 — 블록과 같이 생기고 사라진다
             if (def.Walkable)
             {
@@ -821,6 +889,10 @@ namespace GridSystem
     public struct ScoreSnapshot : INetworkSerializable, System.IEquatable<ScoreSnapshot>
     {
         public int score, maxScore, answerCells, placedCorrect, processCorrect;
+        /// <summary>건축 외 보너스(DDP 유구 출토 등). score와 분리해 둔다 — 완성도 %를 100% 넘기지 않기 위해.</summary>
+        public int bonus;
+        /// <summary>승패·최종 점수 기준. 건축 점수 + 보너스.</summary>
+        public int Total => score + bonus;
 
         public float Percent => maxScore > 0 ? (float)score / maxScore * 100f : 0f;
 
@@ -831,10 +903,12 @@ namespace GridSystem
             s.SerializeValue(ref answerCells);
             s.SerializeValue(ref placedCorrect);
             s.SerializeValue(ref processCorrect);
+            s.SerializeValue(ref bonus);
         }
 
         public bool Equals(ScoreSnapshot o)
             => score == o.score && maxScore == o.maxScore && answerCells == o.answerCells
-            && placedCorrect == o.placedCorrect && processCorrect == o.processCorrect;
+            && placedCorrect == o.placedCorrect && processCorrect == o.processCorrect
+            && bonus == o.bonus;
     }
 }

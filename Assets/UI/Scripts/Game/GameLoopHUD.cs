@@ -479,7 +479,14 @@ public sealed class GameLoopHUD : UIHUD
         if (m_ResultTimeText != null)
         {
             int e = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
-            m_ResultTimeText.text = $"{e / 60} : {e % 60:00}";
+            m_ResultTimeText.text = $"{e / 60} : {e % 60:00}";   // 라벨은 영수증 배경이 담당 — 숫자만
+
+            // DDP 유구 발굴 보너스 — 그 맵에서 유물을 캤을 때만 한 줄 덧붙인다.
+            // (전용 텍스트 슬롯을 만들면 결과 패널 프리팹을 건드려야 해서 여기 붙였다)
+            var dig = GridSystem.ExcavationNetwork.Instance;
+            int artifacts = dig != null ? dig.ArtifactsFound : 0;
+            if (artifacts > 0)
+                m_ResultTimeText.text += $"\n발굴한 유물   {artifacts} 개   + {score.bonus} 점";
         }
 
         if (m_ResultNamesText != null)

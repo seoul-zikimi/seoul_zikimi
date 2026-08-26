@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -44,7 +45,11 @@ namespace SeoulZikimi.UI.New
         private static readonly string[] Modes = { "타임어택 모드", "대전 모드(아이템전)", "대전 모드", "자유 건축 모드" };
 
         private RoomVisibility visibility = RoomVisibility.Public;
-        private int mapIndex;
+
+        // 옵션 버튼 순번 → 카탈로그 인덱스. 공터가 빠지므로 둘은 같지 않다.
+        private readonly List<int> mapCatalogIndices = new();
+
+        private int mapIndex;   // 카탈로그 인덱스(CreateRoomRequest로 그대로 나간다)
         private int modeIndex;
         private bool weatherEnabled = true;
         private bool passwordVisible;
@@ -62,7 +67,7 @@ namespace SeoulZikimi.UI.New
             passwordVisibilityButton.onClick.AddListener(TogglePasswordVisibility);
             mapButton.onClick.AddListener(() => ToggleOptions(mapOptionsRoot, modeOptionsRoot));
             modeButton.onClick.AddListener(() => ToggleOptions(modeOptionsRoot, mapOptionsRoot));
-            BindOptions(mapOptionButtons, SelectMap, mapOptionsRoot);
+            BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다
             BindOptions(modeOptionButtons, SelectMode, modeOptionsRoot);
             weatherButton.onClick.AddListener(ToggleWeather);
             submitButton.onClick.AddListener(Submit);
@@ -88,7 +93,7 @@ namespace SeoulZikimi.UI.New
             defaultRoomName = $"{DefaultNameAdjectives[UnityEngine.Random.Range(0, DefaultNameAdjectives.Length)]} {DefaultNameNouns[UnityEngine.Random.Range(0, DefaultNameNouns.Length)]} 구합니다";
             if (roomNameInput.placeholder is Text placeholder) placeholder.text = defaultRoomName;
             passwordInput.text = string.Empty;
-            mapIndex = 0;
+            mapIndex = mapCatalogIndices.Count > 0 ? mapCatalogIndices[0] : 0;   // 첫 선택 가능 맵(공터 제외)
             modeIndex = 0;
             weatherEnabled = true;
             passwordVisible = false;
@@ -115,9 +120,29 @@ namespace SeoulZikimi.UI.New
             passwordVisibilityImage.sprite = passwordVisible ? passwordShown : passwordHidden;
         }
 
-        private void SelectMap(int index)
+        /// <summary>맵 선택지를 카탈로그로 다시 만든다(개수·라벨·매핑 전부). Awake에서 1회.</summary>
+        private void BuildMapOptions()
         {
-            mapIndex = Mathf.Clamp(index, 0, Mathf.Max(0, MapCount - 1));
+            UiNewMapOptions.CollectSelectable(mapCatalogIndices);
+            if (mapCatalogIndices.Count == 0)   // 카탈로그를 못 읽은 비상시에만 폴백 라벨
+                for (int i = 0; i < MapFallbacks.Length; i++) mapCatalogIndices.Add(i);
+
+            var buttons = UiNewMapOptions.FitPool(mapOptionButtons, mapCatalogIndices.Count);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                int slot = i;
+                UiNewMapOptions.SetLabel(buttons[i], GetMapLabel(mapCatalogIndices[i]));
+                buttons[i].onClick.RemoveAllListeners();
+                buttons[i].onClick.AddListener(() => { SelectMap(slot); mapOptionsRoot?.SetActive(false); });
+            }
+            mapOptionButtons = buttons;
+        }
+
+        // 인자는 '옵션 버튼 순번'이고, 실제로 들고 다니는 mapIndex는 카탈로그 인덱스다.
+        private void SelectMap(int slot)
+        {
+            if (slot < 0 || slot >= mapCatalogIndices.Count) return;
+            mapIndex = mapCatalogIndices[slot];
             ApplySelectionVisuals();
         }
 
@@ -175,9 +200,6 @@ namespace SeoulZikimi.UI.New
         }
 
         public void CompleteCreation() => router.Show(UiNewScreen.Lobby);
-
-        private static int MapCount => GridSystem.MapCatalog.Instance != null
-            ? Mathf.Max(1, GridSystem.MapCatalog.Instance.Count) : MapFallbacks.Length;
 
         private static string GetMapLabel(int index)
         {

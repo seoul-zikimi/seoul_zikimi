@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88a6998b322f604abcef686cb56a785, type: 3}
+  m_Name: DdpGimmickConfig_Ddp
+  m_EditorClassIdentifier: GridSystem::GridSystem.DdpGimmickConfig
+  FloodMinInterval: 24
+  FloodMaxInterval: 36
+  FloodWarnSeconds: 3
+  FloodDurationSeconds: 9
+  ChannelRadius: 2.2
+  ChannelHeight: 1.8
+  CurrentSpeed: 6
+  SweptStunSeconds: 2
+  CarryMaterials: 1
+  MaterialFloatSpeed: 9
+  DigSeconds: 2.5
+  DigRadius: 2.2
+  DigRespawnSeconds: 14
+  DigMaxPerRound: 6
+  ArtifactChance: 0.3
+  ArtifactScoreBonus: 300
+  RoseBloomSeconds: 7
+  RoseFadeSeconds: 5
+  RoseWarnSeconds: 1.5
+  RosePadSize: 2.2
+  RosePadPhaseOffset: 0.9

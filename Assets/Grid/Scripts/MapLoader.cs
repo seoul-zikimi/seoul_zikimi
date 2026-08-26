@@ -131,6 +131,10 @@ namespace GridSystem
                 if (targetName == "DeliveryZone") continue;
                 // 남산 기믹 마커(케이블카·엘리베이터)도 같은 체계 — 각 기믹 시스템이 직접 추적한다.
                 if (NamsanSpots.IsMarkerOnly(t.name)) continue;
+                // 롯데월드 기믹 마커(퍼레이드 경로)도 같은 체계.
+                if (LotteSpots.IsMarkerOnly(t.name)) continue;
+                // DDP 기믹 마커(물길 경로·발굴터·장미 발판)도 같은 체계.
+                if (DdpSpots.IsMarkerOnly(t.name)) continue;
 
                 var target = GameObject.Find(targetName);
                 if (target == null) target = SpawnSystemObject(targetName);   // 씬에 없으면 마커 자리에 새로 만든다

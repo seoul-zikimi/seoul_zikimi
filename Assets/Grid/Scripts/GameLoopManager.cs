@@ -137,6 +137,17 @@ namespace GridSystem
                 gameObject.AddComponent<ElevatorNetwork>();
             if (!TryGetComponent<GustNetwork>(out _))
                 gameObject.AddComponent<GustNetwork>();
+            // 롯데월드 기믹 호스트 — 맵 카드에 LotteGimmickConfig가 없으면 스스로 잠잔다
+            if (!TryGetComponent<ParadeNetwork>(out _))
+                gameObject.AddComponent<ParadeNetwork>();
+            // DDP 기믹 호스트들 — 맵 카드에 DdpGimmickConfig가 없으면 스스로 잠잔다
+            // (WaterGate가 발굴터에 '물이 빠졌다'를 통지하므로 WaterGate를 먼저 부착한다)
+            if (!TryGetComponent<WaterGateNetwork>(out _))
+                gameObject.AddComponent<WaterGateNetwork>();
+            if (!TryGetComponent<ExcavationNetwork>(out _))
+                gameObject.AddComponent<ExcavationNetwork>();
+            // LedRoseNetwork(LED 장미 발판)는 더 이상 붙이지 않는다 — DDP 맵에서 뺀 기믹.
+            // 광장 위에 분홍 원판이 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
         }
 
         public override void OnNetworkSpawn()
@@ -171,11 +182,11 @@ namespace GridSystem
             if ((GamePhase)next == GamePhase.Building)
             {
                 m_UrgentBgmStarted = false;
-                GridSoundBridge.SetPhase("Building");
+                GridSoundBridge.SetPhaseForMap("Building", m_MapIndex.Value);
             }
             else if ((GamePhase)next == GamePhase.Finished)
             {
-                GridSoundBridge.SetPhase("Result");
+                GridSoundBridge.SetPhaseForMap("Result", m_MapIndex.Value);
                 GridSoundBridge.PlaySFX("GameOver");
             }
         }
@@ -234,7 +245,7 @@ namespace GridSystem
             if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f)
             {
                 m_UrgentBgmStarted = true;
-                GridSoundBridge.SetPhase("BuildingUrgent");
+                GridSoundBridge.SetPhaseForMap("BuildingUrgent", m_MapIndex.Value);
             }
 
             if (!IsServer) return;
@@ -285,7 +296,8 @@ namespace GridSystem
                 if (m_SurrenderWinner >= 0) m_Winner.Value = m_SurrenderWinner;
                 else
                 {
-                    int a = m_Net.ScoreFor(0).score, b = m_Net.ScoreFor(1).score;
+                    // Total = 건축 점수 + 보너스(DDP 유구 출토 등) — 보너스도 승패에 반영된다.
+                    int a = m_Net.ScoreFor(0).Total, b = m_Net.ScoreFor(1).Total;
                     m_Winner.Value = a == b ? -1 : (a > b ? 0 : 1);
                 }
             }
@@ -386,6 +398,9 @@ namespace GridSystem
             if (TryGetComponent<CableCarNetwork>(out var cable)) cable.ServerReset();   // 남산: 곤돌라·대기열 정리
             if (TryGetComponent<ElevatorNetwork>(out var elev)) elev.ServerReset();     // 남산: 엘리베이터 재잠금
             if (TryGetComponent<GustNetwork>(out var gust)) gust.ServerReset();         // 남산: 돌풍 주기 리셋
+            if (TryGetComponent<ParadeNetwork>(out var parade)) parade.ServerReset();   // 롯데월드: 퍼레이드 주기 리셋
+            if (TryGetComponent<WaterGateNetwork>(out var water)) water.ServerReset();  // DDP: 물길 주기 리셋
+            if (TryGetComponent<ExcavationNetwork>(out var dig)) dig.ServerReset();     // DDP: 발굴터·누적 출토 리셋
             if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);

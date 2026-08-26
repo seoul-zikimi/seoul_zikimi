@@ -93,7 +93,7 @@ namespace SeoulZikimi.UI.New
             mapSelector?.onClick.AddListener(() => ToggleOptions(mapOptionsRoot, modeOptionsRoot));
             modeSelector?.onClick.AddListener(() => ToggleOptions(modeOptionsRoot, mapOptionsRoot));
             weatherToggle?.onClick.AddListener(() => WeatherRequested?.Invoke());
-            BindOptions(mapOptionButtons, index => MapRequested?.Invoke(index), mapOptionsRoot);
+            BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다(바인딩도 여기서)
             BuildMapArrows();
             BindOptions(modeOptionButtons, index => ModeRequested?.Invoke(index), modeOptionsRoot);
         }
@@ -296,6 +296,31 @@ namespace SeoulZikimi.UI.New
             if (message.Length == 0) return;
             TextChatRequested?.Invoke(message.Length > 50 ? message.Substring(0, 50) : message);
             chatInput.text = string.Empty;
+        }
+
+        // 옵션 버튼 순번 → 카탈로그 인덱스. 공터가 빠지므로 둘은 같지 않다.
+        private readonly List<int> mapCatalogIndices = new();
+
+        /// <summary>맵 선택지를 카탈로그로 다시 만든다(개수·라벨·매핑 전부). Awake에서 1회.
+        /// MapRequested는 카탈로그 인덱스를 그대로 내보낸다 — LobbyRoomNetController.HostSelectMap이 그걸 기대한다.</summary>
+        private void BuildMapOptions()
+        {
+            UiNewMapOptions.CollectSelectable(mapCatalogIndices);
+            if (mapCatalogIndices.Count == 0) return;
+
+            var buttons = UiNewMapOptions.FitPool(mapOptionButtons, mapCatalogIndices.Count);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                int catalogIndex = mapCatalogIndices[i];
+                UiNewMapOptions.SetLabel(buttons[i], UiNewMapOptions.LabelOf(catalogIndex));
+                buttons[i].onClick.RemoveAllListeners();
+                buttons[i].onClick.AddListener(() =>
+                {
+                    MapRequested?.Invoke(catalogIndex);
+                    mapOptionsRoot?.SetActive(false);
+                });
+            }
+            mapOptionButtons = buttons;
         }
 
         private static void BindOptions(Button[] options, Action<int> callback, GameObject root)

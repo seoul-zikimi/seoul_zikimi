@@ -1,0 +1,112 @@
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+namespace GridSystem.EditorTools
+{
+    /// <summary>
+    /// DDP 맵 자동 셋업 — 에디터 로드(컴파일) 직후 필요한 것만 1회 실행한다.
+    /// ① 맵 카드(Map_Ddp.asset)가 없으면 DdpMapTool.Generate()
+    /// ② Models 폴더 구성이 지난번과 달라졌으면(새 GLB·교체된 GLB·삭제)
+    ///    DdpModelApplyTool.Apply() + 맵 재생성
+    /// ③ 생성 툴 자체를 고쳤으면(kSetupVersion을 올리면) 역시 재적용 + 재생성
+    /// 할 일이 없으면 아무것도 안 한다(수동 실행: Tools ▸ Map ▸ ★ DDP …).
+    ///
+    /// 이 프로젝트는 보통 에디터를 띄워둔 채로 작업해서 배치모드(-executeMethod)를 못 쓴다 —
+    /// 그래서 롯데월드와 같은 [InitializeOnLoad] + delayCall 1회성 실행기 패턴을 쓴다.
+    ///
+    /// 왜 "_Fit이 없는 GLB가 있나?"로 판정하지 않는가:
+    ///   · 리메시 등으로 GLB를 '교체'하면 _Fit은 이미 있어서 영영 재적용이 안 된다.
+    ///   · 반대로 변환에 실패하는 GLB가 하나라도 있으면(렌더러 없음 등) 도메인 리로드마다 무한 재시도한다.
+    ///   → 그래서 폴더 구성을 지문(이름+크기)으로 찍어 '달라졌을 때만' 한 번 돈다.
+    /// </summary>
+    [InitializeOnLoad]
+    public static class DdpAutoSetup
+    {
+        private const string kMapDefPath = "Assets/Map/Maps/Map_Ddp.asset";
+        private const string kDir = "Assets/Prefabs/Map/4_Ddp";
+        private const string kModelDir = kDir + "/Models";
+
+        /// <summary>재적용이 필요할 때 올린다 — 생성 툴을 고쳤거나, GLB를 통째로 갈아끼웠을 때.
+        /// (Models 폴더만 바꾸면 에셋 임포트는 일어나도 도메인 리로드가 안 걸려 이 실행기가 안 돈다.
+        ///  이 상수를 건드리면 스크립트가 재컴파일되면서 리로드가 걸리고, 그때 지문 비교로 1회 재적용된다.)
+        /// 3: VARCO 모델 11종을 30k tri 리메시본으로 교체(500k → 30k, 386MB → 211MB).
+        /// 4: 정답을 '낮고 넓은' DDP 실루엣으로 재설계(파츠 footprint 전면 변경 → _Fit 전부 다시 만들어야 한다),
+        ///    장미화단·유구터 프롭 제거 + 장미 개별 식재, 이간수문 비율/위치 교정,
+        ///    Resources/Ddp 런타임 프리팹 추가(DigStake · Artifact0~2).
+        /// 5: LED 장미 발판 기믹 제거(마커·부착 없앰) + 나선램프 폭 3.4 → 5.6m,
+        ///    그리고 DDP 정답을 '통짜 모델 격자 절단'(DdpSliceTool) 방식으로 전환 —
+        ///    Models/DDP_본관.glb 가 있으면 그걸 잘라 만든 고유 곡면 조각이 정답이 된다.
+        /// 6: 절단 조각이 배치 시 제멋대로 90° 돌아가던 문제 수정(GridFootprint 자동 보정을 자유 형상엔 끔) +
+        ///    통짜 크기 확대(span 11×4×7 → 13×5×10, 그리드 13 → 14).
+        /// 7: (되돌림) 조각 병합·양면 머티리얼을 넣었다가 텍스처가 날아가 전부 새하얘져서 6 상태로 복구.
+        ///    삼각형 보존 여부를 알려 주는 로그만 남겼다.
+        /// 8: 위 되돌림 반영.
+        /// 9: '완성체 교체' 도입 — 자르기 전 통짜를 DDP_본관_완성.prefab으로 따로 굽고,
+        ///    완공 계획도(정답 UI)와 '다 지었을 때'를 그 원본으로 보여준다(조각 이음매를 안 보이게).</summary>
+        private const int kSetupVersion = 9;
+
+        private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
+
+        static DdpAutoSetup()
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+                bool mapMissing = AssetDatabase.LoadAssetAtPath<MapDef>(kMapDefPath) == null;
+                string stamp = BuildStamp();
+                bool changed = EditorPrefs.GetString(kStampKey, string.Empty) != stamp;
+
+                if (!mapMissing && !changed) return;
+
+                if (mapMissing)
+                    Debug.Log("[DDP] 맵 카드가 없어 자동 생성 실행 (Tools ▸ Map ▸ ★ DDP 맵 생성)");
+                else
+                    Debug.Log("[DDP] 모델 폴더/생성 툴이 바뀌어 재적용 실행 (Tools ▸ Map ▸ ★ DDP VARCO 모델 적용)");
+
+                if (HasAnyModel())
+                    DdpModelApplyTool.Apply();      // GLB → _Fit.prefab + def 연결
+                DdpMapTool.Generate();              // 배경 소품 반영(멱등 — 재실행 안전)
+
+                // 성공/실패와 무관하게 지문을 갱신한다 — 실패한 GLB 때문에 매번 다시 돌지 않게.
+                EditorPrefs.SetString(kStampKey, stamp);
+            };
+        }
+
+        private static bool HasAnyModel()
+        {
+            if (!Directory.Exists(kModelDir)) return false;
+            foreach (var f in Directory.GetFiles(kModelDir))
+                if (IsModel(f)) return true;
+            return false;
+        }
+
+        private static bool IsModel(string path)
+        {
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            return ext == ".glb" || ext == ".fbx" || ext == ".obj";
+        }
+
+        // Models 폴더의 지문: 버전 + (파일명, 크기) 목록. GLB를 교체하면 크기가 달라져 지문이 바뀐다.
+        // ⚠ FindAssets("t:Model")은 glTFast(ScriptedImporter)로 임포트된 .glb를 못 찾는다 — 파일 기준으로 훑는다.
+        private static string BuildStamp()
+        {
+            var sb = new StringBuilder();
+            sb.Append('v').Append(kSetupVersion).Append(';');
+
+            if (Directory.Exists(kModelDir))
+            {
+                var files = Directory.GetFiles(kModelDir);
+                System.Array.Sort(files, System.StringComparer.OrdinalIgnoreCase);
+                foreach (var f in files)
+                {
+                    if (!IsModel(f)) continue;
+                    sb.Append(Path.GetFileName(f)).Append(':').Append(new FileInfo(f).Length).Append(';');
+                }
+            }
+            return sb.ToString();
+        }
+    }
+}
