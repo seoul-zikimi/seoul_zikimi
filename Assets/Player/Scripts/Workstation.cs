@@ -45,8 +45,12 @@ namespace Player
             var r = GetComponentInChildren<Renderer>();
             if (r == null) return;
 
-            Color c = m_Tool == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f)
-                                                    : new Color(0.35f, 0.60f, 1.00f);
+            Color c = m_Tool switch
+            {
+                ProcessType.Painted => new Color(0.30f, 0.85f, 0.40f),
+                ProcessType.Bucket  => new Color(0.25f, 0.75f, 0.95f),   // 양동이(물) — 하늘색
+                _                   => new Color(0.35f, 0.60f, 1.00f),
+            };
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
             mpb.SetColor(Shader.PropertyToID("_BaseColor"), c);

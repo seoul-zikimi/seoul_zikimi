@@ -15,11 +15,12 @@ namespace GridSystem.EditorTools
         const string kDir = "Assets/Resources/SystemObjects";
 
         // 작업대 기본 구성값 — 씬에 원본이 없을 때 쓰는 복원용(예전 GameScene 설정과 동일).
-        // ProcessType: 1 = 고정(망치), 2 = 페인트
+        // ProcessType: 1 = 고정(망치), 2 = 페인트, 4 = 양동이(경복궁 화재 진화 — 모델 없음 → 하늘색 큐브 폴백)
         static readonly (string name, int tool, string modelGuid)[] kStations =
         {
             ("HammerStation", 1, "ecb7f6400f0fa1543b84a4841a08f0a4"),
             ("PaintStation",  2, "eef694b801aebe248af89095bb7a8fbe"),
+            ("BucketStation", 4, ""),
         };
 
         [MenuItem("Tools/Map/시스템 오브젝트 프리팹 만들기")]

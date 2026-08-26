@@ -38,6 +38,8 @@ namespace Player
         [SerializeField] private GameObject m_HammerModel;
         [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
         [SerializeField] private GameObject m_PaintCanModel;
+        [Tooltip("든 '양동이'(화재 진화 도구 — 경복궁) 외형 모델. 비우면 하늘색 구로 폴백.")]
+        [SerializeField] private GameObject m_BucketModel;
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
         [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
@@ -51,6 +53,9 @@ namespace Player
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         // 무거운 재료를 혼자 끙끙 드는 중(땀 이펙트 · 전 클라 표시)
         private readonly NetworkVariable<bool> m_NetStraining =
+            new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // 양동이에 물이 차 있는가(경복궁 화마 진화 — 드므 근처에서 자동 리필, 물 붓기로 소모)
+        private readonly NetworkVariable<bool> m_NetBucketFilled =
             new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private MaterialDef m_HeldDef;        // 모든 클라: 든 재료 정의(화물 크기·무게)
         private PlayerFacing m_Facing;        // 모델이 보는 방향(물리 루트는 회전 안 함)
@@ -403,6 +408,7 @@ namespace Player
         {
             m_NetMaterialId.OnValueChanged += OnHeldChanged;
             m_NetTool.OnValueChanged += OnHeldChanged;
+            m_NetBucketFilled.OnValueChanged += OnBucketFilledChanged;   // 양동이 물 유무 → 원격 외형 갱신
             RebuildHeldVisual();                 // 초기/늦참
             if (IsOwner) m_Cam = Camera.main;
         }
@@ -411,6 +417,7 @@ namespace Player
         {
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
+            m_NetBucketFilled.OnValueChanged -= OnBucketFilledChanged;
             if (IsOwner) GridSystem.LocalPlayerHands.Clear();
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
             if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
@@ -584,7 +591,10 @@ namespace Player
         // 꾹: '든 도구'가 조준 블록에 필요할 때만 바가 차고, 다 차면 그 공정을 적용(누른 채로 다음 단계 이어짐).
         // 페인트 공정 시간 = SFX_Painting.wav 길이(1.31s) → 붓질 사운드·로딩바가 함께 시작해서 함께 끝남.
         private const float kPaintSeconds = 1.31f;
-        private float ProcessDurationFor(ProcessType kind) => kind == ProcessType.Painted ? kPaintSeconds : m_ProcessSeconds;
+        private float ProcessDurationFor(ProcessType kind)
+            => kind == ProcessType.Painted ? kPaintSeconds
+             : kind == ProcessType.Bucket ? FireNetwork.ExtinguishSeconds
+             : m_ProcessSeconds;
 
         // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
         // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 완성 파츠 중 무작위로 고른다(기획서).
@@ -617,6 +627,9 @@ namespace Player
                 if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }
             }
             m_CannonCharge = 0f;
+
+            // 양동이(경복궁 화마 진화)는 그리드 공정이 아니라 '불타는 블록에 물 붓기' — 전용 분기.
+            if (m_HeldTool == ProcessType.Bucket) { UpdateBucket(kb); return; }
 
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {
@@ -684,6 +697,44 @@ namespace Player
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
+            }
+        }
+
+        // 양동이(경복궁): 드므 근처면 자동으로 물이 차고, 물 든 채로 불타는 블록 근처에서 E 꾹 → 물 붓기.
+        // 로딩바·HUD는 공정 바(m_ProcessHold)를 그대로 재사용한다.
+        private void UpdateBucket(Keyboard kb)
+        {
+            // 리필: 드므 근처면 자동(E 불필요 — 설명 없는 게임이라 '가면 채워진다'가 제일 배우기 쉬움)
+            if (!m_NetBucketFilled.Value && FireNetwork.NearDeumeu(transform.position, out var dm))
+            {
+                m_NetBucketFilled.Value = true;
+                PlaySFX(SFXType.PickUpObject);
+                GridJuice.WorldToast(dm + Vector3.up * 1.6f, "물을 채웠다!", new Color(0.45f, 0.8f, 1f));
+                RebuildHeldVisual();   // 물 표시 갱신(오너 즉시 — 원격은 복제 콜백)
+            }
+
+            if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed || !m_NetBucketFilled.Value)
+            {
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
+                return;
+            }
+
+            float reach = kBuildReachCells * GridContract.Unit + 1.5f;
+            if (!FireNetwork.TryGetNearestBurning(transform.position, reach, out var cell, out _))
+            {
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
+                return;
+            }
+
+            if (cell != m_ProcessCell) { m_ProcessCell = cell; m_ProcessHold = 0f; }
+            m_ProcessKind = ProcessType.Bucket;
+            m_ProcessHold += Time.deltaTime;
+            if (m_ProcessHold >= ProcessDurationFor(ProcessType.Bucket))
+            {
+                FireNetwork.RequestExtinguish(m_ProcessCell);
+                m_NetBucketFilled.Value = false;   // 물 소모 — 드므에서 다시 채워야
+                RebuildHeldVisual();
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
             }
         }
 
@@ -781,6 +832,13 @@ namespace Player
         private void UpdateProcessHint()
         {
             m_ProcessHint = "";
+            if (HasTool && m_HeldTool == ProcessType.Bucket)   // 양동이는 그리드 공정이 아님 — 전용 안내
+            {
+                m_ProcessHint = m_NetBucketFilled.Value
+                    ? "불타는 블록 근처에서 E 꾹 — 물 붓기"
+                    : "드므(청동 항아리) 근처로 가면 물이 채워져요";
+                return;
+            }
             if (!HasTool || !m_HasTarget || m_Net == null) return;
             if (m_Loop != null && !m_Loop.IsBuilding) return;
             if (!m_Net.TryGetCell(m_Target, out int matId, out int completed)) { m_ProcessHint = "빈 칸 — 블록을 가리키세요"; return; }
@@ -798,7 +856,9 @@ namespace Player
         }
 
         private static string ProcName(ProcessType p)
-            => p == ProcessType.Painted ? "페인트(페인트통/초록)" : "고정(망치/파랑)";
+            => p == ProcessType.Painted ? "페인트(페인트통/초록)"
+             : p == ProcessType.Bucket ? "물 붓기(양동이/하늘색)"
+             : "고정(망치/파랑)";
 
         // 근접 진입한 바닥 재료를 '닿은 순간' 1회 찬다(서버가 그 방향으로 굴림).
         private void TryKickPickups()
@@ -1078,7 +1138,14 @@ namespace Player
             m_HeldTool = tool;
             m_NetMaterialId.Value = -1;
             m_NetTool.Value = (int)tool;
+            if (tool == ProcessType.Bucket) m_NetBucketFilled.Value = false;   // 새로 든 양동이는 빈 상태 — 드므에서 채운다
             PlaySFX(SFXType.PickUpObject);
+        }
+
+        private void OnBucketFilledChanged(bool _, bool __)
+        {
+            if (HasTool && m_HeldTool == ProcessType.Bucket) RebuildHeldVisual();
+            else if (!IsOwner && m_NetTool.Value == (int)ProcessType.Bucket) RebuildHeldVisual();
         }
 
         private void Drop()
@@ -1495,6 +1562,7 @@ namespace Player
             {
                 var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel
                           : (tool & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
+                          : (tool & (int)ProcessType.Bucket) != 0 ? m_BucketModel
                           : null;
                 if (model != null)
                 {
@@ -1508,7 +1576,11 @@ namespace Player
                 {
                     m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     m_HeldVisual.transform.localScale = Vector3.one * 0.4f;
-                    Paint(m_HeldVisual, ColorForMask(tool));
+                    // 양동이: 물 유무를 색으로 — 찬 물=밝은 하늘색, 빈 양동이=회청색
+                    Color c = (tool & (int)ProcessType.Bucket) != 0
+                        ? (m_NetBucketFilled.Value ? new Color(0.30f, 0.80f, 1.00f) : new Color(0.45f, 0.55f, 0.62f))
+                        : ColorForMask(tool);
+                    Paint(m_HeldVisual, c);
                     StripCollider(m_HeldVisual);
                 }
             }
@@ -1902,9 +1974,14 @@ namespace Player
             if (HasMaterial)
                 heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
             else if (HasTool)
-                heldStr = m_HeldTool == ProcessType.Fixed
-                    ? "🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요."
-                    : "🪣 페인트통을 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 색칠하세요.";
+                heldStr = m_HeldTool switch
+                {
+                    ProcessType.Fixed  => "🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요.",
+                    ProcessType.Bucket => m_NetBucketFilled.Value
+                        ? "💧 양동이에 물이 찼어요!  불타는 블록 근처에서  [E] 꾹 눌러 물을 부으세요."
+                        : "🪣 양동이가 비었어요!  드므(청동 항아리) 근처로 가면 물이 채워져요.",
+                    _                  => "🎨 페인트통을 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 색칠하세요.",
+                };
             else if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
                 heldStr = "✋ 이 블록을 집을 수 있어요!  [좌클릭] 으로 집어보세요.";
             else
@@ -1930,8 +2007,18 @@ namespace Player
                 bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
                             && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
                 m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
-                    m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
-                    m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+                    m_ProcessKind switch
+                    {
+                        ProcessType.Painted => new Color(0.30f, 0.85f, 0.40f),
+                        ProcessType.Bucket  => new Color(0.30f, 0.80f, 1.00f),
+                        _                   => new Color(0.35f, 0.60f, 1.00f),
+                    },
+                    m_ProcessKind switch
+                    {
+                        ProcessType.Painted => "페인트 중…",
+                        ProcessType.Bucket  => "물 붓는 중…",
+                        _                   => "고정 중…",
+                    });
             }
 
             bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell

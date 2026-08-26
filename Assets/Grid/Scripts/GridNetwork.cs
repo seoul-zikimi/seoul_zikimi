@@ -348,6 +348,53 @@ namespace GridSystem
             return true;   // 집은 블록 자체는 드롭 X → 손으로
         }
 
+        /// <summary>서버 전용: 복제 셀 목록 스냅샷(기믹용 — 화재 대상 선정 등). into를 비우고 채운다.</summary>
+        public void ServerCollectCells(System.Collections.Generic.List<CellEntry> into)
+        {
+            into.Clear();
+            if (!IsServer) return;
+            foreach (var e in m_Cells) into.Add(e);
+        }
+
+        /// <summary>서버 전용: 화재 소실 — cell이 속한 오브젝트를 '재료 환원 없이' 태워 없앤다(경복궁 화마).
+        /// 받침을 잃고 무너지는 위쪽 블록들은 탄 게 아니므로 기존 붕괴 규칙대로 재료를 돌려준다.
+        /// 소실된 블록의 재료 id를 반환(-1 = 대상 없음) — 호출자(FireNetwork)가 전이 대상 계산에 쓴다.</summary>
+        public int ServerBurnBlock(Vector3Int cell)
+        {
+            if (!IsServer || m_ServerGrid == null) return -1;
+            var cs = m_ServerGrid.GetCell(cell);
+            if (!cs.occupied) return -1;
+
+            ulong owner = cs.ownerObjectId;
+            int materialId = cs.materialId;
+            m_ServerGrid.Remove(cell);                       // 같은 owner 전 셀 제거(멀티셀)
+
+            Vector3 from = default; bool have = false;
+            for (int i = m_Cells.Count - 1; i >= 0; i--)
+                if (m_Cells[i].ownerObjectId == owner)
+                {
+                    if (!have) { from = CellWorld(m_Cells[i].cell); have = true; }
+                    m_Cells.RemoveAt(i);
+                }
+            // ★ 여기서 ServerDrop을 부르지 않는다 — 불탄 블록은 소실(다시 주문해서 지어야 함)
+
+            if (have) BurnedFxRpc(from);
+            foreach (var co in m_ServerGrid.SettleUnsupported())   // 받침 잃은 위 블록은 기존대로 무너져 드롭
+                RemoveCollapsed(co);
+            return materialId;
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void BurnedFxRpc(Vector3 center)
+        {
+            GridJuice.CollapseBurst(center, GridContract.Unit);
+            GridJuice.GroundHit(center, 1.2f);
+            GridJuice.FovPunch(Camera.main, -4f);
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f), "불타 사라졌다…!", new Color(1f, 0.42f, 0.15f));
+            if (m_VisualRoot != null) GridJuice.Ripple(m_VisualRoot.transform, center, GridContract.Unit * 4f, 0.10f, 8f);
+        }
+
         [Rpc(SendTo.Server)]
         private void ShockRpc(Vector3Int cell)
         {

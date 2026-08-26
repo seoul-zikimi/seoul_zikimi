@@ -114,6 +114,16 @@ namespace GridSystem.EditorTools
             { new Vector3Int(22, 7,  4), 3 },   // 남동
         };
 
+        // ── 사방신 석상 재료 4종(id 50~53) — 기믹 전용. 주문 목록(MapDef.AvailableMaterials)에는 안 넣는다.
+        // IsHeavy(2인 운반), 공정 없음. GuardianNetwork가 진행도 문턱마다 ServerDeliver로 낙하시킨다.
+        private static readonly Part[] kStatues =
+        {
+            new Part{ Name="경복궁_석상_청룡", Id=50, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.30f,0.55f,1.00f), Heavy=true },
+            new Part{ Name="경복궁_석상_백호", Id=51, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.92f,0.92f,0.95f), Heavy=true },
+            new Part{ Name="경복궁_석상_주작", Id=52, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(1.00f,0.35f,0.30f), Heavy=true },
+            new Part{ Name="경복궁_석상_현무", Id=53, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.25f,0.22f,0.35f), Heavy=true },
+        };
+
         // ── 기본 제공(preset) 블록 앵커 — 라운드 시작 시 완성 상태로 미리 깔림(채점 제외).
         // 1층 서쪽 측면 + 뒷벽 전부(문 포함) + 동쪽 측면 뒤 1 + 그 위 하층 기와 줄 + 2층 약간.
         // "벽이 서 있는 곳 위엔 기와도 있다" — 미리 지어진 구간이 완성 단면의 본보기가 된다.
@@ -144,16 +154,34 @@ namespace GridSystem.EditorTools
 
             Directory.CreateDirectory(kDir);
 
-            // ① 파츠 MaterialDef + 색큐브 프리팹
+            // ① 파츠 MaterialDef + 색큐브 프리팹 (+ 사방신 석상 4종 — 주문 목록엔 제외, 카탈로그엔 등록)
             var defs = new Dictionary<int, MaterialDef>();
             foreach (var p in kParts)
                 defs[p.Id] = EnsurePartDef(p);
+            var statueDefs = new Dictionary<int, MaterialDef>();
+            foreach (var p in kStatues)
+                statueDefs[p.Id] = EnsurePartDef(p);
+
+            // 화재/진화 이펙트 사본 — CFXR 무료팩 프리팹을 Resources/Fx로 복사(기존 GroundHit 관행. 멱등)
+            EnsureFxCopy("Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Fire/CFXR Fire.prefab", "Assets/Resources/Fx/Fire.prefab");
+            EnsureFxCopy("Assets/ThirdParty/JMO Assets/Cartoon FX Remaster/CFXR Prefabs/Liquids/CFXR Water Splash (Smaller).prefab", "Assets/Resources/Fx/WaterSplash.prefab");
 
             // ② 전역 재료 카탈로그 등록(중복 없이 추가) — 없으면 주문이 조용히 무시된다!
             var matCatalog = AssetDatabase.LoadAssetAtPath<MaterialCatalog>(kGlobalMaterialCatalogPath);
             if (matCatalog == null) { Debug.LogError($"[경복궁] 전역 MaterialCatalog이 없음: {kGlobalMaterialCatalogPath}"); return; }
             var mc = new SerializedObject(matCatalog);
             var list = mc.FindProperty("m_Materials");
+            foreach (var d in statueDefs.Values)
+            {
+                bool exists0 = false;
+                for (int i = 0; i < list.arraySize; i++)
+                    if (list.GetArrayElementAtIndex(i).objectReferenceValue == d) { exists0 = true; break; }
+                if (!exists0)
+                {
+                    list.arraySize++;
+                    list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = d;
+                }
+            }
             foreach (var d in defs.Values)
             {
                 bool exists = false;
@@ -218,12 +246,17 @@ namespace GridSystem.EditorTools
             Object.DestroyImmediate(root);
             if (!ok) { Debug.LogError($"[경복궁] 프리팹 저장 실패: {kPrefabPath}"); return; }
 
+            // ④.5 기믹 설정(화마·사방신) — 기본값 = 기획서 확정치
+            var gimmick = LoadOrCreate<GyeongbokgungGimmickConfig>(kDir + "/GyeongbokgungGimmickConfig_Gbk.asset");
+            EditorUtility.SetDirty(gimmick);
+
             // ⑤ 맵 카드
             var def2 = LoadOrCreate<MapDef>(kMapDefPath);
             var so = new SerializedObject(def2);
             so.FindProperty("m_DisplayName").stringValue = "경복궁 (테스트)";
             so.FindProperty("m_BackgroundPrefab").objectReferenceValue = prefab;
             so.FindProperty("m_GridSize").vector3IntValue = kGridSize;
+            so.FindProperty("m_GyeongbokgungGimmicks").objectReferenceValue = gimmick;
             var answers = so.FindProperty("m_Answers");
             answers.arraySize = 1;
             answers.GetArrayElementAtIndex(0).objectReferenceValue = answer;
@@ -405,8 +438,20 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(15f, 0f, -1f));   // 근정문 앞
             AddSpot(root, "Spot_HammerStation", new Vector3(8f, 0f, 1f));        // 마당 남서
             AddSpot(root, "Spot_PaintStation", new Vector3(22f, 0f, 1f));        // 마당 남동
+            AddSpot(root, "Spot_BucketStation", new Vector3(11.5f, 0f, 1f));     // 양동이 도구함(화마 진화 — 경복궁 전용)
             AddSpot(root, "Spot_DeliveryZone", new Vector3(28.5f, 0f, 15.5f));   // 마당 동북(자재 하역 — 동쪽 받침대와 간섭 없게)
             return root;
+        }
+
+        // CFXR 등 서드파티 프리팹을 Resources로 사본 복사(런타임 Resources.Load용 — GroundHit 관행). 이미 있으면 통과.
+        private static void EnsureFxCopy(string srcPath, string dstPath)
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(dstPath) != null) return;
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(srcPath) == null)
+            { Debug.LogWarning($"[경복궁] FX 원본이 없음: {srcPath}"); return; }
+            Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
+            if (!AssetDatabase.CopyAsset(srcPath, dstPath))
+                Debug.LogWarning($"[경복궁] FX 사본 실패: {srcPath} → {dstPath}");
         }
 
         private static T LoadOrCreate<T>(string path) where T : ScriptableObject

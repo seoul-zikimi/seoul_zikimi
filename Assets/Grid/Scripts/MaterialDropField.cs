@@ -104,6 +104,14 @@ namespace GridSystem
             return false;
         }
 
+        /// <summary>서버: 현재 픽업 목록 스냅샷(기믹용 — 사방신 받침대 판정 등). into를 비우고 채운다.</summary>
+        public void ServerCollectPickups(System.Collections.Generic.List<PickupEntry> into)
+        {
+            into.Clear();
+            if (!IsServer) return;
+            foreach (var p in m_Pickups) into.Add(p);
+        }
+
         /// <summary>서버: 특정 픽업 제거(케이블카 미수령 회수 등). 있었으면 true.</summary>
         public bool ServerRemove(ulong pickupId)
         {
@@ -278,7 +286,9 @@ namespace GridSystem
                     go.transform.localScale = Vector3.one * 0.5f;
                     var tc = go.GetComponent<Collider>();
                     if (tc != null) Destroy(tc);
-                    SetColor(go, ColorForMask(p.toolBit));
+                    SetColor(go, (p.toolBit & (int)ProcessType.Bucket) != 0
+                        ? new Color(0.30f, 0.80f, 1.00f)     // 양동이 — 하늘색(경복궁)
+                        : ColorForMask(p.toolBit));
                 }
                 go.transform.SetParent(m_Root.transform, true);
                 var tbody = go.AddComponent<PickupBody>();
