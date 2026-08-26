@@ -54,6 +54,7 @@ namespace SeoulZikimi.UI.New
         private readonly string[] avatarKeys = new string[LobbyRoomNet.RoomCapacity];
         private readonly Sprite[] avatarSprites = new Sprite[LobbyRoomNet.RoomCapacity];
         private JobsnailLobbyCharacterStage avatarStage;
+        private Button closeWindowButton;   // 배경 헤더의 × 자리(런타임 생성)
         private bool localIsHost;
 
         public event Action LeaveRequested;
@@ -96,11 +97,14 @@ namespace SeoulZikimi.UI.New
             BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다(바인딩도 여기서)
             BuildMapArrows();
             BindOptions(modeOptionButtons, index => ModeRequested?.Invoke(index), modeOptionsRoot);
+            // 세션 화면 배경도 같은 창 헤더를 쓴다. ×는 '나가기'와 동일하게 확인 팝업을 거쳐 방을 떠난다.
+            closeWindowButton = UiNewWindowCloseButton.Attach(transform, RequestLeave);
         }
 
         private void OnEnable()
         {
             UiNewButtonVisualPolicy.Apply(transform);
+            UiNewWindowCloseButton.KeepInvisible(closeWindowButton);   // Apply가 되돌린 ColorTint를 다시 끈다
             ClearChat();
             mapOptionsRoot?.SetActive(false);
             modeOptionsRoot?.SetActive(false);
