@@ -45,16 +45,28 @@ PrefabInstance:
       value: "DDP_\uC870\uAC01_22"
       objectReference: {fileID: 0}
     - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.9525765
+      objectReference: {fileID: 0}
+    - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.2087129
+      objectReference: {fileID: 0}
+    - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.0112967
+      objectReference: {fileID: 0}
+    - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 0.05810839
       objectReference: {fileID: 0}
     - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.007795334
       objectReference: {fileID: 0}
     - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.040103197
       objectReference: {fileID: 0}
     - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
       propertyPath: m_LocalRotation.w
@@ -83,10 +95,6 @@ PrefabInstance:
     - target: {fileID: 3671614448479861751, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8487827325705370133, guid: 72cf39cf2be43b547855866bf1efb33c, type: 3}
-      propertyPath: m_Mesh
-      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

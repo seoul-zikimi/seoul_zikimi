@@ -12,7 +12,8 @@ namespace GridSystem.EditorTools
     ///   벽모듈_측면 ← 벽모듈(90°), 직선기와_단 ← 직선기와(짧게), _장세로/_단세로 ← 직선기와(90°),
     ///   2층벽모듈_측면 ← 2층벽모듈(90°).
     /// 없는 GLB는 건너뛴다(부분 적용 가능). 몇 번을 다시 실행해도 같은 결과.
-    /// 알려진 한계: 모서리기와는 4모서리가 같은 방향을 본다(정답이 전부 rotationStep 0) — 테스트 후 회전 배치로 개선.
+    /// 모서리기와는 정답의 rotationStep(GyeongbokgungMapTool.kCornerRots)으로 4모서리가 바깥을 보게 배치된다.
+    /// 방향이 일괄로 어긋나 보이면 그쪽 kCornerRotOffset을 조절할 것.
     /// </summary>
     public static class GyeongbokgungModelApplyTool
     {

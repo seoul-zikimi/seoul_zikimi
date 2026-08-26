@@ -44,21 +44,29 @@ PrefabInstance:
       propertyPath: m_Name
       value: "DDP_\uC870\uAC01_30"
       objectReference: {fileID: 0}
-    - target: {fileID: 7290535373027928869, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
-      propertyPath: m_Mesh
-      value: 
+    - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.2360883
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.2516354
+      objectReference: {fileID: 0}
+    - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.2843239
       objectReference: {fileID: 0}
     - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 0.04849863
       objectReference: {fileID: 0}
     - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.0102158785
       objectReference: {fileID: 0}
     - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -1.2058992
       objectReference: {fileID: 0}
     - target: {fileID: 8411441263148885313, guid: 70457799e1771a243a3c9b60568d8881, type: 3}
       propertyPath: m_LocalRotation.w

@@ -32,7 +32,7 @@ namespace GridSystem.EditorTools
         private const float kTimeLimitSeconds = 600f;   // 10분 — 최종전 후보. 밸런스는 플레이 테스트로
 
         // ── 파츠 정의(칸모듈 통짜안) : 이름, id, footprint(가로,높이,세로), 공정, 색, 하중부재, 무거움 ──
-        // 회전 배치 대신 가로/세로 변형을 별도 def로 둔다(정답 전부 rotationStep 0 — 남산과 동일 규칙).
+        // 가로/세로 변형은 별도 def로 둔다. 회전 배치는 모서리기와만 사용(kCornerRots — 4모서리가 바깥을 본다).
         private struct Part
         {
             public string Name; public int Id; public Vector3Int Fp;
@@ -94,6 +94,23 @@ namespace GridSystem.EditorTools
             (40, new Vector3Int( 7, 12, 6)), (40, new Vector3Int(15, 12, 6)),
         };
 
+        // ── 모서리기와 회전: 각 모서리가 바깥을 보도록 시계방향(위에서 볼 때 +Y 회전)으로 90°씩.
+        // 남서(정면 왼쪽) = 기준 0. 모델의 기본 방향이 어긋나 있으면 kCornerRotOffset 하나만 조절해 전체 보정.
+        private const int kCornerRotOffset = 0;
+        private static readonly Dictionary<Vector3Int, int> kCornerRots = new Dictionary<Vector3Int, int>
+        {
+            // 하층 기와 (y3)
+            { new Vector3Int( 4, 3,  3), 0 },   // 남서
+            { new Vector3Int( 4, 3, 14), 1 },   // 북서
+            { new Vector3Int(23, 3, 14), 2 },   // 북동
+            { new Vector3Int(23, 3,  3), 3 },   // 남동
+            // 상층 기와 (y9)
+            { new Vector3Int( 5, 9,  4), 0 },   // 남서
+            { new Vector3Int( 5, 9, 13), 1 },   // 북서
+            { new Vector3Int(22, 9, 13), 2 },   // 북동
+            { new Vector3Int(22, 9,  4), 3 },   // 남동
+        };
+
         // ── 기본 제공(preset) 블록 앵커 — 라운드 시작 시 완성 상태로 미리 깔림(채점 제외).
         // 1층 서쪽 측면 + 뒷벽 전부(문 포함) + 동쪽 측면 뒤 1 + 그 위 하층 기와 줄 + 2층 약간.
         // "벽이 서 있는 곳 위엔 기와도 있다" — 미리 지어진 구간이 완성 단면의 본보기가 된다.
@@ -150,23 +167,20 @@ namespace GridSystem.EditorTools
             EditorUtility.SetDirty(matCatalog);
 
             // ③ 정답 — footprint대로 셀을 펼쳐 저장(익스포터와 동일 규칙) + 범위/겹침 검증
-            var cells = new List<(Vector3Int cell, int id)>();
+            var cells = new List<(Vector3Int cell, int id, int rot)>();
             var presetCells = new List<Vector3Int>();
             var seen = new HashSet<Vector3Int>();
             foreach (var (id, anchor) in kPalace)
             {
                 bool preset = kPresetAnchors.Contains(anchor);
-                var fp = defs[id].Footprint;
-                for (int dx = 0; dx < fp.x; dx++)
-                for (int dy = 0; dy < fp.y; dy++)
-                for (int dz = 0; dz < fp.z; dz++)
+                int rot = kCornerRots.TryGetValue(anchor, out int r) ? (r + kCornerRotOffset) & 3 : 0;
+                foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, defs[id].Footprint, rot))
                 {
-                    var c = anchor + new Vector3Int(dx, dy, dz);
                     if (c.x < 0 || c.y < 0 || c.z < 0 || c.x >= kGridSize.x || c.y >= kGridSize.y || c.z >= kGridSize.z)
                     { Debug.LogError($"[경복궁] 셀 범위 밖: {c} (파츠 {id}, 앵커 {anchor})"); return; }
                     if (!seen.Add(c))
                     { Debug.LogError($"[경복궁] 셀 겹침: {c} (파츠 {id}, 앵커 {anchor})"); return; }
-                    cells.Add((c, id));
+                    cells.Add((c, id, rot));
                     if (preset) presetCells.Add(c);
                 }
             }
@@ -187,7 +201,7 @@ namespace GridSystem.EditorTools
                 var e = cp.GetArrayElementAtIndex(i);
                 e.FindPropertyRelative("cell").vector3IntValue = cells[i].cell;
                 e.FindPropertyRelative("materialId").intValue = cells[i].id;
-                e.FindPropertyRelative("rotationStep").intValue = 0;
+                e.FindPropertyRelative("rotationStep").intValue = cells[i].rot;
             }
             ao.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(answer);

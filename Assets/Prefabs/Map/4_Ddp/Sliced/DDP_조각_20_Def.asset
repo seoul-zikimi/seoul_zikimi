@@ -20,4 +20,5 @@ MonoBehaviour:
   m_Walkable: 0
   m_IsBreakable: 0
   m_MaxSpawnCount: -1
+  m_IsHeavy: 0
   m_FreeformVisual: 1

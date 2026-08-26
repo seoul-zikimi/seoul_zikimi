@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 39
   m_Footprint: {x: 1, y: 2, z: 6}
-  m_Prefab: {fileID: 6402570645345607124, guid: 98609c7ab9d2f9440a8f5612b7cbb31f, type: 3}
+  m_Prefab: {fileID: 4170660063629094694, guid: 9b7b8898de05ee84aa1c943ea8d05f2b, type: 3}
   m_RequiredProcesses: 0100000002000000
   m_MustBeFixed: 1
   m_Walkable: 0
