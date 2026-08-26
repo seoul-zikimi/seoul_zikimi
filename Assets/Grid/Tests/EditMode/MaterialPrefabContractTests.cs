@@ -69,6 +69,38 @@ namespace GridSystem.Tests
             }
         }
 
+        /// <summary>재료 프리팹이 '실제로 뭔가를 그린다'는 최소 규약.
+        ///
+        /// <para>이 검사가 없어서 DDP 조각 12종이 통째로 투명해진 사고가 있었다: 래퍼 프리팹(_Fit)이
+        /// 중첩 프리팹의 MeshFilter.m_Mesh를 None으로 오버라이드해, 렌더러는 살아 있는데 그릴 메시가 없었다.
+        /// 그러면 주문창 썸네일이 빈칸이 되고(BlockThumbnail이 투명 텍스처를 뽑는다), 배달된 재료와
+        /// 배치된 블록이 눈에 안 보이며, 정답 고스트·미니 프리뷰도 동시에 죽는다.</para>
+        ///
+        /// <para>위의 피벗·크기 검사는 이걸 못 잡는다 — 렌더러가 있어 TryBounds가 true를 돌려주고,
+        /// 크기 0짜리 바운즈는 모든 부등식을 공허하게 통과하기 때문이다.</para></summary>
+        [Test]
+        public void 재료_프리팹이_실제로_그려진다()
+        {
+            foreach (var def in AllDefs())
+            {
+                var go = (GameObject)PrefabUtility.InstantiatePrefab(def.Prefab);
+                if (go == null) go = Object.Instantiate(def.Prefab);
+                try
+                {
+                    foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+                        Assert.IsNotNull(mf.sharedMesh,
+                            $"[{def.name}] 프리팹 '{def.Prefab.name}'의 '{mf.name}' MeshFilter에 메시가 없음(None) — " +
+                            "주문창 썸네일이 빈칸이 되고 배달·배치된 블록이 투명해집니다. " +
+                            "래퍼 프리팹이 중첩 원본의 m_Mesh를 오버라이드했는지 확인하세요(Revert override).");
+                }
+                finally { Object.DestroyImmediate(go); }
+
+                if (!TryBounds(def.Prefab, out var b)) continue;
+                Assert.Greater(b.size.x * b.size.y * b.size.z, 1e-6f,
+                    $"[{def.name}] 프리팹 '{def.Prefab.name}'의 렌더 바운드 부피가 0 — 화면에 아무것도 안 그려집니다.");
+            }
+        }
+
         /// <summary>자유 형상이라도 '칸 밖으로 삐져나오지는 않는다'는 최소 규약은 지켜야 한다.
         /// 삐져나오면 옆 조각과 겹쳐 보이고, 어서링에서 칠한 칸과 눈에 보이는 덩어리가 어긋난다.</summary>
         [Test]

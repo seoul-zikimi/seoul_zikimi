@@ -150,7 +150,10 @@ namespace GridSystem
                 Vector3 pos = m_Offset + GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 var go = MakeBlockVisual(o, m_Root.transform, pos, rot, u, ghost: false);
-                var bb = new Bounds(pos + Vector3.up * (0.5f * o.dims.y * u), new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);
+                // pos = 셀 min-corner. Bounds 첫 인자는 '중심'이라 세 축 모두 반칸씩 올려야 한다
+                // (X/Z 보정을 빼먹으면 박스가 -dims/2만큼 밀려 카메라 프레이밍이 통째로 치우친다).
+                Vector3 half = new Vector3(o.dims.x, o.dims.y, o.dims.z) * (0.5f * u);
+                var bb = new Bounds(pos + half, new Vector3(o.dims.x, o.dims.y, o.dims.z) * u);
                 if (first) { b = bb; first = false; } else b.Encapsulate(bb);
                 m_PickTargets.Add((o.def, RendererBounds(go, bb), go));   // 픽킹은 렌더러 실측 AABB(피벗 규약 무관)
             }
@@ -488,8 +491,11 @@ namespace GridSystem
 
             var whole = Instantiate(mapDef.CompletedModel, parent);
             whole.name = ghost ? "~CompletedGhost" : "~CompletedPreview";
+            // m_Offset은 미니씬(우하단 3D 뷰) 전용 이동량이다. 인월드 고스트는 실제 그리드 위에 서야 하므로
+            // 오프셋을 더하면 안 된다 — 더하면 건축장이 아니라 (500,500,500) 근처 허공에 생긴다.
+            Vector3 anchor = GridCoordinates.CellToWorld(mapDef.CompletedModelAnchor);
             whole.transform.SetPositionAndRotation(
-                m_Offset + GridCoordinates.CellToWorld(mapDef.CompletedModelAnchor), Quaternion.identity);
+                ghost ? anchor : m_Offset + anchor, Quaternion.identity);
             foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);
             if (ghost) MakeTransparent(whole, kGhostAlpha);
             return whole;
@@ -503,7 +509,8 @@ namespace GridSystem
         }
 
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
-        // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell)+(dims.x,0,dims.z)*0.5u (피벗=바닥), rot = Euler(0,90·step,0).
+        // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell) = 셀 min-corner(프리팹 피벗=바닥),
+        // rot = Euler(0,90·step,0). 중심 피벗을 쓰는 폴백 큐브만 세 축 반칸을 더한다(GridNetwork.cs의 큐브 폴백과 동일).
         private GameObject MakeBlockVisual(AnsObject o, Transform parent, Vector3 pos, Quaternion rot, float u, bool ghost)
         {
             GameObject go;
@@ -520,7 +527,8 @@ namespace GridSystem
             {
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.transform.SetParent(parent, true);
-                go.transform.position = pos + Vector3.up * (0.5f * o.dims.y * u);   // 큐브=중심 피벗 → 셀 바닥에 안착하도록 올림
+                // 큐브=중심 피벗, pos=셀 min-corner → 세 축 모두 반칸 올려야 칸에 정확히 들어앉는다
+                go.transform.position = pos + new Vector3(o.dims.x, o.dims.y, o.dims.z) * (0.5f * u);
                 go.transform.localScale = new Vector3(o.dims.x, o.dims.y, o.dims.z) * (u * (ghost ? 1f : 0.96f));
                 var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
                 if (ghost)

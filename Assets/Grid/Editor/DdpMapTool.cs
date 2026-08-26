@@ -135,9 +135,22 @@ namespace GridSystem.EditorTools
             var list = mc.FindProperty("m_Materials");
             // 죽은 참조 정리 — 절단 조각은 재실행마다 새로 만들어지므로(옛 def은 삭제됨) 빈칸이 남는다.
             // 빈칸을 두면 MapAuthoringValidationTests의 '카탈로그에_빈칸이_없다'가 깨진다.
+            //
+            // 같이 치워야 하는 게 하나 더 있다: 이번에 만든 def과 '같은 Id를 쓰는 다른 def'.
+            // 절단 스킴이 바뀌면(예: 조각_03~09 → 조각_10~30) 옛 def이 살아남아 Id가 겹치는데,
+            // RebuildLookup은 뒤에 온 것이 이기므로 목록 순서에 따라 엉뚱한 조각이 배달·배치된다.
+            // 실제로 이것 때문에 DDP id 43·44가 옛 조각으로 해석돼 정답 100%가 불가능했다.
+            var claimed = new HashSet<int>(defs.Keys);
             for (int i = list.arraySize - 1; i >= 0; i--)
-                if (list.GetArrayElementAtIndex(i).objectReferenceValue == null)
+            {
+                var cur = list.GetArrayElementAtIndex(i).objectReferenceValue;
+                if (cur == null) { list.DeleteArrayElementAtIndex(i); continue; }
+                if (cur is MaterialDef md && !defs.ContainsValue(md) && claimed.Contains(md.Id))
+                {
+                    Debug.Log($"[DDP] 카탈로그에서 Id 중복 def 제거: '{md.name}'(id {md.Id}) — 이번 세팅이 같은 Id를 씁니다.");
                     list.DeleteArrayElementAtIndex(i);
+                }
+            }
             foreach (var d in defs.Values)
             {
                 bool exists = false;

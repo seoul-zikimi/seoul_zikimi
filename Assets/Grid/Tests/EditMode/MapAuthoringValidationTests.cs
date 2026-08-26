@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace GridSystem.Tests
@@ -90,6 +91,66 @@ namespace GridSystem.Tests
                     Assert.IsNotNull(m.AvailableMaterials[i],
                         $"[{m.name}] Available Materials {i}번 칸이 비었음(None) — 지우거나 재료를 넣으세요. " +
                         "목록 전체를 비우면 카탈로그의 모든 재료가 주문 가능해집니다.");
+        }
+
+        static IEnumerable<MaterialCatalog> MaterialCatalogs()
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:MaterialCatalog"))
+            {
+                var c = AssetDatabase.LoadAssetAtPath<MaterialCatalog>(AssetDatabase.GUIDToAssetPath(guid));
+                if (c != null) yield return c;
+            }
+        }
+
+        /// <summary>한 카탈로그 안에서 MaterialId는 유일해야 한다.
+        ///
+        /// <para>MaterialCatalog.RebuildLookup은 m_ById[def.Id] = def 라 <b>뒤에 온 것이 이긴다</b> —
+        /// 중복이 있으면 목록 순서가 곧 동작이 되어, 항목을 옮기기만 해도 게임이 달라진다.</para>
+        ///
+        /// <para>실제 사고: 구버전 DDP 절단 조각(03~09)과 신버전(10~30)이 id 43~49로 겹친 채 둘 다 등록돼,
+        /// id 43·44가 엉뚱한 옛 조각으로 해석됐다. 배달·배치되는 조각 모양이 정답과 달라 100% 완성이 불가능했다.</para></summary>
+        [Test]
+        public void 재료_카탈로그에_id가_중복되지_않는다()
+        {
+            foreach (var cat in MaterialCatalogs())
+            {
+                var byId = new Dictionary<int, MaterialDef>();
+                foreach (var d in cat.Materials)
+                {
+                    if (d == null) continue;
+                    Assert.IsFalse(byId.TryGetValue(d.Id, out var prev),
+                        $"[{cat.name}] MaterialId {d.Id}가 중복됨: '{(prev != null ? prev.name : "?")}' vs '{d.name}' — " +
+                        "뒤에 온 것이 이겨서 엉뚱한 재료가 배달·배치됩니다. 안 쓰는 옛 정의를 카탈로그에서 빼세요.");
+                    byId[d.Id] = d;
+                }
+            }
+        }
+
+        /// <summary>맵이 들고 있는 재료 정의와, 그 Id로 카탈로그가 되돌려주는 정의가 같아야 한다.
+        ///
+        /// <para>게임은 이 둘을 섞어 쓴다 — 주문 검증은 맵의 AvailableMaterials(참조)를 보지만,
+        /// 실제 배달(MaterialDropField)과 배치(GridNetwork)는 Catalog.GetById(id)로 다시 찾는다.
+        /// 둘이 어긋나면 "주문은 되는데 다른 물건이 온다".</para></summary>
+        [Test]
+        public void 주문가능_재료가_카탈로그에서_같은_정의로_되찾아진다()
+        {
+            var cats = MaterialCatalogs().ToList();
+            if (cats.Count == 0) Assert.Ignore("MaterialCatalog 없음");
+
+            foreach (var m in Maps())
+                foreach (var d in m.AvailableMaterials)
+                {
+                    if (d == null) continue;
+                    foreach (var cat in cats)
+                    {
+                        if (!cat.Materials.Contains(d)) continue;   // 그 재료를 담은 카탈로그만 검사
+                        cat.RebuildLookup();
+                        Assert.AreSame(d, cat.GetById(d.Id),
+                            $"[{m.name}] 재료 '{d.name}'(id {d.Id})를 카탈로그 '{cat.name}'에서 되찾으면 " +
+                            $"'{(cat.GetById(d.Id) != null ? cat.GetById(d.Id).name : "null")}'이 나옵니다 — " +
+                            "id가 겹쳤습니다. 주문한 것과 다른 재료가 배달·배치됩니다.");
+                    }
+                }
         }
 
         [Test]
