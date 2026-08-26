@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -5,7 +6,7 @@ namespace Player
 {
     /// <summary>
     /// 머리 위 감정표현 팝(빌보드): 뿅 커졌다(오버슛) → 위로 두둥실 → 끝에 페이드아웃.
-    /// ShowText = 대사 말풍선(기획서 감정표현 11종), Show/ShowFull = 스프라이트(파티클 슬롯 폴백용).
+    /// ShowText = 대사 말풍선(기획서 감정표현 11종, 왼쪽 아이콘 선택), Show/ShowFull = 스프라이트(파티클 슬롯 폴백용).
     /// PlayerEmote가 띄우며, 수명 끝나면 스스로 파괴.
     /// </summary>
     public class EmoteBubble : MonoBehaviour
@@ -16,18 +17,34 @@ namespace Player
         const float kFadePart = 0.3f;  // 마지막 30% = 페이드
         const float kRise = 0.6f;      // 수명 동안 떠오르는 높이
         const float kScale = 0.9f;     // 최종 크기(월드)
+        const float kIcon = 0.6f;      // 대사 왼쪽 아이콘 한 변(월드)
+        const float kIconGap = 0.12f;  // 아이콘↔대사 간격
 
         SpriteRenderer m_Sr;
         TMP_Text m_Text;
         SpriteRenderer m_TextBg;
+        SpriteRenderer m_IconSr;
         float m_T;
         float m_Life = kLife;
         Vector3 m_StartPos;
 
         static Sprite s_BubbleSprite;   // 말풍선 배경(둥근 사각) — 절차 생성 1회 캐시
+        static readonly Dictionary<Texture2D, Sprite> s_IconSprites = new Dictionary<Texture2D, Sprite>();
+
+        // 아이콘 스프라이트는 텍스처당 1개만(감정표현마다 새로 만들면 Sprite가 쌓인다)
+        static Sprite IconSprite(Texture2D tex)
+        {
+            if (s_IconSprites.TryGetValue(tex, out var sp) && sp != null) return sp;
+            sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
+            s_IconSprites[tex] = sp;   // 1픽셀=1/width 유닛 → 스프라이트 한 변 = 1유닛
+            return sp;
+        }
 
         /// <summary>대사 말풍선(흰 대사 + 반투명 검정 둥근 배경). 감정표현 대사용.</summary>
-        public static void ShowText(string line, Vector3 pos)
+        public static void ShowText(string line, Vector3 pos) => ShowText(line, null, pos);
+
+        /// <summary>대사 말풍선 + 왼쪽 아이콘(icon이 null이면 대사만 — 기존 동작 그대로).</summary>
+        public static void ShowText(string line, Texture2D icon, Vector3 pos)
         {
             if (string.IsNullOrEmpty(line)) return;
 
@@ -61,9 +78,25 @@ namespace Player
             rt.sizeDelta = new Vector2(4f, 1f);
             eb.m_Text = tmp;
 
-            // 텍스트 실측 폭에 맞춰 배경 스케일(여백 포함)
+            // 아이콘(선택) — 말풍선 왼쪽에 붙는 이모티콘. 텍스처 한 장을 1x1 유닛 스프라이트로.
             tmp.ForceMeshUpdate();
-            float w = tmp.textBounds.size.x + 0.55f;
+            float textW = tmp.textBounds.size.x;
+            float iconW = icon != null ? kIcon + kIconGap : 0f;
+            if (icon != null)
+            {
+                var iconGo = new GameObject("Icon");
+                iconGo.transform.SetParent(go.transform, false);
+                var isr = iconGo.AddComponent<SpriteRenderer>();
+                isr.sprite = IconSprite(icon);
+                isr.sortingOrder = 11;
+                iconGo.transform.localScale = Vector3.one * kIcon;
+                iconGo.transform.localPosition = new Vector3(-(iconW + textW) * 0.5f + kIcon * 0.5f, 0f, 0f);
+                eb.m_IconSr = isr;
+            }
+
+            // 아이콘 자리만큼 대사를 오른쪽으로 밀고, 배경은 실측 폭에 맞춰 스케일(여백 포함)
+            txtGo.transform.localPosition = new Vector3(iconW * 0.5f, 0f, 0f);
+            float w = iconW + textW + 0.55f;
             float h = tmp.textBounds.size.y + 0.35f;
             bg.transform.localScale = new Vector3(Mathf.Max(w, 1f), Mathf.Max(h, 0.7f), 1f);
         }
@@ -145,6 +178,7 @@ namespace Player
             // 끝 페이드
             float a = n > 1f - kFadePart ? 1f - (n - (1f - kFadePart)) / kFadePart : 1f;
             if (m_Sr != null) m_Sr.color = new Color(1f, 1f, 1f, a);
+            if (m_IconSr != null) m_IconSr.color = new Color(1f, 1f, 1f, a);
             if (m_Text != null) m_Text.color = new Color(1f, 1f, 1f, a);
             if (m_TextBg != null) m_TextBg.color = new Color(0f, 0f, 0f, 0.55f * a);
         }
