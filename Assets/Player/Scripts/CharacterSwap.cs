@@ -13,6 +13,13 @@ public static class CharacterSwap
     /// <summary>맵 물리 바닥과 렌더 바닥의 어긋남 보정(실측 0.135). 맵 콜라이더를 고치면 0으로.</summary>
     private const float kVisualGroundOffset = -0.135f;
 
+    /// <summary>캐릭터별 추가 지면 보정 — 리그/포즈에 따라 최저점(발·집게)이 달라서 개별 조정.</summary>
+    private static float ExtraGroundOffset(string id) => id switch
+    {
+        "char_crab" => -0.10f,   // 집게가 몸보다 아래 — 집게 기준 접지
+        _ => 0f,
+    };
+
     /// <summary>현재 기본 외 캐릭터가 활성화돼 있으면 true(아웃핏 적용 스킵 판단용).</summary>
     public static bool IsNonDefault(GameObject player) => CurrentId(player) != "";
 
@@ -74,7 +81,7 @@ public static class CharacterSwap
         // 프리팹 피벗 = 발바닥(Idle 포즈 min.y=0). 부착 기준은 "비주얼 지면":
         // 맵 배경의 물리 콜라이더가 렌더 바닥보다 ~0.135 높다(실측: 물리 -0.115 vs 비주얼 ≈-0.25).
         // 달팽이는 배가 그만큼 묻히는 디자인이라 안 보였던 것 — 발 달린 캐릭터는 이만큼 내려야 접지로 보인다.
-        clone.transform.localPosition = new Vector3(0f, kVisualGroundOffset, 0f);
+        clone.transform.localPosition = new Vector3(0f, kVisualGroundOffset + ExtraGroundOffset(id), 0f);
 
         SetCarrierVisible(carrier, false);
         carrier.cullingMode = AnimatorCullingMode.AlwaysAnimate;   // 렌더러 꺼도 상태머신은 계속 돌아야 미러 가능

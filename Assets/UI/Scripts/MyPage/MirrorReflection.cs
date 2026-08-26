@@ -116,14 +116,55 @@ public class MirrorReflection : MonoBehaviour
         }));
 #endif
 
-        // 촬영 카메라: 무조건 캐릭터 '정면'(캐릭터 forward 앞) — 키 기준 자동 전신 프레이밍
+        // 거울 우클릭 드래그 → 거울 속 시점이 캐릭터 주위를 돈다(캐릭터 뒷모습 확인용)
+        UpdateViewDrag();
+
+        // 촬영 카메라: 캐릭터 '정면' 기준 + 드래그 회전(m_ViewYaw) — 키 기준 자동 전신 프레이밍
         float h = m_CharHeight;
         float dist = 2.3f * h / Mathf.Max(0.2f, m_Zoom);          // FOV 40 기준 전신+여유
         Vector3 feet = new Vector3(m_Char.position.x, m_FeetY, m_Char.position.z);
         Vector3 focus = feet + Vector3.up * (h * 0.68f);   // 조준점을 올리면 거울 속 상이 내려감
-        m_Cam.transform.position = feet + m_Char.forward * dist + Vector3.up * (h * 0.15f);   // 발목 높이서 살짝 올려다봄 → 배에 다리 안 가림
+        Vector3 dir = Quaternion.Euler(0f, m_ViewYaw, 0f) * m_Char.forward;
+        m_Cam.transform.position = feet + dir * dist + Vector3.up * (h * 0.15f);   // 발목 높이서 살짝 올려다봄 → 배에 다리 안 가림
         m_Cam.transform.LookAt(focus);
         m_Cam.fieldOfView = m_Fov;
+    }
+
+    private float m_ViewYaw;
+    private bool m_Dragging;
+    private float m_LastMouseX;
+
+    private void UpdateViewDrag()
+    {
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse == null) return;
+
+        if (mouse.rightButton.wasPressedThisFrame && m_SurfaceTr != null)
+        {
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                // 물리 레이캐스트는 타원면이 등지고 있으면 뒷면이라 안 맞음 → 평면 교차 수학 판정
+                var ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+                var plane = new Plane(m_SurfaceTr.forward, m_SurfaceTr.position);
+                if (plane.Raycast(ray, out float enter))
+                {
+                    Vector3 local = m_SurfaceTr.InverseTransformPoint(ray.GetPoint(enter));
+                    // 타원 메시 반경 0.5 (스케일은 InverseTransformPoint가 반영)
+                    if (local.x * local.x + local.y * local.y <= 0.25f + 0.05f)
+                    {
+                        m_Dragging = true;
+                        m_LastMouseX = mouse.position.ReadValue().x;
+                    }
+                }
+            }
+        }
+        if (!mouse.rightButton.isPressed) { m_Dragging = false; return; }
+        if (!m_Dragging) return;
+
+        float x = mouse.position.ReadValue().x;
+        m_ViewYaw += (x - m_LastMouseX) * 0.5f;   // 드래그 감도
+        m_LastMouseX = x;
     }
 
     private static void SetLayerRecursively(Transform t, int layer)
