@@ -37,6 +37,7 @@ public class AnswerHudDriver : MonoBehaviour
         AnswerPreview.Ready             -= OnReady;
         AnswerPreview.VisibilityChanged -= OnVisibility;
         if (m_Hud != null) m_Hud.SelectionChanged -= OnHudSelection;
+        if (m_Preview != null) m_Preview.SelectionAutoCleared -= OnSelectionAutoCleared;
         AnswerPanelFocus.Active = false;
     }
 
@@ -51,11 +52,18 @@ public class AnswerHudDriver : MonoBehaviour
         m_Hud.SetTexture(p.RT);                                            // RT 재생성 대응(매 Build)
         m_Hud.SelectionChanged -= OnHudSelection;                          // 재구독(중복 방지)
         m_Hud.SelectionChanged += OnHudSelection;
+        m_Preview.SelectionAutoCleared -= OnSelectionAutoCleared;          // 다 지으면 프리뷰가 선택을 풀음 → HUD 카드도 해제
+        m_Preview.SelectionAutoCleared += OnSelectionAutoCleared;
         m_Visible = p.IsVisible;
         if (!m_Visible) UIManager.Instance.HideHUDUI<AnswerPanelHUD>();    // 초기 가시성 동기화
     }
 
     // HUD 카드 선택 ↔ 3D 뷰 테두리 동기화 (id -1 = 해제)
+    private void OnSelectionAutoCleared()
+    {
+        if (m_Hud != null) m_Hud.ClearSelection();
+    }
+
     private void OnHudSelection(int id)
     {
         if (m_Preview == null) return;
@@ -86,7 +94,7 @@ public class AnswerHudDriver : MonoBehaviour
         if (m_Hud == null || m_Preview == null || Mouse.current == null) { AnswerPanelFocus.Active = false; return; }
 
         var rect = m_Hud.SurfaceRect;
-        bool over = m_Visible && rect != null &&
+        bool over = m_Visible && rect != null && !m_Hud.ChromeHovered &&   // 확대 버튼·도움말 위에선 정답 뷰 입력 양보
             RectTransformUtility.RectangleContainsScreenPoint(rect, Mouse.current.position.ReadValue(), null);
 
         // 좌클릭·우클릭 어느 쪽이든 패널 위에서 드래그 시작 → 회전(좌클릭이 더 직관적이라는 피드백 반영).

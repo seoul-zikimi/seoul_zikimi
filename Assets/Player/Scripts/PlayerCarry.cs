@@ -959,6 +959,16 @@ namespace Player
                 c.y = m_BuildHeight;
                 var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배 — GridSize(한 팀 폭)로 재면 팀B 구역이 그리드 밖 판정
                 var (xMin, xMax) = PlaceableXRange(s);
+                // 조준 관용: 그리드를 2칸 이내로 벗어난 커서는 가장 가까운 유효 칸으로 스냅.
+                // 정답이 그리드 구석에 붙은 맵(튜토리얼)에서 살짝 빗나가면 프리뷰가 안 떠 배치가 빡빡하던 문제.
+                const int kSnapCells = 2;
+                if (HasMaterial)
+                {
+                    if (c.x < xMin && xMin - c.x <= kSnapCells) c.x = xMin;
+                    else if (c.x >= xMax && c.x - (xMax - 1) <= kSnapCells) c.x = xMax - 1;
+                    if (c.z < 0 && -c.z <= kSnapCells) c.z = 0;
+                    else if (c.z >= s.z && c.z - (s.z - 1) <= kSnapCells) c.z = s.z - 1;
+                }
                 m_Target = c;
                 m_HasTarget = c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
