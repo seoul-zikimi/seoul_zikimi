@@ -465,7 +465,8 @@ public sealed class GameLoopHUD : UIHUD
                 int enemyPct = Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent);
                 int w = m_Loop.WinnerTeam;
                 string verdict = w == -1 ? "무승부 (DRAW)" : (w == myTeam ? "승리!" : "패배...");   // 폰트가 한글/ASCII만 지원 — 이모지 금지
-                m_VersusLine = $"{verdict}  우리 {pct}% : 상대 {enemyPct}%";
+                // 승패 문구를 큼직하게, 완성도 비교는 작게 — 도장과 겹치지 않도록 도장은 꺼서 사용(아래 useStamp 처리)
+                m_VersusLine = $"<size=40>{verdict}</size>\n<size=22>우리 {pct}% : 상대 {enemyPct}%</size>";
             }
             else m_VersusLine = null;
             m_ResultScoreText.text = pct.ToString();   // '건축 완료율 [  ]%' — 숫자만(라벨·%는 배경). 인트로 중엔 코루틴이 숫자 담당
@@ -502,7 +503,9 @@ public sealed class GameLoopHUD : UIHUD
         {
             // 도장: 완성도별 3종(EXCELLENT ≥90 / GOOD JOB ≥50 / TRY AGAIN). 스프라이트 없으면 글자 폴백.
             var stampSprite = InGameUiSkin.Load(pct >= 90 ? "Stamp_Excellent" : pct >= 50 ? "Stamp_GoodJob" : "Stamp_TryAgain");
-            bool useStamp = stampSprite != null && m_ResultGradeImage != null;
+            // 2vs2 승패 문구는 도장(완성도 기준 EXCELLENT/GOOD JOB/TRY AGAIN)과 의미가 다르고
+            // 같은 칸에 겹쳐 그려지므로, 승패 문구가 있으면 도장은 끈다.
+            bool useStamp = string.IsNullOrEmpty(m_VersusLine) && stampSprite != null && m_ResultGradeImage != null;
             if (m_ResultGradeImage != null)
             {
                 if (useStamp) m_ResultGradeImage.sprite = stampSprite;
