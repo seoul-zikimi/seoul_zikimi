@@ -436,21 +436,22 @@ namespace GridSystem.EditorTools
 
             // ── 사방신 석상 받침대 4종 — 동청룡(靑)·서백호(白)·남주작(赤)·북현무(黑). 이름으로 기믹이 찾는다 ──
             // VARCO 받침대 모델(_Fit)이 있으면 그걸 쓰고, 색 발광 판(Top)은 방위 신호로 항상 유지한다.
-            void Pedestal(string name, Vector3 pos, Color tint)
+            void Pedestal(string name, int index, Vector3 pos, Color tint)
             {
                 var baseMat = EnsureMaterial($"Mat_GbkPedestal_{name}", tint);
                 var g = new GameObject($"Pedestal_{name}");
                 g.transform.SetParent(root.transform, false);
                 g.transform.localPosition = pos;
+                g.AddComponent<GuardianPedestal>().Index = index;   // 클릭 배치 인식용(PlayerCarry 레이캐스트)
                 var prop = PlaceProp(g, "경복궁_받침대", "Model", Vector3.zero);
                 if (prop == null)
                     AddBox(g, "Base", new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.5f, 2.4f), baseMat).isStatic = true;
                 AddBox(g, "Top", new Vector3(0f, prop != null ? 0.95f : 0.7f, 0f), new Vector3(1.7f, 0.25f, 1.7f), baseMat).isStatic = true;
             }
-            Pedestal("East",  new Vector3(28.5f, 0f,  9.5f), new Color(0.30f, 0.45f, 0.75f));   // 청룡
-            Pedestal("West",  new Vector3(-0.5f, 0f,  3.0f), new Color(0.88f, 0.88f, 0.90f));   // 백호
-            Pedestal("South", new Vector3(21f,   0f, -0.5f), new Color(0.72f, 0.28f, 0.25f));   // 주작
-            Pedestal("North", new Vector3(15f,   0f, 19.5f), new Color(0.18f, 0.18f, 0.22f));   // 현무
+            Pedestal("East",  0, new Vector3(28.5f, 0f,  9.5f), new Color(0.30f, 0.45f, 0.75f));   // 청룡
+            Pedestal("West",  1, new Vector3(-0.5f, 0f,  3.0f), new Color(0.88f, 0.88f, 0.90f));   // 백호
+            Pedestal("South", 2, new Vector3(21f,   0f, -0.5f), new Color(0.72f, 0.28f, 0.25f));   // 주작
+            Pedestal("North", 3, new Vector3(15f,   0f, 19.5f), new Color(0.18f, 0.18f, 0.22f));   // 현무
 
             // ── 드므(방화수 항아리) 4개 — 건물 네 귀퉁이. 양동이 물 리필 지점(기믹이 이름으로 찾는다) ──
             var bronze = EnsureMaterial("Mat_GbkBronze", new Color(0.42f, 0.33f, 0.20f));

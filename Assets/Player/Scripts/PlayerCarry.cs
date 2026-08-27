@@ -420,6 +420,8 @@ namespace Player
             m_NetBucketFilled.OnValueChanged -= OnBucketFilledChanged;
             if (IsOwner) GridSystem.LocalPlayerHands.Clear();
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_PedestalHl != null) Destroy(m_PedestalHl);
+            if (m_StatueArrow != null) Destroy(m_StatueArrow);
             if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
             m_HelpTarget = null;
             if (m_ThrowAim != null) Destroy(m_ThrowAim);
@@ -526,7 +528,26 @@ namespace Player
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
             if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
             {
-                if (HasMaterial)
+                if (HasMaterial && GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out int statueKind))
+                {
+                    // 사방신 석상: 그리드 배치 금지 — 받침대 클릭 배치 전용(테두리 뜬 받침대를 클릭)
+                    if (m_AimPedestal != null)
+                    {
+                        if (m_AimPedestal.Index == statueKind && !GuardianNetwork.IsKindPlaced(statueKind))
+                        {
+                            GuardianNetwork.RequestPlaceOnPedestal(statueKind);   // 석상은 종류당 1개 — 낙관 소모 안전
+                            ClearHeld();
+                            PlaySFX(SFXType.LandObject);
+                        }
+                        else if (m_AimPedestal.Index != statueKind)
+                        {
+                            GridJuice.WorldToast(m_AimPedestal.transform.position + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
+                            PlaySFX(SFXType.BumpPlayers);
+                        }
+                    }
+                    else Drop();   // 받침대 아닌 곳 클릭 = 내려놓기(근처에 놓아도 기존 근접 안착이 받아줌)
+                }
+                else if (HasMaterial)
                 {
                     if (m_HasTarget) TryPlace();   // 그리드 위 → 그리드 배치
                     else             Drop();       // 그리드 밖 '배치' = 발밑에 버리기(기존 Q 통합)
@@ -542,6 +563,7 @@ namespace Player
             UpdateEKey(kb);          // E 꾹=공정(로딩바)
             UpdateZKey(kb);          // Z 꾹=마지막 공정 되돌리기(로딩바)
             UpdateProcessHint();     // 도구 들었을 때 "지금 무슨 공정 차례인지" 안내 갱신
+            UpdateStatueAim();       // 경복궁: 석상 든 채 받침대 조준(테두리) + 방향 화살표
 
             TryBumpCollapse();   // C3: 미고정 기둥/벽에 몸으로 부딪히면 무너뜨림
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
@@ -550,6 +572,96 @@ namespace Player
             UpdateHud();         // 프리팹 HUD 갱신(조작법·공정바·공정힌트)
         }
         
+        // ── 경복궁 사방신 석상: 받침대 조준(발광 테두리) + 목표 받침대 방향 화살표 (오너 로컬 전용) ──
+        private GridSystem.GuardianPedestal m_AimPedestal;   // 이번 프레임 조준 중인 받침대
+        private GameObject m_PedestalHl;                     // 받침대 위 발광 테두리
+        private GameObject m_StatueArrow;                    // 머리 위 방향 화살표
+        private static Material s_PedHlOk, s_PedHlBad;       // 테두리 재질 캐시(프레임당 생성 방지)
+
+        private void UpdateStatueAim()
+        {
+            bool holdingStatue = HasMaterial && GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out int kind);
+            if (!holdingStatue)
+            {
+                m_AimPedestal = null;
+                if (m_PedestalHl != null) m_PedestalHl.SetActive(false);
+                if (m_StatueArrow != null) m_StatueArrow.SetActive(false);
+                return;
+            }
+            GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out kind);
+
+            // 화살표: 목표 받침대 방향으로 머리 위에서 안내(둥실둥실)
+            if (GuardianNetwork.TryGetPedestalPos(kind, out var target) && !GuardianNetwork.IsKindPlaced(kind))
+            {
+                if (m_StatueArrow == null) m_StatueArrow = BuildStatueArrow();
+                m_StatueArrow.SetActive(true);
+                Vector3 dir = target - transform.position; dir.y = 0f;
+                if (dir.sqrMagnitude > 0.04f)
+                {
+                    float bob = Mathf.Sin(Time.time * 4f) * 0.15f;
+                    m_StatueArrow.transform.position = transform.position + Vector3.up * (2.8f + bob) + dir.normalized * 0.6f;
+                    m_StatueArrow.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                }
+            }
+            else if (m_StatueArrow != null) m_StatueArrow.SetActive(false);
+
+            // 받침대 조준: 마우스 레이 → GuardianPedestal (수평 6m 이내)
+            m_AimPedestal = null;
+            if (m_Cam != null && Mouse.current != null)
+            {
+                var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                if (Physics.Raycast(ray, out var hit, 80f, ~(1 << 2), QueryTriggerInteraction.Ignore))
+                {
+                    var ped = hit.collider.GetComponentInParent<GridSystem.GuardianPedestal>();
+                    if (ped != null)
+                    {
+                        Vector3 d = ped.transform.position - transform.position; d.y = 0f;
+                        if (d.magnitude <= 6f) m_AimPedestal = ped;
+                    }
+                }
+            }
+
+            // 발광 테두리(블록 배치 테두리와 같은 언어) — 맞는 방위면 초록, 틀리면 주황
+            if (m_AimPedestal != null)
+            {
+                if (m_PedestalHl == null)
+                {
+                    m_PedestalHl = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Destroy(m_PedestalHl.GetComponent<Collider>());
+                    m_PedestalHl.name = "~PedestalHl";
+                    m_PedestalHl.transform.localScale = new Vector3(2.1f, 1.3f, 2.1f);
+                }
+                bool match = m_AimPedestal.Index == kind;
+                if (s_PedHlOk == null) s_PedHlOk = GuardianNetwork.MakeGlow(new Color(0.35f, 1f, 0.45f, 0.30f));
+                if (s_PedHlBad == null) s_PedHlBad = GuardianNetwork.MakeGlow(new Color(1f, 0.55f, 0.2f, 0.30f));
+                m_PedestalHl.GetComponent<Renderer>().sharedMaterial = match ? s_PedHlOk : s_PedHlBad;
+                m_PedestalHl.transform.position = m_AimPedestal.transform.position + Vector3.up * 0.65f;
+                m_PedestalHl.SetActive(true);
+            }
+            else if (m_PedestalHl != null) m_PedestalHl.SetActive(false);
+        }
+
+        private GameObject BuildStatueArrow()
+        {
+            var root = new GameObject("~StatueArrow");
+            // 몸통(길쭉) + 촉(짧고 굵게) — 발광 노랑, 앞(+Z)이 목표 방향
+            var shaft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(shaft.GetComponent<Collider>());
+            shaft.transform.SetParent(root.transform, false);
+            shaft.transform.localPosition = new Vector3(0f, 0f, 0.15f);
+            shaft.transform.localScale = new Vector3(0.14f, 0.14f, 0.65f);
+            var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(tip.GetComponent<Collider>());
+            tip.transform.SetParent(root.transform, false);
+            tip.transform.localPosition = new Vector3(0f, 0f, 0.62f);
+            tip.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+            tip.transform.localScale = new Vector3(0.3f, 0.14f, 0.3f);
+            var mat = GuardianNetwork.MakeGlow(new Color(1f, 0.9f, 0.35f, 0.85f));
+            shaft.GetComponent<Renderer>().sharedMaterial = mat;
+            tip.GetComponent<Renderer>().sharedMaterial = mat;
+            return root;
+        }
+
         // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
         private void TryPickupPlaced()
         {

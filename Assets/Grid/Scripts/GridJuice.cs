@@ -105,8 +105,9 @@ namespace GridSystem
             => WorldText(pos, amount > 0 ? $"+{amount}" : "+0", color, 48, 0.9f, 1.2f);
 
         // 월드 토스트("앗! 무너졌어요!" 등): 대상 위치 바로 위에 떠오르는 안내 텍스트.
+        // [08/27 피드백] 잘 안 보인다 → 크게·오래·두꺼운 외곽선으로 전면 보강.
         public static void WorldToast(Vector3 pos, string text, Color color)
-            => WorldText(pos, text, color, 40, 1.5f, 0.8f);
+            => WorldText(pos, text, color, 52, 2.4f, 1.0f);
 
         static Font s_WorldFont;
         static void WorldText(Vector3 pos, string text, Color color, int fontSize, float life, float rise)
@@ -116,29 +117,35 @@ namespace GridSystem
                 s_WorldFont = Resources.Load<Font>("Fonts/서울한강 장체M");
                 if (s_WorldFont == null) s_WorldFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             }
+            const float kCharSize = 0.065f;   // 0.05 → 0.065: 전체 텍스트 30% 확대(가독성)
             var go = new GameObject("~WorldText");
             go.transform.position = pos;
             var tm = go.AddComponent<TextMesh>();
             tm.text = text;
             tm.fontSize = fontSize;
-            tm.characterSize = 0.05f;
+            tm.characterSize = kCharSize;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.color = color;
             tm.font = s_WorldFont;
             go.GetComponent<MeshRenderer>().material = s_WorldFont.material;   // 폰트 아틀라스 머티리얼 필수
 
-            // 그림자 — 밝은 배경(하늘·눈밭)에서 연한 색 글자가 안 보여서, 검정 사본을 살짝 어긋나게 깐다
-            var shadow = new GameObject("~shadow");
-            shadow.transform.SetParent(go.transform, false);
-            shadow.transform.localPosition = new Vector3(0.025f, -0.025f, 0.04f);
-            var stm = shadow.AddComponent<TextMesh>();
-            stm.text = text;
-            stm.fontSize = fontSize;
-            stm.characterSize = 0.05f;
-            stm.anchor = TextAnchor.MiddleCenter;
-            stm.color = new Color(0f, 0f, 0f, 0.75f);
-            stm.font = s_WorldFont;
-            shadow.GetComponent<MeshRenderer>().material = s_WorldFont.material;
+            // 외곽선 — 밝은 배경(하늘·눈밭)에서 연한 색 글자가 안 보여서, 검정 사본을 4방향으로 깐다.
+            // (~shadow 이름은 JuiceFloatText가 같이 페이드시키는 계약 — 첫 번째 것만 그 이름을 쓰고 전부 자식이라 함께 사라진다)
+            for (int i = 0; i < 4; i++)
+            {
+                Vector2[] dirs = { new(0.04f, -0.04f), new(-0.04f, -0.04f), new(0.04f, 0.04f), new(-0.04f, 0.04f) };
+                var shadow = new GameObject(i == 0 ? "~shadow" : "~outline");
+                shadow.transform.SetParent(go.transform, false);
+                shadow.transform.localPosition = new Vector3(dirs[i].x, dirs[i].y, 0.04f);
+                var stm = shadow.AddComponent<TextMesh>();
+                stm.text = text;
+                stm.fontSize = fontSize;
+                stm.characterSize = kCharSize;
+                stm.anchor = TextAnchor.MiddleCenter;
+                stm.color = new Color(0f, 0f, 0f, 0.9f);
+                stm.font = s_WorldFont;
+                shadow.GetComponent<MeshRenderer>().material = s_WorldFont.material;
+            }
 
             go.AddComponent<JuiceFloatText>().Init(life, rise);
         }
@@ -275,17 +282,15 @@ namespace GridSystem
     public class JuiceFloatText : MonoBehaviour
     {
         float m_Life = 0.9f, m_Rise = 1.2f, m_T;
-        TextMesh m_Tm, m_Shadow;
-        Color m_Base, m_ShadowBase;
+        TextMesh[] m_All; Color[] m_AllBase;   // 본문+외곽선 4방향 전부 같이 페이드
 
         public void Init(float life, float rise) { m_Life = life; m_Rise = rise; }
 
         void Start()
         {
-            m_Tm = GetComponent<TextMesh>(); if (m_Tm != null) m_Base = m_Tm.color;
-            var st = transform.Find("~shadow");   // WorldText 그림자(있으면 같이 페이드)
-            m_Shadow = st != null ? st.GetComponent<TextMesh>() : null;
-            if (m_Shadow != null) m_ShadowBase = m_Shadow.color;
+            m_All = GetComponentsInChildren<TextMesh>();
+            m_AllBase = new Color[m_All.Length];
+            for (int i = 0; i < m_All.Length; i++) m_AllBase[i] = m_All[i].color;
         }
 
         void LateUpdate()
@@ -302,16 +307,13 @@ namespace GridSystem
             transform.localScale = Vector3.one * s;
 
             float fade = n > 0.6f ? 1f - (n - 0.6f) / 0.4f : 1f;   // 끝 40% 페이드
-            if (m_Tm != null)
-            {
-                var c = m_Base; c.a = m_Base.a * fade;
-                m_Tm.color = c;
-            }
-            if (m_Shadow != null)
-            {
-                var c = m_ShadowBase; c.a = m_ShadowBase.a * fade;
-                m_Shadow.color = c;
-            }
+            if (m_All != null)
+                for (int i = 0; i < m_All.Length; i++)
+                {
+                    if (m_All[i] == null) continue;
+                    var c = m_AllBase[i]; c.a *= fade;
+                    m_All[i].color = c;
+                }
         }
     }
 

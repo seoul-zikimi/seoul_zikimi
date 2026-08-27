@@ -26,8 +26,8 @@ namespace GridSystem
         [Tooltip("발화한 블록이 소실되기까지의 진화 제한시간(초).")]
         [Min(3f)] public float BurnSeconds = 18f;
 
-        [Tooltip("소실 시 맞닿은 블록으로 번지는 개수(상하좌우앞뒤 인접 블록 중 무작위). 0이면 전이 없음.")]
-        [Range(0, 6)] public int SpreadCount = 1;
+        [Tooltip("소실 시 맞닿은 블록으로 번지는 최대 개수. 6 = 면이 닿은 인접 블록 전부('불 꺼야 해' 압박 극대화). 0이면 전이 없음.")]
+        [Range(0, 6)] public int SpreadCount = 6;
 
         [Tooltip("양동이로 물을 붓는 데 걸리는 시간(초, E 꾹 로딩바).")]
         [Min(0.2f)] public float ExtinguishSeconds = 1.2f;

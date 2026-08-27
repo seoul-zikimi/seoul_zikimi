@@ -197,6 +197,47 @@ namespace GridSystem
             return -1;
         }
 
+        // ── 클릭 배치 API (PlayerCarry가 사용 — 석상 든 채 받침대 클릭) ─────────
+        /// <summary>이 재료가 사방신 석상이면 방위(0~3) 반환. 기믹 꺼진 맵에선 false.</summary>
+        public static bool TryGetStatueKind(int materialId, out int kind)
+        {
+            kind = -1;
+            if (Instance == null || !Instance.Active || materialId < 0) return false;
+            kind = Instance.KindOf(materialId);
+            return kind >= 0;
+        }
+
+        /// <summary>해당 방위 석상이 이미 안착됐는가.</summary>
+        public static bool IsKindPlaced(int kind)
+            => Instance != null && Instance.Active && kind >= 0 && (Instance.m_PlacedMask.Value & (1 << kind)) != 0;
+
+        /// <summary>해당 방위 받침대 위치(화살표 안내용). 아직 못 찾았으면 false.</summary>
+        public static bool TryGetPedestalPos(int kind, out Vector3 pos)
+        {
+            pos = default;
+            if (Instance == null || !Instance.Active || kind < 0 || kind > 3) return false;
+            var t = Instance.m_Pedestals[kind];
+            if (t == null) return false;
+            pos = t.position;
+            return true;
+        }
+
+        /// <summary>클릭 배치 확정 요청 — 석상은 종류당 1개뿐이라 클라 낙관 소모 + 서버 재검증으로 충분.</summary>
+        public static void RequestPlaceOnPedestal(int kind)
+        {
+            if (Instance != null && Instance.Active) Instance.PlaceStatueRpc(kind);
+        }
+
+        [Rpc(SendTo.Server)]
+        private void PlaceStatueRpc(int kind)
+        {
+            if (kind < 0 || kind > 3) return;
+            if ((m_PlacedMask.Value & (1 << kind)) != 0) return;   // 이미 안착됨(중복 요청 무시)
+            m_PlacedMask.Value |= 1 << kind;
+            Vector3 pp = m_Pedestals[kind] != null ? m_Pedestals[kind].position : Vector3.zero;
+            PlacedFxRpc(pp, kind, m_PlacedMask.Value == 0b1111);
+        }
+
         // ── 연출 (전 클라) ──────────────────────────────────────────────
         [Rpc(SendTo.Everyone)]
         private void StatueDropFxRpc(Vector3 pos, int kind)
@@ -241,8 +282,8 @@ namespace GridSystem
             fade.Life = 2.2f;
         }
 
-        // URP Unlit 가산 발광 재질(ItemFx.GlowMat 패턴 — 색만 인스턴스별로 박음)
-        internal static Material MakeGlow(Color c)
+        // URP Unlit 가산 발광 재질(ItemFx.GlowMat 패턴 — 색만 인스턴스별로 박음). PlayerCarry(다른 asm)도 씀.
+        public static Material MakeGlow(Color c)
         {
             var sh = Shader.Find("Universal Render Pipeline/Unlit");
             if (sh == null) sh = Shader.Find("Sprites/Default");

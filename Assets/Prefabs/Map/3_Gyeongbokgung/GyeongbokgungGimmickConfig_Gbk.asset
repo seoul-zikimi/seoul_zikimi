@@ -20,12 +20,14 @@ MonoBehaviour:
   SpreadCount: 1
   ExtinguishSeconds: 1.2
   DeumeuRefillRange: 2.2
+  FlameScale: 2.2
   StatueDropPercents:
   - 20
   - 30
   - 45
   - 60
   StatueMaterialIds: 32000000330000003400000035000000
+  StatueDropMinGapSeconds: 20
   PedestalSnapRange: 1.8
   RejectBounceDistance: 3.5
   ImmunityPadding: 0
