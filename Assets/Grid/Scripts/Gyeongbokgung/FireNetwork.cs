@@ -319,13 +319,34 @@ namespace GridSystem
             foreach (var f in m_Fires)
             {
                 if (m_Flames.ContainsKey(f.owner)) continue;
-                m_Flames[f.owner] = BuildFlame(CellCenter(f.Cell) + Vector3.up * (0.6f * GridContract.Unit));
+                m_Flames[f.owner] = BuildFlameGroup(f.Cell);
             }
         }
 
-        private GameObject BuildFlame(Vector3 pos)
+        // 블록 '전체'가 타는 느낌 — 대표 셀 하나가 아니라 블록 최상층 셀들에 2칸 간격으로 불꽃을 깐다.
+        private readonly List<Vector3Int> m_FlameCellScratch = new();
+        private GameObject BuildFlameGroup(Vector3Int repCell)
         {
-            float scale = Config != null ? Config.FlameScale : 2.2f;
+            var root = new GameObject("~FlameGroup");
+            var cells = m_FlameCellScratch;
+            if (Net == null || !Net.TryGetBlockCells(repCell, cells) || cells.Count == 0)
+            { cells.Clear(); cells.Add(repCell); }
+
+            int topY = int.MinValue;
+            foreach (var c in cells) topY = Mathf.Max(topY, c.y);
+            var spots = new List<Vector3Int>();
+            foreach (var c in cells) if (c.y == topY && ((c.x + c.z) & 1) == 0) spots.Add(c);
+            if (spots.Count == 0) spots.Add(cells[0]);
+
+            float per = spots.Count > 3 ? 0.7f : 1f;   // 넓은 블록은 개당 살짝 작게(과밀 방지)
+            foreach (var c in spots)
+                BuildFlame(CellCenter(c) + Vector3.up * (0.6f * GridContract.Unit), per).transform.SetParent(root.transform, true);
+            return root;
+        }
+
+        private GameObject BuildFlame(Vector3 pos, float sizeMul = 1f)
+        {
+            float scale = (Config != null ? Config.FlameScale : 2.2f) * sizeMul;
             // CFXR 사본이 Resources/Fx/Fire에 있으면 그걸, 없으면 절차 생성 불꽃(발광 큐브 3개 깜빡임)
             var prefab = Resources.Load<GameObject>("Fx/Fire");
             if (prefab != null)
