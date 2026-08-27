@@ -82,8 +82,12 @@ public class AnswerHudDriver : MonoBehaviour
     private void Update()
     {
         var gameplayInput = Player.PlayerInputHandler.Local;
-        if (gameplayInput != null && gameplayInput.ConsumeToggleOrder() && m_Preview != null)
-            m_Preview.ToggleVisibility();
+        if (gameplayInput != null && gameplayInput.ConsumeToggleOrder())
+        {
+            // PC: TAB = 인월드 정답 고스트만. 모바일: 폰 버튼 = 폰 접기/펴기(고스트는 눈 버튼 담당).
+            if (MobileControlsHUD.ShouldUseMobileUI) { if (m_Hud != null) m_Hud.ToggleCollapsed(); }
+            else if (m_Preview != null) m_Preview.ToggleVisibility();
+        }
 
         // 모바일에서는 AnswerPanelHUD가 좌측 완공 계획도/우측 재료 카탈로그의
         // 전체화면 레이아웃을 사용한다. 표시 중 월드 조작 잠금은 아래 포커스와
@@ -94,7 +98,7 @@ public class AnswerHudDriver : MonoBehaviour
         if (m_Hud == null || m_Preview == null || Mouse.current == null) { AnswerPanelFocus.Active = false; return; }
 
         var rect = m_Hud.SurfaceRect;
-        bool over = m_Visible && rect != null && !m_Hud.ChromeHovered &&   // 확대 버튼·도움말 위에선 정답 뷰 입력 양보
+        bool over = m_Visible && m_Hud.PhoneOpen && rect != null && !m_Hud.ChromeHovered &&   // 접힘·확대 버튼·도움말 위에선 정답 뷰 입력 양보
             RectTransformUtility.RectangleContainsScreenPoint(rect, Mouse.current.position.ReadValue(), null);
 
         // 좌클릭·우클릭 어느 쪽이든 패널 위에서 드래그 시작 → 회전(좌클릭이 더 직관적이라는 피드백 반영).

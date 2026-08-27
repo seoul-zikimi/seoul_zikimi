@@ -89,7 +89,7 @@ namespace GridSystem
 
         private void Update()
         {
-            bool show = Show();
+            bool show = HudVisible;
 
             // 2vs2: 팀B의 인월드 고스트는 자기 구역(x+구역폭)에 보여야 한다 — 채점 오프셋(GridNetwork.ScoreAgainst)과 동일 기준.
             // 팀 배정(NetworkList)이 Build보다 늦게 복제될 수 있어 재생성 대신 루트 이동으로 매 프레임 반영한다.
@@ -99,7 +99,7 @@ namespace GridSystem
                         ? new Vector3(m_Manager.ZoneSize.x * GridContract.Unit, 0f, 0f)
                         : Vector3.zero;
 
-            bool ghost = show || (GhostPinned && m_Built && Building());
+            bool ghost = (m_Visible || GhostPinned) && m_Built && Building();
             if (m_GhostRoot != null) m_GhostRoot.SetActive(ghost);
             if (ghost)
             {
@@ -136,6 +136,7 @@ namespace GridSystem
                             }
                 }
             }
+            // 폰 HUD 가시성은 TAB과 무관 — 건축 중이면 표시(접기/펴기는 AnswerPanelHUD의 탭 버튼 담당)
             if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
 
             if (!m_MainExcluded && Camera.main != null)   // 메인 뷰에서 미니씬 누출 방지(타이밍 안전)
@@ -146,7 +147,8 @@ namespace GridSystem
         }
 
         private bool Building() => m_Loop == null || m_Loop.IsBuilding;
-        private bool Show() => m_Visible && m_Built && Building();
+        /// <summary>정답 폰 HUD를 띄울 상황인가(건축 중 · 미리보기 준비됨). TAB(고스트 토글)과 무관.</summary>
+        private bool HudVisible => m_Built && Building();
 
         // 블록별 '배치+요구 공정까지 알맞게 완료' 여부 캐시. 채점(ScoreAgainst)과 동일 기준(재료 일치 + RequiredMask 충족).
         private void RefreshGhostDone()
@@ -193,7 +195,7 @@ namespace GridSystem
             }
         }
 
-        /// <summary>키보드·패드·모바일 주문 버튼이 공통으로 호출하는 UI 비의존 토글.</summary>
+        /// <summary>TAB — 인월드 정답 고스트만 켜고 끈다(폰 HUD는 별도 탭 버튼).</summary>
         public void ToggleVisibility() => m_Visible = !m_Visible;
 
         private void Build()
@@ -301,7 +303,7 @@ namespace GridSystem
         // ── HUD 브리지(Assembly-CSharp 드라이버가 구독) ──
         public static event System.Action<AnswerPreview> Ready;      // Build 끝마다(=RT 최신화)
         public static event System.Action<bool> VisibilityChanged;   // 표시/숨김 전환
-        public bool IsVisible => Show();
+        public bool IsVisible => HudVisible;
 
         // ── 인터랙티브 오빗(로컬) — 정답 패널 라우터(Assembly-CSharp)가 호출 ──
         public RenderTexture RT => m_RT;

@@ -65,6 +65,14 @@ public class AnswerPanelHUD : UIHUD
     private IReadOnlyList<OrderEntry> m_CachedItems;
     private readonly Dictionary<int, int> m_CachedRemaining = new();
     private GameObject m_HelpTip;
+    private GameObject m_CollapseTab;   // 폰 접기/펴기 손잡이(폰이 숨어도 남는다)
+    private GameObject m_LandscapeClose; // 가로 화면 하단 '폰 내리기 / 작게 보기' 버튼
+    private Text m_CollapseLabel;
+    private bool m_Collapsed;
+
+    /// <summary>폰이 펼쳐졌는지(모바일 월드 입력 잠금 등에서 구독).</summary>
+    public static event Action<bool> PhoneVisibilityChanged;
+    public bool PhoneOpen => !m_Collapsed;
 
     /// <summary>커서가 폰 UI 부품(확대 버튼·도움말) 위 — AnswerHudDriver가 정답 뷰 클릭/호버를 양보한다.</summary>
     public bool ChromeHovered { get; private set; }
@@ -152,17 +160,62 @@ public class AnswerPanelHUD : UIHUD
         HoverRelay.Attach(help, on =>
         {
             ChromeHovered = on;
-            if (m_HelpTip != null) m_HelpTip.SetActive(on);
+            ShowHelpTip(on);
         });
 
+        BuildCollapseTab();
         BuildTip();   // 마지막에 만들어 항상 위에 그려진다
+    }
+
+    // ── 폰 접기/펴기 손잡이 — 조작법 툴팁처럼 화살표 클릭으로 여닫는다(TAB은 고스트 전용) ──
+    private void BuildCollapseTab()
+    {
+        m_CollapseTab = NewRect("PhoneTab", transform, new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(64f, 64f));
+        var img = m_CollapseTab.AddComponent<Image>();
+        img.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        img.type = Image.Type.Sliced;
+        img.color = new Color(1f, 0.97f, 0.92f, 0.97f);
+        var btn = m_CollapseTab.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(ToggleCollapsed);
+        JuicyButton.Attach(btn);
+        m_CollapseLabel = MakeTextPx(m_CollapseTab.transform, "", Vector2.zero, new Vector2(64f, 64f), 34, TextAnchor.MiddleCenter);
+        m_CollapseLabel.color = InGameUiSkin.TextGray;
+        m_CollapseLabel.fontStyle = FontStyle.Bold;
+
+        m_Collapsed = false;   // 판 시작 = 항상 펼침(고스트도 기본 켜짐)
+        ApplyCollapsed();
+    }
+
+    /// <summary>폰 접기/펴기(손잡이 클릭 · 모바일 폰 버튼).</summary>
+    public void ToggleCollapsed()
+    {
+        m_Collapsed = !m_Collapsed;
+        ApplyCollapsed();
+        if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+    }
+
+    private void ApplyCollapsed()
+    {
+        if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
+        if (m_CollapseTab != null)
+        {
+            // 펼침 = 폰 위쪽 손잡이 / 접힘 = 화면 우하단 구석
+            var rt = (RectTransform)m_CollapseTab.transform;
+            rt.anchoredPosition = m_Collapsed ? new Vector2(-7f, 24f) : new Vector2(-7f, 779f);   // 화면 오른쪽 끝(폰과 같은 라인)
+            m_CollapseTab.SetActive(!m_MobileLayout);   // 가로 화면은 자체 '작게 보기/폰 내리기' 버튼 사용
+        }
+        if (m_CollapseLabel != null) m_CollapseLabel.text = m_Collapsed ? "▲" : "▼";
+        if (m_LandscapeClose != null) m_LandscapeClose.SetActive(!m_Collapsed);
+        if (m_HelpTip != null && m_Collapsed) m_HelpTip.SetActive(false);
+        PhoneVisibilityChanged?.Invoke(!m_Collapsed);   // 구독자(모바일 월드 입력 잠금)에 현재 상태 통지
     }
 
     // 가로 화면용 도움말 말풍선(같은 내용, 큰 글씨 · 터치 기기는 손가락 문구)
     private void BuildLandscapeHelpTip()
     {
         var tip = NewRect("HelpTip", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
-            new Vector2(306f, -104f), new Vector2(600f, 210f));
+            new Vector2(64f, -104f), new Vector2(660f, 240f));   // 왼쪽 칸 안에(구분선 888 안 넘게)
         var bg = tip.AddComponent<Image>();
         bg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
         bg.type = Image.Type.Sliced;
@@ -172,14 +225,14 @@ public class AnswerPanelHUD : UIHUD
         ol.effectColor = InGameUiSkin.CardGray;
         ol.effectDistance = new Vector2(3f, 3f);
 
-        var title = MakeTextPx(tip.transform, "완공 계획도 보는 법", new Vector2(24f, -18f), new Vector2(552f, 34f), 26, TextAnchor.MiddleLeft);
+        var title = MakeTextPx(tip.transform, "완공 계획도 보는 법", new Vector2(24f, -18f), new Vector2(612f, 38f), 30, TextAnchor.MiddleLeft);
         title.color = InGameUiSkin.Orange;
         title.fontStyle = FontStyle.Bold;
 
         var body = MakeTextPx(tip.transform, m_IsMobileDevice
-                ? "· 한 손가락 드래그 : 빙글빙글 회전\n· 두 손가락 : 확대 / 축소\n· 블럭을 누르면 그 재료가 바로 선택돼요"
-                : "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 빙글빙글 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭을 클릭하면 그 재료가 바로 선택돼요",
-            new Vector2(24f, -58f), new Vector2(552f, 140f), 21, TextAnchor.UpperLeft);
+                ? "· 한 손가락 드래그 : 카메라 회전\n· 두 손가락 : 확대 / 축소\n· 블럭을 누르면 그 재료가 바로 선택돼요"
+                : "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 카메라 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭을 클릭하면 그 재료가 바로 선택돼요",
+            new Vector2(24f, -62f), new Vector2(612f, 166f), 25, TextAnchor.UpperLeft);
         body.color = InGameUiSkin.TextGray;
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
         body.verticalOverflow = VerticalWrapMode.Overflow;
@@ -192,7 +245,7 @@ public class AnswerPanelHUD : UIHUD
     private void BuildHelpTip()
     {
         var tip = NewRect("HelpTip", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
-        Local((RectTransform)tip.transform, 22f, 116f, 244f, 104f);   // 완성도 배지 아래, 정답 뷰 위에 덮어서
+        Local((RectTransform)tip.transform, 16f, 116f, 264f, 140f);   // 완성도 배지 아래, 정답 뷰 위에 덮어서
         var bg = tip.AddComponent<Image>();
         bg.color = new Color(1f, 1f, 1f, 0.98f);
         bg.raycastTarget = false;
@@ -200,19 +253,27 @@ public class AnswerPanelHUD : UIHUD
         ol.effectColor = InGameUiSkin.CardGray;
         ol.effectDistance = new Vector2(2f, 2f);
 
-        var title = MakeText(tip.transform, "완공 계획도 보는 법", new Vector2(8f, 6f), new Vector2(228f, 16f), Px(10), TextAnchor.MiddleLeft);
+        var title = MakeText(tip.transform, "완공 계획도 보는 법", new Vector2(10f, 6f), new Vector2(244f, 20f), Px(13), TextAnchor.MiddleLeft);
         title.color = InGameUiSkin.Orange;
         title.fontStyle = FontStyle.Bold;
 
         var body = MakeText(tip.transform,
-            "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 빙글빙글 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭에 커서를 올리면 이름이 뜨고,\n  클릭하면 그 재료가 바로 선택돼요",
-            new Vector2(8f, 24f), new Vector2(228f, 74f), Px(8), TextAnchor.UpperLeft);
+            "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 카메라 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭에 커서를 올리면 이름이 뜨고,\n  클릭하면 그 재료가 바로 선택돼요",
+            new Vector2(10f, 30f), new Vector2(244f, 104f), Px(11), TextAnchor.UpperLeft);
         body.color = InGameUiSkin.TextGray;
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
         body.verticalOverflow = VerticalWrapMode.Overflow;
 
         m_HelpTip = tip;
         tip.SetActive(false);
+    }
+
+    // 말풍선은 나중에 만들어진 정답 뷰·카드에 가리므로 켤 때마다 맨 앞으로 올린다.
+    private void ShowHelpTip(bool on)
+    {
+        if (m_HelpTip == null) return;
+        if (on) m_HelpTip.transform.SetAsLastSibling();
+        m_HelpTip.SetActive(on);
     }
 
     /// <summary>확대 버튼 / 가로 화면의 닫기 — 세로 폰 ↔ 가로 전체화면 전환(내용은 그대로 복원).</summary>
@@ -237,7 +298,7 @@ public class AnswerPanelHUD : UIHUD
         }
         m_Phone = null; m_Surface = null; m_PctText = null; m_CompletionText = null;
         m_SelName = null; m_SelSub = null; m_OrderBtn = null; m_OrderBtnImg = null;
-        m_GridRoot = null; m_Tip = null; m_HelpTip = null;
+        m_GridRoot = null; m_Tip = null; m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
         m_Cards.Clear();
         m_SelectedId = -1;
         m_LastFitSize = Vector2.zero;
@@ -302,11 +363,11 @@ public class AnswerPanelHUD : UIHUD
         helpIcon.raycastTarget = true;
         helpGo.AddComponent<NoJuicyButtonMotion>();
         BuildLandscapeHelpTip();
-        HoverRelay.Attach(helpGo, on => { if (m_HelpTip != null) m_HelpTip.SetActive(on); });
+        HoverRelay.Attach(helpGo, on => ShowHelpTip(on));
         var helpBtn = helpGo.AddComponent<Button>();   // 터치 기기: 탭으로도 열고 닫기
         helpBtn.targetGraphic = helpIcon;
         helpBtn.transition = Selectable.Transition.None;
-        helpBtn.onClick.AddListener(() => { if (m_HelpTip != null) m_HelpTip.SetActive(!m_HelpTip.activeSelf); });
+        helpBtn.onClick.AddListener(() => ShowHelpTip(m_HelpTip == null || !m_HelpTip.activeSelf));
 
         var badge = NewRect("CompletionBadge", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
             new Vector2(560f, -54f), new Vector2(296f, 48f));
@@ -319,7 +380,8 @@ public class AnswerPanelHUD : UIHUD
             Vector2.zero, new Vector2(296f, 48f), 23, TextAnchor.MiddleCenter);
         m_CompletionText.fontStyle = FontStyle.Bold;
 
-        m_Surface = MakeRawImage(m_Phone.transform, new Vector2(64f, -120f), new Vector2(792f, 650f));
+        // 왼쪽 칸(64~856)에 들어가는 정사각 뷰 — RT가 512x512라 가로로 늘리면 모델이 뚱뚱해진다
+        m_Surface = MakeRawImageRaw(m_Phone.transform, new Vector2(135f, -120f), new Vector2(650f, 650f));
         m_Surface.color = Color.white;
 
         m_SelName = MakeTextPx(m_Phone.transform, kIdleName,
@@ -357,8 +419,13 @@ public class AnswerPanelHUD : UIHUD
         closeImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
         var close = closeGo.AddComponent<Button>();
         close.targetGraphic = closeImg;
-        if (m_ExpandedView) close.onClick.AddListener(ToggleExpanded);              // PC 확대 보기 → 작은 폰으로
-        else                close.onClick.AddListener(Player.MobileGameplayInput.ToggleOrder);
+        if (m_ExpandedView) close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
+        else                close.onClick.AddListener(ToggleCollapsed);   // 모바일 → 폰 내리기
+        m_Collapsed = false;
+        if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
+        PhoneVisibilityChanged?.Invoke(!m_Collapsed);
+        closeGo.SetActive(!m_Collapsed);
+        m_LandscapeClose = closeGo;
         var closeLabel = MakeTextPx(closeGo.transform, m_ExpandedView ? "작게 보기 ▾" : "폰 내리기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
         closeLabel.color = ink;
         closeLabel.fontStyle = FontStyle.Bold;
@@ -712,6 +779,15 @@ public class AnswerPanelHUD : UIHUD
         rt.anchorMin = aMin; rt.anchorMax = aMax; rt.pivot = aMax;
         rt.anchoredPosition = pos; rt.sizeDelta = size;
         return go;
+    }
+
+    /// <summary>가로(1800x940) 레이아웃용 — 저작 px 그대로. 피그마 배율을 타면 폰 밖으로 나간다.</summary>
+    private static RawImage MakeRawImageRaw(Transform parent, Vector2 pos, Vector2 size)
+    {
+        var go = NewRect("Surface", parent, new Vector2(0, 1), new Vector2(0, 1), pos, size);
+        var ri = go.AddComponent<RawImage>();
+        ri.raycastTarget = false;
+        return ri;
     }
 
     private RawImage MakeRawImage(Transform parent, Vector2 figmaPos, Vector2 figmaSize)
