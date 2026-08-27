@@ -15,8 +15,12 @@ namespace Player
     /// </summary>
     public class PlayerCarry : NetworkBehaviour
     {
-        [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 1.2f, 0f);
-        [SerializeField] private float m_BlockHoldRaise = 0.6f;   // 재료(블록)는 머리 안 가리게 더 위로
+        [SerializeField] private Vector3 m_HoldOffset = new Vector3(0f, 1.2f, 0f);   // 도구 들 때(머리 위)
+        [Tooltip("재료는 원본 크기 그대로 몸 앞에 안고 간다(무빙아웃식). 앞으로 띄우는 거리(블록 반폭은 자동 가산)·높이.")]
+        [SerializeField] private float m_FrontHoldDist = 0.35f;
+        [SerializeField] private float m_FrontHoldHeight = 0.55f;
+        [Tooltip("무거운 재료를 혼자 들 때 이동속도 배율.")]
+        [SerializeField] private float m_HeavySoloSpeed = 0.7f;
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
         [SerializeField] private float m_GrabRange = 2.5f;
@@ -44,6 +48,303 @@ namespace Player
             new(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private readonly NetworkVariable<int> m_NetTool =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // 무거운 재료를 혼자 끙끙 드는 중(땀 이펙트 · 전 클라 표시)
+        private readonly NetworkVariable<bool> m_NetStraining =
+            new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private MaterialDef m_HeldDef;        // 모든 클라: 든 재료 정의(화물 크기·무게)
+        private PlayerFacing m_Facing;        // 모델이 보는 방향(물리 루트는 회전 안 함)
+        // 같이 들기: 내가 돕고 있는 운반자의 NetworkObjectId(없음 = MaxValue). owner write → 운반자가 '도움 받는 중' 판정.
+        private const ulong kNoHelp = ulong.MaxValue;
+        private readonly NetworkVariable<ulong> m_NetHelping =
+            new(ulong.MaxValue, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private PlayerCarry m_HelpTarget;     // owner: 돕는 중인 운반자(캐시)
+        // 같이 들기 슬롯: 화물 4면(0:-Z 1:+Z 2:-X 3:+X · 월드 고정). 운반자 면(-1 = 혼자 들기), 도우미 면, 도우미 입력(월드 방향)
+        private readonly NetworkVariable<int> m_NetSide =
+            new(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<int> m_NetHelpSide =
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<Vector3> m_NetMoveInput =   // 같이 들 때 내 이동 입력(월드) — 전원이 평균내서 같은 그룹 속도로 움직임
+            new(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<int> m_NetRotation =   // 든 재료 yaw(R 회전) — 화물은 월드 방향 고정
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        [Tooltip("같이 들 때 각자를 자기 면 슬롯으로 당기는 스프링 세기(클수록 단단히 붙음).")]
+        [SerializeField] private float m_TetherStiffness = 6f;
+        [Tooltip("슬롯에서 이만큼 벗어날 때까진 안 당김(네트워크 지연 흡수).")]
+        [SerializeField] private float m_TetherSlack = 0.5f;
+        [Tooltip("혼자 들 때 화물이 몸 회전을 따라오는 속도(작을수록 묵직하게 늦게 따라옴).")]
+        [SerializeField] private float m_CargoTurnFollow = 14f;
+        private Vector3 m_CargoDir;           // 댐핑된 화물 방향(혼자 들기)
+        private bool m_CargoDirInit;
+        private PlayerCarry m_GrabCargoOf;    // 조준 중인 '남이 든 화물'의 운반자(클릭 = 같이 들기)
+        [Tooltip("같이 들기 가능한 거리(화물 중심까지, 수평).")]
+        [SerializeField] private float m_JoinRange = 3f;
+        private ParticleSystem m_SweatFx;     // 땀 이펙트(필요 시 생성)
+        private static PlayerCarry[] s_AllCarries;
+        private static float s_AllCarriesTime = -1f;
+
+        /// <summary>이동속도 배율(owner) — 무거운 재료 혼자 들면 0.7, 동료가 붙으면 1.</summary>
+        public float MoveMultiplier { get; private set; } = 1f;
+        public bool IsStraining => m_NetStraining.Value;
+        public bool HasMaterialHeld => m_NetMaterialId.Value >= 0;   // 모든 클라
+        public bool IsHelping => m_NetHelping.Value != kNoHelp;
+        public bool IsSharedCarry => HasMaterialHeld && m_NetSide.Value >= 0;   // 도우미가 붙어 4면 슬롯 모드
+
+        private static readonly Vector3[] kSideDir = { Vector3.back, Vector3.forward, Vector3.left, Vector3.right };
+        private static int NearestSide(Vector3 dir)
+        {
+            int best = 0; float bd = float.NegativeInfinity;
+            for (int i = 0; i < 4; i++) { float d = Vector3.Dot(dir, kSideDir[i]); if (d > bd) { bd = d; best = i; } }
+            return best;
+        }
+
+        // 든 재료의 월드 반폭(x/z · R 회전 반영). 모든 클라.
+        private Vector2 HalfExtentXZ()
+        {
+            if (m_HeldDef == null) return Vector2.one * (0.5f * GridContract.Unit);
+            var fp = m_HeldDef.Footprint;
+            bool swap = (m_NetRotation.Value & 1) == 1;
+            float x = Mathf.Max(1, swap ? fp.z : fp.x), z = Mathf.Max(1, swap ? fp.x : fp.z);
+            return new Vector2(x, z) * (0.5f * GridContract.Unit);
+        }
+        private float HalfExtentAlong(int side) => side < 2 ? HalfExtentXZ().y : HalfExtentXZ().x;
+
+        /// <summary>화물 중심(모든 클라). 혼자면 모델이 보는 방향 앞, 같이 들면 운반자 면의 반대편(월드 고정).</summary>
+        private float HalfExtentY()
+            => (m_HeldDef != null ? Mathf.Max(1, m_HeldDef.Footprint.y) : 1) * (0.5f * GridContract.Unit);
+
+        /// <summary>화물 yaw(월드): 혼자 들면 몸 방향 + R 회전, 같이 들면 월드 고정(R 회전만).</summary>
+        private Quaternion CargoRot()
+        {
+            Quaternion r = Quaternion.Euler(0f, 90f * m_NetRotation.Value, 0f);
+            if (m_NetSide.Value >= 0) return r;
+            return Quaternion.LookRotation(CargoDir(), Vector3.up) * r;
+        }
+
+        // 혼자 들 때 화물이 향하는 방향 — 몸 방향을 댐핑해서 따라감(묵직하게 같이 돎, 위치·회전 동일 소스라 따로 안 미끄러짐)
+        private Vector3 CargoDir()
+        {
+            Vector3 f = FacingDir();
+            if (!m_CargoDirInit) { m_CargoDir = f; m_CargoDirInit = true; }
+            else m_CargoDir = Vector3.Slerp(m_CargoDir, f, 1f - Mathf.Exp(-m_CargoTurnFollow * Time.deltaTime));
+            return m_CargoDir;
+        }
+
+        private Vector3 SharedCargoCenter(int mySide)
+        {
+            Vector3 up = Vector3.up * (m_FrontHoldHeight + HalfExtentY());
+            return transform.position - kSideDir[mySide] * (m_FrontHoldDist + HalfExtentAlong(mySide)) + up;
+        }
+
+        private Vector3 CargoCenter()
+        {
+            Vector3 up = Vector3.up * (m_FrontHoldHeight + HalfExtentY());   // 밑면이 m_FrontHoldHeight 만큼 떠 있게
+            int side = m_NetSide.Value;
+            if (side >= 0) return SharedCargoCenter(side);
+            Vector3 f = CargoDir();
+            return transform.position + f * (m_FrontHoldDist + HalfExtentXZ().y) + up;   // 블록이 몸과 같이 도니 앞쪽 반폭 = 로컬 z
+        }
+
+        /// <summary>side 면에 서는 사람의 발 위치(y = 운반자 y).</summary>
+        private Vector3 SlotPos(int side)
+        {
+            Vector3 c = CargoCenter();
+            Vector3 p = c + kSideDir[side] * (HalfExtentAlong(side) + m_FrontHoldDist);
+            p.y = transform.position.y;
+            return p;
+        }
+
+        /// <summary>같이 드는 중이면 화물을 바라보게(운반자·도우미 공통).</summary>
+        public bool TryGetHelperFacing(out Vector3 dir)
+        {
+            dir = default;
+            if (IsHelping)
+            {
+                var c = ResolveHelpTarget();
+                if (c == null || !c.HasMaterialHeld) return false;
+                dir = -kSideDir[m_NetHelpSide.Value];
+                return true;
+            }
+            if (IsSharedCarry) { dir = -kSideDir[m_NetSide.Value]; return true; }
+            return false;
+        }
+
+        /// <summary>같이 들기 그룹 이동(운반자·도우미 공통, owner): 내 입력을 복제하고, 참가자 전원의 입력 평균을 이동 방향으로 돌려준다.
+        /// 같은 방향 = 풀속도, 반대 = 상쇄(정지), 직각 = 대각선. 각 클라가 로컬로 계산하므로 내 조작은 즉답.</summary>
+        public bool TryGetGroupMove(Vector3 myDir, out Vector3 group)
+        {
+            group = myDir;
+            PlayerCarry carrier;
+            if (IsHelping) { carrier = ResolveHelpTarget(); if (carrier == null || !carrier.HasMaterialHeld) { ReleaseHelp(); return false; } }
+            else if (IsSharedCarry) carrier = this;
+            else return false;
+
+            if ((m_NetMoveInput.Value - myDir).sqrMagnitude > 1e-4f) m_NetMoveInput.Value = myDir;
+
+            Vector3 sum = Vector3.zero; int n = 0;
+            void Add(PlayerCarry pc) { sum += pc == this ? myDir : pc.m_NetMoveInput.Value; n++; }
+            Add(carrier);
+            foreach (var o in AllCarries())
+                if (o != null && o != carrier && o.m_NetHelping.Value == carrier.NetworkObjectId) Add(o);
+            group = n > 0 ? Vector3.ClampMagnitude(sum / n, 1f) : myDir;
+            return true;
+        }
+
+        /// <summary>대형 유지용 약한 보정(owner): 각자 로컬 적분이라 조금씩 어긋나는 걸 자기 면 슬롯으로 살살 되돌린다(데드존 있음).</summary>
+        public void ApplyTether(Rigidbody rb, float inputMag = 0f)
+        {
+            Vector3 target;
+            if (IsHelping)
+            {
+                var c = ResolveHelpTarget();
+                if (c == null || !c.HasMaterialHeld || c.m_NetSide.Value < 0) return;
+                target = c.SlotPos(m_NetHelpSide.Value);
+            }
+            else return;   // 운반자가 기준점(화물은 운반자 위치에서 나옴) — 도우미만 맞춘다
+
+            Vector3 cur = rb.position;
+            Vector3 err = new Vector3(target.x - cur.x, 0f, target.z - cur.z);
+            float len = err.magnitude;
+            if (len <= m_TetherSlack) return;
+            err *= (len - m_TetherSlack) / len;
+            Vector3 corr = Vector3.ClampMagnitude(err * m_TetherStiffness, 4f);
+            var v = rb.linearVelocity;
+            rb.linearVelocity = new Vector3(v.x + corr.x, v.y, v.z + corr.z);
+        }
+
+        private static readonly Collider[] s_OverlapBuf = new Collider[16];
+
+        /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
+        /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
+        private BoxCollider m_CargoBox;   // 화물 콜라이더(AttachCargoPusher)
+        private Vector3 m_BumpVel;        // 벽에 박았을 때 튕김 속도(감쇠)
+        private float m_BumpCooldown;
+
+        private static bool IsObstacle(Collider c, Transform self)
+        {
+            if (c == null || c.transform == self || c.transform.IsChildOf(self)) return false;
+            if (c.CompareTag("Player")) return false;                           // 사람은 밀리는 쪽(키네마틱 화물이 밈)
+            if (c.GetComponentInParent<PickupBody>() != null) return false;     // 바닥 재료도 차이는 쪽
+            if (c.GetComponentInParent<PlayerCarry>() != null) return false;    // 다른 플레이어(자식 콜라이더)
+            return true;
+        }
+
+        public void ResolveCargoCollision(ref Vector3 v, float dt)
+        {
+            if (!HasMaterialHeld || m_HeldDef == null || m_HeldVisual == null) return;
+            if (m_CargoBox == null) m_CargoBox = m_HeldVisual.GetComponent<BoxCollider>();
+            if (m_CargoBox == null) return;
+
+            // 튕김 잔상(감쇠) — 박은 뒤 몇 틱 동안 뒤로 밀려나는 느낌
+            if (m_BumpVel.sqrMagnitude > 1e-4f) { v += m_BumpVel; m_BumpVel = Vector3.Lerp(m_BumpVel, Vector3.zero, 1f - Mathf.Exp(-9f * dt)); }
+
+            Vector3 half = new Vector3(HalfExtentXZ().x, HalfExtentY(), HalfExtentXZ().y) * 0.92f;
+            Quaternion rot = CargoRot();
+            for (int pass = 0; pass < 2; pass++)   // 0 = 지금 위치(겹침 해소) · 1 = 다음 틱 위치(예측 차단)
+            {
+                Vector3 center = CargoCenter() + (pass == 1 ? v * dt * 1.5f : Vector3.zero);
+                int n = Physics.OverlapBoxNonAlloc(center, half, s_OverlapBuf, rot, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++)
+                {
+                    var c = s_OverlapBuf[i];
+                    if (!IsObstacle(c, transform)) continue;
+                    if (!Physics.ComputePenetration(m_CargoBox, center, rot, c, c.transform.position, c.transform.rotation, out var dir, out float dist))
+                        continue;
+                    dir.y = 0f;
+                    if (dir.sqrMagnitude < 1e-6f) continue;   // 위아래로만 겹침(바닥 등) — 수평 이동과 무관
+                    dir.Normalize();
+                    float into = Vector3.Dot(v, dir);          // dir = 화물을 밖으로 밀어내는 방향
+                    if (into < 0f)
+                    {
+                        v -= dir * into;                        // 파고드는 성분 제거(미끄러짐은 유지)
+                        if (pass == 1 && into < -1.2f && Time.time > m_BumpCooldown)   // 제법 빠르게 박았을 때: 통! 튕겨나옴 + 화물 찌그러짐
+                        {
+                            m_BumpCooldown = Time.time + 0.3f;
+                            m_BumpVel = dir * Mathf.Min(-into * 0.9f, 4f);
+                            GridJuice.Squish(m_HeldVisual, 0.18f);
+                            if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.PlayerBounce);
+                        }
+                    }
+                    if (pass == 0) v += dir * Mathf.Min(dist * 12f, 2.5f);   // 이미 겹쳐 있으면 살짝 밀어냄
+                }
+            }
+        }
+
+        private PlayerCarry ResolveHelpTarget()
+        {
+            if (!IsHelping) { m_HelpTarget = null; return null; }
+            if (m_HelpTarget != null && m_HelpTarget.NetworkObjectId == m_NetHelping.Value) return m_HelpTarget;
+            m_HelpTarget = null;
+            if (NetworkManager.Singleton != null &&
+                NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(m_NetHelping.Value, out var no) && no != null)
+                m_HelpTarget = no.GetComponent<PlayerCarry>();
+            return m_HelpTarget;
+        }
+
+        private void JoinCarry(PlayerCarry carrier)
+        {
+            if (carrier == null || carrier == this || !carrier.HasMaterialHeld) return;
+            // 빈 면 중 내게 가장 가까운 면. 운반자 면은 제외(아직 혼자면 운반자는 '보는 방향의 반대' 면에 선다고 가정).
+            int carrierSide = carrier.m_NetSide.Value >= 0 ? carrier.m_NetSide.Value : NearestSide(-carrier.FacingDir());
+            var taken = new HashSet<int> { carrierSide };
+            foreach (var o in AllCarries())
+                if (o != null && o != this && o.m_NetHelping.Value == carrier.NetworkObjectId) taken.Add(o.m_NetHelpSide.Value);
+            Vector3 center = carrier.CargoCenter();
+            int best = -1; float bd = float.MaxValue;
+            for (int i = 0; i < 4; i++)
+            {
+                if (taken.Contains(i)) continue;
+                float d = (center + kSideDir[i] - transform.position).sqrMagnitude;
+                if (d < bd) { bd = d; best = i; }
+            }
+            if (best < 0) return;   // 4면 다 참
+            m_NetHelpSide.Value = best;
+            m_NetHelping.Value = carrier.NetworkObjectId;
+            m_HelpTarget = carrier;
+            if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+        }
+
+        private void ReleaseHelp()
+        {
+            if (!IsHelping) return;
+            m_NetHelping.Value = kNoHelp;
+            m_NetMoveInput.Value = Vector3.zero;
+            m_HelpTarget = null;
+        }
+
+        private static PlayerCarry[] AllCarries()
+        {
+            if (s_AllCarries == null || Time.time - s_AllCarriesTime > 1f)
+            {
+                s_AllCarries = FindObjectsByType<PlayerCarry>(FindObjectsSortMode.None);
+                s_AllCarriesTime = Time.time;
+            }
+            return s_AllCarries;
+        }
+
+        /// <summary>이 운반자를 돕고 있는 도우미 수(모든 클라 계산 가능).</summary>
+        private int HelperCount()
+        {
+            int n = 0;
+            foreach (var o in AllCarries())
+                if (o != null && o != this && o.m_NetHelping.Value == NetworkObjectId) n++;
+            return n;
+        }
+
+        // 운반자(owner): 도우미가 붙으면 내 면을 고정(보는 방향의 반대), 다 떠나면 혼자 들기로 복귀
+        private void UpdateSharedSide()
+        {
+            if (!HasMaterial) { if (m_NetSide.Value != -1) m_NetSide.Value = -1; return; }
+            bool any = HelperCount() > 0;
+            if (any && m_NetSide.Value < 0) m_NetSide.Value = NearestSide(-FacingDir());
+            else if (!any && m_NetSide.Value >= 0) m_NetSide.Value = -1;
+        }
+
+        // 모델이 보는 수평 방향(PlayerFacing) — 없으면 루트 forward
+        private Vector3 FacingDir()
+        {
+            if (m_Facing == null) m_Facing = GetComponent<PlayerFacing>();
+            return m_Facing != null ? m_Facing.Forward : transform.forward;
+        }
 
         private int m_Rotation;
         private int m_BuildHeight;
@@ -116,7 +417,10 @@ namespace Player
         {
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
+            if (IsOwner) GridSystem.LocalPlayerHands.Clear();
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
+            m_HelpTarget = null;
             if (m_ThrowAim != null) Destroy(m_ThrowAim);
             DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
@@ -126,7 +430,12 @@ namespace Player
         private void OnHeldChanged(int _, int __) => RebuildHeldVisual();
 
         // 든 게 블록(재료)이면 머리 안 가리게 더 위로, 도구는 그대로. (복제값 기준 — 원격도 동일)
-        private Vector3 HeldOffset() => m_HoldOffset + (m_NetMaterialId.Value >= 0 ? Vector3.up * m_BlockHoldRaise : Vector3.zero);
+        // 재료 = 몸 앞(바라보는 방향)에 원본 크기로 안고 감 · 도구 = 머리 위
+        private Vector3 HeldOffset()
+        {
+            if (m_NetMaterialId.Value < 0) return m_HoldOffset;
+            return CargoCenter() - transform.position;
+        }
 
         private Vector3 m_HeldPrevPos;      // 든 비주얼 바운스/스웨이용 위치 추적
         private Vector3 m_HeldSwayVel;      // 부드럽게 감쇠한 이동속도(관성 스웨이)
@@ -137,8 +446,12 @@ namespace Player
             // 모든 클라: 든 비주얼이 플레이어를 따라감(+ 걸을 때 통통 밥 + 관성 스웨이)
             if (m_HeldVisual != null)
                 UpdateHeldVisual();
+            UpdateSweatFx();
 
             if (!IsOwner) return;
+            // 기믹 쪽(GridSystem)은 PlayerCarry를 참조할 수 없다 — 손 상태만 창구에 실어 보낸다.
+            GridSystem.LocalPlayerHands.IsHoldingAnything = IsHolding;
+            UpdateHeavyState();
             OwnerUpdate();
         }
 
@@ -156,13 +469,16 @@ namespace Player
             m_HeldSwayVel = Vector3.Lerp(m_HeldSwayVel, horiz, 8f * dt);               // 가감속 관성
             Vector3 sway = -m_HeldSwayVel * 0.045f;                                    // 가속 방향 반대로 살짝 처짐
 
+            // 강체 부착: 위치·회전 모두 같은 facing에서 나오므로 몸이 도는 만큼만 같이 돈다(따로 미끄러짐 없음)
             m_HeldVisual.transform.position = transform.position + HeldOffset() + Vector3.up * bob + sway;
 
             if (m_SwingCo == null)   // 망치질 스윙 코루틴이 회전을 쓰는 동안은 건드리지 않음
             {
-                var local = transform.InverseTransformDirection(m_HeldSwayVel);        // 몸 기준 기울임
+                // 재료는 월드 방향 고정(R 회전만 반영) — 몸을 돌려도 제자리 회전하지 않는다. 도구는 몸 회전 따라감.
+                Quaternion face = HasMaterialHeld ? CargoRot() : transform.rotation;
+                var local = Quaternion.Inverse(face) * m_HeldSwayVel;                     // 몸 기준 기울임
                 Quaternion tilt = Quaternion.Euler(local.z * 4f, 0f, -local.x * 4f);
-                m_HeldVisual.transform.rotation = Quaternion.Slerp(m_HeldVisual.transform.rotation, transform.rotation * tilt, 10f * dt);
+                m_HeldVisual.transform.rotation = face * tilt;
             }
         }
 
@@ -178,7 +494,18 @@ namespace Player
             if (m_Input == null) m_Input = GetComponent<PlayerInputHandler>();
             if (m_Input == null) return;
 
+            if (IsHelping)   // 같이 드는 중: 클릭 = 손 떼기. 그 외 조작은 전부 잠금(운반자가 놓으면 자동 해제)
+            {
+                if (ResolveHelpTarget() == null || !m_HelpTarget.HasMaterialHeld) ReleaseHelp();
+                else if (!AnswerPanelFocus.Active && m_Input.InteractPressedThisFrame) ReleaseHelp();
+                SetGrabHighlight(null);
+                DestroyPreview();
+                return;
+            }
+
             if (m_Input.RotateHeldPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
+            if (m_NetRotation.Value != m_Rotation) m_NetRotation.Value = m_Rotation;
+            UpdateSharedSide();
             UpdateThrowCharge(m_Input);   // G/패드/모바일 꾹=차징 후 떼면 던지기
             // Q(버리기)·C(철거)는 좌클릭에 통합(07/26 기획): 그리드 밖 배치=발밑 버리기, 미고정 블록 좌클릭=회수.
             // Space는 점프(PlayerInputHandler). 집기·배치는 좌클릭. 우클릭은 카메라 회전 전용.
@@ -203,7 +530,8 @@ namespace Player
                 }
                 else if (!HasTool)
                 {
-                    if (m_GrabValid) TryGrab();          // 바닥 픽업/도구함 우선
+                    if (m_GrabCargoOf != null) JoinCarry(m_GrabCargoOf);   // 남이 든 화물 클릭 = 같이 들기
+                    else if (m_GrabValid) TryGrab();          // 바닥 픽업/도구함 우선
                     else             TryPickupPlaced();  // 그리드 위 미고정 블록 집기
                 }
             }
@@ -272,27 +600,68 @@ namespace Player
             if (input.ProcessIsPressed)
             {
                 m_CannonCharge += Time.deltaTime;
+                DrawCannonArc(Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds));   // 게이지 = 궤적이 뻗어나감(기획서)
                 return;
             }
             if (input.ProcessReleasedThisFrame && m_CannonCharge > 0f)
             {
                 bool charged = m_CannonCharge >= kCannonChargeSeconds;
                 m_CannonCharge = 0f;
+                ClearCannonArc();
                 if (charged) items.RequestUseHeld();   // 덜 눌렀으면 불발(다시 조준)
             }
         }
 
+        // 충전 중 발사 궤적 미리보기(로컬 연출) — 실제 파괴 대상은 서버 랜덤이므로 상대 진영 중심을 향한 포물선.
+        private LineRenderer m_CannonArc;
+        private void DrawCannonArc(float charge01)
+        {
+            if (m_CannonArc == null)
+            {
+                var go = new GameObject("~CannonAim");
+                m_CannonArc = go.AddComponent<LineRenderer>();
+                var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                if (sh == null) sh = Shader.Find("Sprites/Default");
+                m_CannonArc.material = new Material(sh) { color = new Color(0.95f, 0.55f, 0.15f, 0.85f) };
+                m_CannonArc.widthMultiplier = 0.07f;
+                m_CannonArc.positionCount = 20;
+                m_CannonArc.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            Vector3 from = transform.position + Vector3.up * 1.0f;
+            Vector3 target = GridSystem.ItemNetwork.EnemyZoneAimPoint(from + transform.forward * 10f);
+            Vector3 dir = target - from; dir.y = 0f;
+            float fullDist = Mathf.Max(3f, dir.magnitude);
+            dir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
+            float dist = Mathf.Lerp(3f, fullDist, charge01);
+            float height = Mathf.Lerp(1f, 5f, charge01);
+            for (int i = 0; i < 20; i++)
+            {
+                float t = i / 19f;
+                Vector3 p = from + dir * (dist * t);
+                p.y += Mathf.Sin(t * Mathf.PI) * height;
+                m_CannonArc.SetPosition(i, p);
+            }
+        }
+
+        private void ClearCannonArc()
+        {
+            if (m_CannonArc == null) return;
+            Destroy(m_CannonArc.gameObject);
+            m_CannonArc = null;
+        }
+
         private void UpdateProcessInput(PlayerInputHandler input)
         {
-            // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
-            // (도구를 들었다 = 공정할 의도). 대포만 예외로 '꾹 눌렀다 떼면 발사'.
+            // [기획] 2vs2 아이템은 '든 채로 E'. 도구를 들고 있어도 아이템이 우선 발동한다
+            // (아이템은 소모품 — 쓰고 나면 E는 다시 공정으로 돌아감). 대포만 '꾹 눌렀다 떼면 발사'.
             var items = GridSystem.ItemNetwork.Instance;
-            if (!HasTool && items != null && items.LocalHasItem)
+            if (items != null && items.LocalHasItem)
             {
                 if (items.LocalHoldsCannon) { UpdateCannonCharge(input, items); return; }
                 if (input.ProcessPressedThisFrame) { items.RequestUseHeld(); return; }
             }
             m_CannonCharge = 0f;
+            ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 궤적 제거
 
             if (input.ProcessReleasedThisFrame || !input.ProcessIsPressed)
             {
@@ -594,10 +963,25 @@ namespace Player
                 m_HasTarget = c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
 
+                // 빈손(회수/공정): 평면 교차점 대신 '마우스 레이가 실제로 맞는 배치 블록'의 셀을 우선 — 블록 윗면을 보거나
+                // 블록 위에 서 있어도 클릭한 그 블록이 잡힌다(평면만 쓰면 층이 달라 엉뚱한 빈 칸을 가리킴).
+                if (!HasMaterial && m_Net != null &&
+                    Physics.Raycast(ray, out var bh, 100f, ~(1 << 2), QueryTriggerInteraction.Ignore) &&
+                    bh.collider.transform != transform && !bh.collider.transform.IsChildOf(transform) &&
+                    !bh.collider.CompareTag("Player"))
+                {
+                    var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
+                    if (m_Net.IsPickupable(bc) || (HasTool && m_Net.VisualAt(bc) != null))
+                    {
+                        m_Target = bc;
+                        m_HasTarget = bc.x >= xMin && bc.x < xMax && bc.z >= 0 && bc.z < s.z && bc.y >= 0 && bc.y < s.y;
+                    }
+                }
+
                 // [07/26 기획] 배치/회수/공정 사거리 = 플레이어 최대 2칸.
                 // 중심점이 아니라 '블록이 차지한 셀 중 가장 가까운 셀'까지의 거리 — 큰 블록도 가장자리에 서면 닿는다.
                 if (m_HasTarget)
-                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(c),
+                    m_HasTarget = GridReach.InReach(transform.position, ReachCells(m_Target),
                                                     GridContract.Origin, GridContract.Unit, kBuildReachCells);
             }
         }
@@ -631,6 +1015,7 @@ namespace Player
         {
             m_GrabBody = null;
             m_GrabStation = null;
+            m_GrabCargoOf = null;
             GameObject hitGo = null;
 
             if (!HasMaterial && !HasTool && m_Cam != null && m_Input != null)
@@ -640,6 +1025,15 @@ namespace Player
                 float best = float.MaxValue;
                 foreach (var h in Physics.RaycastAll(ray, 100f, ~0, QueryTriggerInteraction.Collide))
                 {
+                    var cc = h.collider.GetComponentInParent<CarryCargo>();   // 남이 든 화물 → 클릭하면 같이 들기
+                    if (cc != null)
+                    {
+                        if (cc.Carrier == null || cc.Carrier == this) continue;
+                        var dc = cc.transform.position - transform.position; dc.y = 0f;
+                        if (dc.sqrMagnitude > m_JoinRange * m_JoinRange) continue;
+                        if (h.distance < best) { best = h.distance; m_GrabCargoOf = cc.Carrier; m_GrabBody = null; m_GrabStation = null; hitGo = cc.gameObject; }
+                        continue;
+                    }
                     var pb = h.collider.GetComponentInParent<PickupBody>();   // 바닥 픽업 우선
                     if (pb != null && pb.Owner != null)
                     {
@@ -659,7 +1053,7 @@ namespace Player
                     }
                 }
             }
-            m_GrabValid = m_GrabBody != null || m_GrabStation != null;
+            m_GrabValid = m_GrabBody != null || m_GrabStation != null || m_GrabCargoOf != null;
 
             // 바닥 픽업·도구함이 아니면: ① 도구 들고 공정 가능한 블록 ② 빈손으로 회수 가능한(미고정) 배치 블록에
             // 초록 테두리 — "지금 이 블록이 대상"을 노란 큐브 대신 실루엣으로 보여준다.
@@ -1112,6 +1506,7 @@ namespace Player
         private void RebuildHeldVisual()
         {
             if (m_HeldVisual != null) { Destroy(m_HeldVisual); m_HeldVisual = null; }
+            m_HeldDef = null;
 
             int matId = m_NetMaterialId.Value;
             int tool = m_NetTool.Value;
@@ -1120,23 +1515,25 @@ namespace Player
             {
                 var def = FindMaterial(matId);
                 if (def == null) return;
+                m_HeldDef = def;
                 var fp = def.Footprint;
-                if (def.Prefab != null)   // 진짜 블록 외형(물 재질 등) — 중심 맞춰 작게 들기
+                float u = GridContract.Unit;
+                var size = new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * u;
+                if (def.Prefab != null)   // 진짜 블록 외형 — 원본 크기 그대로, 중심 정렬
                 {
                     m_HeldVisual = new GameObject("~Held");
                     var vis = Instantiate(def.Prefab, m_HeldVisual.transform);
-                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) → 머리 위 중앙 정렬
-                    m_HeldVisual.transform.localScale = Vector3.one * 0.35f;
+                    vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f) * u;   // 피벗(min-corner) → 중앙 정렬
                     foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
                 }
                 else                      // 프리팹 없음 → 공정색 큐브(폴백)
                 {
                     m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    m_HeldVisual.transform.localScale =
-                        new Vector3(Mathf.Max(1, fp.x), Mathf.Max(1, fp.y), Mathf.Max(1, fp.z)) * 0.35f;
+                    m_HeldVisual.transform.localScale = size;
                     Paint(m_HeldVisual, ColorForMask(def.RequiredMask));
                     StripCollider(m_HeldVisual);
                 }
+                AttachCargoPusher(m_HeldVisual, def.Prefab != null ? size : Vector3.one);   // 앞에 단 화물: 다른 플레이어를 밀어낸다
             }
             else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
@@ -1164,6 +1561,7 @@ namespace Player
             {
                 m_HeldVisual.transform.position = transform.position + HeldOffset();
                 m_HeldPrevPos = transform.position;   // 바운스 속도 계산 초기화(첫 프레임 튐 방지)
+                m_CargoDirInit = false;
                 m_HeldSwayVel = Vector3.zero;
                 GridJuice.Squish(m_HeldVisual, 0.22f);   // 집는 순간 뽁 — 손맛
             }
@@ -1184,6 +1582,96 @@ namespace Player
 
         private MaterialDef FindMaterial(int id)
             => Catalog() != null ? Catalog().GetById(id) : null;
+
+        // ── 앞에 단 화물 = 키네마틱 박스 콜라이더: 다른 플레이어(다이내믹 바디)를 채서 밀어낸다(무빙아웃 개그).
+        // Ignore Raycast 레이어라 조준/줍기 레이캐스트는 안 막고, 본인 몸과는 충돌 무시.
+        private void AttachCargoPusher(GameObject cargo, Vector3 size)
+        {
+            foreach (var t in cargo.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = 2;   // Ignore Raycast
+            var box = cargo.AddComponent<BoxCollider>();
+            box.size = size * 0.92f;   // 모서리 살짝 여유(스치기만 해도 튕기지 않게)
+            box.center = Vector3.zero;
+            var rb = cargo.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            foreach (var own in GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(box, own, true);
+            cargo.AddComponent<CarryCargo>().Carrier = this;
+        }
+
+        // ── 무거운 재료: 혼자 들면 느림(땀) · 빈손 동료가 화물 옆에 붙으면 정상 속도(owner 판정 → 복제)
+        private void UpdateHeavyState()
+        {
+            bool heavy = HasMaterial && m_HeldMaterial.IsHeavy;
+            bool helped = heavy && IsSharedCarry;   // 동료가 화물을 클릭해 '같이 들기' 중이면 정상 속도
+            MoveMultiplier = heavy && !helped ? m_HeavySoloSpeed : 1f;
+            bool straining = heavy && !helped;
+            if (m_NetStraining.Value != straining) m_NetStraining.Value = straining;
+        }
+
+        // ── 땀 이펙트(모든 클라): 머리 옆에서 물방울 톡톡. 에셋 의존 없이 코드로 생성.
+        private void UpdateSweatFx()
+        {
+            bool on = m_NetStraining.Value;
+            if (!on && m_SweatFx == null) return;
+            if (m_SweatFx == null) m_SweatFx = BuildSweatFx(transform);
+            var em = m_SweatFx.emission;
+            if (em.enabled != on) em.enabled = on;
+        }
+
+        private static Texture2D s_DropTex;
+        private static ParticleSystem BuildSweatFx(Transform parent)
+        {
+            var go = new GameObject("~SweatFx");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0f, 1.45f, 0f);
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.loop = true; main.playOnAwake = true;
+            main.startLifetime = 0.7f;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1.2f, 2.2f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.10f, 0.16f);
+            main.startColor = new Color(0.55f, 0.80f, 1f, 0.95f);
+            main.gravityModifier = 1.2f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 24;
+            var em = ps.emission; em.rateOverTime = 7f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Hemisphere; sh.radius = 0.22f;
+            var r = ps.GetComponent<ParticleSystemRenderer>();
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
+            if (shader != null)
+            {
+                var mat = new Material(shader);
+                if (s_DropTex == null) s_DropTex = MakeDropTexture();
+                mat.mainTexture = s_DropTex;
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", s_DropTex);
+                if (mat.HasProperty("_Surface"))   // URP 파티클: 투명(알파 블렌드)
+                {
+                    mat.SetFloat("_Surface", 1f); mat.SetFloat("_Blend", 0f); mat.renderQueue = 3000;
+                    mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+                    mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+                    mat.SetInt("_ZWrite", 0);
+                }
+                r.material = mat;
+            }
+            return ps;
+        }
+
+        private static Texture2D MakeDropTexture()   // 부드러운 원(물방울)
+        {
+            const int n = 32;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x + 0.5f) / n - 0.5f, dy = (y + 0.5f) / n - 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                    float a = Mathf.Clamp01(1f - Mathf.SmoothStep(0.6f, 1f, d));
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            return tex;
+        }
 
         private static Color ColorForMask(int mask)
         {
@@ -1466,12 +1954,8 @@ namespace Player
             else
                 heldStr = "오른쪽 하단에서 재료를 주문하세요! ";
 
-            string score = m_Net != null ? $"  |  완성도 {m_Net.ScorePercent:F0}%" : "";
-            return
-                $"{heldStr}{score}\n" +
-                $"[좌클릭] 집기/배치 (그리드 밖 클릭 = 발밑에 버리기, 미고정 블록 클릭 = 회수)    [G 꾹] 차징 던지기(꾹 누를수록 멀리)\n" +
-                $"[Space] 점프    [Space 연타] 비계 발밑에 설치(1칸 올라가기)\n" +
-                $"[E 꾹] 망치/페인트 공정    [Z 꾹] 마지막 작업 되돌리기    [R] 블록 회전    [TAB] 정답 미리보기    [T 꾹] 감정표현    현재 층: {m_BuildHeight}";
+            // 조작법 줄은 좌상단 조작법 툴팁(ControlsTooltipHUD), 완성도는 폰 뱃지로 옮겨져 상황 힌트 한 줄만 남긴다.
+            return heldStr;
         }
 
         // E 공정 / Z 되돌리기 로딩바 + 공정 안내(대상 블록 위 · 월드→스크린 좌표는 여기서 계산).
@@ -1514,5 +1998,11 @@ namespace Player
             screen = new Vector2(sp.x, sp.y);
             return true;
         }
+    }
+
+    /// <summary>플레이어가 앞에 안고 가는 화물 표식 — 빈손 동료가 클릭하면 같이 든다.</summary>
+    public class CarryCargo : MonoBehaviour
+    {
+        public PlayerCarry Carrier;
     }
 }

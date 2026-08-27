@@ -54,6 +54,7 @@ namespace SeoulZikimi.UI.New
         private readonly string[] avatarKeys = new string[LobbyRoomNet.RoomCapacity];
         private readonly Sprite[] avatarSprites = new Sprite[LobbyRoomNet.RoomCapacity];
         private JobsnailLobbyCharacterStage avatarStage;
+        private Button closeWindowButton;   // 배경 헤더의 × 자리(런타임 생성)
         private bool localIsHost;
 
         public event Action LeaveRequested;
@@ -63,6 +64,7 @@ namespace SeoulZikimi.UI.New
         public event Action<string> TextChatRequested;
         public event Action<int> TeamRequested;
         public event Action<int> MapRequested;
+        public event Action<int> MapStepRequested;   // 맵 좌우 화살표(-1 / +1)
         public event Action<int> ModeRequested;
         public event Action WeatherRequested;
 
@@ -97,13 +99,17 @@ namespace SeoulZikimi.UI.New
             mapSelector?.onClick.AddListener(() => ToggleOptions(mapOptionsRoot, modeOptionsRoot));
             modeSelector?.onClick.AddListener(() => ToggleOptions(modeOptionsRoot, mapOptionsRoot));
             weatherToggle?.onClick.AddListener(() => WeatherRequested?.Invoke());
-            BindOptions(mapOptionButtons, index => MapRequested?.Invoke(index), mapOptionsRoot);
+            BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다(바인딩도 여기서)
+            BuildMapArrows();
             BindOptions(modeOptionButtons, index => ModeRequested?.Invoke(index), modeOptionsRoot);
+            // 세션 화면 배경도 같은 창 헤더를 쓴다. ×는 '나가기'와 동일하게 확인 팝업을 거쳐 방을 떠난다.
+            closeWindowButton = UiNewWindowCloseButton.Attach(transform, RequestLeave);
         }
 
         private void OnEnable()
         {
             UiNewButtonVisualPolicy.Apply(transform);
+            UiNewWindowCloseButton.KeepInvisible(closeWindowButton);   // Apply가 되돌린 ColorTint를 다시 끈다
             ClearChat();
             mapOptionsRoot?.SetActive(false);
             modeOptionsRoot?.SetActive(false);
@@ -189,8 +195,40 @@ namespace SeoulZikimi.UI.New
                 bestRecordValue.text = string.IsNullOrWhiteSpace(value) ? "없음" : value;
         }
 
+        private Button mapPrevArrow, mapNextArrow;
+
+        // 맵 썸네일 좌우 화살표(피그마 '맵 화살표' 18x56) — 드롭다운 없이 이전/다음 맵으로. 방장만 보인다.
+        private void BuildMapArrows()
+        {
+            if (mapThumbnail == null) return;
+            mapPrevArrow = MakeArrow("MapArrow_L", "UI_NEW/02_세션 화면/맵 화살표 왼쪽", new Vector2(0f, 0.5f), new Vector2(-24f, 0f), -1);
+            mapNextArrow = MakeArrow("MapArrow_R", "UI_NEW/02_세션 화면/맵 화살표 오른쪽", new Vector2(1f, 0.5f), new Vector2(24f, 0f), +1);
+        }
+
+        private Button MakeArrow(string name, string spritePath, Vector2 anchor, Vector2 offset, int step)
+        {
+            var sprite = Resources.Load<Sprite>(spritePath);
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(mapThumbnail.transform, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = offset;
+            rt.sizeDelta = sprite != null ? new Vector2(sprite.rect.width, sprite.rect.height) : new Vector2(18f, 56f);
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.preserveAspect = true;
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() => { mapOptionsRoot?.SetActive(false); MapStepRequested?.Invoke(step); });
+            JuicyButton.Attach(btn);
+            return btn;
+        }
+
         public void SetSettings(string mapName, string modeName, Sprite thumbnail, bool weatherOn, bool editable)
         {
+            if (mapPrevArrow != null) mapPrevArrow.gameObject.SetActive(editable);
+            if (mapNextArrow != null) mapNextArrow.gameObject.SetActive(editable);
             if (mapValue != null) mapValue.text = mapName ?? string.Empty;
             if (modeValue != null) modeValue.text = modeName ?? string.Empty;
             if (mapThumbnail != null)
@@ -267,6 +305,31 @@ namespace SeoulZikimi.UI.New
             if (message.Length == 0) return;
             TextChatRequested?.Invoke(message.Length > 50 ? message.Substring(0, 50) : message);
             chatInput.text = string.Empty;
+        }
+
+        // 옵션 버튼 순번 → 카탈로그 인덱스. 공터가 빠지므로 둘은 같지 않다.
+        private readonly List<int> mapCatalogIndices = new();
+
+        /// <summary>맵 선택지를 카탈로그로 다시 만든다(개수·라벨·매핑 전부). Awake에서 1회.
+        /// MapRequested는 카탈로그 인덱스를 그대로 내보낸다 — LobbyRoomNetController.HostSelectMap이 그걸 기대한다.</summary>
+        private void BuildMapOptions()
+        {
+            UiNewMapOptions.CollectSelectable(mapCatalogIndices);
+            if (mapCatalogIndices.Count == 0) return;
+
+            var buttons = UiNewMapOptions.FitPool(mapOptionButtons, mapCatalogIndices.Count);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                int catalogIndex = mapCatalogIndices[i];
+                UiNewMapOptions.SetLabel(buttons[i], UiNewMapOptions.LabelOf(catalogIndex));
+                buttons[i].onClick.RemoveAllListeners();
+                buttons[i].onClick.AddListener(() =>
+                {
+                    MapRequested?.Invoke(catalogIndex);
+                    mapOptionsRoot?.SetActive(false);
+                });
+            }
+            mapOptionButtons = buttons;
         }
 
         private static void BindOptions(Button[] options, Action<int> callback, GameObject root)

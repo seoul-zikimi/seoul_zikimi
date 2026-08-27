@@ -27,7 +27,7 @@ public static class TutorialSpotMarkerFix
     private static readonly Vector3 kPlayerSpawnPos = kGridOrigin + new Vector3(3f, 0.1f, 1f);   // 방에서 몇 걸음 거리
 
     private const string kHammerMarker = "Spot_HammerStation";
-    private static readonly Vector3 kHammerPos = kGridOrigin + new Vector3(2.5f, 0.5f, 2.5f);   // y=0.5(큐브가 바닥에 얹힌 높이)
+    private static readonly Vector3 kHammerPos = kGridOrigin + new Vector3(2.5f, 0f, 2.5f);   // y=바닥(마커 Y=접지점 — MapLoader가 반높이 올린다)
 
     private const string kDeliveryMarker = "Spot_DeliveryZone";
     private static readonly Vector3 kDeliveryPos = kGridOrigin + new Vector3(-1.5f, 0f, 1f);   // 방 반대쪽, 역시 가까운 거리

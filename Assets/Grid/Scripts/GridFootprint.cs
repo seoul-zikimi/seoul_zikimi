@@ -66,12 +66,18 @@ namespace GridSystem
         /// 회전 프리팹(피벗=min-corner)을 점유칸에 정확히 안착시킨다.
         /// + 메시가 footprint와 90° 다르게 모델링된 경우(렌더러 XZ 장축이 footprint 장축과 수직)
         ///   자동으로 추가 90° 보정 → 셀/프리뷰/콜라이더와 정합(놓는·고스트 공용).
+        ///
+        /// <para><paramref name="autoYaw"/>: 위 자동 90° 보정을 쓸지. 기본 true.
+        /// ⚠ '자유 형상'(MaterialDef.FreeformVisual — 큰 모델을 격자로 자른 곡면 조각 등)은 반드시 false로 줘야 한다.
+        /// 그 조각들의 메시 바운즈 비율은 footprint 비율과 아무 상관이 없어서, 자동 보정이 걸리면
+        /// 일부 조각만 90° 돌아가 버리고 이어져야 할 곡면이 산산조각 난다.</para>
         /// </summary>
-        public static void PlaceRotatedPrefab(GameObject go, Vector3 cellWorldMin, Vector3Int footprint, int rotStep, float unit)
+        public static void PlaceRotatedPrefab(GameObject go, Vector3 cellWorldMin, Vector3Int footprint, int rotStep, float unit,
+                                              bool autoYaw = true)
         {
             int modelYaw = 0;
-            var rends = go.GetComponentsInChildren<Renderer>();
-            if (rends.Length > 0)
+            var rends = autoYaw ? go.GetComponentsInChildren<Renderer>() : null;
+            if (rends != null && rends.Length > 0)
             {
                 Bounds b = rends[0].bounds;
                 for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);

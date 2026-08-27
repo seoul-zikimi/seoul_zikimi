@@ -27,6 +27,17 @@ namespace GridSystem
         [SerializeField] private bool m_Walkable;              // 바닥처럼 플레이어가 위로 지나갈 수 있나(콜라이더 안 붙음)
         [SerializeField] private bool m_IsBreakable;            // 유리 등
         [SerializeField] private int  m_MaxSpawnCount = -1;     // 스폰 제한 (-1 = 무제한)
+        [Tooltip("무거운 재료: 혼자 들면 이동속도 0.7배(땀). 빈손 동료가 옆에 붙으면 정상 속도 — 협동 기믹.")]
+        [SerializeField] private bool m_IsHeavy;
+
+        [Header("비주얼 규약 예외")]
+        [Tooltip("비주얼이 칸을 꽉 채우지 않는 '자유 형상'인가.\n\n" +
+                 "보통 재료는 비주얼 크기 = footprint여야 하고 MaterialPrefabContractTests가 이를 강제한다.\n" +
+                 "하지만 하나의 큰 모델(예: DDP 본관)을 격자로 잘라 만든 조각들은 곡면이라\n" +
+                 "칸을 꽉 채우지 않고, 억지로 늘리면 조각끼리 곡면이 어긋난다.\n" +
+                 "이 값을 켜면 그 두 테스트(피벗·크기)를 건너뛴다 — 대신 조각을 만든 툴이\n" +
+                 "피벗을 '칸의 min-corner'에 정확히 맞출 책임을 진다.")]
+        [SerializeField] private bool m_FreeformVisual;
 
         public int Id => m_Id;
         public Vector3Int Footprint => m_Footprint;
@@ -36,6 +47,10 @@ namespace GridSystem
         public bool Walkable => m_Walkable;
         public bool IsBreakable => m_IsBreakable;
         public int  MaxSpawnCount => m_MaxSpawnCount;
+        public bool IsHeavy => m_IsHeavy;
+        /// <summary>비주얼이 칸을 꽉 채우지 않는 자유 형상(큰 모델을 잘라 만든 조각 등).
+        /// 켜져 있으면 MaterialPrefabContractTests의 피벗·크기 검사를 건너뛴다.</summary>
+        public bool FreeformVisual => m_FreeformVisual;
 
         /// <summary>요구 공정들을 합친 비트마스크. 채점 시 "완료 ⊇ 요구"를 한 번에 비교하려고 쓴다.</summary>
         public int RequiredMask

@@ -155,6 +155,32 @@ namespace GridSystem
                 }
         }
 
+        /// <summary>서버: 픽업을 dir 방향으로 distance만큼 흘려보낸다(DDP 이간수문 물길 운반).
+        /// 킥(RequestKick)과 달리 ① 이동 거리를 호출부가 정하고 ② 그리드 ±6m로 좁게 자르지 않는다 —
+        /// 수로는 건축장에서 멀리까지 이어질 수 있어 킥의 폭주 방지 마진을 쓰면 중간에 걸려버린다.
+        /// 대신 기본 마진(넉넉한 범위)으로는 여전히 잘라 맵 밖으로 흘러나가는 것은 막는다.
+        /// 반환: 해당 픽업이 있었으면 true.</summary>
+        public bool ServerFloat(ulong pickupId, Vector3 dir, float distance)
+        {
+            if (!IsServer) return false;
+            var d = new Vector3(dir.x, 0f, dir.z);
+            if (d.sqrMagnitude < 1e-6f || distance <= 0f) return false;
+            d.Normalize();
+
+            for (int i = 0; i < m_Pickups.Count; i++)
+            {
+                if (m_Pickups[i].pickupId != pickupId) continue;
+                var p = m_Pickups[i];
+                var np = p.pos + d * distance;
+                np.y = p.pos.y;         // 수면 높이 유지(물에 뜬 채로 흘러간다)
+                ClampToFloor(ref np);   // 기본 마진 — 맵 밖 유실만 방지
+                p.pos = np;
+                m_Pickups[i] = p;       // 값 변경 → 복제 → 클라가 그 위치로 굴림
+                return true;
+            }
+            return false;
+        }
+
         // 그리드 주변 월드 사각형으로 제한. 기준은 GridContract.Origin(맵 마커로 그리드가 이동하면 같이 이동) —
         // 예전엔 셀 개수를 월드 좌표처럼 써서, 그리드가 원점 밖에 있는 맵에선 배송 지점이 통째로 잘려 나갔다.
         private void ClampToFloor(ref Vector3 p, float marginUnits = 60f)   // 기본은 넉넉히(배송 구역이 멀 수 있음), 킥만 좁게

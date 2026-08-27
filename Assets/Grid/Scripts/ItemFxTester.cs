@@ -30,7 +30,7 @@ namespace GridSystem
 
             if (kb.digit1Key.wasPressedThisFrame) ItemFx.Spawned(Pos, Col);
             if (kb.digit2Key.wasPressedThisFrame) ItemFx.PickedUp(Pos, Col);
-            if (kb.digit3Key.wasPressedThisFrame) ItemFx.Used(Pos, Col);
+            if (kb.digit3Key.wasPressedThisFrame) ItemFx.Used(Pos, Col, ItemNetwork.KindName(Kind));
             if (kb.digit4Key.wasPressedThisFrame) ItemFx.Expired(Pos, Col);
             if (kb.digit5Key.wasPressedThisFrame) SpawnOrb();
             if (kb.digit0Key.wasPressedThisFrame) ClearOrbs();
@@ -38,14 +38,9 @@ namespace GridSystem
 
         private void SpawnOrb()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var go = ItemFx.MakeItemBox(
+                Pos + new Vector3(Random.Range(-2f, 2f), 0.6f, Random.Range(-2f, 2f)), Col);
             go.name = $"~TestOrb({ItemNetwork.KindName(Kind)})";
-            go.transform.position = Pos + new Vector3(Random.Range(-2f, 2f), 0.6f, Random.Range(-2f, 2f));
-            go.transform.localScale = Vector3.one * 0.55f;
-            var c = go.GetComponent<Collider>(); if (c != null) Destroy(c);
-            var sh = Shader.Find("Universal Render Pipeline/Lit");
-            if (sh != null) go.GetComponent<Renderer>().sharedMaterial = new Material(sh) { color = Col };
-            ItemFx.DecorateOrb(go, Col);
             ItemFx.Spawned(go.transform.position, Col);
             m_Orbs.Add(go);
         }

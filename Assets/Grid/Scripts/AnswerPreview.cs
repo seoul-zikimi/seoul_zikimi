@@ -133,13 +133,17 @@ namespace GridSystem
             // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨
             m_GhostRoot = new GameObject("~AnswerGhost");
             m_GhostFloors.Clear();
+            bool useWhole = MapDefOrNull()?.CompletedModel != null;
             foreach (var o in objects)
             {
                 Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
+                if (useWhole) HideRenderers(go);        // 통짜 고스트를 대신 세운다(아래) — 층 필터 파편화 방지
                 m_GhostFloors.Add((go, o.minCell.y));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
             }
+            // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
+            ShowCompletedModelInstead(m_GhostRoot.transform, ghost: true);
 
             // ② 우하단 3D 미리보기 = 진짜 블록 프리팹 솔리드(멀리 떨어진 미니씬 → RenderTexture)
             m_Root = new GameObject("~AnswerPreview");
@@ -154,15 +158,23 @@ namespace GridSystem
                 m_PickTargets.Add((o.def, RendererBounds(go, bb), go));   // 픽킹은 렌더러 실측 AABB(피벗 규약 무관)
             }
 
+            // 완성체가 지정된 맵(DDP처럼 통짜를 잘라 짓는 맵)은 계획도를 '자르기 전 원본'으로 보여준다.
+            // 조각을 그대로 그리면 잘린 단면이 드러나 완성 모습이 매끈하게 안 보이기 때문.
+            // 조각 오브젝트는 렌더러만 끄고 남겨 둔다 — 픽킹 AABB와 호버 테두리가 그걸 쓰기 때문.
+            if (ShowCompletedModelInstead(m_Root.transform, ghost: false) != null)
+                foreach (var t in m_PickTargets) HideRenderers(t.go);
+
             m_RT = new RenderTexture(512, 512, 16);
             var camGO = new GameObject("~AnswerPreviewCam");
             camGO.transform.SetParent(m_Root.transform, true);
             m_Cam = camGO.AddComponent<Camera>();
             m_Cam.targetTexture = m_RT;
-            m_Cam.clearFlags = CameraClearFlags.SolidColor;
-            m_Cam.backgroundColor = new Color(0.08f, 0.09f, 0.12f, 1f);
+            // 배경: 검정 단색 대신 맵과 같은 하늘(씬 스카이박스) + 모델 밑 잔디 바닥 — 폰 화면이 어둡지 않게
+            m_Cam.clearFlags = CameraClearFlags.Skybox;
+            m_Cam.backgroundColor = new Color(0.62f, 0.78f, 0.92f, 1f);   // 스카이박스 없을 때 폴백 하늘색
             m_Cam.fieldOfView = 40f;
             float radius = Mathf.Max(1.5f, b.extents.magnitude + 1f);
+            MakeGround(b, radius);
             Vector3 dir = new Vector3(0.8f, 0.9f, -0.8f).normalized;   // 기준 쿼터뷰 방향
             m_PivotCenter = b.center;
             m_HomeCenter = b.center;
@@ -183,6 +195,28 @@ namespace GridSystem
 
             m_Built = true;
             Ready?.Invoke(this);   // RT 준비됨 → HUD가 RawImage.texture 갱신
+        }
+
+        // 미니씬 바닥(잔디 톤 평면) — 모델 바운드 바닥 높이에 깔고 줌 한계보다 넉넉히 넓게
+        private void MakeGround(Bounds b, float radius)
+        {
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            ground.name = "~AnswerGround";
+            ground.transform.SetParent(m_Root.transform, true);
+            ground.transform.position = new Vector3(b.center.x, b.min.y - 0.02f, b.center.z);
+            ground.transform.localScale = Vector3.one * Mathf.Max(2f, radius * 1.6f);   // Plane 원형 10유닛
+            var col = ground.GetComponent<Collider>();
+            if (col != null) Destroy(col);                                               // 픽킹은 바운드 기반 — 콜라이더 불필요
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader != null)
+            {
+                var mat = new Material(shader);
+                var grass = new Color(0.60f, 0.76f, 0.44f, 1f);
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", grass);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", grass);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f);
+                ground.GetComponent<Renderer>().sharedMaterial = mat;
+            }
         }
 
         // ── HUD 브리지(Assembly-CSharp 드라이버가 구독) ──
@@ -442,6 +476,41 @@ namespace GridSystem
             return objs;
         }
 
+        /// <summary>이 맵의 '완성체 통짜 모델'(없으면 null).</summary>
+        private MapDef MapDefOrNull()
+        {
+            var cat = MapCatalog.Instance;
+            var loop = m_Loop != null ? m_Loop : FindFirstObjectByType<GameLoopManager>();
+            return (cat != null && loop != null) ? cat.Get(loop.MapIndex) : null;
+        }
+
+        /// <summary>맵에 '완성체 통짜 모델'이 지정돼 있으면, 조각 렌더러를 끄고 원본 하나를 대신 세운다.
+        /// 지정 안 된 맵(대부분)은 아무것도 하지 않는다.
+        ///
+        /// <para><paramref name="ghost"/>=true면 인월드 배치 가이드용 반투명. 조각을 그대로 두면
+        /// '내가 선 층'만 골라 보여주는 층 필터(m_GhostFloors) 때문에 곡면 껍데기가 파편처럼 보인다 —
+        /// 통짜 하나로 세우면 어디에 무엇을 짓는지가 한눈에 들어온다.</para></summary>
+        private GameObject ShowCompletedModelInstead(Transform parent, bool ghost)
+        {
+            var mapDef = MapDefOrNull();
+            if (mapDef == null || mapDef.CompletedModel == null) return null;
+
+            var whole = Instantiate(mapDef.CompletedModel, parent);
+            whole.name = ghost ? "~CompletedGhost" : "~CompletedPreview";
+            whole.transform.SetPositionAndRotation(
+                m_Offset + GridCoordinates.CellToWorld(mapDef.CompletedModelAnchor), Quaternion.identity);
+            foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);
+            if (ghost) MakeTransparent(whole, kGhostAlpha);
+            return whole;
+        }
+
+        /// <summary>완성체를 쓰는 맵에서 조각 비주얼의 렌더러만 끈다(픽킹 AABB·테두리는 그대로 살려 둔다).</summary>
+        private static void HideRenderers(GameObject go)
+        {
+            if (go == null) return;
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.enabled = false;
+        }
+
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
         // 배치는 GridNetwork.SpawnPrefabVisual과 동일: pos = CellToWorld(minCell)+(dims.x,0,dims.z)*0.5u (피벗=바닥), rot = Euler(0,90·step,0).
         private GameObject MakeBlockVisual(AnsObject o, Transform parent, Vector3 pos, Quaternion rot, float u, bool ghost)
@@ -450,7 +519,9 @@ namespace GridSystem
             if (o.def != null && o.def.Prefab != null)
             {
                 go = Instantiate(o.def.Prefab, parent);
-                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u);   // min-corner + 메시 90° 어긋남 자동 보정
+                // min-corner + 메시 90° 어긋남 자동 보정. 자유 형상(잘라낸 곡면 조각)은 보정을 끈다 —
+                // 조각마다 제멋대로 90° 돌아가면 완공 계획도에서 곡면이 산산조각 나 보인다.
+                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u, autoYaw: !o.def.FreeformVisual);
                 foreach (var col in go.GetComponentsInChildren<Collider>()) Destroy(col);
                 if (ghost) MakeTransparent(go, kGhostAlpha);
             }

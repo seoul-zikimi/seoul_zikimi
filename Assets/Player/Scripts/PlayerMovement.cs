@@ -9,7 +9,9 @@ namespace Player
         const float kWallReach  = 0.7f;   // 벽 감지 거리(캡슐 반경+α)
         const float kClimbRayH  = 0.4f;   // 벽 감지 레이 높이(발 근처) — 발이 벽 위로 오르면 꼭대기로 판정
 
+        private const int kCastMask = ~(1 << 2);   // Ignore Raycast 제외 — 앞에 든 화물(PlayerCarry)이 벽/바닥으로 안 잡히게
         private Rigidbody m_Rb;
+        private PlayerCarry m_Carry;
         private PlayerConfigSO m_Config;
         private bool  m_IsClimbing;
         private float m_ClimbCooldown;    // 벽점프 직후 즉시 재부착 방지
@@ -66,7 +68,7 @@ namespace Player
         private void SquishLandedOn()
         {
             foreach (var h in Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                                 0.5f, ~0, QueryTriggerInteraction.Ignore))
+                                                 0.5f, kCastMask, QueryTriggerInteraction.Ignore))
             {
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;
@@ -91,10 +93,17 @@ namespace Player
             Vector3 right   = Vector3.ProjectOnPlane(cameraArm.right,   Vector3.up).normalized;
             Vector3 dir     = forward * input.y + right * input.x;
             if (dir.sqrMagnitude > 1f) dir.Normalize();
+            if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
+            if (m_Carry != null && m_Carry.TryGetGroupMove(dir, out var group)) { dir = group; isSprinting = false; }   // 같이 들기: 전원 입력 평균(같은 방향=풀속도, 반대=상쇄)
             float speed = isSprinting ? m_Config.SprintSpeed : m_Config.MoveSpeed;
             speed *= GridSystem.ItemNetwork.LocalMoveMultiplier();   // 2vs2 아이템: 속도 버프/디버프(협동=1)
+            if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
+            if (m_Carry != null) speed *= m_Carry.MoveMultiplier;     // 무거운 재료 혼자 들면 0.7배(동료가 붙으면 1)
             Vector3 v = dir * speed;
+            // (화물-블록 충돌 차단은 통행에 방해돼 끔 — 2026-08-23. 화물은 다른 재료를 통과하고 사람만 밀어낸다)
+            // if (m_Carry != null) m_Carry.ResolveCargoCollision(ref v, Time.fixedDeltaTime);   // 앞에 든 화물: 벽에 파고드는 속도만 깎고 겹치면 밀어냄
             m_Rb.linearVelocity = new Vector3(v.x + ExternalPush.x, m_Rb.linearVelocity.y, v.z + ExternalPush.z);   // Y 보존(중력·점프가 담당)
+            if (m_Carry != null) m_Carry.ApplyTether(m_Rb, input.magnitude);   // 같이 들기: 자기 면 슬롯으로 스프링(반대로 당기면 서로 잡힘)
         }
 
         // 접지 상태에서만 위로 임펄스. WASD를 같이 누르면 수평속도가 살아 있어 '방향 점프'가 됨.
@@ -112,7 +121,7 @@ namespace Player
         public bool IsGrounded()
         {
             var hits = Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                          0.3f, ~0, QueryTriggerInteraction.Ignore);
+                                          0.3f, kCastMask, QueryTriggerInteraction.Ignore);
             foreach (var h in hits)
                 if (h.collider.transform != transform && !h.collider.transform.IsChildOf(transform))
                     return true;
@@ -125,7 +134,7 @@ namespace Player
         {
             inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             var origin = transform.position + Vector3.up * kClimbRayH;
-            foreach (var h in Physics.RaycastAll(origin, inDir, kWallReach, ~0, QueryTriggerInteraction.Ignore))
+            foreach (var h in Physics.RaycastAll(origin, inDir, kWallReach, kCastMask, QueryTriggerInteraction.Ignore))
             {
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;   // 자기/자식 제외

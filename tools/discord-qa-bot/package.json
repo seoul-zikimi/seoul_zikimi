@@ -1,0 +1,13 @@
+{
+  "name": "discord-qa-bot",
+  "version": "1.0.0",
+  "description": "디스코드 QA 포럼 글을 감지해 Claude Code로 수정 계획 제안 → 컨펌 → 브랜치 수정·푸시·PR까지 하는 봇",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
+  }
+}

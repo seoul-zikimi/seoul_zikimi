@@ -12,6 +12,9 @@ public static class CarryHudPrefabGenerator
 {
     private const string kPath = "Assets/Resources/UI/HUD/CarryHudUI.prefab";
 
+    /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
+    public const string kRemasterMarker = "RemasterMarker_v14";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
+
     [MenuItem("Jobsnail/UI/Generate CarryHud Prefab")]
     public static void Generate()
     {
@@ -22,18 +25,16 @@ public static class CarryHudPrefabGenerator
         root.AddComponent<CarryHudUI>();
 
         // ── 좌상단 조작법/상태 패널 ──
-        var hint = Panel("HintPanel", root.transform, new Color(0f, 0f, 0f, 0.6f));
-        var hintRt = (RectTransform)hint.transform;
-        hintRt.anchorMin = hintRt.anchorMax = new Vector2(0f, 1f);
-        hintRt.pivot = new Vector2(0f, 1f);
-        hintRt.anchoredPosition = new Vector2(10f, -10f);
-        hintRt.sizeDelta = new Vector2(960f, 150f);
-        var hintText = MakeText("HintText", hint.transform, 18, TextAnchor.UpperLeft);
+        // 리마스터: 조작법은 ControlsTooltipHUD 가 맡고, 여기는 타이머 바로 아래(상단 중앙) 상황 힌트 한 줄만.
+        var hint = Panel("HintPanel", root.transform, new Color(0f, 0f, 0f, 0.35f));
+        InGameUiSkin.TopCenter((RectTransform)hint.transform, 669 - 260, 92, 520, 26);
+        var hintText = MakeText("HintText", hint.transform, 16, TextAnchor.MiddleCenter);
         hintText.rectTransform.anchorMin = Vector2.zero;
         hintText.rectTransform.anchorMax = Vector2.one;
         hintText.rectTransform.offsetMin = new Vector2(8f, 6f);
         hintText.rectTransform.offsetMax = new Vector2(-8f, -6f);
         hintText.horizontalOverflow = HorizontalWrapMode.Wrap;   // 패널 안에서 줄바꿈(밖으로 안 삐져나감)
+        hint.SetActive(false);   // 상황 힌트 줄은 안 쓰기로(2026-08-23) — 바인딩 유지용으로 노드만 남김
 
         // ── E 공정 / Z 되돌리기 로딩바(위치는 런타임에 스크린 좌표로 지정) ──
         MakeBar("ProcessBar", root.transform, new Color(0.35f, 0.60f, 1.00f));
@@ -49,6 +50,8 @@ public static class CarryHudPrefabGenerator
         Stretch(phText.rectTransform);
         ph.SetActive(false);
 
+        new GameObject(kRemasterMarker, typeof(RectTransform)).transform.SetParent(root.transform, false);   // 리마스터 마커(빈 노드)
+
         SavePrefab(root, kPath);
         Debug.Log($"[CarryHudPrefabGenerator] 생성 완료 → {kPath}");
     }
@@ -63,15 +66,23 @@ public static class CarryHudPrefabGenerator
         rt.pivot = new Vector2(0.5f, 0f);                       // 기준점 위로 뜸(구 OnGUI와 동일)
         rt.sizeDelta = new Vector2(100f, 16f);
 
-        var bg = Panel($"{name}Bg", bar.transform, new Color(0f, 0f, 0f, 0.7f));
-        Stretch((RectTransform)bg.transform);
+        // 리마스터 게이지 스프라이트(빈 바 420x16 / 채움 416x12 · 피그마 1x)를 절반 크기로. 없으면 구 단색 바.
+        var gaugeBg = InGameUiSkin.Load("GaugeEmpty");
+        var gaugeFill = InGameUiSkin.Load("GaugeOrange");
+        bool skinned = gaugeBg != null && gaugeFill != null;
+        if (skinned) rt.sizeDelta = new Vector2(210f, 8f);
 
-        var fill = Panel($"{name}Fill", bar.transform, fillColor);
+        var bg = Panel($"{name}Bg", bar.transform, skinned ? Color.white : new Color(0f, 0f, 0f, 0.7f));
+        Stretch((RectTransform)bg.transform);
+        bg.GetComponent<Image>().sprite = gaugeBg;
+
+        var fill = Panel($"{name}Fill", bar.transform, skinned ? Color.white : fillColor);
+        fill.GetComponent<Image>().sprite = gaugeFill;
         var frt = (RectTransform)fill.transform;
         frt.anchorMin = frt.anchorMax = new Vector2(0f, 0.5f);
         frt.pivot = new Vector2(0f, 0.5f);
-        frt.anchoredPosition = new Vector2(2f, 0f);
-        frt.sizeDelta = new Vector2(96f, 12f);
+        frt.anchoredPosition = new Vector2(skinned ? 1f : 2f, 0f);
+        frt.sizeDelta = skinned ? new Vector2(208f, 6f) : new Vector2(96f, 12f);
 
         var label = MakeText($"{name}Label", bar.transform, 13, TextAnchor.MiddleCenter);
         var lrt = label.rectTransform;
