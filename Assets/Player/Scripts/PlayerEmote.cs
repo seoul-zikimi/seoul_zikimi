@@ -27,17 +27,11 @@ namespace Player
         {
             if (!IsOwner) return;
             if (!IsInGame() || IsTypingInChat()) { HideWheel(); return; }   // [QA] 로비/채팅 중 감정표현 오작동 방지
-            var kb = Keyboard.current;
-            if (kb == null) return;
-
-            // F1~F10 = 앞 10개 대사 바로 발동(휠 없이)
-            for (int i = 0; i < 10 && i < EmoteDefs.Count; i++)
-            {
-                var key = kb[(Key)((int)Key.F1 + i)];   // Key.F1~F12는 연속 enum
-                if (key != null && key.wasPressedThisFrame) { Emote(i); break; }
-            }
-
-            UpdateWheel(kb);
+            var input = PlayerInputHandler.Local;
+            if (input == null) return;
+            int emote = input.ConsumeEmoteIndex();
+            if (emote >= 0) TriggerEmote(emote);
+            UpdateWheel(input);
         }
 
         // [07/26 기획] T 꾹 = 이모티콘 선택 UI 표시(누른 동안), 버튼 클릭 = 발동, 떼면 닫힘.
@@ -84,16 +78,16 @@ namespace Player
             return selected != null && selected.GetComponent<InputField>() != null;
         }
 
-        public override void OnNetworkDespawn() => HideWheel();
+        public override void OnNetworkSpawn()
+        {
+            if (IsOwner) Local = this;
+        }
 
         public override void OnNetworkDespawn()
         {
-            var es = EventSystem.current;
-            var selected = es != null ? es.currentSelectedGameObject : null;
-            return selected != null && selected.GetComponent<InputField>() != null;
+            if (Local == this) Local = null;
+            HideWheel();
         }
-
-        public override void OnNetworkDespawn() => HideWheel();
 
         // owner 로컬 즉시 재생 + 서버 경유로 다른 클라에도(내 이모트가 남들한테 보이게).
         public void TriggerEmote(int index)
