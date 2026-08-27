@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 namespace GridSystem
@@ -42,6 +41,9 @@ namespace GridSystem
         private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
         private bool m_Visible = true;
         private bool m_Built;
+
+        /// <summary>모바일 눈 버튼: 폰(TAB)이 닫혀 있어도 인월드 고스트를 계속 보여줄지. 데스크톱은 건드리지 않는다(false).</summary>
+        public static bool GhostPinned;
         private bool m_LastShow;          // Show() 변화 감지 → VisibilityChanged 1회 발화
         private const int kPreviewLayer = 30;   // 정답 미리보기 전용 레이어(메인 씬과 분리)
         private bool m_MainExcluded;             // 메인 카메라 cullingMask에서 1회 제외
@@ -77,9 +79,6 @@ namespace GridSystem
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
-                m_Visible = !m_Visible;
-
             bool show = Show();
 
             // 2vs2: 팀B의 인월드 고스트는 자기 구역(x+구역폭)에 보여야 한다 — 채점 오프셋(GridNetwork.ScoreAgainst)과 동일 기준.
@@ -90,8 +89,9 @@ namespace GridSystem
                         ? new Vector3(m_Manager.ZoneSize.x * GridContract.Unit, 0f, 0f)
                         : Vector3.zero;
 
-            if (m_GhostRoot != null) m_GhostRoot.SetActive(show);
-            if (show)
+            bool ghost = show || (GhostPinned && m_Built && Building());
+            if (m_GhostRoot != null) m_GhostRoot.SetActive(ghost);
+            if (ghost)
             {
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
                 for (int i = 0; i < m_GhostFloors.Count; i++)
@@ -117,6 +117,9 @@ namespace GridSystem
 
         private bool Building() => m_Loop == null || m_Loop.IsBuilding;
         private bool Show() => m_Visible && m_Built && Building();
+
+        /// <summary>키보드·패드·모바일 주문 버튼이 공통으로 호출하는 UI 비의존 토글.</summary>
+        public void ToggleVisibility() => m_Visible = !m_Visible;
 
         private void Build()
         {
@@ -223,6 +226,12 @@ namespace GridSystem
 
         // ── 인터랙티브 오빗(로컬) — 정답 패널 라우터(Assembly-CSharp)가 호출 ──
         public RenderTexture RT => m_RT;
+
+        /// <summary>미니 프리뷰 배경색 — 모바일 흰색 폰 화면에선 밝은 회색으로 맞춘다.</summary>
+        public void SetBackground(Color color)
+        {
+            if (m_Cam != null) m_Cam.backgroundColor = color;
+        }
         public void DriveOrbit(Vector2 rotDelta, float zoom)
         {
             if (!m_Built) return;

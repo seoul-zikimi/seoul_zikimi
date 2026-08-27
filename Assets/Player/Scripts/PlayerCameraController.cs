@@ -47,8 +47,8 @@ namespace Player
             if (AnswerPanelFocus.Active) return;   // 커서가 정답 패널 위면 양보(정답 카메라가 입력 소비)
             if (m_Input == null || !m_Input.enabled) return;
 
-            Vector2 rot  = m_Input.CameraRotate;
-            float   zoom = m_Input.CameraZoom;
+            Vector2 rot  = m_Input.ConsumeCameraRotate();
+            float   zoom = m_Input.ConsumeCameraZoom();
 
             // 커서가 UI(주문 패널 등) 위면 휠은 그 UI의 스크롤 몫 — 카메라 줌이 같이 먹지 않게
             var es = UnityEngine.EventSystems.EventSystem.current;

@@ -49,6 +49,7 @@ public class JuicyButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     public static void Attach(Component button)
     {
         if (button == null) return;
+        if (button.GetComponentInParent<NoJuicyButtonMotion>(true) != null) return;
         if (button.GetComponent<JuicyButton>() == null)
             button.gameObject.AddComponent<JuicyButton>();
     }
