@@ -531,17 +531,17 @@ namespace Player
                 if (HasMaterial && GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out int statueKind))
                 {
                     // 사방신 석상: 그리드 배치 금지 — 받침대 클릭 배치 전용(테두리 뜬 받침대를 클릭)
-                    if (m_AimPedestal != null)
+                    if (m_AimPedIndex >= 0)
                     {
-                        if (m_AimPedestal.Index == statueKind && !GuardianNetwork.IsKindPlaced(statueKind))
+                        if (m_AimPedIndex == statueKind && !GuardianNetwork.IsKindPlaced(statueKind))
                         {
                             GuardianNetwork.RequestPlaceOnPedestal(statueKind);   // 석상은 종류당 1개 — 낙관 소모 안전
                             ClearHeld();
                             PlaySFX(SFXType.LandObject);
                         }
-                        else if (m_AimPedestal.Index != statueKind)
+                        else if (m_AimPedIndex != statueKind)
                         {
-                            GridJuice.WorldToast(m_AimPedestal.transform.position + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
+                            GridJuice.WorldToast(m_AimPedPos + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
                             PlaySFX(SFXType.BumpPlayers);
                         }
                     }
@@ -573,17 +573,22 @@ namespace Player
         }
         
         // ── 경복궁 사방신 석상: 받침대 조준(발광 테두리) + 목표 받침대 방향 화살표 (오너 로컬 전용) ──
-        private GridSystem.GuardianPedestal m_AimPedestal;   // 이번 프레임 조준 중인 받침대
+        // 조준은 물리 레이캐스트가 아니라 '마우스 광선이 받침대 근처를 지나는가' 기하 판정 —
+        // 받침대 콜라이더/컴포넌트/맵 재생성에 의존하지 않아 인식이 절대 안 빠진다.
+        private int m_AimPedIndex = -1;                      // 이번 프레임 조준 중인 받침대 방위(-1 = 없음)
+        private Vector3 m_AimPedPos;
         private GameObject m_PedestalHl;                     // 받침대 위 발광 테두리
         private GameObject m_StatueArrow;                    // 머리 위 방향 화살표
         private static Material s_PedHlOk, s_PedHlBad;       // 테두리 재질 캐시(프레임당 생성 방지)
+        private const float kPedestalAimRadius = 1.9f;       // 광선-받침대 허용 거리(후하게)
+        private const float kPedestalUseRange = 7f;          // 플레이어-받침대 수평 사거리
 
         private void UpdateStatueAim()
         {
             bool holdingStatue = HasMaterial && GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out int kind);
             if (!holdingStatue)
             {
-                m_AimPedestal = null;
+                m_AimPedIndex = -1;
                 if (m_PedestalHl != null) m_PedestalHl.SetActive(false);
                 if (m_StatueArrow != null) m_StatueArrow.SetActive(false);
                 return;
@@ -605,24 +610,29 @@ namespace Player
             }
             else if (m_StatueArrow != null) m_StatueArrow.SetActive(false);
 
-            // 받침대 조준: 마우스 레이 → GuardianPedestal (수평 6m 이내)
-            m_AimPedestal = null;
+            // 받침대 조준: 마우스 광선과 각 받침대 중심의 최근접 거리로 판정(4방위 전부 검사, 가장 가까운 것)
+            m_AimPedIndex = -1;
+            if (m_Cam == null) m_Cam = Camera.main;
             if (m_Cam != null && Mouse.current != null)
             {
                 var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-                if (Physics.Raycast(ray, out var hit, 80f, ~(1 << 2), QueryTriggerInteraction.Ignore))
+                float best = kPedestalAimRadius;
+                for (int i = 0; i < 4; i++)
                 {
-                    var ped = hit.collider.GetComponentInParent<GridSystem.GuardianPedestal>();
-                    if (ped != null)
-                    {
-                        Vector3 d = ped.transform.position - transform.position; d.y = 0f;
-                        if (d.magnitude <= 6f) m_AimPedestal = ped;
-                    }
+                    if (!GuardianNetwork.TryGetPedestalPos(i, out var pp)) continue;
+                    Vector3 flat = pp - transform.position; flat.y = 0f;
+                    if (flat.magnitude > kPedestalUseRange) continue;   // 사거리 밖
+                    Vector3 center = pp + Vector3.up * 0.9f;
+                    Vector3 toC = center - ray.origin;
+                    float along = Vector3.Dot(toC, ray.direction);
+                    if (along < 0f) continue;                            // 카메라 뒤
+                    float rayDist = Vector3.Cross(ray.direction, toC).magnitude;
+                    if (rayDist < best) { best = rayDist; m_AimPedIndex = i; m_AimPedPos = pp; }
                 }
             }
 
             // 발광 테두리(블록 배치 테두리와 같은 언어) — 맞는 방위면 초록, 틀리면 주황
-            if (m_AimPedestal != null)
+            if (m_AimPedIndex >= 0)
             {
                 if (m_PedestalHl == null)
                 {
@@ -631,11 +641,11 @@ namespace Player
                     m_PedestalHl.name = "~PedestalHl";
                     m_PedestalHl.transform.localScale = new Vector3(2.1f, 1.3f, 2.1f);
                 }
-                bool match = m_AimPedestal.Index == kind;
+                bool match = m_AimPedIndex == kind;
                 if (s_PedHlOk == null) s_PedHlOk = GuardianNetwork.MakeGlow(new Color(0.35f, 1f, 0.45f, 0.30f));
                 if (s_PedHlBad == null) s_PedHlBad = GuardianNetwork.MakeGlow(new Color(1f, 0.55f, 0.2f, 0.30f));
                 m_PedestalHl.GetComponent<Renderer>().sharedMaterial = match ? s_PedHlOk : s_PedHlBad;
-                m_PedestalHl.transform.position = m_AimPedestal.transform.position + Vector3.up * 0.65f;
+                m_PedestalHl.transform.position = m_AimPedPos + Vector3.up * 0.65f;
                 m_PedestalHl.SetActive(true);
             }
             else if (m_PedestalHl != null) m_PedestalHl.SetActive(false);
