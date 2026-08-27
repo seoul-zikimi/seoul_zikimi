@@ -126,6 +126,20 @@ namespace GridSystem
             tm.color = color;
             tm.font = s_WorldFont;
             go.GetComponent<MeshRenderer>().material = s_WorldFont.material;   // 폰트 아틀라스 머티리얼 필수
+
+            // 그림자 — 밝은 배경(하늘·눈밭)에서 연한 색 글자가 안 보여서, 검정 사본을 살짝 어긋나게 깐다
+            var shadow = new GameObject("~shadow");
+            shadow.transform.SetParent(go.transform, false);
+            shadow.transform.localPosition = new Vector3(0.025f, -0.025f, 0.04f);
+            var stm = shadow.AddComponent<TextMesh>();
+            stm.text = text;
+            stm.fontSize = fontSize;
+            stm.characterSize = 0.05f;
+            stm.anchor = TextAnchor.MiddleCenter;
+            stm.color = new Color(0f, 0f, 0f, 0.75f);
+            stm.font = s_WorldFont;
+            shadow.GetComponent<MeshRenderer>().material = s_WorldFont.material;
+
             go.AddComponent<JuiceFloatText>().Init(life, rise);
         }
 
@@ -261,12 +275,18 @@ namespace GridSystem
     public class JuiceFloatText : MonoBehaviour
     {
         float m_Life = 0.9f, m_Rise = 1.2f, m_T;
-        TextMesh m_Tm;
-        Color m_Base;
+        TextMesh m_Tm, m_Shadow;
+        Color m_Base, m_ShadowBase;
 
         public void Init(float life, float rise) { m_Life = life; m_Rise = rise; }
 
-        void Start() { m_Tm = GetComponent<TextMesh>(); if (m_Tm != null) m_Base = m_Tm.color; }
+        void Start()
+        {
+            m_Tm = GetComponent<TextMesh>(); if (m_Tm != null) m_Base = m_Tm.color;
+            var st = transform.Find("~shadow");   // WorldText 그림자(있으면 같이 페이드)
+            m_Shadow = st != null ? st.GetComponent<TextMesh>() : null;
+            if (m_Shadow != null) m_ShadowBase = m_Shadow.color;
+        }
 
         void LateUpdate()
         {
@@ -281,11 +301,16 @@ namespace GridSystem
                     : Mathf.Lerp(1.2f, 1f, Mathf.Clamp01((n - 0.15f) / 0.25f));
             transform.localScale = Vector3.one * s;
 
-            if (m_Tm != null)   // 끝 40% 페이드
+            float fade = n > 0.6f ? 1f - (n - 0.6f) / 0.4f : 1f;   // 끝 40% 페이드
+            if (m_Tm != null)
             {
-                var c = m_Base;
-                c.a = n > 0.6f ? 1f - (n - 0.6f) / 0.4f : 1f;
+                var c = m_Base; c.a = m_Base.a * fade;
                 m_Tm.color = c;
+            }
+            if (m_Shadow != null)
+            {
+                var c = m_ShadowBase; c.a = m_ShadowBase.a * fade;
+                m_Shadow.color = c;
             }
         }
     }

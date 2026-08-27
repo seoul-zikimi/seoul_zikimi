@@ -265,10 +265,10 @@ public sealed class GameLoopHUD : UIHUD
                 var items = m_Loop.GetComponent<GridSystem.ItemNetwork>();
                 string held = items != null ? items.LocalHeldName() : "";
                 if (!string.IsNullOrEmpty(held))
-                    timer += $"\n<size=55%>[{held}] E로 사용</size>";
-                string status = GridSystem.ItemNetwork.LocalStatusLine();
-                if (!string.IsNullOrEmpty(status))
-                    timer += $"\n<size=55%>{status}</size>";
+                    timer += held == "대포"   // 기획서: 대포는 조준+꾹 발사 안내
+                        ? "\n<size=55%>[대포] 상대 건물 조준 후 E 꾹 눌렀다 떼면 발사!</size>"
+                        : $"\n<size=55%>[{held}] E로 사용</size>";
+                // 걸린 효과(날씨·버프·디버프)는 우상단 버프 아이콘 바가 담당 — UpdateBuffBar()
             }
             m_TimerText.text = timer;
 
@@ -276,7 +276,7 @@ public sealed class GameLoopHUD : UIHUD
             if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
             {
                 float beat = Mathf.Abs(Mathf.Sin(Time.unscaledTime * 5f));
-                m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.14f * beat);
+                PulseTimerLine(1f + 0.14f * beat);
                 m_TimerText.color = Color.Lerp(new Color(1f, 0.20f, 0.16f, 1f), Color.white, beat * 0.35f);
                 EnsureVignette();
                 if (m_Vignette != null) m_Vignette.intensity.Override(0.16f + 0.14f * beat);
@@ -285,13 +285,14 @@ public sealed class GameLoopHUD : UIHUD
             {
                 if (m_Loop.IsBuilding && secs != m_LastTimerSecs) m_TimerTick = 1f;   // 초 넘어갈 때 톡
                 m_TimerTick = Mathf.Max(0f, m_TimerTick - Time.unscaledDeltaTime * 6f);
-                m_TimerText.rectTransform.localScale = Vector3.one * (1f + 0.12f * m_TimerTick);
+                PulseTimerLine(1f + 0.12f * m_TimerTick);
                 m_TimerText.color = m_Loop.IsBuilding && m_Loop.TimeLeft <= 60f ? new Color(1f, 0.28f, 0.22f, 1f) : Color.white;   // 1분 미만 빨강(기획서 3.2)
                 if (m_Vignette != null) m_Vignette.intensity.Override(0f);
             }
             m_LastTimerSecs = secs;
         }
 
+        UpdateBuffBar();                    // 우상단 버프/디버프 아이콘(라디얼 카운트다운)
         SetCrane(!m_Loop.IsBuilding);       // 정산 중 = 건축물 한 바퀴 크레인샷
         UpdateMilestoneToast();             // 완성도 25/50/75/90% 돌파 토스트
 
@@ -671,6 +672,113 @@ public sealed class GameLoopHUD : UIHUD
     }
 
     // ── 막판 비네트(화면 가장자리 빨간 두근두근) ──
+    // ── 우상단 버프/디버프 아이콘 바 — 걸린 효과마다 아이콘 + 어두워지는 라디얼(경과분) + 남은 초 ──
+    private RectTransform m_BuffBar;
+    private readonly System.Collections.Generic.Dictionary<SeoulZikimi.Gameplay.CompetitiveItemKind,
+        (GameObject go, Image overlay, TextMeshProUGUI secs)> m_BuffCells = new();
+    private static readonly System.Collections.Generic.List<GridSystem.ItemNetwork.LocalStatus> s_Statuses = new();
+    private static readonly System.Collections.Generic.List<SeoulZikimi.Gameplay.CompetitiveItemKind> s_GoneKinds = new();
+
+    private void UpdateBuffBar()
+    {
+        if (m_BuffBar == null)
+        {
+            var t = transform.Find("BuffBar");
+            if (t == null) return;   // 구버전 프리팹(재생성 전) — 표시 생략
+            m_BuffBar = (RectTransform)t;
+        }
+
+        GridSystem.ItemNetwork.GetLocalStatuses(s_Statuses);
+
+        s_GoneKinds.Clear();
+        foreach (var kv in m_BuffCells)
+        {
+            bool alive = false;
+            foreach (var st in s_Statuses) if (st.Kind == kv.Key) { alive = true; break; }
+            if (!alive) { if (kv.Value.go != null) Destroy(kv.Value.go); s_GoneKinds.Add(kv.Key); }
+        }
+        foreach (var k in s_GoneKinds) m_BuffCells.Remove(k);
+
+        foreach (var st in s_Statuses)
+        {
+            if (!m_BuffCells.TryGetValue(st.Kind, out var cell))
+                m_BuffCells[st.Kind] = cell = MakeBuffCell(st.Kind);
+            cell.overlay.fillAmount = 1f - Mathf.Clamp01(st.Remaining / st.Total);   // 경과분이 어둡게 차오름 = 남은 밝은 부분이 줄어듦
+            cell.secs.text = Mathf.CeilToInt(st.Remaining).ToString();
+        }
+    }
+
+    private (GameObject, Image, TextMeshProUGUI) MakeBuffCell(SeoulZikimi.Gameplay.CompetitiveItemKind kind)
+    {
+        var go = new GameObject(kind.ToString(), typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(m_BuffBar, false);
+        rt.sizeDelta = new Vector2(40f, 40f);
+
+        Image Img(string name, Color color)
+        {
+            var child = new GameObject(name, typeof(Image));
+            var crt = (RectTransform)child.transform;
+            crt.SetParent(rt, false);
+            crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
+            crt.offsetMin = Vector2.zero; crt.offsetMax = Vector2.zero;
+            var img = child.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        var bg = Img("Bg", new Color(0f, 0f, 0f, 0.35f));
+        var icon = Img("Icon", Color.white);
+        icon.sprite = GridSystem.HeldItemBubble.LoadIcon(kind);
+        icon.preserveAspect = true;
+        if (icon.sprite == null) { icon.color = GridSystem.ItemNetwork.KindColor(kind); }   // 아이콘 없으면 종류색 칸
+
+        var overlay = Img("Overlay", new Color(0f, 0f, 0f, 0.55f));
+        overlay.type = Image.Type.Filled;
+        overlay.fillMethod = Image.FillMethod.Radial360;
+        overlay.fillOrigin = (int)Image.Origin360.Top;
+        overlay.fillClockwise = true;
+        overlay.fillAmount = 0f;
+
+        var secsGo = new GameObject("Secs", typeof(TextMeshProUGUI));
+        var srt = (RectTransform)secsGo.transform;
+        srt.SetParent(rt, false);
+        srt.anchorMin = Vector2.zero; srt.anchorMax = Vector2.one;
+        srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+        var secs = secsGo.GetComponent<TextMeshProUGUI>();
+        secs.font = JobsnailUiKit.TmpFont;
+        secs.fontSize = 15f;
+        secs.fontStyle = FontStyles.Bold;
+        secs.alignment = TextAlignmentOptions.BottomRight;
+        secs.color = Color.white;
+        secs.raycastTarget = false;
+
+        return (go, overlay, secs);
+    }
+
+    // 시계 줄(첫 줄)만 펌핑 — 아래 '우리:상대'·아이템 줄은 고정.
+    // rect 통짜 스케일이면 전 줄이 같이 흔들려서, 첫 줄 글자 버텍스만 라인 중심 기준으로 키운다(레이아웃 불변).
+    private void PulseTimerLine(float scale)
+    {
+        m_TimerText.rectTransform.localScale = Vector3.one;
+        if (Mathf.Approximately(scale, 1f)) return;
+        m_TimerText.ForceMeshUpdate();
+        var ti = m_TimerText.textInfo;
+        if (ti.lineCount == 0) return;
+        var line = ti.lineInfo[0];
+        Vector3 center = (line.lineExtents.min + line.lineExtents.max) * 0.5f;
+        for (int i = line.firstCharacterIndex; i <= line.lastCharacterIndex && i < ti.characterCount; i++)
+        {
+            var ch = ti.characterInfo[i];
+            if (!ch.isVisible) continue;
+            var verts = ti.meshInfo[ch.materialReferenceIndex].vertices;
+            for (int v = 0; v < 4; v++)
+                verts[ch.vertexIndex + v] = center + (verts[ch.vertexIndex + v] - center) * scale;
+        }
+        m_TimerText.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices);
+    }
+
     private Volume m_UrgentVolume;
     private UnityEngine.Rendering.Universal.Vignette m_Vignette;
 

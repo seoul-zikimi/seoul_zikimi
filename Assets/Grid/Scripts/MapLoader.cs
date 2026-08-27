@@ -120,6 +120,19 @@ namespace GridSystem
             s_SpawnedSystemObjects.Clear();
         }
 
+        /// <summary>
+        /// 마커 Y는 "접지점"(오브젝트가 놓일 바닥 높이)으로 해석한다 — 기획은 마커를 그냥 땅에 붙여 두면 된다.
+        /// 콜라이더가 있는 대상(작업대 등)은 마커 자리에 '중심'을 놓으면 아래 절반이 땅에 묻히므로
+        /// 절반 높이만큼 올려서 밑면이 마커 Y에 닿게 한다. 맵툴마다 넣던 +0.3 같은 임시 보정값을 대신한다.
+        /// 콜라이더가 없는 마커(플레이어 스폰·배송 지점 등)는 위치를 그대로 쓴다(기존 동작 유지).
+        /// 반높이는 Workstation의 모델 바닥 스냅(Workstation.cs)과 같은 1×1×1 큐브 기준이라 둘이 어긋나지 않는다.
+        /// </summary>
+        public static Vector3 GroundedSpotPosition(GameObject target, Vector3 spot)
+        {
+            if (target == null || target.GetComponentInChildren<Collider>() == null) return spot;
+            return new Vector3(spot.x, spot.y + 0.5f * target.transform.lossyScale.y, spot.z);
+        }
+
         private static void ApplySpots(GameObject bg, bool versus)
         {
             foreach (var t in bg.GetComponentsInChildren<Transform>(true))
@@ -152,10 +165,10 @@ namespace GridSystem
                 }
                 else
                 {
-                    target.transform.SetPositionAndRotation(t.position, t.rotation);
+                    target.transform.SetPositionAndRotation(GroundedSpotPosition(target, t.position), t.rotation);
                 }
 
-                Debug.Log($"[MapLoader] 맵 마커 적용: {targetName} → {t.position}");
+                Debug.Log($"[MapLoader] 맵 마커 적용: {targetName} → {target.transform.position} (마커 {t.position})");
 
                 // 2vs2: 상대 진영에도 같은 작업대가 있어야 공평하다 → 분할벽 기준 점대칭 위치에 하나 더.
                 // 그리드·플레이어 스폰은 대상이 아니다(그리드는 하나로 2배 확장, 스폰은 팀별 오프셋 처리).
@@ -179,8 +192,9 @@ namespace GridSystem
 
             var pivot = VersusBackground.MirrorPivot(gm.ZoneSize, gm.EffectiveSize);
             mirror.name = targetName + "_B";   // 팀B용(이름이 같으면 GameObject.Find가 헷갈린다)
+            var mirrored = new Vector3(2f * pivot.x - spot.position.x, spot.position.y, 2f * pivot.z - spot.position.z);
             mirror.transform.SetPositionAndRotation(
-                new Vector3(2f * pivot.x - spot.position.x, spot.position.y, 2f * pivot.z - spot.position.z),
+                GroundedSpotPosition(mirror, mirrored),   // 팀A 사본과 같은 접지 보정(안 하면 B팀 작업대만 묻힌다)
                 spot.rotation * Quaternion.Euler(0f, 180f, 0f));
             Debug.Log($"[MapLoader] 2vs2 대칭 사본 스폰: {mirror.name} → {mirror.transform.position}");
         }

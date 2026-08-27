@@ -25,6 +25,9 @@ namespace GridSystem
         [SerializeField] private Vector3Int m_GridSize = new Vector3Int(8, 4, 8);
         [SerializeField] private AnswerCell[] m_Cells = new AnswerCell[0];
         [SerializeField] private Vector3Int[] m_PresetCells = new Vector3Int[0];   // 기본 제공 블럭 셀 좌표 — 채점 제외
+        // preset 셀을 라운드 시작 시 '진짜 그리드 블록'(공정 완료 상태)으로 스폰할지.
+        // 광통교처럼 배경 프리팹이 기제공 부분의 비주얼을 담당하는 맵은 false(기본값) 유지 — 켜면 이중 스폰된다.
+        [SerializeField] private bool m_SpawnPresetBlocks = false;
         [SerializeField] private Vector3 m_StartPilePosition;
         [SerializeField] private float m_TimeLimitSeconds = 180f;
         [SerializeField] private Sprite m_AnswerImage;
@@ -36,6 +39,7 @@ namespace GridSystem
         public Sprite AnswerImage => m_AnswerImage;
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
         public IReadOnlyList<AnswerCell> Cells => m_Cells;
+        public bool SpawnPresetBlocks => m_SpawnPresetBlocks;
 
         [System.NonSerialized] private Dictionary<Vector3Int, AnswerCell> m_Lookup;
         [System.NonSerialized] private HashSet<Vector3Int> m_PresetSet;

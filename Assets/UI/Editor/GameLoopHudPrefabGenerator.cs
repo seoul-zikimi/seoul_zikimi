@@ -15,7 +15,7 @@ public static class GameLoopHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/GameLoopHUD.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "RemasterMarker_v14";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
+    public const string kRemasterMarker = "RemasterMarker_v15";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate GameLoopHud Prefab")]
     public static void Generate()
@@ -68,6 +68,15 @@ public static class GameLoopHudPrefabGenerator
         endLabel.fontStyle = FontStyles.Bold;
         endLabel.raycastTarget = false;
         endLabel.gameObject.SetActive(false);
+
+        // ── 2vs2 버프/디버프 아이콘 바 — 종료 요청 버튼 아래(우상단). 칸은 GameLoopHUD가 런타임에 채움 ──
+        var buffRt = JobsnailUiKit.Rect("BuffBar", rootT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        InGameUiSkin.TopRight(buffRt, 1071 - 200, 68, 108 + 200, 44);
+        var buffLayout = buffRt.gameObject.AddComponent<HorizontalLayoutGroup>();
+        buffLayout.childAlignment = TextAnchor.MiddleRight;
+        buffLayout.spacing = 6f;
+        buffLayout.childControlWidth = false; buffLayout.childControlHeight = false;
+        buffLayout.childForceExpandWidth = false; buffLayout.childForceExpandHeight = false;
 
         // ── 설정(톱니) — 피그마 (1270,21) 49x49 ──
         var gearSprite = InGameUiSkin.Load("SettingsButton") ?? JobsnailUiKit.Sprite("UI_pngs/settingsicon");

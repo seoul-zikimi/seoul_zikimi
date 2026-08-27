@@ -313,8 +313,8 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));                // 짓는 곳(섬)
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(6.5f, 0.1f, -6f));      // 광장 북쪽(길 바로 앞)
             AddSpot(root, "Spot_DeliveryZone", new Vector3(6.5f, 0.1f, -9f));          // 광장 중앙 남쪽 — 재료는 여기로 떨어진다
-            AddSpot(root, "Spot_HammerStation", new Vector3(11.5f, 0.3f, -7.5f));      // 광장 동쪽(0.3 — 바닥에 파묻힘 방지)
-            AddSpot(root, "Spot_PaintStation", new Vector3(1.5f, 0.3f, -7.5f));        // 광장 서쪽(〃)
+            AddSpot(root, "Spot_HammerStation", new Vector3(11.5f, 0f, -7.5f));       // 광장 동쪽(마커 Y = 접지점 — MapLoader가 반높이 올린다)
+            AddSpot(root, "Spot_PaintStation", new Vector3(1.5f, 0f, -7.5f));         // 광장 서쪽(〃)
             // 퍼레이드 경로(서→동 일직선, 길 중앙 z=-3.2) — ParadeNetwork가 0번부터 순서대로 잇는다
             AddSpot(root, "Spot_ParadePoint0", new Vector3(-13f, 0.1f, -3.2f));
             AddSpot(root, "Spot_ParadePoint1", new Vector3(0f, 0.1f, -3.2f));

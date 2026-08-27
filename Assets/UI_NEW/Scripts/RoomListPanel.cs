@@ -25,6 +25,7 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private UiNewRoomCardView[] roomCards;
         [SerializeField] private float refreshCooldownSeconds = 1f;
 
+        private Button closeWindowButton;   // 배경 헤더의 × 자리(런타임 생성)
         private RoomListFilter currentFilter;
         private float nextRefreshTime;
         private bool returningToMain;
@@ -43,6 +44,8 @@ namespace SeoulZikimi.UI.New
             BuildEmptyLabel();
             refreshButton?.onClick.AddListener(RequestRefresh);
             backToMainButton?.onClick.AddListener(ReturnToMain);
+            // 배경에 그려진 창 헤더의 ×도 '메인으로'와 같은 동작(메인 화면 복귀)으로 묶는다.
+            closeWindowButton = UiNewWindowCloseButton.Attach(transform, ReturnToMain);
             allFilterButton?.onClick.AddListener(() => SelectFilter(RoomListFilter.All));
             publicFilterButton?.onClick.AddListener(() => SelectFilter(RoomListFilter.Public));
             privateFilterButton?.onClick.AddListener(() => SelectFilter(RoomListFilter.Private));
@@ -62,8 +65,7 @@ namespace SeoulZikimi.UI.New
                 return;
 
             returningToMain = true;
-            if (backToMainButton != null)
-                backToMainButton.interactable = false;
+            SetReturnButtonsInteractable(false);
 
             try
             {
@@ -73,10 +75,18 @@ namespace SeoulZikimi.UI.New
             catch (Exception exception)
             {
                 returningToMain = false;
-                if (backToMainButton != null)
-                    backToMainButton.interactable = true;
+                SetReturnButtonsInteractable(true);
                 Debug.LogError($"[UI_NEW] 메인 화면 복귀 실패: {exception.Message}");
             }
+        }
+
+        // '메인으로' 버튼과 헤더 × 는 같은 동작이라 중복 클릭 가드도 함께 건다.
+        private void SetReturnButtonsInteractable(bool value)
+        {
+            if (backToMainButton != null)
+                backToMainButton.interactable = value;
+            if (closeWindowButton != null)
+                closeWindowButton.interactable = value;
         }
 
         public void SetRooms(IReadOnlyList<UiNewSessionRoom> values)

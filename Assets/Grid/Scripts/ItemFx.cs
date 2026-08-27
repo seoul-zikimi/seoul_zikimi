@@ -87,8 +87,21 @@ namespace GridSystem
         }
 
         /// <summary>발동: 수평 링 충격파 + 위 분수 + 상승 스윕 사운드.</summary>
-        public static void Used(Vector3 pos, Color col)
+        static GameObject s_UsePoof;
+        static bool s_UsePoofTried;
+
+        public static void Used(Vector3 pos, Color col, string label = "")
         {
+            // 카툰 팡(CFXR Magic Poof 사본) — '확실히 써졌다' 한눈에 보이게(GroundHit 패턴)
+            if (!s_UsePoofTried) { s_UsePoofTried = true; s_UsePoof = Resources.Load<GameObject>("Fx/ItemUsePoof"); }
+            if (s_UsePoof != null)
+            {
+                var poof = Object.Instantiate(s_UsePoof, pos, Quaternion.identity);
+                Object.Destroy(poof, 4f);
+            }
+            if (label != "")   // 종류색은 흰 계열(눈·안개)이 많아 안 보임 — 항상 진한 금색
+                GridJuice.WorldToast(pos + Vector3.up * 1.1f, $"{label} 사용!", new Color(1f, 0.8f, 0.1f));
+
             for (int i = 0; i < 14; i++)   // 링(수평 확산)
             {
                 float a = (i / 14f) * Mathf.PI * 2f;
@@ -119,13 +132,88 @@ namespace GridSystem
         }
 
         /// <summary>월드 구슬 꾸미기: 뿅 팝인 + 둥실 부유 + 주기적 반짝이.</summary>
-        public static void DecorateOrb(GameObject orb, Color col)
+        // ── 대포: 발사 → 포물선 비행 → 착탄 콜백 ──
+        public const float kCannonFlightSeconds = 0.55f;
+
+        /// <summary>포탄 비행 연출. onLand = 착탄 순간 호출(폭발 FX는 호출자가).</summary>
+        public static void CannonShot(Vector3 from, Vector3 to, System.Action onLand)
         {
-            if (orb == null) return;
-            orb.AddComponent<JuiceBob>();
-            var tw = orb.AddComponent<ItemOrbTwinkle>();
-            tw.color = col;
-            orb.AddComponent<ItemPopIn>();
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var col = go.GetComponent<Collider>();
+            if (col != null) Object.Destroy(col);
+            go.name = "~Cannonball";
+            go.transform.localScale = Vector3.one * 0.3f;
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh != null) go.GetComponent<Renderer>().material =
+                new Material(sh) { color = new Color(0.12f, 0.12f, 0.14f) };
+            var f = go.AddComponent<CannonballFlight>();
+            f.From = from + Vector3.up * 0.8f;
+            f.To = to;
+            f.OnLand = onLand;
+            Play(CannonFireClip(), from, 0.9f);
+        }
+
+        // 포성: 낮은 '펑' — 노이즈 버스트 + 90Hz 저음 감쇠
+        static AudioClip s_CannonFire;
+        static AudioClip CannonFireClip() => s_CannonFire != null ? s_CannonFire : s_CannonFire = Synth("~CannonFire", 0.3f, t =>
+        {
+            float r = Mathf.Sin(t * 91234.567f) * 43758.5453f;
+            r -= Mathf.Floor(r);
+            float noise = (r * 2f - 1f) * Mathf.Exp(-t * 18f) * 0.7f;
+            float thump = Mathf.Sin(2f * Mathf.PI * 90f * t) * Mathf.Exp(-t * 9f) * 0.8f;
+            return noise + thump;
+        });
+
+        static GameObject s_ShinyLoop;
+        static bool s_ShinyTried;
+
+        /// <summary>아이템 픽업 비주얼: 무지개 '?' 상자 — 무지개색 순환 + 4면 물음표 + 회전·둥실·팝인 + Shiny 루프 FX.</summary>
+        public static GameObject MakeItemBox(Vector3 pos, Color kindColor)
+        {
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.name = "~ItemBox";
+            var col = box.GetComponent<Collider>();
+            if (col != null) Object.Destroy(col);
+            box.transform.position = pos;
+            box.transform.localScale = Vector3.one * 0.55f;
+
+            // 빌드 셰이더 스트립 방지 — 명시적 URP Lit
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            var mat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            box.GetComponent<Renderer>().material = mat;
+
+            // 4면 '?' — 내장 폰트 TextMesh(월드 텍스트, GridJuice와 같은 방식)
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            for (int i = 0; i < 4; i++)
+            {
+                var tgo = new GameObject("?");
+                tgo.transform.SetParent(box.transform, false);
+                var rot = Quaternion.Euler(0f, 90f * i, 0f);
+                tgo.transform.localRotation = rot;
+                tgo.transform.localPosition = rot * new Vector3(0f, 0f, -0.51f);
+                var tm = tgo.AddComponent<TextMesh>();
+                tm.text = "?";
+                tm.font = font;
+                tm.fontSize = 90;
+                tm.fontStyle = FontStyle.Bold;
+                tm.characterSize = 0.1f;
+                tm.anchor = TextAnchor.MiddleCenter;
+                tm.color = Color.white;
+                tgo.GetComponent<MeshRenderer>().material = font.material;   // 폰트 아틀라스 머티리얼 필수
+            }
+
+            // 반짝이 루프(CFXR2 Shiny Item 사본) — 멀리서도 '아이템이다' 티가 나게
+            if (!s_ShinyTried) { s_ShinyTried = true; s_ShinyLoop = Resources.Load<GameObject>("Fx/ItemShiny"); }
+            if (s_ShinyLoop != null)
+                Object.Instantiate(s_ShinyLoop, box.transform, false);
+
+            var rainbow = box.AddComponent<ItemBoxRainbow>();
+            rainbow.mat = mat;
+            box.AddComponent<JuiceBob>();
+            var tw = box.AddComponent<ItemOrbTwinkle>();
+            tw.color = kindColor;
+            box.AddComponent<ItemPopIn>();
+            return box;
         }
 
         // ── 합성 사운드 (44.1kHz 모노, 최초 1회 생성 후 캐시) ──
@@ -203,6 +291,32 @@ namespace GridSystem
         });
     }
 
+    /// <summary>포탄 포물선 비행 — 끝나면 OnLand 호출 후 자멸. 연기 꼬리를 흘린다.</summary>
+    public sealed class CannonballFlight : MonoBehaviour
+    {
+        public Vector3 From, To;
+        public System.Action OnLand;
+        float m_T, m_Trail;
+
+        void Update()
+        {
+            m_T += Time.deltaTime / ItemFx.kCannonFlightSeconds;
+            if (m_T >= 1f) { OnLand?.Invoke(); Destroy(gameObject); return; }
+            float h = Mathf.Max(2.5f, Vector3.Distance(From, To) * 0.3f);
+            Vector3 p = Vector3.Lerp(From, To, m_T);
+            p.y += Mathf.Sin(m_T * Mathf.PI) * h;
+            transform.position = p;
+
+            m_Trail -= Time.deltaTime;   // 연기 꼬리
+            if (m_Trail <= 0f)
+            {
+                m_Trail = 0.04f;
+                var b = GridJuice.MakeBit(p, 0.09f, new Color(0.6f, 0.6f, 0.6f));
+                b.vel = Vector3.up * 0.3f; b.life = 0.35f; b.scaleVel = 0.3f; b.startAlpha = 0.5f;
+            }
+        }
+    }
+
     /// <summary>구슬 반짝이: 주기적으로 작은 흰 조각이 표면에서 떠오르며 사라짐.</summary>
     public sealed class ItemOrbTwinkle : MonoBehaviour
     {
@@ -217,6 +331,23 @@ namespace GridSystem
             var fx = ItemFx.MakeSparkPublic(pos, 0.05f, color);
             fx.vel = Vector3.up * 0.5f; fx.life = 0.45f; fx.spinDeg = 240f; fx.spinAxis = Random.onUnitSphere;
         }
+    }
+
+    /// <summary>무지개 상자: 색상환을 천천히 순환(회전·둥실은 JuiceBob 담당).</summary>
+    public sealed class ItemBoxRainbow : MonoBehaviour
+    {
+        public Material mat;
+        float m_Hue;
+
+        void Start() => m_Hue = Random.value;   // 상자마다 다른 색에서 출발
+
+        void Update()
+        {
+            m_Hue = Mathf.Repeat(m_Hue + Time.deltaTime * 0.25f, 1f);
+            if (mat != null) mat.color = Color.HSVToRGB(m_Hue, 0.6f, 1f);
+        }
+
+        void OnDestroy() { if (mat != null) Destroy(mat); }
     }
 
     /// <summary>뿅 팝인: 0 → 오버슛 → 원래 크기. 등장 쫀득용.</summary>

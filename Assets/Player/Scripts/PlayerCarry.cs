@@ -596,27 +596,68 @@ namespace Player
             if (kb.eKey.isPressed)
             {
                 m_CannonCharge += Time.deltaTime;
+                DrawCannonArc(Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds));   // 게이지 = 궤적이 뻗어나감(기획서)
                 return;
             }
             if (kb.eKey.wasReleasedThisFrame && m_CannonCharge > 0f)
             {
                 bool charged = m_CannonCharge >= kCannonChargeSeconds;
                 m_CannonCharge = 0f;
+                ClearCannonArc();
                 if (charged) items.RequestUseHeld();   // 덜 눌렀으면 불발(다시 조준)
             }
         }
 
+        // 충전 중 발사 궤적 미리보기(로컬 연출) — 실제 파괴 대상은 서버 랜덤이므로 상대 진영 중심을 향한 포물선.
+        private LineRenderer m_CannonArc;
+        private void DrawCannonArc(float charge01)
+        {
+            if (m_CannonArc == null)
+            {
+                var go = new GameObject("~CannonAim");
+                m_CannonArc = go.AddComponent<LineRenderer>();
+                var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                if (sh == null) sh = Shader.Find("Sprites/Default");
+                m_CannonArc.material = new Material(sh) { color = new Color(0.95f, 0.55f, 0.15f, 0.85f) };
+                m_CannonArc.widthMultiplier = 0.07f;
+                m_CannonArc.positionCount = 20;
+                m_CannonArc.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            Vector3 from = transform.position + Vector3.up * 1.0f;
+            Vector3 target = GridSystem.ItemNetwork.EnemyZoneAimPoint(from + transform.forward * 10f);
+            Vector3 dir = target - from; dir.y = 0f;
+            float fullDist = Mathf.Max(3f, dir.magnitude);
+            dir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
+            float dist = Mathf.Lerp(3f, fullDist, charge01);
+            float height = Mathf.Lerp(1f, 5f, charge01);
+            for (int i = 0; i < 20; i++)
+            {
+                float t = i / 19f;
+                Vector3 p = from + dir * (dist * t);
+                p.y += Mathf.Sin(t * Mathf.PI) * height;
+                m_CannonArc.SetPosition(i, p);
+            }
+        }
+
+        private void ClearCannonArc()
+        {
+            if (m_CannonArc == null) return;
+            Destroy(m_CannonArc.gameObject);
+            m_CannonArc = null;
+        }
+
         private void UpdateEKey(Keyboard kb)
         {
-            // [기획] 2vs2 아이템은 '든 채로 E'. 공정도 E라서, 도구를 안 든 상태에서만 아이템이 발동한다
-            // (도구를 들었다 = 공정할 의도). 대포만 예외로 '꾹 눌렀다 떼면 발사'.
+            // [기획] 2vs2 아이템은 '든 채로 E'. 도구를 들고 있어도 아이템이 우선 발동한다
+            // (아이템은 소모품 — 쓰고 나면 E는 다시 공정으로 돌아감). 대포만 '꾹 눌렀다 떼면 발사'.
             var items = GridSystem.ItemNetwork.Instance;
-            if (!HasTool && items != null && items.LocalHasItem)
+            if (items != null && items.LocalHasItem)
             {
                 if (items.LocalHoldsCannon) { UpdateCannonCharge(kb, items); return; }
                 if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }
             }
             m_CannonCharge = 0f;
+            ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 궤적 제거
 
             if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
             {

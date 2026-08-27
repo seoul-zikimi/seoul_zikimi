@@ -405,6 +405,7 @@ namespace GridSystem
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);
             if (m_Net != null) m_Net.ServerResetGrid();   // 그리드 + 바닥/배송 재료 정리
+            if (m_Net != null) m_Net.ServerSpawnPresetBlocks();   // 기본 제공 블록 다시 깔기(경복궁 등)
             ResetTimerAndPhase();                          // 타이머·페이즈 리셋 + 동의 초기화
         }
 

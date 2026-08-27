@@ -40,7 +40,12 @@ namespace Player
         }
 
         /// <summary>즉시 스턴(초). 든 것을 떨어뜨리고 어질어질 연출.</summary>
-        public void Stun(float seconds)
+        public void Stun(float seconds) => StunWithToast(seconds, "어질어질…", new Color(1f, 0.9f, 0.3f));
+
+        /// <summary>날씨(비/눈) 미끄러짐 스턴 — 문구만 다름. NetworkWeatherCoordinator가 SendMessage로 호출.</summary>
+        public void StunSlip(float seconds) => StunWithToast(seconds, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+
+        private void StunWithToast(float seconds, string toast, Color toastColor)
         {
             if (seconds <= 0f) return;
             m_Timer = seconds;
@@ -48,7 +53,7 @@ namespace Player
             if (m_Carry == null) m_Carry = GetComponent<PlayerCarry>();
             if (m_Carry != null) m_Carry.ForceDrop();   // 들고 있던 재료 → 발밑 픽업(굴러감)
 
-            GridSystem.GridJuice.WorldToast(transform.position + Vector3.up * 2.2f, "어질어질…", new Color(1f, 0.9f, 0.3f));
+            GridSystem.GridJuice.WorldToast(transform.position + Vector3.up * 2.2f, toast, toastColor);
             GridSystem.GridJuice.FovPunch(Camera.main, -3f);
             var splat = GetComponent<PlayerSplat>();
             if (splat != null) splat.AddImpulse(2.2f);   // 철푸덕

@@ -133,10 +133,24 @@ namespace GridSystem
             if (s_Instance == this) s_Instance = null;
         }
 
+        // 2vs2 아이템 날씨는 '당한 팀 진영'에만 내려야 한다 — ItemNetwork가 내 존 영역을 넣어줌.
+        // null이면(협동/기본 날씨) 기존대로 맵 전체.
+        private Bounds? m_TemporaryArea;
+        public void SetTemporaryArea(Bounds? area) => m_TemporaryArea = area;
+
         private GridManager m_GridForArea;
         private void Update()
         {
+            // 아이템 날씨는 공중(리그)·바닥(웅덩이/눈) 모두 내 진영에만
+            Bounds? tempArea = m_TemporaryWeather != WeatherKind.Sunny ? m_TemporaryArea : null;
+            if (m_Ground != null) m_Ground.SetAreaOverride(tempArea);
+
             if (m_Rig == null) return;
+            if (tempArea.HasValue)
+            {
+                m_Rig.CoverArea(tempArea.Value);
+                return;
+            }
             // 그리드가 있으면 맵 전체(그리드+여백)에 내리게, 없으면(테스트 씬) 카메라 앞
             if (m_GridForArea == null) m_GridForArea = FindFirstObjectByType<GridManager>();
             if (m_GridForArea != null)

@@ -7,7 +7,8 @@
         "Unity.Collections",
         "Core",
         "SeoulZikimi.Gameplay",
-        "SeoulZikimi.Weather"
+        "SeoulZikimi.Weather",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

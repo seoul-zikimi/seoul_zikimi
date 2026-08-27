@@ -53,6 +53,24 @@ namespace GridSystem
             RefreshBlockCaps();
         }
 
+        // 2vs2 아이템 날씨: 당한 팀 진영에만 뿌리도록 범위 제한(null = 맵 전체). TeamWeatherFx가 넣어준다.
+        private Bounds? m_AreaOverride;
+        private static Bounds? s_CapArea;   // 블록 윗면 덮개(DecorateBlockTop)도 같은 범위를 본다
+        public void SetAreaOverride(Bounds? area)
+        {
+            if (m_AreaOverride == area) return;
+            m_AreaOverride = area;
+            s_CapArea = area;
+            if (m_Weather != WeatherKind.Sunny) { Rescatter(); RefreshBlockCaps(); }
+        }
+
+        private static bool CapInArea(Vector3 p)
+        {
+            if (!s_CapArea.HasValue) return true;
+            var b = s_CapArea.Value;
+            return p.x >= b.min.x && p.x <= b.max.x && p.z >= b.min.z && p.z <= b.max.z;
+        }
+
         // ───────────────────────── 건축물 윗면 덮개(눈/웅덩이) ─────────────────────────
         // 배치 블록(평평한 윗면 = Walkable)마다 눈 덮개 쿼드 + 웅덩이 디스크를 자식으로 미리 만들어 두고 날씨에 따라 켠다.
         // 블록과 함께 생기고 사라지니 공중에 뜨는 일 없음. 눈 오는 중에 지으면 지은 것부터 눈이 쌓인 건물이 된다.
@@ -75,7 +93,7 @@ namespace GridSystem
             {
                 var snow = MakeCap(block.transform, "~WeatherCap:Snow", kit.Quad, kit.SnowPatch,
                     topCenter + Vector3.up * 0.03f, new Vector3(sizeXZ.x * 0.94f, 1f, sizeXZ.y * 0.94f));
-                snow.SetActive(s_CapWeather == WeatherKind.Snow);
+                snow.SetActive(s_CapWeather == WeatherKind.Snow && CapInArea(topCenter));
                 s_Caps.Add(snow);
             }
             // 비/태풍: 윗면 가운데 웅덩이 하나(작은 면은 더 작게)
@@ -85,7 +103,7 @@ namespace GridSystem
                 var puddle = MakeCap(block.transform, "~WeatherCap:Puddle", kit.Disc, kit.Puddle,
                     topCenter + Vector3.up * 0.025f, new Vector3(d * 1.25f, 1f, d));
                 puddle.transform.Rotate(0f, (topCenter.x * 37f + topCenter.z * 53f) % 360f, 0f, Space.World);
-                puddle.SetActive(s_CapWeather == WeatherKind.Rain || s_CapWeather == WeatherKind.Typhoon);
+                puddle.SetActive((s_CapWeather == WeatherKind.Rain || s_CapWeather == WeatherKind.Typhoon) && CapInArea(topCenter));
                 s_Caps.Add(puddle);
             }
         }
@@ -114,7 +132,10 @@ namespace GridSystem
             bool snow = m_Weather == WeatherKind.Snow;
             bool wet = m_Weather == WeatherKind.Rain || m_Weather == WeatherKind.Typhoon;
             foreach (var g in s_Caps)
-                g.SetActive(g.name.EndsWith("Snow") ? snow : wet);
+            {
+                bool on = g.name.EndsWith("Snow") ? snow : wet;
+                g.SetActive(on && CapInArea(g.transform.position));
+            }
         }
 
         private void Awake()
@@ -331,6 +352,7 @@ namespace GridSystem
 
         private void SpawnTrail(Vector3 playerPos, Vector3 direction, float now)
         {
+            if (!CapInArea(playerPos)) return;   // 눈 자국도 제한 범위 안에서만
             if (!RaycastGround(playerPos + Vector3.up * 1.5f, 4f, out Vector3 point, out Vector3 normal))
                 return;
             if (m_Trails.Count >= Mathf.Max(1, m_Kit.TrailMax))
@@ -372,6 +394,14 @@ namespace GridSystem
 
         private bool TryGetArea(out Bounds area)
         {
+            if (m_AreaOverride.HasValue)
+            {
+                // y 규약을 그리드 경로와 맞춘다: 중심 y = 바닥(존 min), 높이 +10 (TryGroundPoint의 바닥 필터 기준)
+                var b = m_AreaOverride.Value;
+                area = new Bounds(new Vector3(b.center.x, b.min.y, b.center.z),
+                                  new Vector3(b.size.x, b.size.y + 10f, b.size.z));
+                return true;
+            }
             if (m_Grid == null) m_Grid = FindFirstObjectByType<GridManager>();
             if (m_Grid != null)
             {
