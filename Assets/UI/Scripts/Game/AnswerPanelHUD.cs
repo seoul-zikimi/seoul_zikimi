@@ -35,6 +35,9 @@ public class AnswerPanelHUD : UIHUD
     private const float kThumbX = 6f, kThumbY = 7f, kThumbW = 43f, kThumbH = 46f;
     private const float kNameX = 53f, kNameY = 8f, kNameW = 53f, kNameH = 34f;
     private const float kBadgeX = 60f, kBadgeY = 46f, kBadgeW = 50f, kBadgeH = 12f;
+    // 정답 뷰 우상단 확대 버튼(25x25) · '도움말 ?' 호버 영역(배경에 구워진 글자/아이콘 위)
+    private const float kExpandW = 25f, kExpandH = 25f;
+    private const float kHelpX = 214f, kHelpY = 69f, kHelpW = 50f, kHelpH = 24f;
 
     private static Font s_Font;
     private GameObject m_Phone;
@@ -54,7 +57,17 @@ public class AnswerPanelHUD : UIHUD
     private readonly Dictionary<int, Card> m_Cards = new();
     private int m_SelectedId = -1;
     private Action<int> m_OnOrder;
-    private bool m_MobileLayout;
+    private bool m_MobileLayout;        // 가로(랜드스케이프) 레이아웃 사용 중 — 모바일 기기 또는 확대 보기
+    private bool m_IsMobileDevice;      // 모바일 포팅 여부(항상 가로)
+    private bool m_ExpandedView;        // PC에서 확대 버튼으로 가로 전체화면 보기 중
+    private RenderTexture m_Texture;    // 재구성 때 되살릴 정답 뷰 RT
+    private int m_LastPct;
+    private IReadOnlyList<OrderEntry> m_CachedItems;
+    private readonly Dictionary<int, int> m_CachedRemaining = new();
+    private GameObject m_HelpTip;
+
+    /// <summary>커서가 폰 UI 부품(확대 버튼·도움말) 위 — AnswerHudDriver가 정답 뷰 클릭/호버를 양보한다.</summary>
+    public bool ChromeHovered { get; private set; }
 
     private static readonly Color kCardIdle   = Color.white;                         // 스프라이트 원색(#BEC3CD)
     private static readonly Color kCardPicked = new Color(1f, 0.86f, 0.74f, 1f);     // 살구빛 틴트
@@ -65,12 +78,13 @@ public class AnswerPanelHUD : UIHUD
     public event Action<int> SelectionChanged;
 
     public RectTransform SurfaceRect => m_Surface != null ? m_Surface.rectTransform : null;
-    public void SetTexture(RenderTexture rt) { if (m_Surface != null) m_Surface.texture = rt; }
+    public void SetTexture(RenderTexture rt) { m_Texture = rt; if (m_Surface != null) m_Surface.texture = rt; }
 
     /// <summary>'현재 완성도 : N%' 숫자 갱신(GameHudDriver가 매 프레임 호출).</summary>
     public void SetCompletion(int percent)
     {
         int clamped = Mathf.Clamp(percent, 0, 100);
+        m_LastPct = clamped;
         string s = clamped.ToString();
         if (m_PctText != null && m_PctText.text != s) m_PctText.text = s;
         if (m_CompletionText != null)
@@ -87,7 +101,8 @@ public class AnswerPanelHUD : UIHUD
         if (!InGameUiSkin.Available)
             Debug.LogWarning("[AnswerPanelHUD] 리마스터 스프라이트 없음 — Assets/Resources/UI_pngs/3.inGame/Remaster 확인");
 
-        m_MobileLayout = MobileControlsHUD.ShouldUseMobileUI;
+        m_IsMobileDevice = MobileControlsHUD.ShouldUseMobileUI;
+        m_MobileLayout = m_IsMobileDevice || m_ExpandedView;   // 확대 보기 = 모바일과 같은 가로 폰 화면
         if (m_MobileLayout)
         {
             InitMobileLayout();
@@ -117,7 +132,127 @@ public class AnswerPanelHUD : UIHUD
         JuicyButton.Attach(m_OrderBtn);
         UpdateOrderButton();
 
+        // 정답 뷰 우상단 확대 버튼 — 누르면 가로 폰 전체화면
+        var expand = InGameUiSkin.SpriteImage("ExpandBtn", m_Phone.transform, "AnswerExpandButton", raycast: true);
+        Local(expand.rectTransform, kViewX + kViewS - kExpandW, kViewY, kExpandW, kExpandH);
+        var expandBtn = expand.gameObject.AddComponent<Button>();
+        expandBtn.targetGraphic = expand;
+        expandBtn.transition = Selectable.Transition.None;
+        expandBtn.onClick.AddListener(ToggleExpanded);
+        JuicyButton.Attach(expandBtn);
+        HoverRelay.Attach(expand.gameObject, on => ChromeHovered = on);
+
+        // '도움말 ?'(배경에 구워짐) 위 투명 호버 영역 — 정답 뷰 조작법 말풍선
+        var help = NewRect("HelpHotspot", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        Local((RectTransform)help.transform, kHelpX, kHelpY, kHelpW, kHelpH);
+        var helpImg = help.AddComponent<Image>();
+        helpImg.color = new Color(1f, 1f, 1f, 0f);
+        helpImg.raycastTarget = true;
+        BuildHelpTip();
+        HoverRelay.Attach(help, on =>
+        {
+            ChromeHovered = on;
+            if (m_HelpTip != null) m_HelpTip.SetActive(on);
+        });
+
         BuildTip();   // 마지막에 만들어 항상 위에 그려진다
+    }
+
+    // 가로 화면용 도움말 말풍선(같은 내용, 큰 글씨 · 터치 기기는 손가락 문구)
+    private void BuildLandscapeHelpTip()
+    {
+        var tip = NewRect("HelpTip", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
+            new Vector2(306f, -104f), new Vector2(600f, 210f));
+        var bg = tip.AddComponent<Image>();
+        bg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        bg.type = Image.Type.Sliced;
+        bg.color = new Color(1f, 1f, 1f, 0.99f);
+        bg.raycastTarget = false;
+        var ol = tip.AddComponent<Outline>();
+        ol.effectColor = InGameUiSkin.CardGray;
+        ol.effectDistance = new Vector2(3f, 3f);
+
+        var title = MakeTextPx(tip.transform, "완공 계획도 보는 법", new Vector2(24f, -18f), new Vector2(552f, 34f), 26, TextAnchor.MiddleLeft);
+        title.color = InGameUiSkin.Orange;
+        title.fontStyle = FontStyle.Bold;
+
+        var body = MakeTextPx(tip.transform, m_IsMobileDevice
+                ? "· 한 손가락 드래그 : 빙글빙글 회전\n· 두 손가락 : 확대 / 축소\n· 블럭을 누르면 그 재료가 바로 선택돼요"
+                : "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 빙글빙글 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭을 클릭하면 그 재료가 바로 선택돼요",
+            new Vector2(24f, -58f), new Vector2(552f, 140f), 21, TextAnchor.UpperLeft);
+        body.color = InGameUiSkin.TextGray;
+        body.horizontalOverflow = HorizontalWrapMode.Wrap;
+        body.verticalOverflow = VerticalWrapMode.Overflow;
+
+        m_HelpTip = tip;
+        tip.SetActive(false);
+    }
+
+    // ── 도움말 말풍선(정답 뷰 조작법) — '?' 아이콘 호버 시 표시 ─────────
+    private void BuildHelpTip()
+    {
+        var tip = NewRect("HelpTip", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        Local((RectTransform)tip.transform, 22f, 116f, 244f, 104f);   // 완성도 배지 아래, 정답 뷰 위에 덮어서
+        var bg = tip.AddComponent<Image>();
+        bg.color = new Color(1f, 1f, 1f, 0.98f);
+        bg.raycastTarget = false;
+        var ol = tip.AddComponent<Outline>();
+        ol.effectColor = InGameUiSkin.CardGray;
+        ol.effectDistance = new Vector2(2f, 2f);
+
+        var title = MakeText(tip.transform, "완공 계획도 보는 법", new Vector2(8f, 6f), new Vector2(228f, 16f), Px(10), TextAnchor.MiddleLeft);
+        title.color = InGameUiSkin.Orange;
+        title.fontStyle = FontStyle.Bold;
+
+        var body = MakeText(tip.transform,
+            "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 빙글빙글 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭에 커서를 올리면 이름이 뜨고,\n  클릭하면 그 재료가 바로 선택돼요",
+            new Vector2(8f, 24f), new Vector2(228f, 74f), Px(8), TextAnchor.UpperLeft);
+        body.color = InGameUiSkin.TextGray;
+        body.horizontalOverflow = HorizontalWrapMode.Wrap;
+        body.verticalOverflow = VerticalWrapMode.Overflow;
+
+        m_HelpTip = tip;
+        tip.SetActive(false);
+    }
+
+    /// <summary>확대 버튼 / 가로 화면의 닫기 — 세로 폰 ↔ 가로 전체화면 전환(내용은 그대로 복원).</summary>
+    public void ToggleExpanded()
+    {
+        m_ExpandedView = !m_ExpandedView;
+        Rebuild();
+    }
+
+    // 레이아웃 전환: 자식 전부 버리고 다시 만든 뒤 정답 RT·주문 목록·선택·잔량·완성도를 복원.
+    private void Rebuild()
+    {
+        int selected = m_SelectedId;
+        var items = m_CachedItems;
+        var onOrder = m_OnOrder;
+
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i).gameObject;
+            child.transform.SetParent(null, false);
+            Destroy(child);
+        }
+        m_Phone = null; m_Surface = null; m_PctText = null; m_CompletionText = null;
+        m_SelName = null; m_SelSub = null; m_OrderBtn = null; m_OrderBtnImg = null;
+        m_GridRoot = null; m_Tip = null; m_HelpTip = null;
+        m_Cards.Clear();
+        m_SelectedId = -1;
+        m_LastFitSize = Vector2.zero;
+        ChromeHovered = false;
+
+        Init();
+        if (m_Texture != null) SetTexture(m_Texture);
+        if (items != null) BuildOrders(items, onOrder);
+        if (m_CachedRemaining.Count > 0)
+        {
+            var snapshot = new List<KeyValuePair<int, int>>(m_CachedRemaining);   // SetRemaining이 캐시를 다시 쓰므로 사본으로 순회
+            foreach (var kv in snapshot) SetRemaining(kv.Key, kv.Value);
+        }
+        if (selected >= 0) Select(selected);
+        SetCompletion(m_LastPct);
     }
 
     /// <summary>
@@ -153,10 +288,25 @@ public class AnswerPanelHUD : UIHUD
 
         var ink = new Color(0.16f, 0.16f, 0.15f, 1f);
 
-        var planTitle = MakeText(m_Phone.transform, "완공 계획도",
+        var planTitle = MakeTextPx(m_Phone.transform, "완공 계획도",
             new Vector2(64f, -48f), new Vector2(360f, 56f), 34, TextAnchor.MiddleLeft);
         planTitle.fontStyle = FontStyle.Bold;
         planTitle.color = ink;
+
+        // 도움말 아이콘(가로 화면엔 배경 그림이 없으니 아이콘 에셋으로 직접) — 호버/터치하면 조작법 말풍선
+        var helpGo = NewRect("HelpIcon", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
+            new Vector2(306f, -52f), new Vector2(44f, 44f));
+        var helpIcon = helpGo.AddComponent<Image>();
+        helpIcon.sprite = InGameUiSkin.Load("HelpIcon");
+        helpIcon.preserveAspect = true;
+        helpIcon.raycastTarget = true;
+        helpGo.AddComponent<NoJuicyButtonMotion>();
+        BuildLandscapeHelpTip();
+        HoverRelay.Attach(helpGo, on => { if (m_HelpTip != null) m_HelpTip.SetActive(on); });
+        var helpBtn = helpGo.AddComponent<Button>();   // 터치 기기: 탭으로도 열고 닫기
+        helpBtn.targetGraphic = helpIcon;
+        helpBtn.transition = Selectable.Transition.None;
+        helpBtn.onClick.AddListener(() => { if (m_HelpTip != null) m_HelpTip.SetActive(!m_HelpTip.activeSelf); });
 
         var badge = NewRect("CompletionBadge", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
             new Vector2(560f, -54f), new Vector2(296f, 48f));
@@ -165,22 +315,22 @@ public class AnswerPanelHUD : UIHUD
         badgeImg.type = Image.Type.Sliced;
         badgeImg.color = new Color(1f, 0.44f, 0.08f, 1f);
         badgeImg.raycastTarget = false;
-        m_CompletionText = MakeText(badge.transform, "현재 완성도 :  - %",
+        m_CompletionText = MakeTextPx(badge.transform, "현재 완성도 :  - %",
             Vector2.zero, new Vector2(296f, 48f), 23, TextAnchor.MiddleCenter);
         m_CompletionText.fontStyle = FontStyle.Bold;
 
         m_Surface = MakeRawImage(m_Phone.transform, new Vector2(64f, -120f), new Vector2(792f, 650f));
         m_Surface.color = Color.white;
 
-        m_SelName = MakeText(m_Phone.transform, kIdleName,
+        m_SelName = MakeTextPx(m_Phone.transform, kIdleName,
             new Vector2(64f, -786f), new Vector2(620f, 36f), 24, TextAnchor.MiddleLeft);
         m_SelName.fontStyle = FontStyle.Bold;
         m_SelName.color = ink;
-        m_SelSub = MakeText(m_Phone.transform, "오른쪽 재료를 골라 주문하세요",
+        m_SelSub = MakeTextPx(m_Phone.transform, "오른쪽 재료를 골라 주문하세요",
             new Vector2(64f, -824f), new Vector2(720f, 30f), 19, TextAnchor.MiddleLeft);
         m_SelSub.color = new Color(0.45f, 0.45f, 0.44f, 1f);
 
-        var catalogTitle = MakeText(m_Phone.transform, "재료 카탈로그",
+        var catalogTitle = MakeTextPx(m_Phone.transform, "재료 카탈로그",
             new Vector2(920f, -48f), new Vector2(420f, 56f), 34, TextAnchor.MiddleLeft);
         catalogTitle.fontStyle = FontStyle.Bold;
         catalogTitle.color = ink;
@@ -193,7 +343,7 @@ public class AnswerPanelHUD : UIHUD
         m_OrderBtn = btnGo.AddComponent<Button>();
         m_OrderBtn.targetGraphic = m_OrderBtnImg;
         m_OrderBtn.onClick.AddListener(() => { if (m_SelectedId >= 0) m_OnOrder?.Invoke(m_SelectedId); });
-        var orderLabel = MakeText(btnGo.transform, "주문!", Vector2.zero, new Vector2(836f, 76f), 30, TextAnchor.MiddleCenter);
+        var orderLabel = MakeTextPx(btnGo.transform, "주문!", Vector2.zero, new Vector2(836f, 76f), 30, TextAnchor.MiddleCenter);
         orderLabel.fontStyle = FontStyle.Bold;
         UpdateOrderButton();
 
@@ -207,8 +357,9 @@ public class AnswerPanelHUD : UIHUD
         closeImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
         var close = closeGo.AddComponent<Button>();
         close.targetGraphic = closeImg;
-        close.onClick.AddListener(Player.MobileGameplayInput.ToggleOrder);
-        var closeLabel = MakeText(closeGo.transform, "폰 내리기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
+        if (m_ExpandedView) close.onClick.AddListener(ToggleExpanded);              // PC 확대 보기 → 작은 폰으로
+        else                close.onClick.AddListener(Player.MobileGameplayInput.ToggleOrder);
+        var closeLabel = MakeTextPx(closeGo.transform, m_ExpandedView ? "작게 보기 ▾" : "폰 내리기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
         closeLabel.color = ink;
         closeLabel.fontStyle = FontStyle.Bold;
     }
@@ -231,6 +382,7 @@ public class AnswerPanelHUD : UIHUD
     {
         if (m_Phone == null) return;
         m_OnOrder = onOrder;
+        m_CachedItems = items;
         if (m_GridRoot != null) Destroy(m_GridRoot);
         m_Cards.Clear();
         m_SelectedId = -1;
@@ -341,7 +493,7 @@ public class AnswerPanelHUD : UIHUD
         else ri.color = new Color(0f, 0f, 0f, 0.06f);
         ri.raycastTarget = false;
 
-        var nm = MakeText(card.transform, e.Name, new Vector2(150f, -30f), new Vector2(w - 164f, 70f), 22, TextAnchor.MiddleLeft);
+        var nm = MakeTextPx(card.transform, e.Name, new Vector2(150f, -30f), new Vector2(w - 164f, 70f), 22, TextAnchor.MiddleLeft);
         nm.fontStyle = FontStyle.Bold;
         nm.color = new Color(0.16f, 0.16f, 0.15f, 1f);
         nm.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -357,7 +509,7 @@ public class AnswerPanelHUD : UIHUD
             bimg.type = Image.Type.Sliced;
             bimg.color = new Color(0.30f, 0.30f, 0.29f, 0.95f);
             bimg.raycastTarget = false;
-            badge = MakeText(bg.transform, $"재고: {e.Limit}개", Vector2.zero, new Vector2(152f, 38f), 19, TextAnchor.MiddleCenter);
+            badge = MakeTextPx(bg.transform, $"재고: {e.Limit}개", Vector2.zero, new Vector2(152f, 38f), 19, TextAnchor.MiddleCenter);
             badge.fontStyle = FontStyle.Bold;
         }
 
@@ -441,7 +593,9 @@ public class AnswerPanelHUD : UIHUD
     /// <summary>수량 제한 재료의 잔량 반영. 품절이어도 선택은 되게 두고 [주문!] 버튼만 잠근다.</summary>
     public void SetRemaining(int id, int remaining)
     {
-        if (remaining < 0 || !m_Cards.TryGetValue(id, out var c)) return;
+        if (remaining < 0) return;
+        m_CachedRemaining[id] = remaining;
+        if (!m_Cards.TryGetValue(id, out var c)) return;
         c.Remaining = remaining;
         m_Cards[id] = c;
         bool sold = remaining == 0;
@@ -585,5 +739,22 @@ public class AnswerPanelHUD : UIHUD
         t.font = s_Font; t.fontSize = fontSize; t.color = Color.white; t.text = s;
         t.alignment = anchor; t.horizontalOverflow = HorizontalWrapMode.Overflow; t.raycastTarget = false;
         return t;
+    }
+
+    /// <summary>포인터 진입/이탈을 콜백으로 넘기는 초소형 릴레이(EventTrigger 대체).</summary>
+    private sealed class HoverRelay : MonoBehaviour,
+        UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+    {
+        private Action<bool> m_OnHover;
+
+        public static void Attach(GameObject go, Action<bool> onHover)
+        {
+            var relay = go.GetComponent<HoverRelay>() ?? go.AddComponent<HoverRelay>();
+            relay.m_OnHover = onHover;
+        }
+
+        public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData _) => m_OnHover?.Invoke(true);
+        public void OnPointerExit(UnityEngine.EventSystems.PointerEventData _) => m_OnHover?.Invoke(false);
+        private void OnDisable() => m_OnHover?.Invoke(false);
     }
 }
