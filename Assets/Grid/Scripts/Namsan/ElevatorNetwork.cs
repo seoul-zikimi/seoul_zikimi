@@ -137,7 +137,7 @@ namespace GridSystem
             if (from == null) return;
 
             var kb = Keyboard.current;
-            if (kb == null || !kb.eKey.wasPressedThisFrame) return;
+            if (GameplayInputBlocker.Blocked || kb == null || !kb.eKey.wasPressedThisFrame) return;
 
             // 순간이동(오너 권위 — ClientNetworkTransform이 알아서 복제). PlaceScaffold와 같은 방식.
             var dest = to.position + Vector3.up * 0.1f;

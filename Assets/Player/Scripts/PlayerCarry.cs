@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using GridSystem;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.Serialization;
 
@@ -360,6 +359,7 @@ namespace Player
         private GameLoopManager m_Loop;
         private MaterialDropField m_Drop;
         private PlayerMovement m_Movement;
+        private PlayerInputHandler m_Input;
         private Vector3Int m_Target;
         private bool m_HasTarget;
         private CarryHudUI m_Hud;   // 프리팹 HUD(UIManager 관리) — 구 OnGUI 대체
@@ -395,6 +395,8 @@ namespace Player
         // 애니메이터/외부용 상태 노출
         public bool IsHolding     => HasMaterial || HasTool;
         public bool IsHoldingTool => HasTool;
+        public bool CanProcessTarget => IsOwner && HasTool && ToolReadyOnTarget();
+        public bool CanRevertTarget => IsOwner && RevertReadyOnTarget();
         public bool IsProcessing  => m_ProcessHold > 0f;   // E 꾹 도구 작업 중
         public event System.Action OnPlace;   // 배치/버리기(내려놓기 모션)
         public event System.Action OnThrow;   // 던지기
@@ -404,7 +406,11 @@ namespace Player
             m_NetMaterialId.OnValueChanged += OnHeldChanged;
             m_NetTool.OnValueChanged += OnHeldChanged;
             RebuildHeldVisual();                 // 초기/늦참
-            if (IsOwner) m_Cam = Camera.main;
+            if (IsOwner)
+            {
+                m_Cam = Camera.main;
+                m_Input = GetComponent<PlayerInputHandler>();
+            }
         }
 
         public override void OnNetworkDespawn()
@@ -485,24 +491,22 @@ namespace Player
             if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
             if (m_Drop == null) m_Drop = FindFirstObjectByType<MaterialDropField>();
             if (m_Movement == null) m_Movement = GetComponent<PlayerMovement>();
-
-            var kb = Keyboard.current;
-            var mouse = Mouse.current;
-            if (kb == null || mouse == null) return;
+            if (m_Input == null) m_Input = GetComponent<PlayerInputHandler>();
+            if (m_Input == null) return;
 
             if (IsHelping)   // 같이 드는 중: 클릭 = 손 떼기. 그 외 조작은 전부 잠금(운반자가 놓으면 자동 해제)
             {
                 if (ResolveHelpTarget() == null || !m_HelpTarget.HasMaterialHeld) ReleaseHelp();
-                else if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame) ReleaseHelp();
+                else if (!AnswerPanelFocus.Active && m_Input.InteractPressedThisFrame) ReleaseHelp();
                 SetGrabHighlight(null);
                 DestroyPreview();
                 return;
             }
 
-            if (kb.rKey.wasPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
+            if (m_Input.RotateHeldPressedThisFrame) m_Rotation = (m_Rotation + 1) & 3;
             if (m_NetRotation.Value != m_Rotation) m_NetRotation.Value = m_Rotation;
             UpdateSharedSide();
-            UpdateThrowCharge(kb);   // G 탭=짧게 던지기 / 꾹=차징(화살표 미리보기) 후 떼면 멀리
+            UpdateThrowCharge(m_Input);   // G/패드/모바일 꾹=차징 후 떼면 던지기
             // Q(버리기)·C(철거)는 좌클릭에 통합(07/26 기획): 그리드 밖 배치=발밑 버리기, 미고정 블록 좌클릭=회수.
             // Space는 점프(PlayerInputHandler). 집기·배치는 좌클릭. 우클릭은 카메라 회전 전용.
 
@@ -517,7 +521,7 @@ namespace Player
             }
 
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
-            if (!AnswerPanelFocus.Active && mouse.leftButton.wasPressedThisFrame)
+            if (!AnswerPanelFocus.Active && m_Input.InteractPressedThisFrame)
             {
                 if (HasMaterial)
                 {
@@ -532,8 +536,8 @@ namespace Player
                 }
             }
 
-            UpdateEKey(kb);          // E 꾹=공정(로딩바)
-            UpdateZKey(kb);          // Z 꾹=마지막 공정 되돌리기(로딩바)
+            UpdateProcessInput(m_Input); // E/패드/모바일 꾹=공정(로딩바)
+            UpdateRevertInput(m_Input);  // Z/패드/모바일 꾹=마지막 공정 되돌리기
             UpdateProcessHint();     // 도구 들었을 때 "지금 무슨 공정 차례인지" 안내 갱신
 
             TryBumpCollapse();   // C3: 미고정 기둥/벽에 몸으로 부딪히면 무너뜨림
@@ -591,15 +595,15 @@ namespace Player
         private const float kCannonChargeSeconds = 0.8f;
         private float m_CannonCharge;
 
-        private void UpdateCannonCharge(Keyboard kb, GridSystem.ItemNetwork items)
+        private void UpdateCannonCharge(PlayerInputHandler input, GridSystem.ItemNetwork items)
         {
-            if (kb.eKey.isPressed)
+            if (input.ProcessIsPressed)
             {
                 m_CannonCharge += Time.deltaTime;
                 DrawCannonArc(Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds));   // 게이지 = 궤적이 뻗어나감(기획서)
                 return;
             }
-            if (kb.eKey.wasReleasedThisFrame && m_CannonCharge > 0f)
+            if (input.ProcessReleasedThisFrame && m_CannonCharge > 0f)
             {
                 bool charged = m_CannonCharge >= kCannonChargeSeconds;
                 m_CannonCharge = 0f;
@@ -646,20 +650,20 @@ namespace Player
             m_CannonArc = null;
         }
 
-        private void UpdateEKey(Keyboard kb)
+        private void UpdateProcessInput(PlayerInputHandler input)
         {
             // [기획] 2vs2 아이템은 '든 채로 E'. 도구를 들고 있어도 아이템이 우선 발동한다
             // (아이템은 소모품 — 쓰고 나면 E는 다시 공정으로 돌아감). 대포만 '꾹 눌렀다 떼면 발사'.
             var items = GridSystem.ItemNetwork.Instance;
             if (items != null && items.LocalHasItem)
             {
-                if (items.LocalHoldsCannon) { UpdateCannonCharge(kb, items); return; }
-                if (kb.eKey.wasPressedThisFrame) { items.RequestUseHeld(); return; }
+                if (items.LocalHoldsCannon) { UpdateCannonCharge(input, items); return; }
+                if (input.ProcessPressedThisFrame) { items.RequestUseHeld(); return; }
             }
             m_CannonCharge = 0f;
             ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 궤적 제거
 
-            if (kb.eKey.wasReleasedThisFrame || !kb.eKey.isPressed)
+            if (input.ProcessReleasedThisFrame || !input.ProcessIsPressed)
             {
                 CancelPaintStroke();
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
@@ -729,9 +733,9 @@ namespace Player
         }
 
         // Z 꾹: 완료된 공정이 있으면 바가 차고, 다 차면 마지막 공정 되돌림(서버 검증). 한 번 누름에 1회.
-        private void UpdateZKey(Keyboard kb)
+        private void UpdateRevertInput(PlayerInputHandler input)
         {
-            if (!kb.zKey.isPressed)
+            if (!input.RevertIsPressed)
             {
                 m_RevertHold = 0f; m_RevertCell = s_NoCell; m_RevertDone = false;
                 return;
@@ -939,7 +943,7 @@ namespace Player
 
             float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
             var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
-            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+            var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
             if (plane.Raycast(ray, out float d))
             {
                 // 커서 = 블록 '중앙'이 되도록 앵커(min-corner)를 반칸씩 당긴다 — 좌하단 기준이던 어색함 제거.
@@ -1014,9 +1018,9 @@ namespace Player
             m_GrabCargoOf = null;
             GameObject hitGo = null;
 
-            if (!HasMaterial && !HasTool && m_Cam != null && Mouse.current != null)
+            if (!HasMaterial && !HasTool && m_Cam != null && m_Input != null)
             {
-                var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
                 float reach2 = m_GrabRange * m_GrabRange;
                 float best = float.MaxValue;
                 foreach (var h in Physics.RaycastAll(ray, 100f, ~0, QueryTriggerInteraction.Collide))
@@ -1055,8 +1059,7 @@ namespace Player
             // 초록 테두리 — "지금 이 블록이 대상"을 노란 큐브 대신 실루엣으로 보여준다.
             if (hitGo == null && m_Net != null)
             {
-                var kb = Keyboard.current;
-                if (kb != null && kb.zKey.isPressed && RevertReadyOnTarget())
+                if (m_Input != null && m_Input.RevertIsPressed && RevertReadyOnTarget())
                     hitGo = m_Net.VisualAt(m_AimedRevertCell);          // Z 되돌리기 대상
                 else if (HasTool && TryAimProcessCell(out var pc))
                     hitGo = m_Net.VisualAt(pc);                          // 공정 대상
@@ -1088,9 +1091,9 @@ namespace Player
         // 마우스가 가리키는 바닥 지점(픽업 높이 평면). 못 구하면 플레이어 위치.
         private Vector3 AimWorldPoint()
         {
-            if (m_Cam == null || Mouse.current == null) return transform.position;
+            if (m_Cam == null || m_Input == null) return transform.position;
             var plane = new Plane(Vector3.up, new Vector3(0f, 0.5f, 0f));
-            var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+            var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
             return plane.Raycast(ray, out float d) ? ray.GetPoint(d) : transform.position;
         }
 
@@ -1141,10 +1144,10 @@ namespace Player
         private const float kThrowMin = 3f;          // 탭 = 기존 최소 로브
         private const float kThrowChargeTime = 0.9f; // 이 시간 꾹 = 최대 사거리
 
-        private void UpdateThrowCharge(Keyboard kb)
+        private void UpdateThrowCharge(PlayerInputHandler input)
         {
             bool holding = HasMaterial || HasTool;
-            if (kb.gKey.wasPressedThisFrame && holding && m_Drop != null) m_ThrowHold = 0f;
+            if (input.ThrowPressedThisFrame && holding && m_Drop != null) m_ThrowHold = 0f;
             if (m_ThrowHold < 0f) return;
 
             if (!holding) { CancelThrowAim(); return; }   // 충전 중 손이 비면 취소
@@ -1155,7 +1158,7 @@ namespace Player
             Vector3 dir = AimDir();
             ShowThrowAim(dir, dist, charge);
 
-            if (kb.gKey.wasReleasedThisFrame)
+            if (input.ThrowReleasedThisFrame)
             {
                 Throw(dir, dist);
                 CancelThrowAim();

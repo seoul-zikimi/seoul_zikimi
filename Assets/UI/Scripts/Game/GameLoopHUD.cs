@@ -20,7 +20,7 @@ public sealed class GameLoopHUD : UIHUD
     private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast, CoinReward, ReceiptNo, IssueDate }
     private enum Imgs { P0, P1, P2, P3, GradeStar0, GradeStar1, GradeStar2, GradeStamp }
     private enum Raws { ResultImage }
-    private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
+    private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, KeySettingsButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
     private enum Slds { BGMSlider, SFXSlider, SensSlider }
 
     private GameLoopManager m_Loop;
@@ -120,6 +120,7 @@ public sealed class GameLoopHUD : UIHUD
         Wire(Btns.EndRequestButton, OnEndRequest);
         Wire(Btns.SettingsIconButton, ToggleSettingsPopup);
         Wire(Btns.SettingsCloseButton, ToggleSettingsPopup);
+        Wire(Btns.KeySettingsButton, () => KeyBindingPopup.Open());
         Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
         Wire(Btns.RoomButton, () => { if (m_Loop != null) m_Loop.RequestReturnToRoom(); });
         Wire(Btns.LeaveButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());

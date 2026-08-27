@@ -1,6 +1,5 @@
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Player
 {
@@ -12,6 +11,7 @@ namespace Player
     /// </summary>
     public class PlayerEmote : NetworkBehaviour
     {
+        public static PlayerEmote Local { get; private set; }
         [Tooltip("대사별 추가 파티클(선택) — 인덱스 = EmoteDefs.All 순서. 비워도 됨(말풍선+아이콘+보이스만).\n"
                + "대사와 상관없는 이펙트를 물리면 오해를 부른다(예: 망치 대사에 Broken Heart) — 확실할 때만 채울 것.")]
         [SerializeField] private GameObject[] m_EmoteFx = new GameObject[11];
@@ -21,39 +21,33 @@ namespace Player
         private void Update()
         {
             if (!IsOwner) return;
-            var kb = Keyboard.current;
-            if (kb == null) return;
-
-            // F1~F10 = 앞 10개 대사 바로 발동(휠 없이)
-            for (int i = 0; i < 10 && i < EmoteDefs.Count; i++)
-            {
-                var key = kb[(Key)((int)Key.F1 + i)];   // Key.F1~F12는 연속 enum
-                if (key != null && key.wasPressedThisFrame) { Emote(i); break; }
-            }
-
-            UpdateWheel(kb);
+            var input = PlayerInputHandler.Local;
+            if (input == null) return;
+            int emote = input.ConsumeEmoteIndex();
+            if (emote >= 0) TriggerEmote(emote);
+            UpdateWheel(input);
         }
 
-        // [07/26 기획] T 꾹 = 감정표현 선택 UI 표시(누른 동안), 버튼 클릭 = 발동, 떼면 닫힘.
-        private void UpdateWheel(Keyboard kb)
+        // [07/26 기획] T 꾹 = 이모티콘 선택 UI 표시(누른 동안), 버튼 클릭 = 발동, 떼면 닫힘.
+        private void UpdateWheel(PlayerInputHandler input)
         {
-            if (kb.tKey.wasPressedThisFrame)
+            if (input.EmoteWheelPressedThisFrame)
             {
                 if (UIManager.Instance != null)
                 {
                     m_Wheel = UIManager.Instance.ShowHUDUI<EmoteWheelUI>();
                     if (m_Wheel != null)
                     {
-                        m_Wheel.OnPick = i => { Emote(i); HideWheel(); };
+                        m_Wheel.OnPick = i => { TriggerEmote(i); HideWheel(); };
                         m_Wheel.gameObject.SetActive(true);
                     }
                 }
             }
-            else if (kb.tKey.wasReleasedThisFrame)
+            else if (input.EmoteWheelReleasedThisFrame)
             {
                 // 오버워치식: 마우스가 가리키던 섹터를 T 떼는 순간 발동(클릭 불필요)
                 if (m_Wheel != null && m_Wheel.gameObject.activeSelf && m_Wheel.HoverIndex >= 0)
-                    Emote(m_Wheel.HoverIndex);
+                    TriggerEmote(m_Wheel.HoverIndex);
                 HideWheel();
             }
         }
@@ -63,12 +57,21 @@ namespace Player
             if (m_Wheel != null) m_Wheel.gameObject.SetActive(false);
         }
 
-        public override void OnNetworkDespawn() => HideWheel();
-
-        // owner 로컬 즉시 재생 + 서버 경유로 다른 클라에도(내 감정표현이 남들한테 보이게).
-        private void Emote(int index)
+        public override void OnNetworkSpawn()
         {
-            if (index < 0 || index >= EmoteDefs.Count) return;
+            if (IsOwner) Local = this;
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            if (Local == this) Local = null;
+            HideWheel();
+        }
+
+        // owner 로컬 즉시 재생 + 서버 경유로 다른 클라에도(내 이모트가 남들한테 보이게).
+        public void TriggerEmote(int index)
+        {
+            if (!IsOwner || index < 0 || index >= EmoteDefs.Count) return;
             Vector3 pos = transform.position + Vector3.up * 2.2f;   // 머리 위 말풍선 높이
             Play(index, pos);
             if (IsSpawned) RequestFxRpc(index, pos);
