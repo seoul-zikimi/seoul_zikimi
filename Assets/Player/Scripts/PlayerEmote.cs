@@ -88,9 +88,12 @@ namespace Player
 
         public override void OnNetworkDespawn()
         {
-            if (Local == this) Local = null;
-            HideWheel();
+            var es = EventSystem.current;
+            var selected = es != null ? es.currentSelectedGameObject : null;
+            return selected != null && selected.GetComponent<InputField>() != null;
         }
+
+        public override void OnNetworkDespawn() => HideWheel();
 
         // owner 로컬 즉시 재생 + 서버 경유로 다른 클라에도(내 이모트가 남들한테 보이게).
         public void TriggerEmote(int index)
