@@ -38,7 +38,10 @@ namespace GridSystem
         private MaterialDef m_SelectedDef;
         private readonly List<GameObject> m_SelOutlines = new();
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
-        private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
+        private readonly List<(GameObject go, int baseY, List<Vector3Int> cells, int materialId, int reqMask)> m_GhostFloors = new();   // 인월드 고스트 + 기준층 + 정답 셀(완료 판정용)
+        private readonly List<bool> m_GhostDone = new();   // 블록별 '알맞게 완료' 캐시(스로틀 갱신)
+        private float m_NextDoneCheck;
+        private GridNetwork m_Net;
         private bool m_Visible = true;
         private bool m_Built;
 
@@ -69,6 +72,7 @@ namespace GridSystem
             m_HoverGo = null; m_HoverOutlines.Clear();   // m_Root 자식이라 같이 파괴됨
             m_SelectedDef = null; m_SelOutlines.Clear();
             m_GhostFloors.Clear();
+            m_GhostDone.Clear();
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
             if (m_RT != null) { m_RT.Release(); m_RT = null; }
@@ -93,11 +97,13 @@ namespace GridSystem
             if (m_GhostRoot != null) m_GhostRoot.SetActive(ghost);
             if (ghost)
             {
+                RefreshGhostDone();   // 이미 알맞게 지은 블록은 고스트 숨김(시선 정리) — 0.25s 스로틀
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
                 for (int i = 0; i < m_GhostFloors.Count; i++)
-                    if (m_GhostFloors[i].go != null) m_GhostFloors[i].go.SetActive(m_GhostFloors[i].baseY == f);
+                    if (m_GhostFloors[i].go != null)
+                        m_GhostFloors[i].go.SetActive(m_GhostFloors[i].baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i]));
 
-                float ga = 0.34f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 살아있는 청사진 숨쉬기
+                float ga = 0.16f + 0.05f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 더 은은하게(커서 프리뷰가 주인공) + 숨쉬기
                 for (int i = 0; i < m_GhostMats.Count; i++)
                     if (m_GhostMats[i] != null)
                     {
@@ -117,6 +123,34 @@ namespace GridSystem
 
         private bool Building() => m_Loop == null || m_Loop.IsBuilding;
         private bool Show() => m_Visible && m_Built && Building();
+
+        // 블록별 '배치+요구 공정까지 알맞게 완료' 여부 캐시. 채점(ScoreAgainst)과 동일 기준(재료 일치 + RequiredMask 충족).
+        private void RefreshGhostDone()
+        {
+            if (Time.time < m_NextDoneCheck) return;
+            m_NextDoneCheck = Time.time + 0.25f;
+            if (m_Net == null) m_Net = GetComponent<GridNetwork>();   // 복제 상태(클라 포함)에서 읽는다 — m_Manager.Grid는 서버 전용
+            var answer = m_Manager != null ? m_Manager.Answer : null;
+            while (m_GhostDone.Count < m_GhostFloors.Count) m_GhostDone.Add(false);
+            if (m_Net == null || answer == null) return;
+            // 2vs2 팀B: 고스트 루트와 같은 오프셋으로 실제 칸을 조회(채점 오프셋과 동일 기준)
+            var offset = (m_Loop != null && m_Loop.IsVersus && m_Loop.LocalTeam == 1)
+                ? new Vector3Int(m_Manager.ZoneSize.x, 0, 0) : Vector3Int.zero;
+            for (int i = 0; i < m_GhostFloors.Count; i++)
+            {
+                var it = m_GhostFloors[i];
+                bool done = it.cells != null && it.cells.Count > 0;
+                if (done)
+                    foreach (var c in it.cells)
+                    {
+                        if (answer.IsPreset(c)) continue;   // 기본 제공 블럭 칸은 지을 필요 없음
+                        if (!m_Net.TryGetCell(c + offset, out int matId, out int completedMask)
+                            || matId != it.materialId
+                            || (completedMask & it.reqMask) != it.reqMask) { done = false; break; }
+                    }
+                m_GhostDone[i] = done;
+            }
+        }
 
         /// <summary>키보드·패드·모바일 주문 버튼이 공통으로 호출하는 UI 비의존 토글.</summary>
         public void ToggleVisibility() => m_Visible = !m_Visible;
@@ -140,7 +174,9 @@ namespace GridSystem
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
                 var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
                 if (useWhole) HideRenderers(go);        // 통짜 고스트를 대신 세운다(아래) — 층 필터 파편화 방지
-                m_GhostFloors.Add((go, o.minCell.y));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
+                var fcells = GridFootprint.EnumerateFootprintCells(o.minCell, o.def != null ? o.def.Footprint : Vector3Int.one, o.rot);
+                m_GhostFloors.Add((go, o.minCell.y, fcells, o.def != null ? o.def.Id : -1,
+                                   o.def != null ? o.def.RequiredMask : 0));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
             }
             // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
             ShowCompletedModelInstead(m_GhostRoot.transform, ghost: true);

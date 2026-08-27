@@ -1728,6 +1728,8 @@ namespace Player
         private static readonly int s_PvCol  = Shader.PropertyToID("_Color");
         private static readonly int s_PvBaseMap = Shader.PropertyToID("_BaseMap");
         private static readonly int s_PvMainTex = Shader.PropertyToID("_MainTex");
+        private static readonly int s_PvGltfMap = Shader.PropertyToID("baseColorTexture");   // glTFast(.glb) 임포트 셰이더
+        private static readonly int s_PvGltfCol = Shader.PropertyToID("baseColorFactor");
 
         // 든 재료를 놓을 자리의 월드 박스 — GridNetwork.SpawnPrefabVisual과 동일 산출(프리뷰=실제 배치 정합).
         private void HeldPlacementBox(out Vector3 center, out Vector3 size)
@@ -1767,7 +1769,7 @@ namespace Player
                 m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
 
-                float pa = 0.40f + 0.10f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 살아있는 청사진 숨쉬기
+                float pa = 0.82f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 원색이 살아있는 수준(정답 고스트와 대비), 숨쉬기는 유지
                 for (int i = 0; i < m_PreviewGhostMats.Count; i++)
                     if (m_PreviewGhostMats[i] != null)
                     {
@@ -1805,7 +1807,7 @@ namespace Player
             m_Preview = Instantiate(m_HeldMaterial.Prefab);
             m_Preview.name = "~PlacePreview";
             foreach (var c in m_Preview.GetComponentsInChildren<Collider>()) Destroy(c);
-            MakePreviewTransparent(m_Preview, 0.45f);
+            MakePreviewTransparent(m_Preview, 0.85f);   // 커서 프리뷰는 거의 원색 — 흐린 흰색 고스트로 보이던 문제
             // cellWorldMin=0으로 배치 → 결과 position = 순수 피벗 오프셋(이후 CellToWorld(minCell)에 더함). 회전은 여기서 확정.
             GridFootprint.PlaceRotatedPrefab(m_Preview, Vector3.zero, m_HeldMaterial.Footprint, m_Rotation, GridContract.Unit);
             m_PreviewOffset = m_Preview.transform.position;
@@ -1880,8 +1882,10 @@ namespace Player
                     {
                         if      (src[i].HasProperty(s_PvBaseMap) && src[i].GetTexture(s_PvBaseMap) != null) m.SetTexture(s_PvBaseMap, src[i].GetTexture(s_PvBaseMap));
                         else if (src[i].HasProperty(s_PvMainTex) && src[i].GetTexture(s_PvMainTex) != null) m.SetTexture(s_PvBaseMap, src[i].GetTexture(s_PvMainTex));
+                        else if (src[i].HasProperty(s_PvGltfMap) && src[i].GetTexture(s_PvGltfMap) != null) m.SetTexture(s_PvBaseMap, src[i].GetTexture(s_PvGltfMap));
                         if      (src[i].HasProperty(s_PvBase)) tint = src[i].GetColor(s_PvBase);
                         else if (src[i].HasProperty(s_PvCol))  tint = src[i].GetColor(s_PvCol);
+                        else if (src[i].HasProperty(s_PvGltfCol)) tint = src[i].GetColor(s_PvGltfCol);
                     }
                     tint.a = alpha;
                     m.SetColor(s_PvBase, tint);
