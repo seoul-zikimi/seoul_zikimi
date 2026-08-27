@@ -10,13 +10,8 @@ namespace Player
     /// 설정 화면은 GetBindings/StartInteractiveRebind/Reset 메서드만 호출하면 된다.
     /// 기본 바인딩은 기존 조작을 그대로 유지하고, 저장된 override만 PlayerPrefs에서 덧씌운다.
     ///
-    /// TODO(키 설정 UI 연결):
-    /// 1. GetBindings() 결과를 목록으로 표시한다. IsComposite=true인 루트는 행에서 제외하고,
-    ///    IsPartOfComposite=true인 Move의 up/down/left/right는 각각 독립된 키 설정 행으로 표시한다.
-    /// 2. 키 변경 버튼 클릭 시 StartInteractiveRebind(ActionPath, BindingIndex, callback)를 호출한다.
-    /// 3. callback success=false는 Escape 취소이므로 기존 표시를 유지한다.
-    /// 4. '기본값' 버튼은 ResetBinding, '전체 기본값' 버튼은 ResetAll을 호출한다.
-    /// 이 파일에서는 의도적으로 설정 UI나 프리팹을 생성하지 않는다.
+    /// 실제 설정 UI는 KeyBindingPopup이 GetBindings/StartInteractiveRebind/Reset API를 사용한다.
+    /// 이동 composite는 up/down/left/right를 각각 독립된 키 설정 행으로 표시한다.
     /// </summary>
     public static class GameplayInputBindings
     {
@@ -38,6 +33,7 @@ namespace Player
         private static PlayerControls s_RebindControls;
 
         public static event Action OverridesChanged;
+        public static bool IsRebinding => s_Rebind != null;
 
         public readonly struct BindingInfo
         {
@@ -47,11 +43,12 @@ namespace Player
             public readonly string BindingName;
             public readonly string DisplayString;
             public readonly string DeviceLayout;
+            public readonly string EffectivePath;
             public readonly bool IsComposite;
             public readonly bool IsPartOfComposite;
 
             public BindingInfo(string actionPath, string actionName, int bindingIndex, string bindingName,
-                string displayString, string deviceLayout, bool isComposite, bool isPartOfComposite)
+                string displayString, string deviceLayout, string effectivePath, bool isComposite, bool isPartOfComposite)
             {
                 ActionPath = actionPath;
                 ActionName = actionName;
@@ -59,6 +56,7 @@ namespace Player
                 BindingName = bindingName;
                 DisplayString = displayString;
                 DeviceLayout = deviceLayout;
+                EffectivePath = effectivePath;
                 IsComposite = isComposite;
                 IsPartOfComposite = isPartOfComposite;
             }
@@ -98,7 +96,7 @@ namespace Player
                 var binding = action.bindings[i];
                 string display = action.GetBindingDisplayString(i, out string layout, out _);
                 result.Add(new BindingInfo($"{map.name}/{action.name}", action.name, i,
-                    binding.name, display, layout, binding.isComposite, binding.isPartOfComposite));
+                    binding.name, display, layout, binding.effectivePath, binding.isComposite, binding.isPartOfComposite));
             }
             return result;
         }

@@ -9,9 +9,7 @@ namespace Player
     /// 좌하단 터치=보이지 않는 이동 스틱, 나머지 한 손가락=카메라/탭 상호작용,
     /// 두 손가락=핀치 줌. 향후 실제 UI가 포인터를 차지하면 그 터치는 자동 제외된다.
     ///
-    /// TODO(실제 모바일 UI 제작 시):
-    /// - 현재 보이지 않는 좌하단 스틱 영역은 임시 기기 테스트용이다. 실제 조이스틱이 SetMove를 호출하면
-    ///   이 자동 영역을 끌 수 있도록 serialized/runtime 옵션을 추가한다(이중 이동 입력 방지).
+    /// TODO(모바일 기기 최종 튜닝 시):
     /// - Screen.safeArea를 기준으로 조이스틱/버튼 영역을 배치해 노치와 홈 인디케이터를 피한다.
     /// - 주문 휴대폰이 전체화면으로 열린 동안에는 월드 탭/카메라 제스처를 잠그는 입력 차단 플래그를 연결한다.
     /// - 실제 iOS/Android 기기에서 touchId와 EventSystem UI 차단, 2손가락 핀치 감도를 최종 튜닝한다.
@@ -40,6 +38,15 @@ namespace Player
             var screen = Touchscreen.current;
             if (screen == null || PlayerInputHandler.Local == null) return;
 
+            // 주문 폰이 전체화면으로 열린 동안엔 폰 패널이 못 덮는 좌우 밴드로도 월드 입력이 새지 않게 전부 잠근다.
+            if (MobileGameplayInput.WorldInputLocked)
+            {
+                if (m_MoveTouch >= 0) MobileGameplayInput.SetMove(Vector2.zero);
+                m_MoveTouch = m_LookTouch = -1;
+                m_LastPinch = 0f;
+                return;
+            }
+
             int activeLookCount = 0;
             Vector2 pinchA = default, pinchB = default;
             bool moveAlive = false, lookAlive = false;
@@ -52,7 +59,8 @@ namespace Player
 
                 if (touch.press.wasPressedThisFrame && !PointerOverUi(id))
                 {
-                    if (m_MoveTouch < 0 && pos.x < Screen.width * 0.45f && pos.y < Screen.height * 0.52f)
+                    if (!MobileGameplayInput.HasVisibleMoveControl && m_MoveTouch < 0 &&
+                        pos.x < Screen.width * 0.45f && pos.y < Screen.height * 0.52f)
                     {
                         m_MoveTouch = id;
                         m_MoveOrigin = pos;
@@ -96,6 +104,10 @@ namespace Player
                 m_MoveTouch = -1;
                 MobileGameplayInput.SetMove(Vector2.zero);
             }
+
+            // 앱 전환 등으로 release 에지를 놓치면 look ID가 영구히 남아 카메라/탭이 먹통이 된다 — 이동 스틱과 동일하게 대칭 리셋.
+            if (!lookAlive && m_LookTouch >= 0)
+                m_LookTouch = -1;
 
             if (activeLookCount >= 2)
             {

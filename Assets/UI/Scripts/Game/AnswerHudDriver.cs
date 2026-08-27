@@ -19,6 +19,9 @@ public class AnswerHudDriver : MonoBehaviour
 
     private AnswerPreview  m_Preview;
     private AnswerPanelHUD m_Hud;
+    private GameLoopManager m_Loop;      // 완성도 배지(모바일)용
+    private GridNetwork     m_Net;
+    private float           m_NextCompletion;
     private bool           m_Visible;
     private bool           m_Dragging;   // 패널 위에서 우클릭 시작 → 버튼 뗄 때까지 회전 캡처
     private Vector2        m_PressPos;   // 좌클릭 시작 위치 — 클릭(선택)과 드래그(팬) 구분용
@@ -40,6 +43,9 @@ public class AnswerHudDriver : MonoBehaviour
     private void OnReady(AnswerPreview p)
     {
         m_Preview = p;
+        // 모바일 흰색 폰 화면에 맞춰 미니 프리뷰 배경을 밝은 회색으로(데스크톱은 기본 어두운 색 유지)
+        if (MobileControlsHUD.ShouldUseMobileUI)
+            p.SetBackground(new Color(0.90f, 0.90f, 0.89f, 1f));
         if (UIManager.Instance == null) return;
         m_Hud = UIManager.Instance.ShowHUDUI<AnswerPanelHUD>();
         m_Hud.SetTexture(p.RT);                                            // RT 재생성 대응(매 Build)
@@ -71,9 +77,11 @@ public class AnswerHudDriver : MonoBehaviour
         if (gameplayInput != null && gameplayInput.ConsumeToggleOrder() && m_Preview != null)
             m_Preview.ToggleVisibility();
 
-        // TODO(모바일 휴대폰 UI): 모바일에서는 단순 토글 대신 전체화면 패널을 열고,
-        // 좌측=완공 계획도(RenderTexture), 우측=재료 카탈로그가 되도록 별도 레이아웃을 연결한다.
-        // 패널이 열려 있는 동안 AnswerPanelFocus.Active 또는 별도 입력 잠금으로 월드 터치를 차단할 것.
+        // 모바일에서는 AnswerPanelHUD가 좌측 완공 계획도/우측 재료 카탈로그의
+        // 전체화면 레이아웃을 사용한다. 표시 중 월드 조작 잠금은 아래 포커스와
+        // MobileControlsHUD의 VisibilityChanged 구독이 함께 담당한다.
+
+        UpdateCompletionBadge();   // 마우스 없는 기기에서도 돌도록 아래 early-return 앞에서
 
         if (m_Hud == null || m_Preview == null || Mouse.current == null) { AnswerPanelFocus.Active = false; return; }
 
@@ -112,6 +120,18 @@ public class AnswerHudDriver : MonoBehaviour
         }
 
         UpdateHover(rect, over && !anyPressed);   // 드래그 중엔 호버 끔(회전하다 라벨이 튀지 않게)
+    }
+
+    // 폰 화면의 '현재 완성도 : N%' 배지 갱신(0.25초 스로틀). 팀전이면 우리 팀 점수.
+    private void UpdateCompletionBadge()
+    {
+        if (m_Hud == null || !m_Visible || Time.unscaledTime < m_NextCompletion) return;
+        m_NextCompletion = Time.unscaledTime + 0.25f;
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
+        if (m_Loop == null) return;
+        if (m_Loop.IsVersus && m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+        var score = m_Loop.IsVersus && m_Net != null ? m_Net.ScoreFor(m_Loop.LocalTeam) : m_Loop.Score;
+        m_Hud.SetCompletion(Mathf.RoundToInt(score.Percent));
     }
 
     // 화면 클릭 → 미니씬 픽킹 → 같은 재료 전체 테두리 + HUD 카드 선택. 빈 곳 클릭 = 해제.

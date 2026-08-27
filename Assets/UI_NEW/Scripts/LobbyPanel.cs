@@ -79,8 +79,13 @@ namespace SeoulZikimi.UI.New
             chatSendButton?.onClick.AddListener(SendChat);
             chatInput?.onEndEdit.AddListener(_ =>
             {
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
-                    SendChat();
+                // 프로젝트가 신형 Input System 전용(activeInputHandler=1)이라 UnityEngine.Input은 예외를 던진다.
+                var keyboard = UnityEngine.InputSystem.Keyboard.current;
+                if (keyboard == null ||
+                    (!keyboard.enterKey.wasPressedThisFrame && !keyboard.numpadEnterKey.wasPressedThisFrame))
+                    return;
+                SendChat();
+                chatInput.ActivateInputField();   // 엔터 전송 후 포커스 유지 — 연속 입력
             });
             for (int i = 0; quickChatButtons != null && i < quickChatButtons.Length; i++)
             {

@@ -20,6 +20,12 @@ namespace Player
     {
         private static PlayerInputHandler Input => PlayerInputHandler.Local;
 
+        /// <summary>실제 조이스틱 프리팹이 표시되는 동안 보이지 않는 임시 이동 영역을 끈다.</summary>
+        public static bool HasVisibleMoveControl { get; set; }
+
+        /// <summary>주문 폰 등 전체화면 UI가 열린 동안 월드 터치(이동·탭·카메라)를 잠근다 — MobileControlsHUD가 세팅.</summary>
+        public static bool WorldInputLocked { get; set; }
+
         public static bool Available => Input != null;
         public static bool ToolActionAvailable => Input != null && Input.ToolActionAvailable;
         public static bool ProcessActionAvailable => Input != null && Input.ProcessActionAvailable;
