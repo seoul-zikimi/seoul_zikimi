@@ -40,6 +40,9 @@ namespace GridSystem.EditorTools
         public static string Check(MaterialDef def)
         {
             if (def == null || def.Prefab == null) return null;
+            // DDP 절단 조각처럼 칸을 일부만 차지하는 곡면은 의도적으로 footprint를 꽉 채우지 않는다.
+            // 전역 자동 맞춤 대상에 넣으면 이미 만든 *_Fit을 다시 감싸 *_Fit_Fit이 계속 생긴다.
+            if (def.FreeformVisual) return null;
             var fp = def.Footprint;
             var probe = (GameObject)PrefabUtility.InstantiatePrefab(def.Prefab);
             if (probe == null) probe = Object.Instantiate(def.Prefab);
@@ -74,6 +77,7 @@ namespace GridSystem.EditorTools
         // 프리팹이 규약(피벗 min-corner + footprint 크기)에 안 맞으면 맞춘 래퍼로 교체. 수정했으면 true.
         static bool Fit(MaterialDef def)
         {
+            if (def == null || def.Prefab == null || def.FreeformVisual) return false;
             var fp = def.Footprint;
             var probe = (GameObject)PrefabUtility.InstantiatePrefab(def.Prefab);
             if (probe == null) probe = Object.Instantiate(def.Prefab);
