@@ -22,7 +22,12 @@ public class CarryHudUI : UIHUD
         SetProcessHint(false);
 
         var hint = Get<GameObject>((int)GOs.HintPanel);   // 씬 진입 시 조작법 패널 뽁 등장
-        if (hint != null && hint.GetComponent<UiPopIn>() == null) hint.AddComponent<UiPopIn>();
+        if (MobileControlsHUD.ShouldUseMobileUI)
+        {
+            // 키보드([E]/[R]/좌클릭) 안내라 모바일에선 패널 자체를 숨긴다 — 로딩바·블록 위 공정 힌트는 유지.
+            if (hint != null) hint.SetActive(false);
+        }
+        else if (hint != null && hint.GetComponent<UiPopIn>() == null) hint.AddComponent<UiPopIn>();
     }
 
     /// <summary>좌상단 조작법/상태 텍스트.</summary>

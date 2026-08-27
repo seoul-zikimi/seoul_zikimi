@@ -74,8 +74,11 @@ public sealed class GameLoopHUD : UIHUD
             return;
         }
         UIManager.Instance.ShowHUDUI<GameLoopHUD>();
-        if (Resources.Load<GameObject>("UI/HUD/ControlsTooltipHUD") != null)   // 좌상단 조작법 툴팁(접기/펴기)
+        // 좌상단 조작법 툴팁(접기/펴기) — 키보드/마우스 안내라 모바일에선 띄우지 않는다(눈 버튼 자리와도 겹침).
+        if (!MobileControlsHUD.ShouldUseMobileUI && Resources.Load<GameObject>("UI/HUD/ControlsTooltipHUD") != null)
             UIManager.Instance.ShowHUDUI<ControlsTooltipHUD>();
+        else
+            UIManager.Instance.HideHUDUI<ControlsTooltipHUD>();   // 프리뷰 토글 등으로 이전 세션에 떠 있던 것 정리
     }
 
     public override void Init()
@@ -121,6 +124,11 @@ public sealed class GameLoopHUD : UIHUD
         Wire(Btns.SettingsIconButton, ToggleSettingsPopup);
         Wire(Btns.SettingsCloseButton, ToggleSettingsPopup);
         Wire(Btns.KeySettingsButton, () => KeyBindingPopup.Open());
+        if (MobileControlsHUD.ShouldUseMobileUI)   // 모바일은 키보드가 없어 키 설정이 무의미
+        {
+            var keyBtn = Get<Button>((int)Btns.KeySettingsButton);
+            if (keyBtn != null) keyBtn.gameObject.SetActive(false);
+        }
         Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
         Wire(Btns.RoomButton, () => { if (m_Loop != null) m_Loop.RequestReturnToRoom(); });
         Wire(Btns.LeaveButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
@@ -333,7 +341,8 @@ public sealed class GameLoopHUD : UIHUD
             if (lbl != null && lbl.gameObject.activeSelf) lbl.gameObject.SetActive(false);
             return;
         }
-        string text = (consent ? "동의 취소" : m_Loop.IsBuilding ? "종료 요청" : "재시작") + "\n<size=70%>(ENTER)</size>";
+        string text = (consent ? "동의 취소" : m_Loop.IsBuilding ? "종료 요청" : "재시작")
+            + (MobileControlsHUD.ShouldUseMobileUI ? "" : "\n<size=70%>(ENTER)</size>");
         if (img != null && m_EndBlank != null)
         {
             img.sprite = m_EndBlank;

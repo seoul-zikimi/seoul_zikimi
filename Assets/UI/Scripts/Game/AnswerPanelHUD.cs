@@ -65,7 +65,20 @@ public class AnswerPanelHUD : UIHUD
     public event Action<int> SelectionChanged;
 
     public RectTransform SurfaceRect => m_Surface != null ? m_Surface.rectTransform : null;
-    public void SetTexture(RenderTexture rt) { if (m_Surface != null) m_Surface.texture = rt; }
+    public void SetTexture(RenderTexture rt) { m_LastRT = rt; if (m_Surface != null) m_Surface.texture = rt; }
+
+    private RenderTexture m_LastRT;               // 레이아웃 재구축 시 3D 뷰 재연결용
+    private IReadOnlyList<OrderEntry> m_LastItems; // 레이아웃 재구축 시 주문 그리드 재구성용
+
+    // UIManager가 HUD를 캐시하므로, 만들어질 때와 지금의 모바일 여부가 달라졌으면(에디터 프리뷰 토글 등)
+    // 데스크톱 폰 UI가 모바일 화면에 그대로 재사용된다 — 표시될 때마다 검사해 전부 다시 짓는다.
+    private void OnEnable()
+    {
+        if (m_Phone == null || m_MobileLayout == MobileControlsHUD.ShouldUseMobileUI) return;
+        Init();   // Init이 기존 자식을 전부 지우고 백지에서 다시 짓는다
+        if (m_LastRT != null) SetTexture(m_LastRT);
+        if (m_LastItems != null) BuildOrders(m_LastItems, m_OnOrder);
+    }
 
     /// <summary>'현재 완성도 : N%' 숫자 갱신(GameHudDriver가 매 프레임 호출).</summary>
     public void SetCompletion(int percent)
@@ -86,6 +99,16 @@ public class AnswerPanelHUD : UIHUD
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (!InGameUiSkin.Available)
             Debug.LogWarning("[AnswerPanelHUD] 리마스터 스프라이트 없음 — Assets/Resources/UI_pngs/3.inGame/Remaster 확인");
+
+        // 어떤 경로로 두 번 불려도(레이아웃 재구축·유령 중복 인스턴스) 요소가 누적되지 않게 항상 백지에서 짓는다.
+        // 스케일 안 맞은 옛 3D 뷰/카드가 새 폰 위에 겹쳐 보이던 문제의 방어선.
+        for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
+        m_Phone = null; m_GridRoot = null; m_Surface = null; m_Tip = null;
+        m_SelName = m_SelSub = m_CompletionText = null;
+        m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
+        m_Cards.Clear(); m_SelectedId = -1;
+        foreach (var other in FindObjectsByType<AnswerPanelHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (other != this) Destroy(other.gameObject);   // 루트/캐시 꼬임으로 남은 중복 HUD 정리
 
         m_MobileLayout = MobileControlsHUD.ShouldUseMobileUI;
         if (m_MobileLayout)
@@ -213,15 +236,12 @@ public class AnswerPanelHUD : UIHUD
         closeLabel.fontStyle = FontStyle.Bold;
     }
 
-    // 폰(1800x940 고정 저작 크기)을 화면 크기에 맞춰 축소. 16:9에선 1배(여백 유지), 4:3 태블릿에선 알아서 줄어든다.
-    private Vector2 m_LastFitSize;
-
+    // 폰(1800x940 고정 저작 크기)을 화면 크기에 맞춰 축소. 16:9에선 1배(여백 유지), 세로 태블릿 등에선 알아서 줄어든다.
+    // 크기 캐시 가드 없이 매 프레임 맞춘다 — 재구축으로 폰이 새로 만들어져도(스케일 1) 다음 프레임에 바로 교정된다.
     private void LateUpdate()
     {
         if (!m_MobileLayout || m_Phone == null) return;
         var avail = ((RectTransform)transform).rect.size;
-        if (avail == m_LastFitSize) return;
-        m_LastFitSize = avail;
         float s = Mathf.Min(1f, (avail.x - 40f) / 1800f, (avail.y - 40f) / 940f);
         if (s > 0f) m_Phone.transform.localScale = new Vector3(s, s, 1f);
     }
@@ -230,6 +250,7 @@ public class AnswerPanelHUD : UIHUD
     public void BuildOrders(IReadOnlyList<OrderEntry> items, Action<int> onOrder)
     {
         if (m_Phone == null) return;
+        m_LastItems = items;
         m_OnOrder = onOrder;
         if (m_GridRoot != null) Destroy(m_GridRoot);
         m_Cards.Clear();
