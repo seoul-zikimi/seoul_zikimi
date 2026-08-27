@@ -17,7 +17,7 @@ MonoBehaviour:
   FireIntervalMin: 30
   FireIntervalRampSeconds: 360
   BurnSeconds: 18
-  SpreadCount: 1
+  SpreadCount: 2
   ExtinguishSeconds: 1.2
   DeumeuRefillRange: 2.2
   FlameScale: 2.2
@@ -26,8 +26,13 @@ MonoBehaviour:
   - 30
   - 45
   - 60
+  StatueDropScorePercents:
+  - 25
+  - 40
+  - 60
+  - 80
   StatueMaterialIds: 32000000330000003400000035000000
   StatueDropMinGapSeconds: 20
-  PedestalSnapRange: 1.8
+  PedestalSnapRange: 2.5
   RejectBounceDistance: 3.5
   ImmunityPadding: 0
