@@ -359,6 +359,16 @@ public class LobbyRoomNet : NetworkBehaviour
         // 내 닉네임 + 착용 캐릭터를 서버 슬롯에 등록(전원 복제).
         SubmitSlotInfo();
 
+        // 게임씬 로드 시작 감지 → 로딩 화면 선표시(호스트·클라 공통, 씬 전환 내내 유지).
+        // 주의: 클라는 Load 이벤트가 오기 '전에' 로비 씬 언로드로 이 오브젝트가 despawn된다
+        // (NGO OnClientSceneLoadingEvent가 씬 정리 후 이벤트를 쏨). 그래서 인스턴스가 아닌
+        // static 핸들러를 걸고 despawn 때도 해제하지 않는다(-= 후 += 로 중복 구독만 방지).
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+        {
+            NetworkManager.Singleton.SceneManager.OnSceneEvent -= OnNetSceneEvent;
+            NetworkManager.Singleton.SceneManager.OnSceneEvent += OnNetSceneEvent;
+        }
+
         // 방에 갓 진입했을 때의 초기 UI 갱신
         UpdateUI(m_IsAllReady.Value);
         StateChanged?.Invoke();
@@ -376,6 +386,8 @@ public class LobbyRoomNet : NetworkBehaviour
         m_SeasonSelectionMode.OnValueChanged -= OnSeasonSettingsChanged;
         m_FixedSeason.OnValueChanged -= OnSeasonSettingsChanged;
         m_Slots.OnListChanged -= OnSlotsChanged;
+        // OnSceneEvent 구독은 여기서 해제하지 않는다 — 클라는 게임씬 Load 이벤트보다 despawn이 먼저라
+        // 해제하면 로딩 화면 선표시를 못 받는다. static 핸들러라 인스턴스 누수 없음(스폰 시 중복 방지).
         if (IsHost && NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
@@ -682,6 +694,8 @@ public class LobbyRoomNet : NetworkBehaviour
         if (!IsHost || !CanStartGame) return;
 
         Debug.Log("게임 시작! 인게임 씬으로 다 함께 이동합니다.");
+        MatchStartHUD.ShowLoadingEarly();   // 호스트: 씬 전환 전에 로딩 화면부터(전환 내내 유지)
+
         // 💡 넷코드 환경에서 다 함께 씬을 이동할 때는 NetworkSceneManager를 사용해야 해!
         if (NetworkManager.Singleton != null &&
             NetworkManager.Singleton.SceneManager != null &&
@@ -692,6 +706,17 @@ public class LobbyRoomNet : NetworkBehaviour
         }
 
         SceneManager.LoadScene(SceneNames.GameScene, LoadSceneMode.Single);
+    }
+
+    // 클라이언트: 서버가 게임씬 로드를 시작하면(SceneEventType.Load) 즉시 로딩 화면을 띄운다.
+    // 씬 전환 전 로비 화면 위에서부터 보이고, DontDestroyOnLoad라 게임씬까지 이어진다.
+    private static void OnNetSceneEvent(SceneEvent e)
+    {
+        if (e.SceneEventType == SceneEventType.Load && e.SceneName == SceneNames.GameScene)
+        {
+            Debug.Log($"[LobbyRoomNetController] 게임씬 로드 감지(clientId={e.ClientId}) → 로딩 화면 선표시.");
+            MatchStartHUD.ShowLoadingEarly();
+        }
     }
 
     private int BalancedTeamForNewPlayer(ulong clientId)
