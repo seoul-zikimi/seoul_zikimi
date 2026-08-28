@@ -1732,7 +1732,11 @@ namespace Player
         private GameObject m_Preview;
         private Material m_PreviewMat;
         private readonly List<Material> m_PreviewGhostMats = new();   // 프리팹 고스트 머티리얼(정리용)
+        private readonly List<Color> m_PreviewGhostCols = new();      // m_PreviewGhostMats와 1:1 — 원본 색(정답/오답 틴트에서 복귀용)
         private int m_PreviewKey = int.MinValue;                      // 현재 프리뷰 종류((재료Id<<2)|회전, 박스=-1)
+        // 설치 고스트 정답/오답 색: 정답 자리(재료까지 일치)면 초록, 아니면 빨강 — 정답 고스트(원색)와 확실히 구분.
+        private static readonly Color kPreviewOk  = new Color(0.30f, 1f, 0.45f);
+        private static readonly Color kPreviewBad = new Color(1f, 0.32f, 0.28f);
         private Vector3 m_PreviewOffset;                              // 프리팹 프리뷰 피벗 오프셋(빌드 시 1회 산출)
         private static readonly int s_PvBase = Shader.PropertyToID("_BaseColor");
         private static readonly int s_PvCol  = Shader.PropertyToID("_Color");
@@ -1779,11 +1783,14 @@ namespace Player
                 m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
 
-                float pa = 0.82f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 원색이 살아있는 수준(정답 고스트와 대비), 숨쉬기는 유지
+                // 정답 자리(초록)/오답 자리(빨강) 틴트 — 원색만으론 정답 고스트와 구분이 어렵다는 피드백.
+                var judge = IsAnswerPlacement(cells) ? kPreviewOk : kPreviewBad;
+                float pa = 0.82f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 숨쉬기는 유지
                 for (int i = 0; i < m_PreviewGhostMats.Count; i++)
                     if (m_PreviewGhostMats[i] != null)
                     {
-                        var c = m_PreviewGhostMats[i].GetColor(s_PvBase); c.a = pa;
+                        var baseCol = i < m_PreviewGhostCols.Count ? m_PreviewGhostCols[i] : Color.white;
+                        var c = Color.Lerp(baseCol, judge, 0.7f); c.a = pa;   // 원색 기운을 살짝 남긴 초록/빨강
                         m_PreviewGhostMats[i].SetColor(s_PvBase, c);
                         m_PreviewGhostMats[i].SetColor(s_PvCol, c);
                     }
@@ -1802,12 +1809,33 @@ namespace Player
 
             Vector3 center, size; Color col;
             HeldPlacementBox(out center, out size);
-            col = new Color(0.25f, 0.9f, 1f, 0.32f);    // 시안: 배치 자리
+            // 박스 폴백도 정답/오답 색을 따른다(프리팹 고스트와 같은 언어).
+            col = IsAnswerPlacement(GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
+                ? new Color(kPreviewOk.r, kPreviewOk.g, kPreviewOk.b, 0.32f)
+                : new Color(kPreviewBad.r, kPreviewBad.g, kPreviewBad.b, 0.32f);
             m_Preview.transform.SetPositionAndRotation(center, Quaternion.identity);
             m_Preview.transform.localScale = size;
             m_PreviewMat.SetColor(s_PvBase, col);
             m_PreviewMat.SetColor(s_PvCol, col);
             if (!m_Preview.activeSelf) m_Preview.SetActive(true);
+        }
+
+        // 이 자리에 놓으면 정답인가 — 채점(RuntimeGrid.ScoreAgainst)과 동일 기준: 모든 풋프린트 칸이 정답 칸이고
+        // 재료가 일치(회전은 점유 칸 형태로 이미 검증됨). 기본 제공(preset) 칸은 지을 필요가 없으니 오답 취급.
+        private bool IsAnswerPlacement(List<Vector3Int> cells)
+        {
+            var answer = m_Grid != null ? m_Grid.Answer : null;
+            if (answer == null || m_HeldMaterial == null || cells == null || cells.Count == 0) return false;
+            // 2vs2 팀B는 자기 구역(x+구역폭)에 짓는다 — 정답 좌표로 되돌려 조회(ScoreAgainst 오프셋과 동일 기준).
+            var offset = (m_Loop != null && m_Loop.IsVersus && m_Loop.LocalTeam == 1 && m_Grid != null)
+                ? new Vector3Int(m_Grid.ZoneSize.x, 0, 0) : Vector3Int.zero;
+            foreach (var c in cells)
+            {
+                var a = c - offset;
+                if (answer.IsPreset(a) || !answer.TryGet(a, out var ac) || ac.materialId != m_HeldMaterial.Id)
+                    return false;
+            }
+            return true;
         }
 
         // 실제 블록 프리팹을 반투명 고스트로. 회전/피벗 오프셋은 PlaceRotatedPrefab으로 1회 산출(이후 위치만 갱신).
@@ -1865,6 +1893,7 @@ namespace Player
             for (int i = 0; i < m_PreviewGhostMats.Count; i++)
                 if (m_PreviewGhostMats[i] != null) Destroy(m_PreviewGhostMats[i]);
             m_PreviewGhostMats.Clear();
+            m_PreviewGhostCols.Clear();
         }
 
         // 렌더러 머티리얼을 반투명 URP Lit 사본으로 교체(원본 색/텍스처 유지 → 진짜 블록처럼 보이되 고스트). 사본은 정리용 리스트에.
@@ -1901,6 +1930,7 @@ namespace Player
                     m.SetColor(s_PvBase, tint);
                     m.SetColor(s_PvCol, tint);
                     m_PreviewGhostMats.Add(m);
+                    m_PreviewGhostCols.Add(tint);
                     dst[i] = m;
                 }
                 r.sharedMaterials = dst;
