@@ -1,4 +1,5 @@
 using System;
+using GridSystem;
 using Player;
 using UnityEngine;
 using UnityEngine.UI;
@@ -98,7 +99,15 @@ public class EmoteWheelUI : UIHUD
         gameObject.SetActive(false);   // 기본 숨김 — T 홀드 때만 표시
     }
 
-    private void OnEnable() => HoverIndex = -1;
+    private void OnEnable()
+    {
+        HoverIndex = -1;
+
+        // 안전망: GameLoopManager는 GameScene(실제 인게임)에만 존재. PlayerEmote 게이트를 못 뚫고 들어와도
+        // 로비 씬에서 휠이 표시되면 여기서 즉시 닫는다(예: PlayerEmote 수정 누락·버그 대비).
+        if (FindFirstObjectByType<GameLoopManager>() == null)
+            gameObject.SetActive(false);
+    }
 
     private void Update()
     {

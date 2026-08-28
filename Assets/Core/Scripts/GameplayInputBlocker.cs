@@ -1,0 +1,14 @@
+/// <summary>키 설정처럼 입력을 캡처하는 화면이 열린 동안 월드/플레이어 입력을 막는 공용 플래그.</summary>
+public static class GameplayInputBlocker
+{
+    /// <summary>읽기 = (수동 잠금 or 매치 시작 게이트). 쓰기 = 수동 잠금(기존 사용처 그대로).</summary>
+    public static bool Blocked
+    {
+        get => s_Manual || MatchGateBlocked;
+        set => s_Manual = value;
+    }
+    private static bool s_Manual;
+
+    /// <summary>전원 로딩 대기 + 시작 카운트다운 동안의 입력 잠금(GameLoopManager가 관리).</summary>
+    public static bool MatchGateBlocked { get; set; }
+}

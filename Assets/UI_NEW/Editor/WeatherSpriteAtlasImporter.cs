@@ -20,7 +20,17 @@ namespace SeoulZikimi.UI.New.Editor
             "Assets/Resources/UI_NEW/Weather/FX/Snowflake.png",
             "Assets/Resources/UI_NEW/Weather/FX/WindStreak.png",
             "Assets/Resources/UI_NEW/Weather/FX/AutumnLeaf.png",
-            "Assets/Resources/UI_NEW/Weather/FX/CherryPetal.png"
+            "Assets/Resources/UI_NEW/Weather/FX/CherryPetal.png",
+            // 2vs2 소지 아이템 버블 아이콘(HeldItemBubble) — 바르코 생성
+            "Assets/Resources/UI_NEW/Items/Earthquake.png",
+            "Assets/Resources/UI_NEW/Items/Fog.png",
+            "Assets/Resources/UI_NEW/Items/MovementSlow.png",
+            "Assets/Resources/UI_NEW/Items/ProcessSlow.png",
+            "Assets/Resources/UI_NEW/Items/OrderHack.png",
+            "Assets/Resources/UI_NEW/Items/Umbrella.png",
+            "Assets/Resources/UI_NEW/Items/MovementBoost.png",
+            "Assets/Resources/UI_NEW/Items/ProcessBoost.png",
+            "Assets/Resources/UI_NEW/Items/Cannon.png"
         };
 
         private static bool s_IsRunning;

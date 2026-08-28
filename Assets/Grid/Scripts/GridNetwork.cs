@@ -65,6 +65,7 @@ namespace GridSystem
         private static bool CanReclaim(MaterialDef def, int completedMask)
         {
             if (def == null) return false;
+            if (!def.MustBeFixed) return true;   // 배치 즉시 자동 세팅되는 앵커 Fixed는 플레이어 공정이 아님 — 회수를 막지 않는다
             return (completedMask & (int)ProcessType.Fixed) == 0;
         }
 
@@ -84,14 +85,15 @@ namespace GridSystem
         }
 
         // 이 판에 쓸 건축 영역 크기 — 호스트가 고른 맵이 전용 크기를 갖고 있으면 그걸, 아니면 씬 값.
-        // 2vs2는 배경과 마찬가지로 공터(경기장) 맵의 그리드 크기를 쓴다(MapLoader와 정합).
+        // 2vs2는 공터(경기장) 맵 크기와 선택한 맵의 정답 크기를 합성한 값을 쓴다(MapLoader와 정합) —
+        // 경기장만 쓰면 선택 맵 정답이 경기장보다 높을 때(예: 남산타워) 위 칸이 범위 밖으로 잘려 배치가 막힌다.
         private Vector3Int ServerGridSize()
         {
             var catalog = MapCatalog.Instance;
             if (GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus && catalog != null)
             {
-                var arena = catalog.FindVersusArena();
-                if (arena != null && arena.HasGridSize) return arena.GridSize;
+                var size = catalog.VersusZoneGridSize(GameLoopManager.HostSelectedMap);
+                if (size != default) return size;
             }
 
             var def = catalog != null ? catalog.Get(GameLoopManager.HostSelectedMap) : null;
@@ -338,7 +340,7 @@ namespace GridSystem
 
             // 서버 권위 재검증: 아직 망치 고정 전이면 회수 가능(고정 완료 블록은 C 철거로만) — IsPickupable과 동일 규칙
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
-            if (def == null || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
+            if (!CanReclaim(def, cs.completedProcessMask))
                 return false;
 
             ulong owner = cs.ownerObjectId;
@@ -458,10 +460,21 @@ namespace GridSystem
             if (targets.Count == 0) return false;
 
             var hit = targets[Random.Range(0, targets.Count)];
-            CannonHitFxRpc(CellWorld(hit));
+            // 포탄이 날아가는 동안 파괴를 미룬다 — 착탄 연출과 블록 소멸이 같은 순간에 보이게
+            CannonShotFxRpc(ServerCannonSource, CellWorld(hit));
+            StartCoroutine(CannonLandThenDestroy(hit));
+            return true;
+        }
+
+        /// <summary>대포 발사 위치(시전자) — ItemNetwork가 사용 직전에 넣어준다(서버 전용).</summary>
+        public Vector3 ServerCannonSource;
+
+        private System.Collections.IEnumerator CannonLandThenDestroy(Vector3Int hit)
+        {
+            yield return new WaitForSeconds(ItemFx.kCannonFlightSeconds);
+            if (m_ServerGrid == null) yield break;
             foreach (var co in m_ServerGrid.Collapse(hit)) RemoveCollapsed(co);
             foreach (var co in m_ServerGrid.SettleUnsupported()) RemoveCollapsed(co);
-            return true;
         }
 
         // 그 재료가 요구하는 공정이 전부 끝났는가(채점과 같은 기준인 RequiredMask 사용).
@@ -471,8 +484,12 @@ namespace GridSystem
             return need != 0 && (completedMask & need) == need;
         }
 
+        // 발사 → 포탄이 포물선으로 날아가고, 착탄 순간 폭발 연출(모든 클라).
         [Rpc(SendTo.Everyone)]
-        private void CannonHitFxRpc(Vector3 center)
+        private void CannonShotFxRpc(Vector3 from, Vector3 to)
+            => ItemFx.CannonShot(from, to, () => CannonImpactFx(to));
+
+        private static void CannonImpactFx(Vector3 center)
         {
             GridJuice.CollapseBurst(center, GridContract.Unit);
             GridJuice.GroundHit(center, 1.6f);

@@ -15,7 +15,7 @@ public static class GameLoopHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/GameLoopHUD.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "RemasterMarker_v14";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
+    public const string kRemasterMarker = "RemasterMarker_v15";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate GameLoopHud Prefab")]
     public static void Generate()
@@ -69,6 +69,15 @@ public static class GameLoopHudPrefabGenerator
         endLabel.raycastTarget = false;
         endLabel.gameObject.SetActive(false);
 
+        // ── 2vs2 버프/디버프 아이콘 바 — 종료 요청 버튼 아래(우상단). 칸은 GameLoopHUD가 런타임에 채움 ──
+        var buffRt = JobsnailUiKit.Rect("BuffBar", rootT, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        InGameUiSkin.TopRight(buffRt, 1071 - 200, 68, 108 + 200, 44);
+        var buffLayout = buffRt.gameObject.AddComponent<HorizontalLayoutGroup>();
+        buffLayout.childAlignment = TextAnchor.MiddleRight;
+        buffLayout.spacing = 6f;
+        buffLayout.childControlWidth = false; buffLayout.childControlHeight = false;
+        buffLayout.childForceExpandWidth = false; buffLayout.childForceExpandHeight = false;
+
         // ── 설정(톱니) — 피그마 (1270,21) 49x49 ──
         var gearSprite = InGameUiSkin.Load("SettingsButton") ?? JobsnailUiKit.Sprite("UI_pngs/settingsicon");
         var gear = JobsnailUiKit.Button("SettingsIconButton", rootT, gearSprite, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, null, gearSprite == null ? "설정" : null);
@@ -109,6 +118,14 @@ public static class GameLoopHudPrefabGenerator
     private static void BuildSettingsPopup(Transform root)
     {
         var popup = JobsnailUiKit.Box("InGameSettingsPopup", root, new Vector2(0.34f, 0.24f), new Vector2(0.66f, 0.76f), Vector2.zero, Vector2.zero, new Color(1f, 0.97f, 0.86f, 0.98f)).gameObject;
+        popup.AddComponent<NoJuicyButtonMotion>();
+        var popupImage = popup.GetComponent<Image>();
+        if (popupImage != null)
+        {
+            popupImage.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            popupImage.type = Image.Type.Sliced;
+            popupImage.color = new Color(1f, 0.965f, 0.88f, 0.99f);
+        }
 
         JobsnailUiKit.Label("Title", popup.transform, "설정", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, 210), new Vector2(360, 56));
 
@@ -116,8 +133,12 @@ public static class GameLoopHudPrefabGenerator
         MakeVolumeSlider(popup.transform, "SFX", "SFXSlider", new Vector2(0, 60));
         MakeVolumeSlider(popup.transform, "감도", "SensSlider", new Vector2(0, 0));
 
-        var exit = JobsnailUiKit.Button("ExitGameButton", popup.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -95), new Vector2(320, 52), null, "게임 나가기");
-        SetColor(exit, new Color(1f, 0.62f, 0.62f, 1f));   // 분홍(주의)
+        var keySettings = JobsnailUiKit.Button("KeySettingsButton", popup.transform, null,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -78), new Vector2(320, 52), null, "키 설정");
+        SetColor(keySettings, new Color(1f, 0.77f, 0.42f, 1f));
+
+        var exit = JobsnailUiKit.Button("ExitGameButton", popup.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -148), new Vector2(320, 52), null, "게임 나가기");
+        SetColor(exit, new Color(0.92f, 0.76f, 0.70f, 1f));
 
         var close = JobsnailUiKit.Button("SettingsCloseButton", popup.transform, null, new Vector2(0.88f, 0.88f), new Vector2(0.98f, 0.98f), Vector2.zero, Vector2.zero, null, "×");
         SetColor(close, new Color(1f, 0.97f, 0.86f, 0f));

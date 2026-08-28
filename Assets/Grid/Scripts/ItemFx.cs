@@ -132,6 +132,38 @@ namespace GridSystem
         }
 
         /// <summary>월드 구슬 꾸미기: 뿅 팝인 + 둥실 부유 + 주기적 반짝이.</summary>
+        // ── 대포: 발사 → 포물선 비행 → 착탄 콜백 ──
+        public const float kCannonFlightSeconds = 0.55f;
+
+        /// <summary>포탄 비행 연출. onLand = 착탄 순간 호출(폭발 FX는 호출자가).</summary>
+        public static void CannonShot(Vector3 from, Vector3 to, System.Action onLand)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var col = go.GetComponent<Collider>();
+            if (col != null) Object.Destroy(col);
+            go.name = "~Cannonball";
+            go.transform.localScale = Vector3.one * 0.3f;
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh != null) go.GetComponent<Renderer>().material =
+                new Material(sh) { color = new Color(0.12f, 0.12f, 0.14f) };
+            var f = go.AddComponent<CannonballFlight>();
+            f.From = from + Vector3.up * 0.8f;
+            f.To = to;
+            f.OnLand = onLand;
+            Play(CannonFireClip(), from, 0.9f);
+        }
+
+        // 포성: 낮은 '펑' — 노이즈 버스트 + 90Hz 저음 감쇠
+        static AudioClip s_CannonFire;
+        static AudioClip CannonFireClip() => s_CannonFire != null ? s_CannonFire : s_CannonFire = Synth("~CannonFire", 0.3f, t =>
+        {
+            float r = Mathf.Sin(t * 91234.567f) * 43758.5453f;
+            r -= Mathf.Floor(r);
+            float noise = (r * 2f - 1f) * Mathf.Exp(-t * 18f) * 0.7f;
+            float thump = Mathf.Sin(2f * Mathf.PI * 90f * t) * Mathf.Exp(-t * 9f) * 0.8f;
+            return noise + thump;
+        });
+
         static GameObject s_ShinyLoop;
         static bool s_ShinyTried;
 
@@ -257,6 +289,32 @@ namespace GridSystem
             float tone = Mathf.Sin(2f * Mathf.PI * f * t) * Mathf.Exp(-t * 5f) * 0.45f;
             return noise + tone;
         });
+    }
+
+    /// <summary>포탄 포물선 비행 — 끝나면 OnLand 호출 후 자멸. 연기 꼬리를 흘린다.</summary>
+    public sealed class CannonballFlight : MonoBehaviour
+    {
+        public Vector3 From, To;
+        public System.Action OnLand;
+        float m_T, m_Trail;
+
+        void Update()
+        {
+            m_T += Time.deltaTime / ItemFx.kCannonFlightSeconds;
+            if (m_T >= 1f) { OnLand?.Invoke(); Destroy(gameObject); return; }
+            float h = Mathf.Max(2.5f, Vector3.Distance(From, To) * 0.3f);
+            Vector3 p = Vector3.Lerp(From, To, m_T);
+            p.y += Mathf.Sin(m_T * Mathf.PI) * h;
+            transform.position = p;
+
+            m_Trail -= Time.deltaTime;   // 연기 꼬리
+            if (m_Trail <= 0f)
+            {
+                m_Trail = 0.04f;
+                var b = GridJuice.MakeBit(p, 0.09f, new Color(0.6f, 0.6f, 0.6f));
+                b.vel = Vector3.up * 0.3f; b.life = 0.35f; b.scaleVel = 0.3f; b.startAlpha = 0.5f;
+            }
+        }
     }
 
     /// <summary>구슬 반짝이: 주기적으로 작은 흰 조각이 표면에서 떠오르며 사라짐.</summary>

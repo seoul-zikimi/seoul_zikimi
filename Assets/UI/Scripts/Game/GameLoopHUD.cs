@@ -20,7 +20,7 @@ public sealed class GameLoopHUD : UIHUD
     private enum Texts { Timer, Players, Structure, Time, Score, Grade, EventToast, CoinReward, ReceiptNo, IssueDate }
     private enum Imgs { P0, P1, P2, P3, GradeStar0, GradeStar1, GradeStar2, GradeStamp }
     private enum Raws { ResultImage }
-    private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
+    private enum Btns { EndRequestButton, SettingsIconButton, SettingsCloseButton, KeySettingsButton, ExitGameButton, RoomButton, LeaveButton, CraneToggleButton }
     private enum Slds { BGMSlider, SFXSlider, SensSlider }
 
     private GameLoopManager m_Loop;
@@ -120,6 +120,7 @@ public sealed class GameLoopHUD : UIHUD
         Wire(Btns.EndRequestButton, OnEndRequest);
         Wire(Btns.SettingsIconButton, ToggleSettingsPopup);
         Wire(Btns.SettingsCloseButton, ToggleSettingsPopup);
+        Wire(Btns.KeySettingsButton, () => KeyBindingPopup.Open());
         Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
         Wire(Btns.RoomButton, () => { if (m_Loop != null) m_Loop.RequestReturnToRoom(); });
         Wire(Btns.LeaveButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
@@ -280,10 +281,10 @@ public sealed class GameLoopHUD : UIHUD
                 var items = m_Loop.GetComponent<GridSystem.ItemNetwork>();
                 string held = items != null ? items.LocalHeldName() : "";
                 if (!string.IsNullOrEmpty(held))
-                    timer += $"\n<size=55%>[{held}] E로 사용</size>";
-                string status = GridSystem.ItemNetwork.LocalStatusLine();
-                if (!string.IsNullOrEmpty(status))
-                    timer += $"\n<size=55%>{status}</size>";
+                    timer += held == "대포"   // 기획서: 대포는 조준+꾹 발사 안내
+                        ? "\n<size=55%>[대포] 상대 건물 조준 후 E 꾹 눌렀다 떼면 발사!</size>"
+                        : $"\n<size=55%>[{held}] E로 사용</size>";
+                // 걸린 효과(날씨·버프·디버프)는 우상단 버프 아이콘 바가 담당 — UpdateBuffBar()
             }
             m_TimerText.text = timer;
 
@@ -307,10 +308,11 @@ public sealed class GameLoopHUD : UIHUD
             m_LastTimerSecs = secs;
         }
 
+        UpdateBuffBar();                    // 우상단 버프/디버프 아이콘(라디얼 카운트다운)
         SetCrane(!m_Loop.IsBuilding);       // 정산 중 = 건축물 한 바퀴 크레인샷
         UpdateMilestoneToast();             // 완성도 25/50/75/90% 돌파 토스트
 
-        // 정확히 100%(만점) 완공일 때만 폭죽 멈춤없이. 반올림(99.6→100) 오발화 방지.
+        // 정확히 100%(만점) 완공일 때만 폭죽(최대 kFireworksSeconds). 반올림(99.6→100) 오발화 방지.
         if (IsComplete()) StartResultFireworks();
         else StopResultFireworks();
 
@@ -484,7 +486,8 @@ public sealed class GameLoopHUD : UIHUD
                 int enemyPct = Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent);
                 int w = m_Loop.WinnerTeam;
                 string verdict = w == -1 ? "무승부 (DRAW)" : (w == myTeam ? "승리!" : "패배...");   // 폰트가 한글/ASCII만 지원 — 이모지 금지
-                m_VersusLine = $"{verdict}  우리 {pct}% : 상대 {enemyPct}%";
+                // 승패 문구를 큼직하게, 완성도 비교는 작게 — 도장과 겹치지 않도록 도장은 꺼서 사용(아래 useStamp 처리)
+                m_VersusLine = $"<size=40>{verdict}</size>\n<size=22>우리 {pct}% : 상대 {enemyPct}%</size>";
             }
             else m_VersusLine = null;
             m_ResultScoreText.text = pct.ToString();   // '건축 완료율 [  ]%' — 숫자만(라벨·%는 배경). 인트로 중엔 코루틴이 숫자 담당
@@ -521,7 +524,9 @@ public sealed class GameLoopHUD : UIHUD
         {
             // 도장: 완성도별 3종(EXCELLENT ≥90 / GOOD JOB ≥50 / TRY AGAIN). 스프라이트 없으면 글자 폴백.
             var stampSprite = InGameUiSkin.Load(pct >= 90 ? "Stamp_Excellent" : pct >= 50 ? "Stamp_GoodJob" : "Stamp_TryAgain");
-            bool useStamp = stampSprite != null && m_ResultGradeImage != null;
+            // 2vs2 승패 문구는 도장(완성도 기준 EXCELLENT/GOOD JOB/TRY AGAIN)과 의미가 다르고
+            // 같은 칸에 겹쳐 그려지므로, 승패 문구가 있으면 도장은 끈다.
+            bool useStamp = string.IsNullOrEmpty(m_VersusLine) && stampSprite != null && m_ResultGradeImage != null;
             if (m_ResultGradeImage != null)
             {
                 if (useStamp) m_ResultGradeImage.sprite = stampSprite;
@@ -625,24 +630,31 @@ public sealed class GameLoopHUD : UIHUD
 
     // ── 축하 폭죽(Resources/Fx/ResultFirework = CFXR4 랜덤색 사본) ──
     private Coroutine m_FireworksCo;
+    private bool m_FireworksDone;                    // 이번 100% 유지 구간에서 이미 다 쏘았음(재점화 방지)
+    private const float kFireworksSeconds = 10f;     // 100% 축하 폭죽 지속 시간
 
-    private void StartResultFireworks()   // 결과창 동안 멈춤없이 팡팡
+    private void StartResultFireworks()   // 100% 달성 순간부터 kFireworksSeconds 동안 팡팡
     {
-        if (m_FireworksCo == null) m_FireworksCo = StartCoroutine(FireworksLoop());
+        if (!m_FireworksDone && m_FireworksCo == null) m_FireworksCo = StartCoroutine(FireworksLoop());
     }
     private void StopResultFireworks()
     {
         if (m_FireworksCo != null) { StopCoroutine(m_FireworksCo); m_FireworksCo = null; }
+        m_FireworksDone = false;   // 100%가 깨졌다가 다시 완성되면 새로 축하
     }
 
     private IEnumerator FireworksLoop()
     {
         var prefab = Resources.Load<GameObject>("Fx/ResultFirework");
-        while (IsComplete())   // 만점(100%) 유지되는 동안 멈춤없이
+        float elapsed = 0f;
+        while (IsComplete() && elapsed < kFireworksSeconds)   // 만점(100%) 유지 중 최대 kFireworksSeconds
         {
             SpawnFireworkBurst(prefab, Camera.main);
-            yield return new WaitForSecondsRealtime(Random.Range(0.3f, 0.55f));
+            float wait = Random.Range(0.3f, 0.55f);
+            yield return new WaitForSecondsRealtime(wait);
+            elapsed += wait;
         }
+        m_FireworksDone = true;   // 시간 소진 — 100%가 유지되는 동안은 다시 안 쏨
         m_FireworksCo = null;
     }
 
@@ -691,6 +703,91 @@ public sealed class GameLoopHUD : UIHUD
     }
 
     // ── 막판 비네트(화면 가장자리 빨간 두근두근) ──
+    // ── 우상단 버프/디버프 아이콘 바 — 걸린 효과마다 아이콘 + 어두워지는 라디얼(경과분) + 남은 초 ──
+    private RectTransform m_BuffBar;
+    private readonly System.Collections.Generic.Dictionary<SeoulZikimi.Gameplay.CompetitiveItemKind,
+        (GameObject go, Image overlay, TextMeshProUGUI secs)> m_BuffCells = new();
+    private static readonly System.Collections.Generic.List<GridSystem.ItemNetwork.LocalStatus> s_Statuses = new();
+    private static readonly System.Collections.Generic.List<SeoulZikimi.Gameplay.CompetitiveItemKind> s_GoneKinds = new();
+
+    private void UpdateBuffBar()
+    {
+        if (m_BuffBar == null)
+        {
+            var t = transform.Find("BuffBar");
+            if (t == null) return;   // 구버전 프리팹(재생성 전) — 표시 생략
+            m_BuffBar = (RectTransform)t;
+        }
+
+        GridSystem.ItemNetwork.GetLocalStatuses(s_Statuses);
+
+        s_GoneKinds.Clear();
+        foreach (var kv in m_BuffCells)
+        {
+            bool alive = false;
+            foreach (var st in s_Statuses) if (st.Kind == kv.Key) { alive = true; break; }
+            if (!alive) { if (kv.Value.go != null) Destroy(kv.Value.go); s_GoneKinds.Add(kv.Key); }
+        }
+        foreach (var k in s_GoneKinds) m_BuffCells.Remove(k);
+
+        foreach (var st in s_Statuses)
+        {
+            if (!m_BuffCells.TryGetValue(st.Kind, out var cell))
+                m_BuffCells[st.Kind] = cell = MakeBuffCell(st.Kind);
+            cell.overlay.fillAmount = 1f - Mathf.Clamp01(st.Remaining / st.Total);   // 경과분이 어둡게 차오름 = 남은 밝은 부분이 줄어듦
+            cell.secs.text = Mathf.CeilToInt(st.Remaining).ToString();
+        }
+    }
+
+    private (GameObject, Image, TextMeshProUGUI) MakeBuffCell(SeoulZikimi.Gameplay.CompetitiveItemKind kind)
+    {
+        var go = new GameObject(kind.ToString(), typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(m_BuffBar, false);
+        rt.sizeDelta = new Vector2(40f, 40f);
+
+        Image Img(string name, Color color)
+        {
+            var child = new GameObject(name, typeof(Image));
+            var crt = (RectTransform)child.transform;
+            crt.SetParent(rt, false);
+            crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
+            crt.offsetMin = Vector2.zero; crt.offsetMax = Vector2.zero;
+            var img = child.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        var bg = Img("Bg", new Color(0f, 0f, 0f, 0.35f));
+        var icon = Img("Icon", Color.white);
+        icon.sprite = GridSystem.HeldItemBubble.LoadIcon(kind);
+        icon.preserveAspect = true;
+        if (icon.sprite == null) { icon.color = GridSystem.ItemNetwork.KindColor(kind); }   // 아이콘 없으면 종류색 칸
+
+        var overlay = Img("Overlay", new Color(0f, 0f, 0f, 0.55f));
+        overlay.type = Image.Type.Filled;
+        overlay.fillMethod = Image.FillMethod.Radial360;
+        overlay.fillOrigin = (int)Image.Origin360.Top;
+        overlay.fillClockwise = true;
+        overlay.fillAmount = 0f;
+
+        var secsGo = new GameObject("Secs", typeof(TextMeshProUGUI));
+        var srt = (RectTransform)secsGo.transform;
+        srt.SetParent(rt, false);
+        srt.anchorMin = Vector2.zero; srt.anchorMax = Vector2.one;
+        srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+        var secs = secsGo.GetComponent<TextMeshProUGUI>();
+        secs.font = JobsnailUiKit.TmpFont;
+        secs.fontSize = 15f;
+        secs.fontStyle = FontStyles.Bold;
+        secs.alignment = TextAlignmentOptions.BottomRight;
+        secs.color = Color.white;
+        secs.raycastTarget = false;
+
+        return (go, overlay, secs);
+    }
+
     // 시계 줄(첫 줄)만 펌핑 — 아래 '우리:상대'·아이템 줄은 고정.
     // rect 통짜 스케일이면 전 줄이 같이 흔들려서, 첫 줄 글자 버텍스만 라인 중심 기준으로 키운다(레이아웃 불변).
     private void PulseTimerLine(float scale)

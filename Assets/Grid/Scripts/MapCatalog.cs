@@ -26,6 +26,24 @@ namespace GridSystem
             return null;
         }
 
+        /// <summary>대전 모드 팀 구역(한 팀 몫, x는 아직 2배 전) 건축 영역 크기.
+        /// 경기장(공터) 맵과 선택한 맵의 정답이 요구하는 크기 중 축별로 더 큰 값을 합성한다 —
+        /// 경기장 크기만 쓰면 선택한 맵의 정답이 더 높거나 넓을 때 그 초과분이 범위 밖 판정으로 배치 불가가 된다.</summary>
+        public Vector3Int VersusZoneGridSize(int selectedMapIndex)
+        {
+            var arena = FindVersusArena();
+            var selected = Get(selectedMapIndex);
+            Vector3Int size = (arena != null && arena.HasGridSize) ? arena.GridSize : default;
+            if (selected != null && selected.HasGridSize)
+            {
+                size = size == default ? selected.GridSize : new Vector3Int(
+                    Mathf.Max(size.x, selected.GridSize.x),
+                    Mathf.Max(size.y, selected.GridSize.y),
+                    Mathf.Max(size.z, selected.GridSize.z));
+            }
+            return size;
+        }
+
         private static MapCatalog s_Instance;
         public static MapCatalog Instance
         {
