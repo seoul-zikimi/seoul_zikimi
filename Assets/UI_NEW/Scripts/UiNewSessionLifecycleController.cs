@@ -17,6 +17,9 @@ namespace SeoulZikimi.UI.New
 
         private async void Start()
         {
+            // '방으로 돌아가기'/'로비로 나가기' 둘 다 이 씬으로 오므로 여기서 BGM을 Lobby로 되돌린다.
+            SoundManager.Instance?.SetPhase(GamePhase.Lobby);
+
             // GameScene의 '방으로 돌아가기'는 세션과 Netcode를 유지한 채 Lobby 씬만 다시 연다.
             // 씬 로컬 UiNewSessionState는 새로 생성되므로 영속 SessionManager에서 복원해야 한다.
             ISession activeSession = JobsnailSessionManager.Instance.ActiveSession;

@@ -121,13 +121,13 @@ public sealed class MobileControlsHUD : MonoBehaviour
 
     private void OnEnable()
     {
-        AnswerPreview.VisibilityChanged -= OnPhoneVisibility;
-        AnswerPreview.VisibilityChanged += OnPhoneVisibility;
+        AnswerPanelHUD.PhoneVisibilityChanged -= OnPhoneVisibility;
+        AnswerPanelHUD.PhoneVisibilityChanged += OnPhoneVisibility;
     }
 
     private void OnDisable()
     {
-        AnswerPreview.VisibilityChanged -= OnPhoneVisibility;
+        AnswerPanelHUD.PhoneVisibilityChanged -= OnPhoneVisibility;
         MobileGameplayInput.HasVisibleMoveControl = false;
         MobileGameplayInput.WorldInputLocked = false;
         MobileGameplayInput.ReleaseAll();

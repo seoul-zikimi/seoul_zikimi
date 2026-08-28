@@ -1,5 +1,9 @@
+using GridSystem;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace Player
 {
@@ -17,10 +21,12 @@ namespace Player
         [SerializeField] private GameObject[] m_EmoteFx = new GameObject[11];
 
         private EmoteWheelUI m_Wheel;   // T 홀드 동안 표시되는 선택 패널(프리팹 HUD)
+        private GameLoopManager m_Loop;   // 인게임(GameScene) 존재 여부 판정용 — 로비 씬엔 없음
 
         private void Update()
         {
             if (!IsOwner) return;
+            if (!IsInGame() || IsTypingInChat()) { HideWheel(); return; }   // [QA] 로비/채팅 중 감정표현 오작동 방지
             var input = PlayerInputHandler.Local;
             if (input == null) return;
             int emote = input.ConsumeEmoteIndex();
@@ -55,6 +61,21 @@ namespace Player
         private void HideWheel()
         {
             if (m_Wheel != null) m_Wheel.gameObject.SetActive(false);
+        }
+
+        // GameLoopManager는 GameScene(실제 인게임)에만 존재 — 로비 씬엔 없어 감정표현을 막는 판정 기준으로 쓴다.
+        private bool IsInGame()
+        {
+            if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();   // 씬 전환 뒤 재탐색
+            return m_Loop != null;
+        }
+
+        // 로비 채팅 InputField에 포커스가 있으면 T/F1~F10을 텍스트 입력으로 보내야 한다.
+        private static bool IsTypingInChat()
+        {
+            var es = EventSystem.current;
+            var selected = es != null ? es.currentSelectedGameObject : null;
+            return selected != null && selected.GetComponent<InputField>() != null;
         }
 
         public override void OnNetworkSpawn()

@@ -36,14 +36,22 @@ namespace GridSystem
 
         // 선택(클릭) 테두리: 호버와 별개로 유지. 같은 재료의 모든 인스턴스를 감싸 개수 파악을 돕는다.
         private MaterialDef m_SelectedDef;
+        private MaterialDef m_HoverDef;      // 미니 프리뷰 호버 중인 재료 — 맵 고스트 강조용
         private readonly List<GameObject> m_SelOutlines = new();
         private readonly List<Material> m_GhostMats = new();      // 고스트 반투명 머티리얼 사본(정리용)
-        private readonly List<(GameObject go, int baseY)> m_GhostFloors = new();   // 인월드 고스트 오브젝트 + 기준층(층별 표시용)
+        private readonly List<(GameObject go, int baseY, List<Vector3Int> cells, int materialId, int reqMask, int matStart, int matCount)> m_GhostFloors = new();   // 인월드 고스트 + 기준층 + 정답 셀(완료 판정) + 고스트 머티리얼 구간(강조용)
+        private readonly List<bool> m_GhostDone = new();   // 블록별 '알맞게 완료' 캐시(스로틀 갱신)
+        private readonly List<Color> m_GhostMatCols = new();   // m_GhostMats와 1:1 — 원본 색(강조 초록에서 복귀용)
+        private static readonly Color kGhostHighlight = new Color(0.35f, 1f, 0.55f);   // 호버/선택 강조: 초록(원색은 실블록과 헷갈림)
+        private float m_NextDoneCheck;
+        private GridNetwork m_Net;
         private bool m_Visible = true;
         private bool m_Built;
 
         /// <summary>모바일 눈 버튼: 폰(TAB)이 닫혀 있어도 인월드 고스트를 계속 보여줄지. 데스크톱은 건드리지 않는다(false).</summary>
         public static bool GhostPinned;
+        /// <summary>선택 재료가 전부 알맞게 지어져 자동 해제됐을 때(HUD 카드 선택 해제 연동용).</summary>
+        public event System.Action SelectionAutoCleared;
         private bool m_LastShow;          // Show() 변화 감지 → VisibilityChanged 1회 발화
         private const int kPreviewLayer = 30;   // 정답 미리보기 전용 레이어(메인 씬과 분리)
         private bool m_MainExcluded;             // 메인 카메라 cullingMask에서 1회 제외
@@ -66,11 +74,13 @@ namespace GridSystem
             if (m_Root != null) { Destroy(m_Root); m_Root = null; }
             if (m_GhostRoot != null) { Destroy(m_GhostRoot); m_GhostRoot = null; }
             m_PickTargets.Clear();
-            m_HoverGo = null; m_HoverOutlines.Clear();   // m_Root 자식이라 같이 파괴됨
+            m_HoverGo = null; m_HoverDef = null; m_HoverOutlines.Clear();   // m_Root 자식이라 같이 파괴됨
             m_SelectedDef = null; m_SelOutlines.Clear();
             m_GhostFloors.Clear();
+            m_GhostDone.Clear();
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
+            m_GhostMatCols.Clear();
             if (m_RT != null) { m_RT.Release(); m_RT = null; }
             m_Cam = null;
             m_Built = false;
@@ -79,7 +89,7 @@ namespace GridSystem
 
         private void Update()
         {
-            bool show = Show();
+            bool show = HudVisible;
 
             // 2vs2: 팀B의 인월드 고스트는 자기 구역(x+구역폭)에 보여야 한다 — 채점 오프셋(GridNetwork.ScoreAgainst)과 동일 기준.
             // 팀 배정(NetworkList)이 Build보다 늦게 복제될 수 있어 재생성 대신 루트 이동으로 매 프레임 반영한다.
@@ -89,23 +99,44 @@ namespace GridSystem
                         ? new Vector3(m_Manager.ZoneSize.x * GridContract.Unit, 0f, 0f)
                         : Vector3.zero;
 
-            bool ghost = show || (GhostPinned && m_Built && Building());
+            bool ghost = (m_Visible || GhostPinned) && m_Built && Building();
             if (m_GhostRoot != null) m_GhostRoot.SetActive(ghost);
             if (ghost)
             {
+                RefreshGhostDone();   // 이미 알맞게 지은 블록은 고스트 숨김(시선 정리) — 0.25s 스로틀
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
-                for (int i = 0; i < m_GhostFloors.Count; i++)
-                    if (m_GhostFloors[i].go != null) m_GhostFloors[i].go.SetActive(m_GhostFloors[i].baseY == f);
+                // 미니 프리뷰에서 호버/선택한 재료는 실제 배치 위치의 고스트를 강조 — UI의 블록과 맵 위치를 이어준다.
+                var hlDef = m_HoverDef != null ? m_HoverDef : m_SelectedDef;
+                int hlId = hlDef != null ? hlDef.Id : int.MinValue;
 
-                float ga = 0.34f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 살아있는 청사진 숨쉬기
+                float ga = 0.16f + 0.05f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 더 은은하게(커서 프리뷰가 주인공) + 숨쉬기
+                float ha = 0.45f + 0.15f * Mathf.Abs(Mathf.Sin(Time.time * 5f));     // 강조: 밝고 빠른 펄스
                 for (int i = 0; i < m_GhostMats.Count; i++)
                     if (m_GhostMats[i] != null)
                     {
-                        var c = m_GhostMats[i].GetColor(s_BaseColor); c.a = ga;
+                        var c = i < m_GhostMatCols.Count ? m_GhostMatCols[i] : m_GhostMats[i].GetColor(s_BaseColor);
+                        c.a = ga;   // 원본 색으로 복귀(강조 초록이 남지 않게) + 숨쉬기 알파
                         m_GhostMats[i].SetColor(s_BaseColor, c);
                         m_GhostMats[i].SetColor(s_Color, c);
                     }
+                for (int i = 0; i < m_GhostFloors.Count; i++)
+                {
+                    var it = m_GhostFloors[i];
+                    if (it.go == null) continue;
+                    bool hl = it.materialId == hlId;
+                    // 강조 중엔 층 필터·완료 숨김을 무시하고 보여준다(다른 층·이미 지은 곳도 위치 확인용).
+                    it.go.SetActive(hl || (it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i])));
+                    if (hl)
+                        for (int k = it.matStart; k < it.matStart + it.matCount && k < m_GhostMats.Count; k++)
+                            if (m_GhostMats[k] != null)
+                            {
+                                var c = kGhostHighlight; c.a = ha;   // 원색 대신 초록 — 실제 배치 프리뷰(원색)와 구분
+                                m_GhostMats[k].SetColor(s_BaseColor, c);
+                                m_GhostMats[k].SetColor(s_Color, c);
+                            }
+                }
             }
+            // 폰 HUD 가시성은 TAB과 무관 — 건축 중이면 표시(접기/펴기는 AnswerPanelHUD의 탭 버튼 담당)
             if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
 
             if (!m_MainExcluded && Camera.main != null)   // 메인 뷰에서 미니씬 누출 방지(타이밍 안전)
@@ -116,9 +147,55 @@ namespace GridSystem
         }
 
         private bool Building() => m_Loop == null || m_Loop.IsBuilding;
-        private bool Show() => m_Visible && m_Built && Building();
+        /// <summary>정답 폰 HUD를 띄울 상황인가(건축 중 · 미리보기 준비됨). TAB(고스트 토글)과 무관.</summary>
+        private bool HudVisible => m_Built && Building();
 
-        /// <summary>키보드·패드·모바일 주문 버튼이 공통으로 호출하는 UI 비의존 토글.</summary>
+        // 블록별 '배치+요구 공정까지 알맞게 완료' 여부 캐시. 채점(ScoreAgainst)과 동일 기준(재료 일치 + RequiredMask 충족).
+        private void RefreshGhostDone()
+        {
+            if (Time.time < m_NextDoneCheck) return;
+            m_NextDoneCheck = Time.time + 0.25f;
+            if (m_Net == null) m_Net = GetComponent<GridNetwork>();   // 복제 상태(클라 포함)에서 읽는다 — m_Manager.Grid는 서버 전용
+            var answer = m_Manager != null ? m_Manager.Answer : null;
+            while (m_GhostDone.Count < m_GhostFloors.Count) m_GhostDone.Add(false);
+            if (m_Net == null || answer == null) return;
+            // 2vs2 팀B: 고스트 루트와 같은 오프셋으로 실제 칸을 조회(채점 오프셋과 동일 기준)
+            var offset = (m_Loop != null && m_Loop.IsVersus && m_Loop.LocalTeam == 1)
+                ? new Vector3Int(m_Manager.ZoneSize.x, 0, 0) : Vector3Int.zero;
+            for (int i = 0; i < m_GhostFloors.Count; i++)
+            {
+                var it = m_GhostFloors[i];
+                bool done = it.cells != null && it.cells.Count > 0;
+                if (done)
+                    foreach (var c in it.cells)
+                    {
+                        if (answer.IsPreset(c)) continue;   // 기본 제공 블럭 칸은 지을 필요 없음
+                        if (!m_Net.TryGetCell(c + offset, out int matId, out int completedMask)
+                            || matId != it.materialId
+                            || (completedMask & it.reqMask) != it.reqMask) { done = false; break; }
+                    }
+                m_GhostDone[i] = done;
+            }
+
+            // 편의성: 선택한 재료의 모든 블록이 알맞게 완료되면 선택(초록 강조)을 자동 해제 — 다 지었는데 계속 반짝이는 것 방지.
+            if (m_SelectedDef != null)
+            {
+                bool any = false, all = true;
+                for (int i = 0; i < m_GhostFloors.Count; i++)
+                    if (m_GhostFloors[i].materialId == m_SelectedDef.Id)
+                    {
+                        any = true;
+                        if (!(i < m_GhostDone.Count && m_GhostDone[i])) { all = false; break; }
+                    }
+                if (any && all)
+                {
+                    ClearSelection();
+                    SelectionAutoCleared?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>TAB — 인월드 정답 고스트만 켜고 끈다(폰 HUD는 별도 탭 버튼).</summary>
         public void ToggleVisibility() => m_Visible = !m_Visible;
 
         private void Build()
@@ -138,9 +215,13 @@ namespace GridSystem
             {
                 Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
                 Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
+                int matStart = m_GhostMats.Count;
                 var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
                 if (useWhole) HideRenderers(go);        // 통짜 고스트를 대신 세운다(아래) — 층 필터 파편화 방지
-                m_GhostFloors.Add((go, o.minCell.y));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
+                var fcells = GridFootprint.EnumerateFootprintCells(o.minCell, o.def != null ? o.def.Footprint : Vector3Int.one, o.rot);
+                m_GhostFloors.Add((go, o.minCell.y, fcells, o.def != null ? o.def.Id : -1,
+                                   o.def != null ? o.def.RequiredMask : 0,
+                                   matStart, m_GhostMats.Count - matStart));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
             }
             // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
             ShowCompletedModelInstead(m_GhostRoot.transform, ghost: true);
@@ -222,7 +303,7 @@ namespace GridSystem
         // ── HUD 브리지(Assembly-CSharp 드라이버가 구독) ──
         public static event System.Action<AnswerPreview> Ready;      // Build 끝마다(=RT 최신화)
         public static event System.Action<bool> VisibilityChanged;   // 표시/숨김 전환
-        public bool IsVisible => Show();
+        public bool IsVisible => HudVisible;
 
         // ── 인터랙티브 오빗(로컬) — 정답 패널 라우터(Assembly-CSharp)가 호출 ──
         public RenderTexture RT => m_RT;
@@ -274,12 +355,14 @@ namespace GridSystem
             if (best < 0) { ClearHover(); return false; }
 
             def = m_PickTargets[best].def;
+            m_HoverDef = def;
             SetHoverOutline(m_PickTargets[best].go);
             return true;
         }
 
         public void ClearHover()
         {
+            m_HoverDef = null;
             m_HoverGo = null;
             for (int i = 0; i < m_HoverOutlines.Count; i++)
                 if (m_HoverOutlines[i] != null) Destroy(m_HoverOutlines[i]);
@@ -535,7 +618,7 @@ namespace GridSystem
                 if (ghost)
                 {
                     var m = MakeTransparentMaterial();
-                    if (m != null) { m.SetColor(s_BaseColor, kNoPrefabGhost); m.SetColor(s_Color, kNoPrefabGhost); m_GhostMats.Add(m); }
+                    if (m != null) { m.SetColor(s_BaseColor, kNoPrefabGhost); m.SetColor(s_Color, kNoPrefabGhost); m_GhostMats.Add(m); m_GhostMatCols.Add(kNoPrefabGhost); }
                     go.GetComponent<Renderer>().sharedMaterial = m;
                 }
                 else SetColor(go, kNoPrefabSolid);
@@ -555,19 +638,20 @@ namespace GridSystem
                 {
                     var m = MakeTransparentMaterial();
                     if (m == null) { dst[i] = src[i]; continue; }   // 셰이더 없으면 원본 유지
-                    m_GhostMats.Add(m);
-
                     Color tint = Color.white;
                     if (src[i] != null)
                     {
-                        if      (src[i].HasProperty(s_BaseMap)) m.SetTexture(s_BaseMap, src[i].GetTexture(s_BaseMap));
-                        else if (src[i].HasProperty(s_MainTex)) m.SetTexture(s_BaseMap, src[i].GetTexture(s_MainTex));
+                        if      (src[i].HasProperty(s_BaseMap) && src[i].GetTexture(s_BaseMap) != null) m.SetTexture(s_BaseMap, src[i].GetTexture(s_BaseMap));
+                        else if (src[i].HasProperty(s_MainTex) && src[i].GetTexture(s_MainTex) != null) m.SetTexture(s_BaseMap, src[i].GetTexture(s_MainTex));
+                        else if (src[i].HasProperty(s_GltfMap) && src[i].GetTexture(s_GltfMap) != null) m.SetTexture(s_BaseMap, src[i].GetTexture(s_GltfMap));
                         if      (src[i].HasProperty(s_BaseColor)) tint = src[i].GetColor(s_BaseColor);
                         else if (src[i].HasProperty(s_Color))     tint = src[i].GetColor(s_Color);
+                        else if (src[i].HasProperty(s_GltfCol))   tint = src[i].GetColor(s_GltfCol);
                     }
                     tint.a = alpha;
                     m.SetColor(s_BaseColor, tint);
                     m.SetColor(s_Color, tint);
+                    m_GhostMats.Add(m); m_GhostMatCols.Add(tint);
                     dst[i] = m;
                 }
                 r.sharedMaterials = dst;
@@ -578,6 +662,8 @@ namespace GridSystem
         private static readonly int s_Color = Shader.PropertyToID("_Color");
         private static readonly int s_BaseMap = Shader.PropertyToID("_BaseMap");
         private static readonly int s_MainTex = Shader.PropertyToID("_MainTex");
+        private static readonly int s_GltfMap = Shader.PropertyToID("baseColorTexture");    // glTFast(.glb) 임포트 셰이더
+        private static readonly int s_GltfCol = Shader.PropertyToID("baseColorFactor");
         private static void SetColor(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
