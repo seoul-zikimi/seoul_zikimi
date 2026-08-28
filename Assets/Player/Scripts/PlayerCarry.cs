@@ -623,9 +623,9 @@ namespace Player
             // 받침대 조준: 마우스 광선과 각 받침대 중심의 최근접 거리로 판정(4방위 전부 검사, 가장 가까운 것)
             m_AimPedIndex = -1;
             if (m_Cam == null) m_Cam = Camera.main;
-            if (m_Cam != null && Mouse.current != null)
+            if (m_Cam != null && m_Input != null)
             {
-                var ray = m_Cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
                 float best = kPedestalAimRadius;
                 for (int i = 0; i < 4; i++)
                 {
