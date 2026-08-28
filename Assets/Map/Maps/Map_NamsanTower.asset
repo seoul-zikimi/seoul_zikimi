@@ -29,3 +29,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7bf37abc1970b6046b62e1c68307f5d7, type: 2}
   - {fileID: 11400000, guid: 57e3c2e0050af3b48912d4efcab60237, type: 2}
   m_NamsanGimmicks: {fileID: 11400000, guid: 0a037aadc1231bf4bb7fe45a981f50a2, type: 2}
+  m_LotteGimmicks: {fileID: 0}
+  m_DdpGimmicks: {fileID: 0}
+  m_Bgm:
+    Building: {fileID: 8300000, guid: 48a297ec2c8f36641a01b3016d07488d, type: 3}
+    Urgent: {fileID: 0}
+    Result: {fileID: 8300000, guid: 3faab657524bf4d4897a6e7d350d9735, type: 3}
+  m_CompletedModel: {fileID: 0}
+  m_CompletedModelAnchor: {x: 0, y: 0, z: 0}

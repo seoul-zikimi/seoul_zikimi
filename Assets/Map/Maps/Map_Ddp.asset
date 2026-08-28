@@ -35,8 +35,8 @@ MonoBehaviour:
   m_LotteGimmicks: {fileID: 0}
   m_DdpGimmicks: {fileID: 11400000, guid: 1d914fdc154ea4e4b87a542828023b08, type: 2}
   m_Bgm:
-    Building: {fileID: 0}
+    Building: {fileID: 8300000, guid: 78514bd3b79c3654c9a470f4706c83b8, type: 3}
     Urgent: {fileID: 0}
-    Result: {fileID: 0}
+    Result: {fileID: 8300000, guid: 987b350c7df2fec44888ce3171fd1364, type: 3}
   m_CompletedModel: {fileID: 1676969315320958593, guid: 7103ce50322faa549add0cf9a2edf77c, type: 3}
   m_CompletedModelAnchor: {x: 0, y: 0, z: 2}
