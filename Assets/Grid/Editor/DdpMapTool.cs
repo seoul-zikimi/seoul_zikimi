@@ -14,7 +14,7 @@ namespace GridSystem.EditorTools
     /// · 배경 2층 구조 —
     ///     상층 '잔디지붕 데크'(y=0)  : 건축 그리드가 올라간다
     ///     하층 '어울림광장'(y=-4)    : 배송존·작업대·스폰
-    ///     둘을 잇는 것은 동쪽 곡면 나선램프(넓게 뚫어 병목이 없다)
+    ///     둘을 잇는 것은 곡면 나선램프(배송존 옆에서 시작해 물길 위를 다리로 감아 오른다)
     /// · 기믹 2종(DdpGimmickConfig) + 마커:
     ///     Spot_WaterChannel0~3 (이간수문 물길, 서→동)
     ///     Spot_DigSite0~3      (유구 발굴터 후보)
@@ -299,16 +299,16 @@ namespace GridSystem.EditorTools
         //   북 ↑ z
         //        ┌────────────────────────────┐  z ≥ -4 : 잔디지붕 데크(y=0) — 건축장
         //        │        [건축 그리드]        │
-        //        └──────┬──────────────┬──────┘  z=-4 : 레벨 차 옹벽(4m)
-        //         장미발판↑            ↑곡면 나선램프(동)
-        //        ┌────────────────────────────┐
-        //        │   북쪽 광장 (램프 입구)      │  z ∈ [-12, -4]
-        //        ╞════════ 이간수문 물길 ══════╡  z = -12 (서→동 흐름)
-        //        │   남쪽 광장 (배송·작업대)    │  z ∈ [-24, -12]
+        //        └───────────────────┬────────┘  z=-4 : 레벨 차 옹벽(4m). ┬ = 나선램프 출구(16,-4)
+        //        ┌──────────────────/╮────────┐
+        //        │   북쪽 광장     램프│        │  z ∈ [-12, -4]
+        //        ╞════════ 이간수문 물│길 ═════╡  z = -12 (서→동 흐름, 램프는 상공 ~1.5m로 건넘)
+        //        │   남쪽 광장    ╰──╯        │  z ∈ [-24, -12]
+        //        │  (배송·작업대) ↑램프 입구(2,-15.2~) — 물길 남쪽, 배송존 옆
         //        └────────────────────────────┘  어울림광장(y=-4)
         //
-        // 핵심 동선: 배송존(남서) → 물길을 건너 → ① 동쪽 램프로 우회 또는 ② 장미 발판으로 직등 → 데크에서 건축.
-        // 물길 급송: 재료를 서쪽 상류에 넣으면 동쪽 램프 입구까지 흘러간다(걷는 것보다 빠름).
+        // 핵심 동선: 배송존(남서) → 바로 옆 나선램프 입구 → 동쪽으로 감아 오르며 물길을 상공 다리로 넘어 → 데크에서 건축.
+        // 물길 급송: 재료를 서쪽 상류에 넣으면 동쪽 하류까지 흘러간다(걷는 것보다 빠름).
         private static GameObject BuildGreybox()
         {
             var root = new GameObject("MapBg_Ddp");
@@ -355,7 +355,7 @@ namespace GridSystem.EditorTools
             // 같은 자리(z=-17.5)에 깔려 있어, 주문한 재료가 회색 블록들 사이·뒤로 떨어져
             // 가려지고 줍기도 불편했다. 성곽 유구 연출이 필요하면 배송 동선 밖에서 다시 설계할 것.
 
-            // ── 동쪽 곡면 나선램프: 광장(y=-4) → 데크(y=0) ──
+            // ── 나선 램프: 배송존 옆 광장(y=-4)에서 동쪽으로 감아 올라 물길 위를 지나 데크(y=0)로 ──
             // DDP는 '계단 없는 건물'이라 지붕(잔디언덕)까지 외부 경사로로 걸어 올라간다. 그 동선을 그대로.
             BuildCurvedRamp(root, silver);
 
@@ -366,22 +366,19 @@ namespace GridSystem.EditorTools
             // 런타임에 ExcavationNetwork가 Spot_DigSite* 중 한 곳에 표지 말뚝을 솟게 한다.
             // (예전엔 유구터 흙구덩이 프롭 4개가 상시로 깔려 있어 광장이 어수선했다)
 
-            // ── 원경: DDP 본관 실루엣(데크 북쪽 너머) ──
-            if (!TryPlaceProp(root, "DDP_원경", new Vector3(6.5f, kDeckY, 30f), 0f, 1.4f))
-            {
-                AddBox(root, "SkylineBody", new Vector3(6.5f, kDeckY + 3.5f, 31f), new Vector3(30f, 7f, 10f), silver).isStatic = true;
-                AddBox(root, "SkylineRoof", new Vector3(6.5f, kDeckY + 7.6f, 31f), new Vector3(24f, 1.4f, 8f), deckMat).isStatic = true;
-            }
+            // ⚠ 원경(DDP_원경 실루엣)은 두지 않는다 — 완성된 DDP 원본이 공중에 떠 보이는 데다,
+            // '지어야 할 정답'(인월드 고스트·완공 계획도)과 겹쳐 어느 쪽이 목표인지 헷갈렸다.
+            // 완성형 DDP는 정답 UI(완공 계획도)와 다 지었을 때의 완성체 교체로만 보여준다.
 
             // ── 마커: 필수 5종 + 기믹 마커 ──
             AddSpot(root, "Spot_GridManager", new Vector3(0f, kDeckY, 0f));                 // 짓는 곳(데크)
-            AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(2f, kPlazaY + 0.1f, -16f));  // 광장 남쪽
+            AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(-1f, kPlazaY + 0.1f, -16.5f));  // 광장 남쪽(나선램프 입구 살짝 서쪽 — 입구 턱 위 스폰 방지)
             AddSpot(root, "Spot_DeliveryZone", new Vector3(-5f, kPlazaY + 0.1f, -17f));     // 광장 남서 — 재료는 여기로
             AddSpot(root, "Spot_PaintStation", new Vector3(-9f, kPlazaY, -20f));            // 광장 남서(마커 Y = 접지점 — MapLoader가 반높이 올린다)
             AddSpot(root, "Spot_HammerStation", new Vector3(1f, kPlazaY, -20f));            // 광장 남쪽(〃)
 
             // 이간수문 물길 경로(서→동 일직선, 수로 중앙 z=-12) — WaterGateNetwork가 0번부터 순서대로 잇는다.
-            // 하류(동쪽)가 램프 입구 쪽이라, 재료를 상류에 넣으면 램프 앞까지 흘러간다.
+            // 재료를 상류(서쪽)에 넣으면 동쪽 하류까지 흘러간다. 나선램프가 x 10~17 부근 상공을 다리로 지난다.
             AddSpot(root, "Spot_WaterChannel0", new Vector3(-11f, kPlazaY, -12f));
             AddSpot(root, "Spot_WaterChannel1", new Vector3(0f, kPlazaY, -12f));
             AddSpot(root, "Spot_WaterChannel2", new Vector3(12f, kPlazaY, -12f));
@@ -393,7 +390,7 @@ namespace GridSystem.EditorTools
 
             // ⚠ Spot_RosePad* 는 더 이상 만들지 않는다 — 'LED 장미 발판' 기믹을 뺐다.
             // 광장 위에 분홍 원판이 둥둥 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
-            // 마커가 없으면 LedRoseNetwork는 스스로 잠잔다. 광장(y=-4) → 데크(y=0)는 동쪽 나선램프 하나로 간다.
+            // 마커가 없으면 LedRoseNetwork는 스스로 잠잔다. 광장(y=-4) → 데크(y=0)는 나선램프 하나로 간다.
 
             return root;
         }
@@ -480,58 +477,71 @@ namespace GridSystem.EditorTools
         }
 
         // 발굴터 후보 4곳 — 수로(z=-12) 양옆에 흩어놓는다. 물이 차면 전부 잠긴다.
-        // 장미밭(x -10.5~2.5, z -8.8~-4.8)·작업대·램프와 겹치지 않게 배치했다.
+        // 장미밭(x -10.5~2.5, z -8.8~-4.8)·작업대·나선램프(중심 (2,-4), 반지름 11.2~16.8의
+        // 남동 사분원) 발자국과 겹치지 않게 배치했다 — 램프 밑에 말뚝이 솟으면 안 되니까.
         private static readonly (string name, Vector3 pos)[] kDigSites =
         {
             ("A", new Vector3(-6f, kPlazaY + 0.05f, -21.5f)),   // 남서(광장 안쪽 깊이)
-            ("B", new Vector3(4f,  kPlazaY + 0.05f, -15.0f)),   // 남중 — 수로 바로 아래
-            ("C", new Vector3(14f, kPlazaY + 0.05f, -9.0f)),    // 북동 — 램프 입구 쪽
+            ("B", new Vector3(1f,  kPlazaY + 0.05f, -15.0f)),   // 남중 — 수로 바로 아래, 램프 입구 서쪽
+            ("C", new Vector3(20f, kPlazaY + 0.05f, -9.0f)),    // 북동 — 수로 하류 쪽, 램프 원호 바깥
             ("D", new Vector3(-2f, kPlazaY + 0.05f, -15.0f)),   // 남중서
         };
 
-        // 곡면 나선램프(동쪽): 광장 y=-4 → 데크 y=0 을 원호로 잇는다.
-        // 원호 중심 (12, ·, -7), 반지름 7, 각도 300°→60°(120° 스윕) = 호길이 ~14.7m, 상승 4m → 약 15° 경사.
-        // 세그먼트 박스를 접선 방향으로 회전 + 피치를 줘 이어 붙인다(콜라이더 그대로 = 걸어 오를 수 있음).
+        // 곡면 나선램프: 광장 y=-4 → 데크 y=0 을 원호로 잇는다(DDP다운 나선 동선).
         //
-        // 폭 5.6m — 장미 발판을 뺀 뒤로 위층으로 가는 길이 여기 하나뿐이라, 4인이 재료를 들고
+        // 기하는 '시작점이 물길에 닿던' 옛 배치의 교정판:
+        //   · 원호 중심을 데크 남단 라인(z=-4)에 두고 270°→360°(90° 스윕)로 감는다.
+        //   · 입구(270°) = 원호의 정남쪽 = (2, -15.2~-20.8) — 배송존(-5,-17) 바로 옆,
+        //     물길 남쪽 둔치(z=-14.7)에서 0.5m 이상 떨어져 시작점이 물길에 전혀 닿지 않는다.
+        //   · 물길(z=-12)은 스윕 중반, 지면 위 ~1.5m 상공에서 다리로 건넌다 —
+        //     방류로 물이 차도 발이 안 닿는다(재료 수급 → 램프 → 데크가 물을 전혀 안 밟는 동선).
+        //   · 끝(360°) = (16, -4)에서 정확히 y=0, 북진 방향으로 데크 모서리에 접속 —
+        //     원호가 z>-4로 넘어가지 않으므로 옛날처럼 끝자락이 잔디 밑에 파묻혀
+        //     '박힌 하얀 패널'처럼 보이는 구간이 없다.
+        //
+        // 폭 5.6m — 위층으로 가는 길이 여기 하나뿐이라, 4인이 재료를 들고
         // 서로 비켜갈 수 있어야 병목이 안 생긴다(예전 3.4m는 둘이 마주치면 막혔다).
+        //
+        // 형태: 이어붙인 리본이 아니라 '낱장 패널이 한 단씩 떠 있는 나선 계단'.
+        //   · 패널마다 수평(피치 0)으로 두고 다음 패널을 0.25m씩 올린다 —
+        //     연속 경사면일 때 "평면적인 나선"으로 보이던 걸, 층이 지는 계단 실루엣으로.
+        //   · 패널 사이 틈 ~0.27m + 단차 0.25m는 점프 없이 걸어서 자연히 넘는 크기
+        //     (플레이어 캡슐 반지름·스텝 오프셋보다 작다).
         private static void BuildCurvedRamp(GameObject root, Material mat)
         {
-            const int kSegments = 16;
-            const float kCx = 12f, kCz = -7f, kRadius = 7f;
-            const float kStartDeg = 300f, kEndDeg = 60f;
+            const int kSteps = 16;
+            const float kCx = 2f, kCz = -4f, kRadius = 14f;
+            const float kStartDeg = 270f, kEndDeg = 360f;
             const float kWidth = 5.6f;
+            const float kPanelLen = 1.1f;    // 낱장 길이(호 방향). 단 간격 ~1.37 → 틈 ~0.27
+            const float kThick = 0.18f;      // 얇은 패널 두께 — '판'으로 읽히게
 
-            float arcLen = Mathf.Deg2Rad * (kEndDeg - kStartDeg) * kRadius;   // 총 호길이
-            float rise = kDeckY - kPlazaY;
-            float pitchDeg = -Mathf.Atan2(rise, arcLen) * Mathf.Rad2Deg;      // 위로 향하는 피치
+            float stepRise = (kDeckY - kPlazaY) / kSteps;   // 0.25m
 
-            for (int i = 0; i < kSegments; i++)
+            for (int i = 0; i < kSteps; i++)
             {
-                float t0 = i / (float)kSegments;
-                float t1 = (i + 1) / (float)kSegments;
-                float a0 = Mathf.Lerp(kStartDeg, kEndDeg, t0) * Mathf.Deg2Rad;
-                float a1 = Mathf.Lerp(kStartDeg, kEndDeg, t1) * Mathf.Deg2Rad;
+                float tMid = (i + 0.5f) / kSteps;
+                float a = Mathf.Lerp(kStartDeg, kEndDeg, tMid) * Mathf.Deg2Rad;
 
-                var p0 = new Vector3(kCx + kRadius * Mathf.Cos(a0), Mathf.Lerp(kPlazaY, kDeckY, t0), kCz + kRadius * Mathf.Sin(a0));
-                var p1 = new Vector3(kCx + kRadius * Mathf.Cos(a1), Mathf.Lerp(kPlazaY, kDeckY, t1), kCz + kRadius * Mathf.Sin(a1));
+                float top = kPlazaY + (i + 1) * stepRise;   // 마지막 단 상면 = 데크 높이(y=0)와 정확히 일치
+                var pos = new Vector3(kCx + kRadius * Mathf.Cos(a), top - kThick * 0.5f, kCz + kRadius * Mathf.Sin(a));
+                var tangent = new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a));   // 진행 방향(반시계 스윕)
+                var rot = Quaternion.LookRotation(tangent, Vector3.up);
 
-                var mid = (p0 + p1) * 0.5f;
-                var dir = p1 - p0;
-                float segLen = dir.magnitude;
+                var panel = AddBox(root, $"Ramp{i}", pos, new Vector3(kWidth, kThick, kPanelLen), mat);
+                panel.transform.localRotation = rot;
+                panel.isStatic = true;
 
-                var seg = AddBox(root, $"Ramp{i}", mid + Vector3.down * 0.15f,
-                                 new Vector3(kWidth, 0.3f, segLen * 1.08f), mat);   // 1.08 = 이음새 겹침(틈 방지)
-                var flat = new Vector3(dir.x, 0f, dir.z).normalized;
-                seg.transform.localRotation = Quaternion.LookRotation(flat, Vector3.up) * Quaternion.Euler(pitchDeg, 0f, 0f);
-                seg.isStatic = true;
-
-                // 바깥쪽 난간(떨어짐 방지) — DDP 램프의 얇은 은색 핸드레일
-                var outward = new Vector3(Mathf.Cos((a0 + a1) * 0.5f), 0f, Mathf.Sin((a0 + a1) * 0.5f));
-                var rail = AddBox(root, $"RampRail{i}", mid + outward * (kWidth * 0.5f) + Vector3.up * 0.5f,
-                                  new Vector3(0.16f, 1.0f, segLen * 1.08f), mat);
-                rail.transform.localRotation = seg.transform.localRotation;
-                rail.isStatic = true;
+                // 난간 — 물길 위 다리 구간이 있으니 안팎 양쪽. 패널마다 끊겨 점선처럼 이어진다(낱장 느낌 유지).
+                var outward = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    var rail = AddBox(root, s < 0 ? $"RampRailIn{i}" : $"RampRailOut{i}",
+                                      pos + outward * (s * kWidth * 0.5f) + Vector3.up * (kThick * 0.5f + 0.4f),
+                                      new Vector3(0.16f, 0.8f, kPanelLen), mat);
+                    rail.transform.localRotation = rot;
+                    rail.isStatic = true;
+                }
             }
         }
 
