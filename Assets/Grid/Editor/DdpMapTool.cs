@@ -351,11 +351,9 @@ namespace GridSystem.EditorTools
                 AddBox(root, "WaterGateHole_E", new Vector3(-9.5f, kPlazaY + 0.75f, -10.7f), new Vector3(1.5f, 1.5f, 1.7f), water);
             }
 
-            // 한양도성 성곽 유구(수로 남쪽을 따라) — DDP 부지에서 실제 발굴된 성곽을 원경 장식으로.
-            // x=-10부터 — 예전 -14는 첫 두 장이 광장(x≥-11.5) 밖 허공에 걸쳐 있었다.
-            for (int i = 0; i < 5; i++)
-                AddBox(root, $"FortressWall{i}", new Vector3(-10f + i * 3.2f, kPlazaY + 0.45f, -17.5f),
-                       new Vector3(3f, 0.9f, 1.1f), stone).isStatic = true;
+            // ⚠ 성곽 유구(FortressWall) 그레이박스는 두지 않는다 — 배송존(Spot_DeliveryZone, z=-17)과
+            // 같은 자리(z=-17.5)에 깔려 있어, 주문한 재료가 회색 블록들 사이·뒤로 떨어져
+            // 가려지고 줍기도 불편했다. 성곽 유구 연출이 필요하면 배송 동선 밖에서 다시 설계할 것.
 
             // ── 동쪽 곡면 나선램프: 광장(y=-4) → 데크(y=0) ──
             // DDP는 '계단 없는 건물'이라 지붕(잔디언덕)까지 외부 경사로로 걸어 올라간다. 그 동선을 그대로.

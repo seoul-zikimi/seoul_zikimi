@@ -44,8 +44,11 @@ namespace GridSystem.EditorTools
         ///    삼각형 보존 여부를 알려 주는 로그만 남겼다.
         /// 8: 위 되돌림 반영.
         /// 9: '완성체 교체' 도입 — 자르기 전 통짜를 DDP_본관_완성.prefab으로 따로 굽고,
-        ///    완공 계획도(정답 UI)와 '다 지었을 때'를 그 원본으로 보여준다(조각 이음매를 안 보이게).</summary>
-        private const int kSetupVersion = 9;
+        ///    완공 계획도(정답 UI)와 '다 지었을 때'를 그 원본으로 보여준다(조각 이음매를 안 보이게).
+        /// 10: 배송존과 겹치던 성곽 유구(FortressWall) 그레이박스 5개 제거(재료가 블록 사이로 떨어져 가려짐) +
+        ///     절단 조각에 '밀폐 스커트'(단면 커튼·바닥 뚜껑, 은색 별도 서브메시) 추가 —
+        ///     주문 배달로 날아오는 조각이 속 빈 껍데기(기본 상자)처럼 보이던 문제. 조각 재절단 필요.</summary>
+        private const int kSetupVersion = 10;
 
         private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
 

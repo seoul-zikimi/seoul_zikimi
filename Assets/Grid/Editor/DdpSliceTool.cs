@@ -245,13 +245,18 @@ namespace GridSystem.EditorTools
             if (kept < kMinTrisPerTile) return null;       // 부스러기 타일은 버린다
             usedTris = kept;
 
+            // 밀폐 스커트(단면 커튼 + 바닥 뚜껑) — 정점 배열 뒤에 이어붙이고 전용 서브메시로 넣는다.
+            var silver = EnsureSilver();
+            var skirt = silver != null ? BuildSkirt(nv, nn, nu, sub) : null;
+            bool hasSkirt = skirt != null && skirt.Count > 0;
+
             var mesh = new Mesh { name = $"DDP_조각_{xi}{zi}", indexFormat = IndexFormat.UInt32 };
             mesh.SetVertices(nv);
             mesh.SetNormals(nn);
             mesh.SetUVs(0, nu);
             int used = 0;
             foreach (var s in sub) if (s.Count > 0) used++;
-            mesh.subMeshCount = used;
+            mesh.subMeshCount = used + (hasSkirt ? 1 : 0);
             var usedMats = new List<Material>();
             int si = 0;
             for (int m = 0; m < sub.Count; m++)
@@ -259,6 +264,11 @@ namespace GridSystem.EditorTools
                 if (sub[m].Count == 0) continue;
                 mesh.SetTriangles(sub[m], si++);
                 usedMats.Add(mats[m]);
+            }
+            if (hasSkirt)
+            {
+                mesh.SetTriangles(skirt, si);
+                usedMats.Add(silver);
             }
             mesh.RecalculateBounds();
 
@@ -303,6 +313,97 @@ namespace GridSystem.EditorTools
 
             Debug.Log($"[DDP절단] {baseName}: 삼각형 {kept}, footprint {fp}, id {id}");
             return new Piece { Def = def, Anchor = kAnchor + new Vector3Int(x0, 0, z0), Footprint = fp };
+        }
+
+        // ── 밀폐 스커트 ──────────────────────────────────────────────────
+        // 조각은 통짜 '껍데기'의 삼각형을 통째로 나눠 가진 것이라, 잘린 단면과 밑면이 뻥 뚫려 있다.
+        // 그대로 두면 주문 배달로 날아오며 구를 때·밑에서 올려다볼 때 속 빈 '기본 상자'처럼 보인다.
+        // 경계 간선(한 삼각형만 쓰는 간선)마다 바닥(y=0)까지 은색 커튼을 내리고 바닥 뚜껑을 덮어
+        // 어느 각도에서 봐도 '잘라낸 덩어리'로 보이게 한다. 단면이 은색인 건 의도 — 금속 패널 건물의 절단면.
+        // ⚠ 원본 서브메시·머티리얼은 절대 건드리지 않는다(별도 서브메시로만 추가) —
+        //   머티리얼을 갈아끼우면 텍스처가 날아간다(kSetupVersion 7의 '전부 새하얀 덩어리' 사고).
+        private static List<int> BuildSkirt(List<Vector3> nv, List<Vector3> nn, List<Vector2> nu, List<List<int>> sub)
+        {
+            const float kGroundEps = 0.02f;   // 이 아래 간선은 이미 바닥에 닿아 있다 — 커튼 불필요
+            const float kInset = 0.012f;      // 이웃 조각의 커튼(같은 절단면 공유)과 z-파이팅 나지 않게 제 안쪽으로
+
+            // 0.5mm 양자화 — UV 솔기로 정점이 갈라져 있어도 같은 자리면 같은 간선으로 본다.
+            // (정점 인덱스 기준으로 세면 솔기가 전부 '가짜 경계'로 잡혀 껍데기 한복판에 커튼이 선다)
+            static (int, int, int) Q(Vector3 v)
+                => (Mathf.RoundToInt(v.x * 2000f), Mathf.RoundToInt(v.y * 2000f), Mathf.RoundToInt(v.z * 2000f));
+
+            var edges = new Dictionary<((int, int, int), (int, int, int)), (int a, int b, int uses)>();
+            foreach (var tris in sub)
+                for (int t = 0; t < tris.Count; t += 3)
+                    for (int e = 0; e < 3; e++)
+                    {
+                        int ia = tris[t + e], ib = tris[t + (e + 1) % 3];
+                        var ka = Q(nv[ia]); var kb = Q(nv[ib]);
+                        if (ka.Equals(kb)) continue;                          // 퇴화 간선
+                        var key = ka.CompareTo(kb) <= 0 ? (ka, kb) : (kb, ka);
+                        edges[key] = edges.TryGetValue(key, out var cur) ? (cur.a, cur.b, cur.uses + 1) : (ia, ib, 1);
+                    }
+
+            var shell = new Bounds(nv[0], Vector3.zero);
+            foreach (var v in nv) shell.Encapsulate(v);
+            var center = shell.center;
+
+            var idx = new List<int>();
+            foreach (var kv in edges)
+            {
+                if (kv.Value.uses != 1) continue;                             // 경계 간선만
+                var A = nv[kv.Value.a]; var B = nv[kv.Value.b];
+                if (A.y < kGroundEps && B.y < kGroundEps) continue;           // 바닥 둘레는 이미 닫혀 있다
+
+                var mid = (A + B) * 0.5f;
+                var outDir = new Vector3(mid.x - center.x, 0f, mid.z - center.z);
+                outDir = outDir.sqrMagnitude > 1e-6f ? outDir.normalized : Vector3.forward;
+                var shift = -outDir * kInset;
+
+                var a  = A + shift;
+                var b2 = B + shift;
+                var a0 = new Vector3(a.x, 0f, a.z);
+                var b0 = new Vector3(b2.x, 0f, b2.z);
+
+                int i0 = nv.Count;
+                nv.Add(a); nv.Add(b2); nv.Add(b0); nv.Add(a0);
+                for (int i = 0; i < 4; i++) { nn.Add(outDir); nu.Add(Vector2.zero); }
+
+                // 커튼이 조각 바깥을 향하게 감기 방향 결정(뒷면 컬링 대비)
+                var nrm = Vector3.Cross(b2 - a, b0 - a);
+                if (Vector3.Dot(nrm, outDir) >= 0f) idx.AddRange(new[] { i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3 });
+                else                                idx.AddRange(new[] { i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2 });
+            }
+
+            if (idx.Count == 0) return idx;   // 열린 단면이 없으면 뚜껑도 필요 없다
+
+            // 바닥 뚜껑(아래를 향하는 사각형) — 커튼 둘레보다 살짝 안쪽. 공중에서 구를 때 밑면이 뚫려 보이지 않게.
+            float x0 = shell.min.x + 0.05f, x1 = shell.max.x - 0.05f;
+            float z0 = shell.min.z + 0.05f, z1 = shell.max.z - 0.05f;
+            if (x1 > x0 && z1 > z0)
+            {
+                int i0 = nv.Count;
+                nv.Add(new Vector3(x0, 0.004f, z0)); nv.Add(new Vector3(x0, 0.004f, z1));
+                nv.Add(new Vector3(x1, 0.004f, z1)); nv.Add(new Vector3(x1, 0.004f, z0));
+                for (int i = 0; i < 4; i++) { nn.Add(Vector3.down); nu.Add(Vector2.zero); }
+                idx.AddRange(new[] { i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2 });   // 순방향은 +Y라서 뒤집어 아래를 본다
+            }
+            return idx;
+        }
+
+        // 스커트용 은색 머티리얼 — DdpMapTool.EnsureMaterial("Mat_DdpSilver")과 같은 에셋을 쓴다(중복 생성 방지).
+        private static Material EnsureSilver()
+        {
+            const string kPath = "Assets/Map/Materials/Mat_DdpSilver.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(kPath);
+            if (mat != null) return mat;
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh == null) { Debug.LogWarning("[DDP절단] URP Lit 셰이더를 못 찾음 — 스커트 생략"); return null; }
+            mat = new Material(sh);
+            mat.SetColor("_BaseColor", new Color(0.78f, 0.80f, 0.83f));
+            Directory.CreateDirectory("Assets/Map/Materials");
+            AssetDatabase.CreateAsset(mat, kPath);
+            return mat;
         }
 
         // GLB의 모든 MeshFilter를 하나의 삼각형 수프로 굽는다(월드 변환 적용, 머티리얼 인덱스 유지).
