@@ -118,6 +118,14 @@ public static class GameLoopHudPrefabGenerator
     private static void BuildSettingsPopup(Transform root)
     {
         var popup = JobsnailUiKit.Box("InGameSettingsPopup", root, new Vector2(0.34f, 0.24f), new Vector2(0.66f, 0.76f), Vector2.zero, Vector2.zero, new Color(1f, 0.97f, 0.86f, 0.98f)).gameObject;
+        popup.AddComponent<NoJuicyButtonMotion>();
+        var popupImage = popup.GetComponent<Image>();
+        if (popupImage != null)
+        {
+            popupImage.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            popupImage.type = Image.Type.Sliced;
+            popupImage.color = new Color(1f, 0.965f, 0.88f, 0.99f);
+        }
 
         JobsnailUiKit.Label("Title", popup.transform, "설정", 30, Color.black, TextAlignmentOptions.Center, new Vector2(0, 210), new Vector2(360, 56));
 
@@ -125,8 +133,12 @@ public static class GameLoopHudPrefabGenerator
         MakeVolumeSlider(popup.transform, "SFX", "SFXSlider", new Vector2(0, 60));
         MakeVolumeSlider(popup.transform, "감도", "SensSlider", new Vector2(0, 0));
 
-        var exit = JobsnailUiKit.Button("ExitGameButton", popup.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -95), new Vector2(320, 52), null, "게임 나가기");
-        SetColor(exit, new Color(1f, 0.62f, 0.62f, 1f));   // 분홍(주의)
+        var keySettings = JobsnailUiKit.Button("KeySettingsButton", popup.transform, null,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -78), new Vector2(320, 52), null, "키 설정");
+        SetColor(keySettings, new Color(1f, 0.77f, 0.42f, 1f));
+
+        var exit = JobsnailUiKit.Button("ExitGameButton", popup.transform, null, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -148), new Vector2(320, 52), null, "게임 나가기");
+        SetColor(exit, new Color(0.92f, 0.76f, 0.70f, 1f));
 
         var close = JobsnailUiKit.Button("SettingsCloseButton", popup.transform, null, new Vector2(0.88f, 0.88f), new Vector2(0.98f, 0.98f), Vector2.zero, Vector2.zero, null, "×");
         SetColor(close, new Color(1f, 0.97f, 0.86f, 0f));

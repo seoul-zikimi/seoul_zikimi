@@ -57,10 +57,17 @@ namespace GridSystem
             m_SpawnedIndex = idx;
 
             // 건축 영역 크기 — 배경으로 쓰는 맵(2vs2=공터)의 값. 마커 배치·플레이어 배치보다 먼저 확정해야 위치가 맞는다.
-            if (bgDef.HasGridSize)
+            // 2vs2는 경기장 크기와 선택한 맵의 정답 크기를 합성(GridNetwork.ServerGridSize와 동일 기준) —
+            // 경기장만 쓰면 서버 판정 그리드보다 좁아져 정답 위 칸(예: 남산타워 높은 층)이 안 놔지는 걸로 보인다.
             {
+                var size = bgDef.HasGridSize ? bgDef.GridSize : default;
+                if (m_Loop.IsVersus)
+                {
+                    var combined = catalog.VersusZoneGridSize(idx);
+                    if (combined != default) size = combined;
+                }
                 var gm = FindFirstObjectByType<GridManager>();
-                if (gm != null) gm.ApplyMapGridSize(bgDef.GridSize);
+                if (gm != null) gm.ApplyMapGridSize(size);
             }
 
             // 이 맵에서 주문할 수 있는 재료(비면 카탈로그 전체) — 주문 HUD가 이 목록만 보여준다.

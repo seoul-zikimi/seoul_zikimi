@@ -239,7 +239,7 @@ namespace GridSystem
 
             // 입력(모든 클라): Enter = 동의 토글 (건축중=종료 동의 / 종료화면=재시작 동의)
             var kb = Keyboard.current;
-            if (kb != null && kb.enterKey.wasPressedThisFrame)
+            if (!GameplayInputBlocker.Blocked && kb != null && kb.enterKey.wasPressedThisFrame)
                 ToggleConsentRpc();
 
             if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f)

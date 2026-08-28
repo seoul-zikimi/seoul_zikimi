@@ -10,8 +10,12 @@ public sealed class JobsnailLobbyCharacterStage : MonoBehaviour
 {
     private const int kStageLayer = 31;         // 스테이지 전용 레이어(빈 레이어)
     private const int kBooths = 4;              // RT는 항상 4열(0.25씩)
-    private const float kCellWorld = 2.0f;      // 부스 1칸이 차지하는 월드 폭
-    private const float kWorldHeight = 3.0f;    // 카메라 세로 시야(월드)
+    // Idle 바운즈에 딱 맞춘 기존 촬영 범위에서는 걷기/회전 중 팔다리가 열 경계를 넘어 잘렸다.
+    private const float kHorizontalSafeViewScale = 1.22f;
+    // 요청 사양: 현재 촬영 중심은 유지하고 위 30% + 아래 30%를 추가한다(세로 총 60% 확대).
+    private const float kVerticalSafeViewScale = 1.60f;
+    private const float kCellWorld = 2.0f * kHorizontalSafeViewScale;
+    private const float kWorldHeight = 3.0f * kHorizontalSafeViewScale * kVerticalSafeViewScale;
     private const float kTargetHeight = 2.45f;  // 슬롯 세로 공간을 충분히 채우도록 스케일 정규화
     private const int kColumnPixels = 256;
 
@@ -119,8 +123,11 @@ public sealed class JobsnailLobbyCharacterStage : MonoBehaviour
         RenderTexture.active = previous;
         m_CaptureTextures[index] = texture;
 
+        // 캡처 직후의 알파 실루엣으로 Tight 메시를 만들면 이후 걷기/회전 프레임이
+        // 최초 실루엣 밖으로 나갈 때 텍스처 픽셀이 있어도 메시 경계에서 잘린다.
+        // 동적으로 갱신되는 캡처이므로 항상 텍스처 전체 사각형을 그린다.
         var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
-            new Vector2(0.5f, 0.5f), 100f);
+            new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
         sprite.name = $"LobbyCharacter{index}Sprite";
         return sprite;
     }

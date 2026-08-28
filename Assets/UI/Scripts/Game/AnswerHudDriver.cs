@@ -19,6 +19,9 @@ public class AnswerHudDriver : MonoBehaviour
 
     private AnswerPreview  m_Preview;
     private AnswerPanelHUD m_Hud;
+    private GameLoopManager m_Loop;      // 완성도 배지(모바일)용
+    private GridNetwork     m_Net;
+    private float           m_NextCompletion;
     private bool           m_Visible;
     private bool           m_Dragging;   // 패널 위에서 우클릭 시작 → 버튼 뗄 때까지 회전 캡처
     private Vector2        m_PressPos;   // 좌클릭 시작 위치 — 클릭(선택)과 드래그(팬) 구분용
@@ -34,22 +37,33 @@ public class AnswerHudDriver : MonoBehaviour
         AnswerPreview.Ready             -= OnReady;
         AnswerPreview.VisibilityChanged -= OnVisibility;
         if (m_Hud != null) m_Hud.SelectionChanged -= OnHudSelection;
+        if (m_Preview != null) m_Preview.SelectionAutoCleared -= OnSelectionAutoCleared;
         AnswerPanelFocus.Active = false;
     }
 
     private void OnReady(AnswerPreview p)
     {
         m_Preview = p;
+        // 모바일 흰색 폰 화면에 맞춰 미니 프리뷰 배경을 밝은 회색으로(데스크톱은 기본 어두운 색 유지)
+        if (MobileControlsHUD.ShouldUseMobileUI)
+            p.SetBackground(new Color(0.90f, 0.90f, 0.89f, 1f));
         if (UIManager.Instance == null) return;
         m_Hud = UIManager.Instance.ShowHUDUI<AnswerPanelHUD>();
         m_Hud.SetTexture(p.RT);                                            // RT 재생성 대응(매 Build)
         m_Hud.SelectionChanged -= OnHudSelection;                          // 재구독(중복 방지)
         m_Hud.SelectionChanged += OnHudSelection;
+        m_Preview.SelectionAutoCleared -= OnSelectionAutoCleared;          // 다 지으면 프리뷰가 선택을 풀음 → HUD 카드도 해제
+        m_Preview.SelectionAutoCleared += OnSelectionAutoCleared;
         m_Visible = p.IsVisible;
         if (!m_Visible) UIManager.Instance.HideHUDUI<AnswerPanelHUD>();    // 초기 가시성 동기화
     }
 
     // HUD 카드 선택 ↔ 3D 뷰 테두리 동기화 (id -1 = 해제)
+    private void OnSelectionAutoCleared()
+    {
+        if (m_Hud != null) m_Hud.ClearSelection();
+    }
+
     private void OnHudSelection(int id)
     {
         if (m_Preview == null) return;
@@ -67,10 +81,24 @@ public class AnswerHudDriver : MonoBehaviour
 
     private void Update()
     {
+        var gameplayInput = Player.PlayerInputHandler.Local;
+        if (gameplayInput != null && gameplayInput.ConsumeToggleOrder())
+        {
+            // PC: TAB = 인월드 정답 고스트만. 모바일: 폰 버튼 = 폰 접기/펴기(고스트는 눈 버튼 담당).
+            if (MobileControlsHUD.ShouldUseMobileUI) { if (m_Hud != null) m_Hud.ToggleCollapsed(); }
+            else if (m_Preview != null) m_Preview.ToggleVisibility();
+        }
+
+        // 모바일에서는 AnswerPanelHUD가 좌측 완공 계획도/우측 재료 카탈로그의
+        // 전체화면 레이아웃을 사용한다. 표시 중 월드 조작 잠금은 아래 포커스와
+        // MobileControlsHUD의 VisibilityChanged 구독이 함께 담당한다.
+
+        UpdateCompletionBadge();   // 마우스 없는 기기에서도 돌도록 아래 early-return 앞에서
+
         if (m_Hud == null || m_Preview == null || Mouse.current == null) { AnswerPanelFocus.Active = false; return; }
 
         var rect = m_Hud.SurfaceRect;
-        bool over = m_Visible && rect != null &&
+        bool over = m_Visible && m_Hud.PhoneOpen && rect != null && !m_Hud.ChromeHovered &&   // 접힘·확대 버튼·도움말 위에선 정답 뷰 입력 양보
             RectTransformUtility.RectangleContainsScreenPoint(rect, Mouse.current.position.ReadValue(), null);
 
         // 좌클릭·우클릭 어느 쪽이든 패널 위에서 드래그 시작 → 회전(좌클릭이 더 직관적이라는 피드백 반영).
@@ -104,6 +132,18 @@ public class AnswerHudDriver : MonoBehaviour
         }
 
         UpdateHover(rect, over && !anyPressed);   // 드래그 중엔 호버 끔(회전하다 라벨이 튀지 않게)
+    }
+
+    // 폰 화면의 '현재 완성도 : N%' 배지 갱신(0.25초 스로틀). 팀전이면 우리 팀 점수.
+    private void UpdateCompletionBadge()
+    {
+        if (m_Hud == null || !m_Visible || Time.unscaledTime < m_NextCompletion) return;
+        m_NextCompletion = Time.unscaledTime + 0.25f;
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
+        if (m_Loop == null) return;
+        if (m_Loop.IsVersus && m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
+        var score = m_Loop.IsVersus && m_Net != null ? m_Net.ScoreFor(m_Loop.LocalTeam) : m_Loop.Score;
+        m_Hud.SetCompletion(Mathf.RoundToInt(score.Percent));
     }
 
     // 화면 클릭 → 미니씬 픽킹 → 같은 재료 전체 테두리 + HUD 카드 선택. 빈 곳 클릭 = 해제.
