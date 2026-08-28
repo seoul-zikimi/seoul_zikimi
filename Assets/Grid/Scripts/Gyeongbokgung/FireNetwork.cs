@@ -436,7 +436,14 @@ namespace GridSystem
             {
                 var src = root.AddComponent<AudioSource>();
                 src.clip = burnClip; src.loop = true;
-                src.spatialBlend = 1f; src.minDistance = 3f; src.maxDistance = 25f; src.volume = 0.8f;
+                // 감쇠는 SoundManager 3D 보이스와 같은 규약(선형 15~70). 기존 값(로그 3~25)은
+                // 리스너가 붙은 카메라가 플레이어에서 12유닛 뒤라 발밑 불조차 20% 볼륨이었고,
+                // 25유닛 밖(맵 반대편)에서 난 불은 완전 무음이었다.
+                src.spatialBlend = 1f;
+                src.rolloffMode  = AudioRolloffMode.Linear;
+                src.minDistance  = 15f;
+                src.maxDistance  = 70f;
+                src.volume       = 0.8f;
                 src.Play();
             }
             var cells = m_FlameCellScratch;
