@@ -40,6 +40,7 @@ namespace GridSystem
         private readonly List<PickupEntry> m_Scratch = new();
         private readonly GameObject[] m_Spirits = new GameObject[4];
         private readonly GameObject[] m_Statues = new GameObject[4];   // 받침대 위에 안착한 석상 비주얼(클라 로컬)
+        private readonly GameObject[] m_Zones = new GameObject[4];     // 보호 구역 상시 바닥 판(클라 로컬)
         private float m_NextScanAt;
         private float m_NextDropAllowedAt;   // 서버 전용 — 낙하 최소 간격
         private float m_NextBlockedLogAt;    // 서버 전용 — 낙하 막힘 경고 스로틀
@@ -49,18 +50,20 @@ namespace GridSystem
         /// <summary>4방위 전부 안착 — 화마 봉인. FireNetwork가 매 틱 조회한다(null-safe).</summary>
         public static bool IsSealed => Instance != null && Instance.Active && Instance.m_PlacedMask.Value == 0b1111;
 
-        /// <summary>이 셀이 정령 보호(화재 면역) 구역인가. 방위별로 그리드 절반을 보호한다.</summary>
+        /// <summary>이 셀이 정령 보호(화재 면역) 구역인가.
+        /// [08/28] 방위당 '그리드 절반'은 둘만 놓아도(동+서, 남+북) 전면 면역이 되는 밸런스 구멍 —
+        /// 각 방위는 자기 쪽 '가장자리 띠'(기본 1/3 폭)만 보호한다. 중앙부는 4개 봉인 전까지 계속 탄다.</summary>
         public static bool IsCellImmune(Vector3Int cell)
         {
             if (Instance == null || !Instance.Active) return false;
             int mask = Instance.m_PlacedMask.Value;
             if (mask == 0) return false;
             var size = Instance.Grid != null ? Instance.Grid.EffectiveSize : new Vector3Int(30, 13, 20);
-            float cx = size.x * 0.5f, cz = size.z * 0.5f;
-            if ((mask & (1 << 0)) != 0 && cell.x >= cx) return true;   // 동
-            if ((mask & (1 << 1)) != 0 && cell.x < cx) return true;    // 서
-            if ((mask & (1 << 2)) != 0 && cell.z < cz) return true;    // 남
-            if ((mask & (1 << 3)) != 0 && cell.z >= cz) return true;   // 북
+            float f = Instance.Config != null ? Mathf.Clamp01(Instance.Config.ImmunityBandFraction) : 0.34f;
+            if ((mask & (1 << 0)) != 0 && cell.x >= size.x * (1f - f)) return true;   // 동쪽 띠
+            if ((mask & (1 << 1)) != 0 && cell.x < size.x * f) return true;           // 서쪽 띠
+            if ((mask & (1 << 2)) != 0 && cell.z < size.z * f) return true;           // 남쪽 띠
+            if ((mask & (1 << 3)) != 0 && cell.z >= size.z * (1f - f)) return true;   // 북쪽 띠
             return false;
         }
 
@@ -84,6 +87,7 @@ namespace GridSystem
             {
                 if (m_Spirits[i] != null) Destroy(m_Spirits[i]);
                 if (m_Statues[i] != null) Destroy(m_Statues[i]);
+                if (m_Zones[i] != null) Destroy(m_Zones[i]);
             }
         }
 
@@ -239,12 +243,17 @@ namespace GridSystem
         }
 
         // ── 연출 (전 클라) ──────────────────────────────────────────────
+        /// <summary>석상 낙하 화면 연출 훅 — GameLoopHUD가 구독(어셈블리 방향상 이벤트 — FireNetwork.FirstFireCinematic과 같은 계약).</summary>
+        public static event System.Action<string, Color> StatueArrived;
+
         [Rpc(SendTo.Everyone)]
         private void StatueDropFxRpc(Vector3 pos, int kind)
         {
             LightPillar(pos, kKindColors[kind]);
             GridJuice.WorldToast(pos + Vector3.up * 2.5f, $"사방신 석상이 내려왔다! ({kKindNames[kind]})", new Color(1f, 0.92f, 0.5f));
-            GridSoundBridge.PlaySFXAt("LandObject", pos);
+            GridSoundBridge.PlaySFXAt("HolyChime", pos);   // 신 내려오는 소리(08/28 사운드 적용)
+            // 화면 전체 연출(방위색 비네트 + 배너) — 화마 등장과 같은 문법(08/28 피드백)
+            StatueArrived?.Invoke($"앞마당에 {kKindNames[kind]} 석상이 도착했다..!", kKindColors[kind]);
         }
 
         [Rpc(SendTo.Everyone)]
@@ -255,11 +264,59 @@ namespace GridSystem
             SpawnApparition(kind, pos + Vector3.up * kPedestalTopY);   // 사방신 환영 — 떠올랐다 사라진다
             GridJuice.GroundHit(pos, 1.1f);
             GridJuice.WorldToast(pos + Vector3.up * 2.2f, $"{kKindNames[kind]}이(가) 깨어났다!", kKindColors[kind]);
-            GridSoundBridge.PlaySFXAt("LandObject", pos);
+            GridSoundBridge.PlaySFXAt("HolyChime", pos);   // 안착·정령 강림(08/28 사운드 적용)
             if (sealedNow)
             {
                 GridJuice.FovPunch(Camera.main, -4f);
                 GridJuice.WorldToast(pos + Vector3.up * 3.4f, "사방신의 힘이 화마를 억누른다!", new Color(0.55f, 0.9f, 1f));
+                StartCoroutine(SealSlayCo());   // 클라이맥스: 4색 빛살 → 화마 처치
+            }
+        }
+
+        // 봉인 클라이맥스(08/28 '적의 실체화') — 4개 받침대에서 방위색 빛살이 화마에게 수렴, 명중 순간 폭발 소멸.
+        private System.Collections.IEnumerator SealSlayCo()
+        {
+            yield return new WaitForSeconds(0.5f);   // 안착 연출 한 박자 뒤
+            for (int i = 0; i < 4; i++)
+                if (m_Pedestals[i] != null)
+                    SealBolt.Fire(m_Pedestals[i].position + Vector3.up * 2.2f, ZoneDisplayColor(i), 0.9f);
+            yield return new WaitForSeconds(0.95f);
+            GridJuice.FovPunch(Camera.main, 5f);
+            FireNetwork.DemonSlain();
+            StatueArrived?.Invoke("사방신이 화마를 물리쳤다!!", new Color(1f, 0.85f, 0.3f));   // 금색 배너+비네트
+        }
+
+        // 봉인 빛살 — 화마 위치를 매 프레임 추적하며 가속 유도, 잔광을 흘린다. 수명 끝나면 자멸.
+        private sealed class SealBolt : MonoBehaviour
+        {
+            private float m_Die;
+            private Color m_Color;
+
+            public static void Fire(Vector3 from, Color c, float life)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Destroy(go.GetComponent<Collider>());
+                go.name = "~SealBolt";
+                go.transform.position = from;
+                go.transform.localScale = Vector3.one * 0.5f;
+                go.GetComponent<Renderer>().sharedMaterial = MakeGlow(new Color(c.r, c.g, c.b, 0.95f));
+                var b = go.AddComponent<SealBolt>();
+                b.m_Die = Time.time + life;
+                b.m_Color = c;
+            }
+
+            private void Update()
+            {
+                var tgt = FireNetwork.DemonPosition;
+                if (tgt.HasValue)
+                {
+                    Vector3 d = tgt.Value - transform.position;
+                    float sp = Mathf.Max(14f, d.magnitude / Mathf.Max(0.1f, m_Die - Time.time));
+                    transform.position += d.normalized * Mathf.Min(d.magnitude, sp * Time.deltaTime);
+                }
+                var fx = GridJuice.MakeBit(transform.position, 0.09f, m_Color);   // 잔광 꼬리
+                fx.vel = Vector3.zero; fx.gravity = 0f; fx.life = 0.3f;
+                if (Time.time >= m_Die) Destroy(gameObject);
             }
         }
 
@@ -313,32 +370,60 @@ namespace GridSystem
             }
         }
 
-        // 보호 구역 반짝 — 안착 방위가 지키는 그리드 절반 볼륨을 방위색 반투명 발광 박스로 덮었다가 페이드.
-        // 경계선은 IsCellImmune과 같은 기준(그리드 중심 절반)이라 시각과 판정이 정확히 일치한다.
-        private void ZoneFlash(int kind)
+        // ── 보호 구역 표시(08/28 재작업) ─────────────────────────────────
+        // 이전 구현의 실패 요인: ① 그리드 전체 높이 볼륨이라 '안에 서 있으면' 안쪽 면이 컬링돼 아무것도 안 보임
+        // ② 어두운 방위색(현무)은 가산 발광값이 0에 수렴해 투명 ③ 2.5초 반짝뿐이라 놓치면 끝.
+        // → 바닥에 붙는 얇은 발광 판으로 바꾸고(위에서 항상 보임), 색은 밝게 보정, 안착 동안 '상시' 표시 + 안착 순간 강한 플래시.
+
+        // IsCellImmune과 정확히 같은 경계의 띠(셀 좌표). 시각과 판정이 어긋나면 안 된다.
+        private (int x0, int x1, int z0, int z1) ZoneBandCells(int kind)
         {
             var size = Grid != null ? Grid.EffectiveSize : new Vector3Int(30, 13, 20);
-            int cx = size.x / 2, cz = size.z / 2;
+            float f = Config != null ? Mathf.Clamp01(Config.ImmunityBandFraction) : 0.34f;
             int x0 = 0, x1 = size.x, z0 = 0, z1 = size.z;
             switch (kind)
             {
-                case 0: x0 = cx; break;   // 동: x ≥ 중심
-                case 1: x1 = cx; break;   // 서
-                case 2: z1 = cz; break;   // 남: z < 중심
-                case 3: z0 = cz; break;   // 북
+                case 0: x0 = Mathf.RoundToInt(size.x * (1f - f)); break;   // 동쪽 띠
+                case 1: x1 = Mathf.RoundToInt(size.x * f); break;          // 서쪽 띠
+                case 2: z1 = Mathf.RoundToInt(size.z * f); break;          // 남쪽 띠
+                case 3: z0 = Mathf.RoundToInt(size.z * (1f - f)); break;   // 북쪽 띠
             }
-            Vector3 wmin = GridCoordinates.CellToWorld(new Vector3Int(x0, 0, z0));
-            Vector3 wmax = GridCoordinates.CellToWorld(new Vector3Int(x1, size.y, z1));
+            return (x0, x1, z0, z1);
+        }
 
+        // 어두운 방위색(현무 등)도 보이게 표시용으로 밝힌 색
+        private static Color ZoneDisplayColor(int kind) => Color.Lerp(kKindColors[kind], Color.white, 0.3f);
+
+        // 띠 범위를 덮는 얇은 바닥 발광 판(두께 0.08, 발목 높이 — 위에서 항상 보인다)
+        private GameObject BuildZoneSlab(int kind, float alpha, float y, float thick)
+        {
+            var (x0, x1, z0, z1) = ZoneBandCells(kind);
+            Vector3 wmin = GridCoordinates.CellToWorld(new Vector3Int(x0, 0, z0));
+            Vector3 wmax = GridCoordinates.CellToWorld(new Vector3Int(x1, 0, z1));
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "~GuardZoneFlash";
-            Object.Destroy(go.GetComponent<Collider>());
-            go.transform.position = (wmin + wmax) * 0.5f;
-            go.transform.localScale = wmax - wmin;
-            var c = kKindColors[kind];
-            go.GetComponent<Renderer>().sharedMaterial = MakeGlow(new Color(c.r, c.g, c.b, 0.13f));   // 은은하게(가산 발광)
-            var fade = go.AddComponent<PillarFade>();
-            fade.Life = 2.5f;
+            Destroy(go.GetComponent<Collider>());
+            var c = (wmin + wmax) * 0.5f;
+            go.transform.position = new Vector3(c.x, wmin.y + y, c.z);
+            go.transform.localScale = new Vector3(wmax.x - wmin.x, thick, wmax.z - wmin.z);
+            var col = ZoneDisplayColor(kind);
+            go.GetComponent<Renderer>().sharedMaterial = MakeGlow(new Color(col.r, col.g, col.b, alpha));
+            return go;
+        }
+
+        // 안착 순간 강한 플래시(2초 페이드) — 상시 판 위에 겹쳐서 '지금 여기가 켜졌다'를 보여준다
+        private void ZoneFlash(int kind)
+        {
+            var go = BuildZoneSlab(kind, 0.5f, 0.12f, 0.25f);
+            go.name = $"~GuardZoneFlash_{kKindNames[kind]}";
+            go.AddComponent<PillarFade>().Life = 2f;
+        }
+
+        // 상시 보호 구역 판 — 석상이 안착해 있는 동안 계속 표시(UpdateSpirits가 마스크 따라 켜고 끈다)
+        private GameObject BuildZoneOverlay(int kind)
+        {
+            var go = BuildZoneSlab(kind, 0.2f, 0.05f, 0.08f);
+            go.name = $"~GuardZone_{kKindNames[kind]}";
+            return go;
         }
 
         // 절차 생성 빛기둥 — 세로로 긴 발광 기둥이 2초에 걸쳐 사라진다.
@@ -411,6 +496,16 @@ namespace GridSystem
                 {
                     Destroy(m_Spirits[i]);
                     m_Spirits[i] = null;
+                }
+
+                // 보호 구역 상시 판 — 안착해 있는 동안 바닥에 방위색으로 계속 표시(어디가 면역인지 항상 보이게)
+                bool wantZone = (mask & (1 << i)) != 0;
+                if (wantZone && m_Zones[i] == null)
+                    m_Zones[i] = BuildZoneOverlay(i);
+                else if (!wantZone && m_Zones[i] != null)
+                {
+                    Destroy(m_Zones[i]);
+                    m_Zones[i] = null;
                 }
             }
         }

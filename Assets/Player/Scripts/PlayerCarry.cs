@@ -832,7 +832,7 @@ namespace Player
             if (!m_NetBucketFilled.Value && FireNetwork.NearDeumeu(transform.position, out var dm))
             {
                 m_NetBucketFilled.Value = true;
-                PlaySFX(SFXType.PickUpObject);
+                PlaySFX(SFXType.WaterFill);   // 물 뜨기 SFX(08/28 사운드 적용)
                 GridJuice.WorldToast(dm + Vector3.up * 1.6f, "물을 채웠다!", new Color(0.45f, 0.8f, 1f));
                 RebuildHeldVisual();   // 물 표시 갱신(오너 즉시 — 원격은 복제 콜백)
             }
@@ -843,7 +843,7 @@ namespace Player
                 return;
             }
 
-            float reach = kBuildReachCells * GridContract.Unit + 1.5f;
+            float reach = kBuildReachCells * GridContract.Unit + 2.5f;   // [08/28] 진화 판정 후하게(+1칸)
             if (!FireNetwork.TryGetNearestBurning(transform.position, reach, out var cell, out _))
             {
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
@@ -1201,6 +1201,9 @@ namespace Player
                 var kb = Keyboard.current;
                 if (kb != null && kb.zKey.isPressed && RevertReadyOnTarget())
                     hitGo = m_Net.VisualAt(m_AimedRevertCell);          // Z 되돌리기 대상
+                else if (HasTool && m_HeldTool == ProcessType.Bucket && m_NetBucketFilled.Value
+                         && FireNetwork.TryGetNearestBurning(transform.position, kBuildReachCells * GridContract.Unit + 2.5f, out var fc, out _))
+                    hitGo = m_Net.VisualAt(fc);                          // 물 붓기 대상(불타는 블록) — 다른 공정과 같은 초록 테두리
                 else if (HasTool && TryAimProcessCell(out var pc))
                     hitGo = m_Net.VisualAt(pc);                          // 공정 대상
                 else if (!HasMaterial && !HasTool && m_HasTarget && m_Net.IsPickupable(m_Target))

@@ -149,9 +149,17 @@ namespace GridSystem
                 // DDP 기믹 마커(물길 경로·발굴터·장미 발판)도 같은 체계.
                 if (DdpSpots.IsMarkerOnly(t.name)) continue;
 
+                // "Spot_이름#2"처럼 # 뒤는 복제 인스턴스 구분자 — 같은 시스템 오브젝트를 한 맵에 여러 개(경복궁 양동이함 2개 등).
+                // 프리팹은 # 앞 이름으로 찾고, 씬 인스턴스는 # 포함 전체 이름으로 구분한다.
+                int dup = targetName.IndexOf('#');
+                string prefabName = dup >= 0 ? targetName.Substring(0, dup) : targetName;
                 var target = GameObject.Find(targetName);
-                if (target == null) target = SpawnSystemObject(targetName);   // 씬에 없으면 마커 자리에 새로 만든다
-                if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상도 프리팹도 없음: {targetName} (Resources/SystemObjects/{targetName})"); continue; }
+                if (target == null)
+                {
+                    target = SpawnSystemObject(prefabName);   // 씬에 없으면 마커 자리에 새로 만든다
+                    if (target != null) target.name = targetName;   // #표기 유지 — 다음 맵 로드에서 각자 찾히게
+                }
+                if (target == null) { Debug.LogWarning($"[MapLoader] Spot 대상도 프리팹도 없음: {targetName} (Resources/SystemObjects/{prefabName})"); continue; }
 
                 // 그리드는 회전 불가(셀=월드축 정렬) — GridManager는 위치만 적용하고 기준점 갱신
                 var gm = target.GetComponent<GridManager>();

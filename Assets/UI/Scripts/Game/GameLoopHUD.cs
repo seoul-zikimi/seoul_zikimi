@@ -153,9 +153,13 @@ public sealed class GameLoopHUD : UIHUD
         m_UrgentBgmStarted = false;
         m_PrevPhase = (GridSystem.GamePhase)(-1);
 
-        // 화마 첫 발화 시네마틱 구독(경복궁) — Init 재호출 대비 중복 방지 후 등록, OnDestroy에서 해제
+        // 화마 첫 발화·사방신 도착 시네마틱 구독(경복궁) — Init 재호출 대비 중복 방지 후 등록, OnDestroy에서 해제
         FireNetwork.FirstFireCinematic -= PlayFireCinematic;
         FireNetwork.FirstFireCinematic += PlayFireCinematic;
+        GuardianNetwork.StatueArrived -= PlayStatueCinematic;
+        GuardianNetwork.StatueArrived += PlayStatueCinematic;
+        FireNetwork.Ignited -= PlayFirePulse;
+        FireNetwork.Ignited += PlayFirePulse;
 
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
@@ -164,6 +168,8 @@ public sealed class GameLoopHUD : UIHUD
     private void OnDestroy()
     {
         FireNetwork.FirstFireCinematic -= PlayFireCinematic;
+        GuardianNetwork.StatueArrived -= PlayStatueCinematic;
+        FireNetwork.Ignited -= PlayFirePulse;
     }
 
     // 타이머 강조: 글자 주변에 부드러운 흰 빛 번짐(Underlay 를 halo 로) — 유리 알약 배경(프리팹) 위에서 은은하게 빛나게
@@ -375,7 +381,12 @@ public sealed class GameLoopHUD : UIHUD
     {
         if (m_StartBanner == null) return;
         var lbl = m_StartBanner.GetComponent<TextMeshProUGUI>();
-        if (lbl != null) { lbl.text = text; lbl.color = color; }
+        if (lbl != null)
+        {
+            lbl.textWrappingMode = TextWrappingModes.NoWrap;   // 긴 문장(석상 도착 등)이 2줄로 밀리지 않게
+            lbl.overflowMode = TextOverflowModes.Overflow;
+            lbl.text = text; lbl.color = color;
+        }
         if (m_BannerCo != null) StopCoroutine(m_BannerCo);
         m_BannerCo = StartCoroutine(StartBannerCo());
     }
@@ -737,6 +748,51 @@ public sealed class GameLoopHUD : UIHUD
         { m_FireVignette = Mathf.Lerp(0.34f, 0f, e / 1.5f); yield return null; }
         m_FireVignette = 0f;
         m_FireCineCo = null;
+    }
+
+    // ── 매 발화 짧은 빨간 펄스: 어디선가 불이 붙었다는 화면 신호. FireNetwork.Ignited 이벤트가 호출 ──
+    private Coroutine m_FirePulseCo;
+
+    private void PlayFirePulse()
+    {
+        if (m_FireCineCo != null) return;   // 첫 발화 대형 시네마틱 중엔 생략(겹침 방지)
+        if (m_FirePulseCo != null) StopCoroutine(m_FirePulseCo);
+        m_FirePulseCo = StartCoroutine(FirePulseCo());
+    }
+
+    private IEnumerator FirePulseCo()
+    {
+        EnsureVignette();
+        if (m_Vignette != null) m_Vignette.color.Override(new Color(0.55f, 0.04f, 0.04f));   // 화마는 항상 빨강(석상 연출이 색을 바꿨어도)
+        for (float e = 0f; e < 0.2f; e += Time.unscaledDeltaTime)   // 번쩍
+        { m_FireVignette = Mathf.Lerp(0f, 0.28f, e / 0.2f); yield return null; }
+        for (float e = 0f; e < 0.9f; e += Time.unscaledDeltaTime)   // 스르륵
+        { m_FireVignette = Mathf.Lerp(0.28f, 0f, e / 0.9f); yield return null; }
+        m_FireVignette = 0f;
+        m_FirePulseCo = null;
+    }
+
+    // ── 사방신 석상 도착 연출: 방위색 비네트 펄스 + 도착 배너(화마 등장과 같은 문법). GuardianNetwork 이벤트가 호출 ──
+    private Coroutine m_StatueCineCo;
+
+    private void PlayStatueCinematic(string text, Color color)
+    {
+        ShowBanner(text, Color.Lerp(color, Color.white, 0.35f));   // 현무처럼 어두운 방위색은 텍스트용으로 밝힘
+        if (m_StatueCineCo != null) StopCoroutine(m_StatueCineCo);
+        m_StatueCineCo = StartCoroutine(StatueCinematicCo(color));
+    }
+
+    private IEnumerator StatueCinematicCo(Color color)
+    {
+        EnsureVignette();
+        if (m_Vignette != null) m_Vignette.color.Override(color);
+        for (float e = 0f; e < 0.35f; e += Time.unscaledDeltaTime)   // 번쩍
+        { m_FireVignette = Mathf.Lerp(0f, 0.35f, e / 0.35f); yield return null; }
+        for (float e = 0f; e < 1.4f; e += Time.unscaledDeltaTime)    // 스르륵
+        { m_FireVignette = Mathf.Lerp(0.35f, 0f, e / 1.4f); yield return null; }
+        m_FireVignette = 0f;
+        if (m_Vignette != null) m_Vignette.color.Override(new Color(0.55f, 0.04f, 0.04f));   // 기본(위급 빨강) 복원
+        m_StatueCineCo = null;
     }
 
     private void EnsureVignette()

@@ -21,6 +21,7 @@ MonoBehaviour:
   ExtinguishSeconds: 1.2
   DeumeuRefillRange: 2.2
   FlameScale: 2.2
+  DemonLeadSeconds: 4
   BurnPresetBlocks: 1
   StatueDropPercents:
   - 20
@@ -36,4 +37,4 @@ MonoBehaviour:
   StatueDropMinGapSeconds: 20
   PedestalSnapRange: 2.5
   RejectBounceDistance: 3.5
-  ImmunityPadding: 0
+  ImmunityBandFraction: 0.34

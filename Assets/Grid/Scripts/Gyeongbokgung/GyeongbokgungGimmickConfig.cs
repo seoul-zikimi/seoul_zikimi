@@ -38,6 +38,10 @@ namespace GridSystem
         [Tooltip("불타는 블록 위 화염 이펙트 크기 배율.")]
         [Min(0.2f)] public float FlameScale = 2.2f;
 
+        [Tooltip("화마(불꽃 악령)가 발화 전에 목표 블록 위로 날아가 맴도는 전조 시간(초). [08/28 적의 실체화] " +
+                 "어디 불이 날지 미리 보인다 — 밸런스는 그대로, 위협이 캐릭터가 된다.")]
+        [Range(1f, 10f)] public float DemonLeadSeconds = 4f;
+
         [Tooltip("기본 제공(프리셋) 블록도 발화 대상인가. [08/28] 1층이 거의 프리셋으로 깔리면서 기본 true — " +
                  "'미리 지어진 건물을 화마로부터 지켜라'가 게임플레이. false면 프리셋 불연(예전 규칙 — 태울 게 거의 없어진다).")]
         public bool BurnPresetBlocks = true;
@@ -63,8 +67,9 @@ namespace GridSystem
         [Min(0.5f)] public float RejectBounceDistance = 3.5f;
 
         [Header("보호 구역")]
-        [Tooltip("정령이 깬 방위의 화재 면역이 그리드를 어떻게 가르는지 — 각 방위는 건물 중심 기준 해당 사분면(변 기준 절반)을 보호한다.\n동=동쪽 절반, 서=서쪽 절반, 남=남쪽 절반, 북=북쪽 절반. 두 방위가 겹치는 셀은 둘 중 하나만 깨져도 면역.")]
-        [Min(0f)] public float ImmunityPadding = 0f;
+        [Tooltip("방위 석상 하나가 보호하는 가장자리 띠의 폭(그리드 비율). 0.34 = 그 방위 쪽 1/3.\n" +
+                 "[08/28] 절반(0.5)은 마주보는 둘만 놓아도 전면 면역이라 하향 — 중앙부는 4개 봉인 전까지 계속 탄다.")]
+        [Range(0.1f, 0.5f)] public float ImmunityBandFraction = 0.34f;
 
         /// <summary>현재 시각(라운드 경과 초)에 맞는 발화 간격 — 시작값에서 하한까지 선형 감소.</summary>
         public float FireIntervalAt(float elapsedSinceFirstFire)

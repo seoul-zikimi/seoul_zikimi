@@ -30,7 +30,7 @@ namespace GridSystem.EditorTools
         private const string kGlobalMaterialCatalogPath = "Assets/Prefabs/Map/1_KwangTongGyo/1_GwangTongGyo_MaterialCatalog.asset";
 
         private static readonly Vector3Int kGridSize = new Vector3Int(30, 13, 20);
-        private const float kTimeLimitSeconds = 600f;   // 10분 — 최종전 후보. 밸런스는 플레이 테스트로
+        private const float kTimeLimitSeconds = 480f;   // [08/28] 10분→8분 — '잔잔하다' 피드백: 여유가 밀도를 죽여서 압축
 
         // ── 파츠 정의(칸모듈 통짜안) : 이름, id, footprint(가로,높이,세로), 공정, 색, 하중부재, 무거움 ──
         // [08/28] 재료 종류 최소화: 기와는 장·단 2종뿐, 세로 자리는 회전 배치(kRotatedAnchors)로 해결.
@@ -164,6 +164,10 @@ namespace GridSystem.EditorTools
             if (matCatalog == null) { Debug.LogError($"[경복궁] 전역 MaterialCatalog이 없음: {kGlobalMaterialCatalogPath}"); return; }
             var mc = new SerializedObject(matCatalog);
             var list = mc.FindProperty("m_Materials");
+            // 폐기된 def(모서리기와·세로기와 등)를 에셋에서 지우면 카탈로그에 빈 참조가 남는다 — 여기서 청소(멱등)
+            for (int i = list.arraySize - 1; i >= 0; i--)
+                if (list.GetArrayElementAtIndex(i).objectReferenceValue == null)
+                    list.DeleteArrayElementAtIndex(i);
             foreach (var d in statueDefs.Values)
             {
                 bool exists0 = false;
@@ -244,7 +248,7 @@ namespace GridSystem.EditorTools
             // ⑤ 맵 카드
             var def2 = LoadOrCreate<MapDef>(kMapDefPath);
             var so = new SerializedObject(def2);
-            so.FindProperty("m_DisplayName").stringValue = "경복궁 (테스트)";
+            so.FindProperty("m_DisplayName").stringValue = "경복궁 근정전";
             so.FindProperty("m_BackgroundPrefab").objectReferenceValue = prefab;
             so.FindProperty("m_GridSize").vector3IntValue = kGridSize;
             so.FindProperty("m_GyeongbokgungGimmicks").objectReferenceValue = gimmick;
@@ -273,7 +277,7 @@ namespace GridSystem.EditorTools
 
             AssetDatabase.SaveAssets();
             Selection.activeObject = def2;
-            Debug.Log($"[경복궁] 완료 ✔ 로비에서 '경복궁 (테스트)'를 고르세요.\n" +
+            Debug.Log($"[경복궁] 완료 ✔ 로비에서 '경복궁 근정전'을 고르세요.\n" +
                       $"파츠 def 9종(기와는 장·단 2종 + 회전 배치) {kDir} — VARCO 모델 나오면 각 def의 Prefab만 교체\n" +
                       $"정답 {kPalace.Length}블록/{cells.Count}칸(높이 14) · 기본 제공 {kPresetAnchors.Count}블록/{presetCells.Count}칸(1층 대부분+마루, 시작 시 완성 상태) · " +
                       $"기와/지붕 IsHeavy(2인 운반) · 2층 벽 2공정(망치질+단청) · 제한시간 {kTimeLimitSeconds / 60f:0}분");
@@ -331,38 +335,37 @@ namespace GridSystem.EditorTools
             var baseSt  = EnsureMaterial("Mat_GbkStoneBase",new Color(0.58f, 0.56f, 0.52f));   // 기단석
             var mtn     = EnsureMaterial("Mat_GbkMountain", new Color(0.38f, 0.50f, 0.38f));   // 북악산
 
-            // 박석 마당 — 실제 근정전처럼 '개큰' 돌 광장(08/27 피드백). 회랑은 저 바깥에서 두른다. 상판 y=0.
-            // [08/28] 회랑 링을 6칸 더 밀면서 마당도 같이 확장(회랑 밑까지 덮게).
-            AddBox(root, "Courtyard", new Vector3(15f, -0.5f, 10f), new Vector3(94f, 1f, 74f), stone).isStatic = true;
+            // ── 2단 월대 지형(08/28, 실제 근정전 고증 — 상월대+하월대): 건축 구역(상월대) 상판 y=0.
+            // 그리드/블록/작업대는 전부 상월대 위(y0) — 기존 좌표계 무변경.
+            // 하월대(4칸 폭 띠)는 -0.9, 바깥 마당(받침대·회랑·근정문)은 -1.8. 계단이 두 단을 잇는다.
+            const float kOuterY = -1.8f;   // 바깥 마당 지면 높이
+            const float kMidY = -0.9f;     // 하월대 상판 높이
+            // [08/28 축소] 반경이 과했다는 피드백 — 상월대를 사방 4칸 줄여 동선 압축(-8..38, -8..27)
+            // 상월대: 돌 울타리 직사각형과 같은 범위(상판 y0)
+            AddBox(root, "TerraceUpper", new Vector3(15f, -0.5f, 9.5f), new Vector3(46f, 1f, 35f), stone).isStatic = true;
+            // 하월대: 상월대를 사방 4칸 두르는 한 단 낮은 띠(상판 -0.9) — 사방신 받침대가 여기 선다
+            AddBox(root, "TerraceLower", new Vector3(15f, kMidY - 0.5f, 9.5f), new Vector3(54f, 1f, 43f), stone).isStatic = true;
+            // 바깥 박석 마당 — 회랑 밑까지 덮는 큰 판(상판 -1.8)
+            AddBox(root, "Courtyard", new Vector3(15f, kOuterY - 0.5f, 10f), new Vector3(78f, 1f, 58f), stone).isStatic = true;
 
-            // 건물 기단(월대 느낌) — 정답 footprint보다 살짝 넓은 얇은 단(장식, 상판 y=0.12)
+            // 건물 기단 — 정답 footprint보다 살짝 넓은 얇은 단(장식, 상판 y=0.12)
             AddBox(root, "StoneBase", new Vector3(15f, 0.06f, 9.5f), new Vector3(24f, 0.12f, 15f), baseSt).isStatic = true;
 
-            // 마루 받침 까치발 — 긴 들보 대신 앞뒤 벽 안쪽 면에 붙는 짧은 받침목 8개(08/26 피드백: 통 들보 보기 싫음).
-            // [08/28] 마루가 전부 프리셋으로 깔린 채 시작하므로 까치발도 처음부터 활성(공중부양 방지).
-            // GyeongbokgungCorbels 컴포넌트는 유지 — 이미 활성이면 첫 Update에서 스스로 꺼진다(프리셋을 되돌릴 때 대비).
-            // 앞 스터브는 아래칸 z6, 뒤 스터브는 z13을 덮어 마루 4장 전부의 지지(ExternalSupportBelow)를 보장한다.
-            var beamMat = EnsureMaterial("Mat_GbkCeiling", new Color(0.33f, 0.26f, 0.20f));
-            var stubRoot = new GameObject("MaruCorbels");
+            // 마루 지지대 — [08/28] 까치발 비주얼 폐기(개연성용이었음). 보이지 않는 콜라이더만 남긴다:
+            // 마루(y4) 아래는 그리드가 비어 있어 이 콜라이더가 유일한 지지(ExternalSupportBelow) —
+            // 지우면 마루가 SettleUnsupported에 무너지므로 렌더러만 끈 투명 박스로 유지한다.
+            var stubRoot = new GameObject("MaruSupports");
             stubRoot.transform.SetParent(root.transform, false);
             foreach (float bx in new[] { 8.5f, 12.5f, 16.5f, 20.5f })
             {
-                AddBox(stubRoot, $"Corbel_F_x{bx}", new Vector3(bx, 3.7f, 5.75f), new Vector3(0.6f, 0.5f, 1.5f), beamMat).isStatic = true;
-                AddBox(stubRoot, $"Corbel_B_x{bx}", new Vector3(bx, 3.7f, 14.25f), new Vector3(0.6f, 0.5f, 1.5f), beamMat).isStatic = true;
+                var f = AddBox(stubRoot, $"Support_F_x{bx}", new Vector3(bx, 3.7f, 5.75f), new Vector3(0.6f, 0.5f, 1.5f), null);
+                var b = AddBox(stubRoot, $"Support_B_x{bx}", new Vector3(bx, 3.7f, 14.25f), new Vector3(0.6f, 0.5f, 1.5f), null);
+                f.isStatic = b.isStatic = true;
+                f.GetComponent<Renderer>().enabled = false;
+                b.GetComponent<Renderer>().enabled = false;
             }
-            stubRoot.SetActive(true);
-            root.AddComponent<GyeongbokgungCorbels>().StubRoot = stubRoot;
 
-            // 서쪽 시공 비계: 계단(0.5씩 12단, 남→북으로 오르며 y6까지) + 상부 발판(하층 기와 옆에 붙는다)
-            for (int s = 0; s < 12; s++)
-            {
-                AddBox(root, $"Scaffold_Stair{s + 1}",
-                    new Vector3(2f, 0.25f + 0.5f * s, 16.4f - 0.8f * s),
-                    new Vector3(3f, 0.5f, 1.6f), wood).isStatic = true;
-            }
-            AddBox(root, "Scaffold_Top", new Vector3(2f, 5.8f, 5.2f), new Vector3(3f, 0.4f, 3.6f), wood).isStatic = true;
-            // 중간 발판(y3) — 1층 벽 상단·하층 기와 서쪽면 작업용
-            AddBox(root, "Scaffold_Mid", new Vector3(2f, 2.8f, 10.8f), new Vector3(3f, 0.4f, 2.4f), wood).isStatic = true;
+            // (서쪽 시공 비계 계단은 08/28 제거 — 1층 프리셋으로 시작하면서 지은 블록 등반만으로 충분)
 
             // 회랑(행각) — 마당 사방을 두르는 낮은 복도 건물. 남쪽은 근정문 자리를 비운다.
             // VARCO 회랑 세그먼트(경복궁_회랑_Fit)가 있으면 그레이박스 렌더러를 끄고 8칸짜리 세그먼트를 줄지어 세운다
@@ -370,8 +373,8 @@ namespace GridSystem.EditorTools
             var cloisterSeg = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/경복궁_회랑_Fit.prefab");
             void Cloister(string name, Vector3 c, Vector3 size)
             {
-                var wall = AddBox(root, name + "_Wall", new Vector3(c.x, 1.1f, c.z), new Vector3(size.x, 2.2f, size.z), redCol);
-                var roof = AddBox(root, name + "_Roof", new Vector3(c.x, 2.5f, c.z), new Vector3(size.x + 1.2f, 0.6f, size.z + 1.2f), darkTile);
+                var wall = AddBox(root, name + "_Wall", new Vector3(c.x, kOuterY + 1.1f, c.z), new Vector3(size.x, 2.2f, size.z), redCol);
+                var roof = AddBox(root, name + "_Roof", new Vector3(c.x, kOuterY + 2.5f, c.z), new Vector3(size.x + 1.2f, 0.6f, size.z + 1.2f), darkTile);
                 wall.isStatic = roof.isStatic = true;
                 if (cloisterSeg == null) return;
                 wall.GetComponent<Renderer>().enabled = false;
@@ -385,34 +388,35 @@ namespace GridSystem.EditorTools
                     var s = (GameObject)PrefabUtility.InstantiatePrefab(cloisterSeg, root.transform);
                     s.name = name + "_Seg";
                     float a = (alongX ? c.x : c.z) - len * 0.5f + step * (i + 0.5f);
-                    s.transform.localPosition = alongX ? new Vector3(a, 0f, c.z) : new Vector3(c.x, 0f, a);
+                    s.transform.localPosition = alongX ? new Vector3(a, kOuterY, c.z) : new Vector3(c.x, kOuterY, a);
                     s.transform.localRotation = Quaternion.Euler(0f, alongX ? 0f : 90f, 0f);
                     s.transform.localScale = new Vector3(step / 8f, 1f, 1f);   // 줄 길이에 딱 맞게 미세 스케일
                 }
             }
-            // [08/28] 회랑 링을 사방 6칸 더 바깥으로 — 광장이 한층 넓어진다(울타리 확장과 세트)
-            Cloister("Cloister_N", new Vector3(15f, 0f, 42f), new Vector3(86f, 0f, 2f));
-            Cloister("Cloister_W", new Vector3(-27f, 0f, 11f), new Vector3(2f, 0f, 64f));
-            Cloister("Cloister_E", new Vector3(57f, 0f, 11f), new Vector3(2f, 0f, 64f));
-            Cloister("Cloister_S1", new Vector3(-8f, 0f, -20f), new Vector3(38f, 0f, 2f));
-            Cloister("Cloister_S2", new Vector3(38f, 0f, -20f), new Vector3(38f, 0f, 2f));
+            // [08/28 축소] 회랑 링도 다시 안으로 — 월대 축소와 세트(이동 동선 압축)
+            Cloister("Cloister_N", new Vector3(15f, 0f, 36f), new Vector3(74f, 0f, 2f));
+            Cloister("Cloister_W", new Vector3(-21f, 0f, 11f), new Vector3(2f, 0f, 52f));
+            Cloister("Cloister_E", new Vector3(51f, 0f, 11f), new Vector3(2f, 0f, 52f));
+            Cloister("Cloister_S1", new Vector3(-3.5f, 0f, -14f), new Vector3(35f, 0f, 2f));
+            Cloister("Cloister_S2", new Vector3(33.5f, 0f, -14f), new Vector3(35f, 0f, 2f));
 
             // 근정문(남쪽 중앙) — 몸체 + 큰 지붕(회랑 링과 같은 줄). VARCO 근정문 모델(_Fit)이 있으면
             // 그레이박스 렌더러를 끄고 모델을 세운다(박스는 충돌 담당 유지 — 회랑·울타리와 같은 방식).
-            var gateBody = AddBox(root, "Gate_Body", new Vector3(15f, 1.8f, -20f), new Vector3(8f, 3.6f, 3f), redCol);
-            var gateRoof = AddBox(root, "Gate_Roof", new Vector3(15f, 4.1f, -20f), new Vector3(10f, 1f, 4.5f), darkTile);
+            var gateBody = AddBox(root, "Gate_Body", new Vector3(15f, kOuterY + 1.8f, -14f), new Vector3(8f, 3.6f, 3f), redCol);
+            var gateRoof = AddBox(root, "Gate_Roof", new Vector3(15f, kOuterY + 4.1f, -14f), new Vector3(10f, 1f, 4.5f), darkTile);
             gateBody.isStatic = gateRoof.isStatic = true;
-            if (PlaceProp(root, "경복궁_근정문", "Gate", new Vector3(15f, 0f, -20f)) != null)
+            if (PlaceProp(root, "경복궁_근정문", "Gate", new Vector3(15f, kOuterY, -14f)) != null)
             {
                 gateBody.GetComponent<Renderer>().enabled = false;
                 gateRoof.GetComponent<Renderer>().enabled = false;
             }
 
-            // ── 돌 울타리(월대 난간 느낌) — 광장을 두르는 낮은 화강암 담. 남쪽 중앙은 어도(정문 통로)로 비움 ──
-            // [08/28] 반경 확장: 그리드에 딱 붙어 답답하다 → 사방 6칸씩 밀어 건축 지역(체감 활동 공간)을 넓힌다.
+            // ── 돌 울타리(상월대 난간) — 상월대 가장자리를 두른다(08/28 배치도 기준 전면 개편).
+            // 각 면 = 바 4개: [모서리~계단][계단~중앙개구부][중앙개구부~계단][계단~모서리].
+            // 중앙 개구부 바깥엔 사방신 받침대, 계단 개구부엔 2단 월대 계단(상·하월대 플라이트).
             var fenceMat = EnsureMaterial("Mat_GbkFence", new Color(0.66f, 0.65f, 0.62f));
             const float fh = 0.9f, ft = 0.5f;          // 높이·두께
-            const float fxMin = -8f, fxMax = 37f, fzMin = -8f, fzMax = 27f;
+            const float fxMin = -8f, fxMax = 38f, fzMin = -8f, fzMax = 27f;   // [08/28 축소] 사방 4칸 안으로
             // 벽은 충돌 담당. VARCO 돌울타리 모델(_Fit)이 있으면 박스 렌더러를 끄고 세그먼트를 줄지어 세운다.
             var fenceSeg = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/경복궁_돌울타리_Fit.prefab");
             GameObject FenceWall(string name, Vector3 c, Vector3 size)
@@ -422,38 +426,67 @@ namespace GridSystem.EditorTools
                 if (fenceSeg != null) b.GetComponent<Renderer>().enabled = false;
                 return b;
             }
-            // 남쪽: 중앙 x11.5~18.5 비움(어도)
-            FenceWall("Fence_S_L", new Vector3((fxMin + 11.5f) * 0.5f, fh * 0.5f, fzMin), new Vector3(11.5f - fxMin, fh, ft));
-            FenceWall("Fence_S_R", new Vector3((18.5f + fxMax) * 0.5f, fh * 0.5f, fzMin), new Vector3(fxMax - 18.5f, fh, ft));
-            // 북쪽: 중앙 x13~17 비움(북문)
-            FenceWall("Fence_N_L", new Vector3((fxMin + 13f) * 0.5f, fh * 0.5f, fzMax), new Vector3(13f - fxMin, fh, ft));
-            FenceWall("Fence_N_R", new Vector3((17f + fxMax) * 0.5f, fh * 0.5f, fzMax), new Vector3(fxMax - 17f, fh, ft));
-            // 동·서쪽: 통짜
-            FenceWall("Fence_E", new Vector3(fxMax, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin));
-            FenceWall("Fence_W", new Vector3(fxMin, fh * 0.5f, (fzMin + fzMax) * 0.5f), new Vector3(ft, fh, fzMax - fzMin));
-            if (fenceSeg != null)
+            void SegRow(float a0, float a1, float fixedCoord, bool alongX)
             {
-                void SegRow(float a0, float a1, float fixedCoord, bool alongX)
+                if (fenceSeg == null) return;
+                int n = Mathf.Max(1, Mathf.RoundToInt((a1 - a0) / 2.1f));
+                float step = (a1 - a0) / n;
+                for (int i = 0; i < n; i++)
                 {
-                    int n = Mathf.Max(1, Mathf.RoundToInt((a1 - a0) / 2.1f));
-                    float step = (a1 - a0) / n;
-                    for (int i = 0; i < n; i++)
-                    {
-                        var s = (GameObject)PrefabUtility.InstantiatePrefab(fenceSeg, root.transform);
-                        s.name = "FenceSeg";
-                        float a = a0 + step * (i + 0.5f);
-                        s.transform.localPosition = alongX ? new Vector3(a, 0f, fixedCoord) : new Vector3(fixedCoord, 0f, a);
-                        s.transform.localRotation = Quaternion.Euler(0f, alongX ? 0f : 90f, 0f);
-                        s.transform.localScale = new Vector3(step / 2.1f, 1f, 1f) ;   // 줄 길이에 딱 맞게 미세 스케일
-                    }
+                    var s = (GameObject)PrefabUtility.InstantiatePrefab(fenceSeg, root.transform);
+                    s.name = "FenceSeg";
+                    float a = a0 + step * (i + 0.5f);
+                    s.transform.localPosition = alongX ? new Vector3(a, 0f, fixedCoord) : new Vector3(fixedCoord, 0f, a);
+                    s.transform.localRotation = Quaternion.Euler(0f, alongX ? 0f : 90f, 0f);
+                    s.transform.localScale = new Vector3(step / 2.1f, 1f, 1f);   // 줄 길이에 딱 맞게 미세 스케일
                 }
-                SegRow(fxMin, 11.5f, fzMin, true); SegRow(18.5f, fxMax, fzMin, true);
-                SegRow(fxMin, 13f, fzMax, true); SegRow(17f, fxMax, fzMax, true);
-                SegRow(fzMin, fzMax, fxMin, false); SegRow(fzMin, fzMax, fxMax, false);
             }
-            // 울타리 기둥(모서리 4 + 게이트 양옆) — 난간 느낌 보강
-            foreach (var (px, pz) in new[] { (fxMin, fzMin), (fxMax, fzMin), (fxMin, fzMax), (fxMax, fzMax), (11.5f, fzMin), (18.5f, fzMin) })
-                AddBox(root, $"FencePost_{px}_{pz}", new Vector3(px, 0.65f, pz), new Vector3(0.8f, 1.3f, 0.8f), fenceMat).isStatic = true;
+            // 한 면 = 바 여러 개(배열의 짝수 인덱스=시작, 홀수=끝). 바 양끝에 기둥.
+            void FenceSide(string side, float fixedCoord, bool alongX, float[] bars)
+            {
+                for (int i = 0; i < bars.Length; i += 2)
+                {
+                    float a0 = bars[i], a1 = bars[i + 1], mid = (a0 + a1) * 0.5f, len = a1 - a0;
+                    FenceWall($"Fence_{side}_{i / 2}",
+                        alongX ? new Vector3(mid, fh * 0.5f, fixedCoord) : new Vector3(fixedCoord, fh * 0.5f, mid),
+                        alongX ? new Vector3(len, fh, ft) : new Vector3(ft, fh, len));
+                    SegRow(a0, a1, fixedCoord, alongX);
+                    foreach (float a in new[] { a0, a1 })
+                        AddBox(root, $"FencePost_{side}_{a}",
+                            alongX ? new Vector3(a, 0.65f, fixedCoord) : new Vector3(fixedCoord, 0.65f, a),
+                            new Vector3(0.8f, 1.3f, 0.8f), fenceMat).isStatic = true;
+                }
+            }
+            // 남/북: 계단 개구부 x[-3,3]·[27,33], 중앙 개구부 x[12,18] · 동/서: 계단 z[-5,1]·[18,24], 중앙 z[6.5,12.5]
+            FenceSide("S", fzMin, true,  new[] { fxMin, -3f, 3f, 12f, 18f, 27f, 33f, fxMax });
+            FenceSide("N", fzMax, true,  new[] { fxMin, -3f, 3f, 12f, 18f, 27f, 33f, fxMax });
+            FenceSide("W", fxMin, false, new[] { fzMin, -5f, 1f, 6.5f, 12.5f, 18f, 24f, fzMax });
+            FenceSide("E", fxMax, false, new[] { fzMin, -5f, 1f, 6.5f, 12.5f, 18f, 24f, fzMax });
+
+            // 2단 월대 계단(고증 사진 기준): 아래 플라이트(마당 -1.8 → 하월대 -0.9) + 위 플라이트(하월대 → 상월대 0).
+            // 단높이 0.3×3단 — 컨트롤러가 걸어서 오르내린다. 위 플라이트는 울타리 계단 개구부에 정렬.
+            void Flight(string name, float along, float edge, bool alongX, float outSign, float topY, float baseY)
+            {
+                for (int s = 0; s < 3; s++)
+                {
+                    float top = topY - (topY - baseY) / 3f * s;
+                    float d = edge + outSign * (0.45f + 0.9f * s);
+                    float h = top - baseY;
+                    AddBox(root, $"{name}_{s + 1}",
+                        alongX ? new Vector3(along, baseY + h * 0.5f, d) : new Vector3(d, baseY + h * 0.5f, along),
+                        alongX ? new Vector3(5.4f, h, 0.9f) : new Vector3(0.9f, h, 5.4f), baseSt).isStatic = true;
+                }
+            }
+            void TerraceStairs(string name, float along, float edge, bool alongX, float outSign)
+            {
+                Flight(name + "_U", along, edge, alongX, outSign, 0f, kMidY);                        // 상월대 플라이트
+                Flight(name + "_L", along, edge + outSign * 4f, alongX, outSign, kMidY, kOuterY);    // 하월대 플라이트(4칸 바깥)
+            }
+            TerraceStairs("Stairs_S1", 0f, fzMin, true, -1f);  TerraceStairs("Stairs_S2", 30f, fzMin, true, -1f);
+            TerraceStairs("Stairs_SGate", 15f, fzMin, true, -1f);   // 정면 어도 계단(주 출입로 — 중앙 개구부)
+            TerraceStairs("Stairs_N1", 0f, fzMax, true, 1f);   TerraceStairs("Stairs_N2", 30f, fzMax, true, 1f);
+            TerraceStairs("Stairs_W1", -2f, fxMin, false, -1f); TerraceStairs("Stairs_W2", 21f, fxMin, false, -1f);
+            TerraceStairs("Stairs_E1", -2f, fxMax, false, 1f);  TerraceStairs("Stairs_E2", 21f, fxMax, false, 1f);
 
             // ── 사방신 석상 받침대 4종 — 동청룡(靑)·서백호(白)·남주작(赤)·북현무(黑). 이름으로 기믹이 찾는다 ──
             // VARCO 받침대 모델(_Fit)이 있으면 그걸 쓰고, 색 발광 판(Top)은 방위 신호로 항상 유지한다.
@@ -469,36 +502,36 @@ namespace GridSystem.EditorTools
                     AddBox(g, "Base", new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.5f, 2.4f), baseMat).isStatic = true;
                 AddBox(g, "Top", new Vector3(0f, prop != null ? 0.95f : 0.7f, 0f), new Vector3(1.7f, 0.25f, 1.7f), baseMat).isStatic = true;
             }
-            Pedestal("East",  0, new Vector3(28.5f, 0f,  9.5f), new Color(0.30f, 0.45f, 0.75f));   // 청룡
-            Pedestal("West",  1, new Vector3(-0.5f, 0f,  3.0f), new Color(0.88f, 0.88f, 0.90f));   // 백호
-            Pedestal("South", 2, new Vector3(21f,   0f, -0.5f), new Color(0.72f, 0.28f, 0.25f));   // 주작
-            Pedestal("North", 3, new Vector3(15f,   0f, 19.5f), new Color(0.18f, 0.18f, 0.22f));   // 현무
+            // [08/28 축소] 받침대는 울타리 중앙 개구부 바깥 '하월대 띠'(-0.9) 위 — 개구부로 나가 한 단만 내려가면 됨(동선 압축)
+            Pedestal("East",  0, new Vector3(40f,  kMidY,  9.5f), new Color(0.30f, 0.45f, 0.75f));   // 청룡(동)
+            Pedestal("West",  1, new Vector3(-10f, kMidY,  9.5f), new Color(0.88f, 0.88f, 0.90f));   // 백호(서)
+            Pedestal("South", 2, new Vector3(21f,  kMidY, -10f),  new Color(0.72f, 0.28f, 0.25f));   // 주작(남 — 어도 오른쪽)
+            Pedestal("North", 3, new Vector3(15f,  kMidY, 29f),   new Color(0.18f, 0.18f, 0.22f));   // 현무(북)
 
-            // ── 드므(방화수 항아리) 4개 — 건물 네 귀퉁이. 양동이 물 리필 지점(기믹이 이름으로 찾는다) ──
+            // ── 드므(방화수 항아리) 4개 — [08/28 축소] 그리드 네 귀퉁이 바로 밖(불터에서 몇 걸음이면 리필) ──
             var bronze = EnsureMaterial("Mat_GbkBronze", new Color(0.42f, 0.33f, 0.20f));
-            foreach (var (dx, dz, i) in new[] { (3f, 1.8f, 1), (26f, 1.8f, 2), (3f, 17.2f, 3), (26f, 17.2f, 4) })
+            foreach (var (dx, dz, i) in new[] { (-2f, -1f, 1), (32f, -1f, 2), (-2f, 21f, 3), (32f, 21f, 4) })
                 if (PlaceProp(root, "경복궁_드므", $"Deumeu_{i}", new Vector3(dx, 0f, dz)) == null)
                     AddCylinder(root, $"Deumeu_{i}", new Vector3(dx, 0.45f, dz), new Vector3(1.2f, 0.45f, 1.2f), bronze);
-
-            // 돌계단(어도 문턱, 장식) — 모델 있을 때만. 남쪽 울타리 어도 앞에 붙인다(울타리 반경과 연동).
-            PlaceProp(root, "경복궁_돌계단", "EntranceSteps", new Vector3(15f, 0f, fzMin - 0.1f));
+            // (어도 문턱 돌계단 소품은 폐기 — 2단 월대 계단이 대체)
 
             // 석상 낙하 지점(광장 중앙, 근정전 정면 앞) — 기믹이 이름으로 찾는 빈 마커
             AddSpotless(root, "GuardianDropPoint", new Vector3(15f, 0f, 1f));
 
-            // 북악산 원경(북쪽) — 회랑이 밀려난 만큼 산도 뒤로
-            var m1 = AddBox(root, "Mountain_1", new Vector3(5f, 4f, 60f), new Vector3(56f, 24f, 16f), mtn);
+            // 북악산 원경(북쪽) — 회랑이 밀려난 만큼 산도 뒤로(지면 -1.8에 맞춰 내림)
+            var m1 = AddBox(root, "Mountain_1", new Vector3(5f, 2.2f, 60f), new Vector3(56f, 24f, 16f), mtn);
             m1.transform.rotation = Quaternion.Euler(-38f, 0f, 0f); m1.isStatic = true;
-            var m2 = AddBox(root, "Mountain_2", new Vector3(36f, 2f, 64f), new Vector3(48f, 20f, 14f), mtn);
+            var m2 = AddBox(root, "Mountain_2", new Vector3(36f, 0.2f, 64f), new Vector3(48f, 20f, 14f), mtn);
             m2.transform.rotation = Quaternion.Euler(-42f, 8f, 0f); m2.isStatic = true;
 
-            // ── 마커 5종 ──
+            // ── 마커 — [08/28 배치도] 전부 상월대(y0) 위 ──
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));
-            AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(15f, 0f, -1f));   // 근정문 앞
-            AddSpot(root, "Spot_HammerStation", new Vector3(8f, 0f, 1f));        // 마당 남서
-            AddSpot(root, "Spot_PaintStation", new Vector3(22f, 0f, 1f));        // 마당 남동
-            AddSpot(root, "Spot_BucketStation", new Vector3(11.5f, 0f, 1f));     // 양동이 도구함(화마 진화 — 경복궁 전용)
-            AddSpot(root, "Spot_DeliveryZone", new Vector3(28.5f, 0f, 15.5f));   // 마당 동북(자재 하역 — 동쪽 받침대와 간섭 없게)
+            AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(15f, 0f, -5f));   // 정면 어도 계단 안쪽
+            AddSpot(root, "Spot_HammerStation", new Vector3(32f, 0f, 10f));      // 동쪽 중앙(그리드 오른편)
+            AddSpot(root, "Spot_PaintStation", new Vector3(-2f, 0f, 10f));       // 서쪽 중앙(배치도엔 없지만 2층 단청에 필요 — 망치함 대칭)
+            AddSpot(root, "Spot_BucketStation", new Vector3(5f, 0f, 23f));       // 양동이함 북서
+            AddSpot(root, "Spot_BucketStation#2", new Vector3(24f, 0f, -5f));    // 양동이함 남동(#2 = 복제 인스턴스)
+            AddSpot(root, "Spot_DeliveryZone", new Vector3(7f, 0f, -6f));        // 택배 배송지 남서
             return root;
         }
 
