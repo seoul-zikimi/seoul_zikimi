@@ -79,10 +79,38 @@ namespace GridSystem
             if (SoundManagerType == null)
                 return false;
 
-            s_InstanceProperty ??= SoundManagerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+            s_InstanceProperty ??= FindStaticInstanceProperty(SoundManagerType);
             instance = s_InstanceProperty?.GetValue(null);
             return instance != null;
         }
+
+        /// <summary>
+        /// static 프로퍼티 Instance 를 상속 계층을 거슬러 올라가며 찾는다.
+        /// SoundManager 는 Instance 를 직접 선언하지 않고 Singleton&lt;SoundManager&gt; 에서 물려받는데,
+        /// BindingFlags 를 명시한 GetProperty 는 상속된 static 멤버를 돌려주지 않는다(FlattenHierarchy 필요).
+        /// 게다가 제네릭 베이스의 static 멤버는 FlattenHierarchy 로도 누락되는 경우가 있어,
+        /// 각 단계를 DeclaredOnly 로 직접 조회한다 — 실제로 선언된 Singleton&lt;SoundManager&gt; 에서 잡힌다.
+        /// 이 조회가 실패하면 브릿지 전체가 무음이 되므로 조용히 넘기지 않고 한 번 경고한다.
+        /// </summary>
+        private static PropertyInfo FindStaticInstanceProperty(Type type)
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            for (var cur = type; cur != null; cur = cur.BaseType)
+            {
+                var prop = cur.GetProperty("Instance", flags);
+                if (prop != null) return prop;
+            }
+
+            if (!s_WarnedNoInstance)
+            {
+                s_WarnedNoInstance = true;
+                Debug.LogWarning($"[GridSoundBridge] {type.Name}에서 static Instance 프로퍼티를 찾지 못했습니다 — " +
+                                 "이 어셈블리에서 나가는 효과음·BGM이 전부 무음이 됩니다.");
+            }
+            return null;
+        }
+
+        private static bool s_WarnedNoInstance;
 
         private static bool TryParseEnum(Type enumType, string enumName, out object value)
         {
