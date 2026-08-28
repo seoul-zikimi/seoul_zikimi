@@ -25,7 +25,18 @@
 |---|---|---|
 | `롯데_퍼레이드카.glb` | 퍼레이드 카 (기믹 비주얼) | colorful amusement park parade float car with balloons and star decorations, cute, stylized lowpoly |
 | `롯데_롯데월드타워.glb` | 북동쪽 원경 랜드마크 | supertall skyscraper tower, tapered glass curtain wall, Lotte World Tower style, stylized lowpoly |
-| `롯데_자이로드롭.glb` | 섬 동쪽 놀이기구 | gyro drop tower ride, tall pole with ring gondola, amusement park, stylized lowpoly |
+| `롯데_자이로드롭.glb` | 섬 동쪽 놀이기구(구형 통짜 — 아래 분리형이 있으면 무시됨) | gyro drop tower ride, tall pole with ring gondola, amusement park, stylized lowpoly |
+| `롯데_자이로기둥.glb` | 자이로드롭 기둥(분리형) | tall white drop tower pylon, GYRO DROP lettering, hexagonal cap |
+| `롯데_자이로원반.glb` | 자이로드롭 원반 — 기둥을 타고 오르내림(LotteAmbientRides) | yellow ring gondola with outward seats |
+| `롯데_다리.glb` | 입구 다리(장축 x — 맵에서 90° 회전 배치) | wide stone footbridge, white balustrade, black lampposts |
+| `롯데_다리탑.glb` | 다리 중간 쌍둥이 성탑(좌우 2개 배치) | round ivory turret, bright blue conical roof, golden finial |
+| `롯데_모노레일.glb` | 섬을 두르는 링 궤도 | circular elevated monorail track ring, sky blue beam, white columns |
+| `롯데_모노레일열차.glb` | 궤도를 도는 열차(LotteAmbientRides) | cute monorail train, red and white, three cars |
+| `롯데_어드벤처돔.glb` | 북쪽 원경 — 어드벤처 본관 | long beige hall with pale blue glass dome |
+| `롯데_돔요새.glb` | 동쪽 원경 — 청록 돔 요새 | stone fortress pavilion, verdigris copper dome, rocky base |
+| `롯데_벚나무.glb` | 호안 벚꽃 8그루 | cherry blossom tree, pink canopy, lowpoly |
+| `롯데_원경아파트.glb` | 원경 아파트 단지(2개 배치) | cluster of three slim apartment towers |
+| `롯데_원경빌딩.glb` | 원경 적갈색 타워 | tall highrise, reddish brown facade, white grid |
 | `롯데_회전목마.glb` | 섬 서쪽 놀이기구 | carousel merry-go-round with ornate roof and horses, amusement park, stylized lowpoly |
 | `롯데_대관람차.glb` | 서쪽 원경 | ferris wheel, amusement park, colorful cabins, stylized lowpoly |
 | `롯데_풍선.glb` | 섬 주변 상공 열기구(4개 배치) | hot air balloon ride, red and white striped canopy, small basket, stylized lowpoly |

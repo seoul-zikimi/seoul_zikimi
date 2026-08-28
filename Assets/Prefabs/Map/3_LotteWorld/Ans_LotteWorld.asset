@@ -288,6 +288,7 @@ MonoBehaviour:
     materialId: 28
     rotationStep: 0
   m_PresetCells: []
+  m_SpawnPresetBlocks: 0
   m_StartPilePosition: {x: 0, y: 0, z: 0}
   m_TimeLimitSeconds: 480
   m_AnswerImage: {fileID: 0}

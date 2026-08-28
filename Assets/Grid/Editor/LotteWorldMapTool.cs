@@ -260,12 +260,25 @@ namespace GridSystem.EditorTools
             // 퍼레이드 길 — 섬과 광장 사이(z=-3)를 동서로 관통. 양쪽 어디서든 건널 수 있는 평지.
             AddBox(root, "ParadeRoad", new Vector3(6.5f, -0.485f, -3.2f), new Vector3(36f, 1.03f, 2.6f), road).isStatic = true;
 
-            // 성 앞 다리(광장 남쪽 → 호수 건너, 실제 롯데월드 매직아일랜드 입구 다리) — 넓은 석재 다리
-            AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(6f, 0.4f, 7f), stoneW).isStatic = true;
-            // 다리 입구 양옆 게이트 타워 — 광장 타일 '안쪽'(남단 z-12보다 안)에 세워 바닥에 딱 붙게.
-            // (다리 폭 6 밖 = 호수 위 허공이라 바깥에 세우면 떠 보인다)
-            PlaceGateTower(root, new Vector3(2.6f, 0f, -11f));
-            PlaceGateTower(root, new Vector3(10.4f, 0f, -11f));
+            // 성 앞 다리(광장 남쪽 → 호수 건너, 실제 롯데월드 매직아일랜드 입구 다리)
+            // VARCO 다리(난간·가로등 포함, 장축 x로 뽑음)를 90° 돌려 남북으로 놓고, 보행은 기존 박스 콜라이더가 담당.
+            var bridgeBox = AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(6f, 0.4f, 7f), stoneW);
+            bridgeBox.isStatic = true;
+            var bridgeMesh = PlaceProp(root, "롯데_다리", new Vector3(6.5f, -1.35f, -15.5f), 90f, 1f, addCollider: false);
+            if (bridgeMesh != null)
+                bridgeBox.GetComponent<MeshRenderer>().enabled = false;   // 석재 박스는 콜라이더만 남긴다
+
+            // 다리 중간 양옆 쌍둥이 성탑(실제 매직아일랜드 다리 재현) — 다리 폭 밖 호수에서 솟는 교각 탑.
+            // 수면(-0.6) 기준으로 심어 물에서 바로 올라온다. 모델 없으면 기존 게이트 타워 폴백.
+            bool turretL = TryPlaceProp(root, "롯데_다리탑", new Vector3(2.9f, -0.6f, -15.5f));
+            bool turretR = TryPlaceProp(root, "롯데_다리탑", new Vector3(10.1f, -0.6f, -15.5f));
+            if (!turretL || !turretR)
+            {
+                // 다리 입구 양옆 게이트 타워 — 광장 타일 '안쪽'(남단 z-12보다 안)에 세워 바닥에 딱 붙게.
+                // (다리 폭 6 밖 = 호수 위 허공이라 바깥에 세우면 떠 보인다)
+                PlaceGateTower(root, new Vector3(2.6f, 0f, -11f));
+                PlaceGateTower(root, new Vector3(10.4f, 0f, -11f));
+            }
 
             // ── 원경 프롭: VARCO _Fit 우선, 없으면 그레이박스 폴백 ──
 
@@ -282,11 +295,56 @@ namespace GridSystem.EditorTools
             // 배치 컨셉: 정답(성) = 중앙, 회전목마 = 왼쪽 아래(배송존 근처), 자이로드롭 = 오른쪽 뒤 — 일렬 배치 회피.
 
             // 자이로드롭(성 오른쪽 뒤, 동쪽 플랭크에서 북쪽으로) — 패드 + 모델(없으면 그레이박스 기둥)
+            // 신형: 기둥/원반 분리 — 원반이 기둥을 타고 오르내린다(LotteAmbientRides). 구형 통짜 → 그레이박스 순 폴백.
             AddCylinder(root, "GyroPad", new Vector3(18f, -0.05f, 12.5f), new Vector3(5.5f, 0.12f, 5.5f), stoneW);
-            if (!TryPlaceProp(root, "롯데_자이로드롭", new Vector3(18f, 0f, 12.5f)))
+            Transform gyroDisc = null;
+            var gyroPole = PlaceProp(root, "롯데_자이로기둥", new Vector3(18f, 0f, 12.5f), 0f, 1f, addCollider: false);
+            if (gyroPole != null)
+            {
+                // 통짜 바운즈 콜라이더는 패드 절반을 막는다 — 기둥 몸통만 슬림하게 막는다
+                var bc = gyroPole.AddComponent<BoxCollider>();
+                bc.center = new Vector3(0f, 7f, 0f);
+                bc.size = new Vector3(1.6f, 14f, 1.6f);
+                var disc = PlaceProp(root, "롯데_자이로원반", new Vector3(18f, 1.1f, 12.5f), 0f, 1f, addCollider: false);
+                if (disc != null) { disc.name = "~GyroDisc"; gyroDisc = disc.transform; }
+            }
+            else if (!TryPlaceProp(root, "롯데_자이로드롭", new Vector3(18f, 0f, 12.5f)))
             {
                 AddCylinder(root, "GyroPole", new Vector3(18f, 5.5f, 12.5f), new Vector3(0.8f, 5.5f, 0.8f), steel);
                 AddCylinder(root, "GyroRing", new Vector3(18f, 7.5f, 12.5f), new Vector3(2.6f, 0.5f, 2.6f), stoneW);
+            }
+
+            // 모노레일 — 섬을 한 바퀴 두르는 링 궤도 + 궤도를 도는 열차(LotteAmbientRides가 순환시킴)
+            // 링은 통과 가능해야 하므로 콜라이더 없음(빔 높이가 머리 위라 게임플레이 간섭 없음).
+            Transform monoTrain = null;
+            float trainY = 2.6f;
+            var monoRing = PlaceProp(root, "롯데_모노레일", new Vector3(6.5f, -0.6f, 8.5f), 0f, 1f, addCollider: false);
+            if (monoRing != null)
+            {
+                var rends = monoRing.GetComponentsInChildren<Renderer>();
+                if (rends.Length > 0)
+                {
+                    var b = rends[0].bounds;
+                    foreach (var r in rends) b.Encapsulate(r.bounds);
+                    trainY = b.max.y + 0.15f;   // 빔 상면 위에 열차가 올라탄다
+                }
+                var train = PlaceProp(root, "롯데_모노레일열차", new Vector3(6.5f + 17f, trainY, 8.5f), 0f, 1f, addCollider: false);
+                if (train != null) { train.name = "~MonorailTrain"; monoTrain = train.transform; }
+            }
+
+            // 앰비언트 연출 연결(원반 승강 + 열차 순환) — 대상이 없으면 컴포넌트도 안 붙인다
+            if (gyroDisc != null || monoTrain != null)
+            {
+                var rides = root.AddComponent<LotteAmbientRides>();
+                var ro = new SerializedObject(rides);
+                ro.FindProperty("m_GyroDisc").objectReferenceValue = gyroDisc;
+                ro.FindProperty("m_GyroBottomY").floatValue = 1.1f;
+                ro.FindProperty("m_GyroTopY").floatValue = 10.6f;
+                ro.FindProperty("m_Train").objectReferenceValue = monoTrain;
+                ro.FindProperty("m_RingCenter").vector3Value = new Vector3(6.5f, trainY, 8.5f);
+                ro.FindProperty("m_RingRadiusX").floatValue = 17f;   // 링 목표 크기 37×27의 빔 중심선 근사
+                ro.FindProperty("m_RingRadiusZ").floatValue = 12f;
+                ro.ApplyModifiedPropertiesWithoutUndo();
             }
 
             // 회전목마(광장 왼쪽 '끝 모서리' — 자이로드롭처럼 구석에 딱) — 패드 + 모델(없으면 그레이박스 원통)
@@ -308,6 +366,32 @@ namespace GridSystem.EditorTools
             foreach (var (p, rot, sc) in balloonSpots)
                 TryPlaceProp(root, "롯데_풍선", p, rot, sc);
 
+            // ── 원경(사진 재현): 호수 건너 어드벤처 본관·청록 돔 요새·아파트 스카이라인 ──
+            // 전부 모델 있을 때만 배치(폴백 없음 — 그레이박스 박스는 오히려 어색).
+
+            // 어드벤처 본관(북쪽 호수 건너 — 유리 돔이 섬 뒤 배경을 채운다)
+            TryPlaceProp(root, "롯데_어드벤처돔", new Vector3(2f, -0.6f, 36f));
+            // 청록 돔 석조 요새(동쪽 호수 건너 — 항공사진 오른편의 그 건물)
+            TryPlaceProp(root, "롯데_돔요새", new Vector3(34f, -0.6f, 17f), 235f);
+            // 원경 아파트/타워(북서~서쪽 스카이라인, 잠실 아파트 숲)
+            TryPlaceProp(root, "롯데_원경아파트", new Vector3(-17f, -0.6f, 31f), 15f);
+            TryPlaceProp(root, "롯데_원경아파트", new Vector3(-26f, -0.6f, 14f), 75f, 0.85f);
+            TryPlaceProp(root, "롯데_원경빌딩", new Vector3(17f, -0.6f, 38f), 10f);
+
+            // 호안 벚꽃(석촌호수 봄) — 광장 양끝·다리 입구·섬 모서리
+            (Vector3 p, float rot, float sc)[] cherrySpots =
+            {
+                (new Vector3(-8.5f, 0f, -11f), 0f, 1.0f),
+                (new Vector3(-6.5f, 0f, -5.5f), 70f, 0.9f),
+                (new Vector3(19f, 0f, -11f), 140f, 1.05f),
+                (new Vector3(18.5f, 0f, -5.5f), 210f, 0.95f),
+                (new Vector3(2.9f, 0f, -12.3f), 30f, 0.85f),    // 다리 입구 왼쪽
+                (new Vector3(10.1f, 0f, -12.3f), 300f, 0.85f),  // 다리 입구 오른쪽
+                (new Vector3(-7f, 0f, 16.5f), 45f, 1.1f),       // 섬 북서 모서리
+                (new Vector3(20f, 0f, 16.5f), 260f, 1.0f),      // 섬 북동 모서리
+            };
+            foreach (var (p, rot, sc) in cherrySpots)
+                TryPlaceProp(root, "롯데_벚나무", p, rot, sc);
 
             // ── 마커: 필수 5종 + 퍼레이드 경로 4점 ──
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));                // 짓는 곳(섬)
@@ -356,15 +440,22 @@ namespace GridSystem.EditorTools
 
         // VARCO 배경 소품(_Fit 프리팹, 바닥 피벗) 배치 시도 — 모델을 적용해둔 경우에만 true.
         private static bool TryPlaceProp(GameObject root, string name, Vector3 groundPos, float yRot = 0f, float scale = 1f)
+            => PlaceProp(root, name, groundPos, yRot, scale) != null;
+
+        // 인스턴스가 필요한 경우(앰비언트 연출 연결 등)용 — 없으면 null.
+        // addCollider=false는 '통과 가능해야 하는' 큰 소품(모노레일 링·다리·승강 원반)에 쓴다:
+        // 바운즈 박스 콜라이더가 통짜로 잡히면 맵 절반을 막아버린다.
+        private static GameObject PlaceProp(GameObject root, string name, Vector3 groundPos,
+                                            float yRot = 0f, float scale = 1f, bool addCollider = true)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/{name}_Fit.prefab");
-            if (prefab == null) return false;
+            if (prefab == null) return null;
             var inst = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root.transform);
             inst.transform.localPosition = groundPos;
             inst.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
             if (scale != 1f) inst.transform.localScale *= scale;
             // 서 있을 수 있게 콜라이더 보장(모델엔 보통 없음) — 바운즈 기준 박스 하나
-            if (inst.GetComponentInChildren<Collider>() == null)
+            if (addCollider && inst.GetComponentInChildren<Collider>() == null)
             {
                 var rends = inst.GetComponentsInChildren<Renderer>();
                 if (rends.Length > 0)
@@ -377,7 +468,7 @@ namespace GridSystem.EditorTools
                         1f / inst.transform.lossyScale.x, 1f / inst.transform.lossyScale.y, 1f / inst.transform.lossyScale.z));
                 }
             }
-            return true;
+            return inst;
         }
 
         private static GameObject AddBox(GameObject root, string name, Vector3 pos, Vector3 scale, Material mat)
