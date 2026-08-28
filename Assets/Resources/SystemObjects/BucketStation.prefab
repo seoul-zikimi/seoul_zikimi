@@ -126,7 +126,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.Workstation
   m_Tool: 4
-  m_StationModel: {fileID: 0}
-  m_StationModelScale: 1
+  m_StationModel: {fileID: 9148378372280920463, guid: 7b639c7cacfb81546b0b5573ff4776c6, type: 3}
+  m_StationModelScale: 1.3
   m_StationModelOffset: {x: 0, y: 0, z: 0}
-  m_StationModelEuler: {x: 90, y: 0, z: 0}
+  m_StationModelEuler: {x: 0, y: 0, z: 0}

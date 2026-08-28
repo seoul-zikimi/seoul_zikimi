@@ -251,6 +251,8 @@ namespace GridSystem
         private void PlacedFxRpc(Vector3 pos, int kind, bool sealedNow)
         {
             LightPillar(pos, kKindColors[kind]);
+            ZoneFlash(kind);   // 이 방위가 지키는 그리드 절반을 잠깐 발광 — 어디가 화재 면역인지 보여준다(08/28 피드백)
+            SpawnApparition(kind, pos + Vector3.up * kPedestalTopY);   // 사방신 환영 — 떠올랐다 사라진다
             GridJuice.GroundHit(pos, 1.1f);
             GridJuice.WorldToast(pos + Vector3.up * 2.2f, $"{kKindNames[kind]}이(가) 깨어났다!", kKindColors[kind]);
             GridSoundBridge.PlaySFXAt("LandObject", pos);
@@ -266,6 +268,77 @@ namespace GridSystem
         {
             GridJuice.WorldToast(pos + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
             GridSoundBridge.PlaySFXAt("BumpPlayers", pos);
+        }
+
+        // ── 사방신 환영: T포즈 VARCO 모델(Resources/Gyeongbokgung/Apparition_*)이 석상 위로 떠오르며
+        // 빙글 돌다 사르르 사라진다. 알파 페이드 대신 스케일 소멸(glTFast 재질은 투명 전환이 불안정) —
+        // 애니메이션 없이도 '소환 환영'으로 자연스럽다. 모델이 없으면 조용히 생략.
+        private static readonly string[] kApparitionRes =
+        { "Gyeongbokgung/Apparition_Cheongryong", "Gyeongbokgung/Apparition_Baekho", "Gyeongbokgung/Apparition_Jujak", "Gyeongbokgung/Apparition_Hyeonmu" };
+
+        private void SpawnApparition(int kind, Vector3 basePos)
+        {
+            var prefab = Resources.Load<GameObject>(kApparitionRes[kind]);
+            if (prefab == null) return;
+            var go = Instantiate(prefab, basePos + Vector3.up * 1.2f, Quaternion.identity);
+            go.name = $"~Apparition_{kKindNames[kind]}";
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+            var rends = go.GetComponentsInChildren<Renderer>();
+            if (rends.Length > 0)   // VARCO glb는 크기가 제각각 — 높이 2.2m로 정규화
+            {
+                var b = rends[0].bounds;
+                foreach (var r in rends) b.Encapsulate(r.bounds);
+                float h = Mathf.Max(0.01f, b.size.y);
+                go.transform.localScale *= 2.2f / h;
+            }
+            go.AddComponent<GuardianApparition>();
+        }
+
+        private sealed class GuardianApparition : MonoBehaviour
+        {
+            const float kLife = 3f;
+            float m_T; Vector3 m_Base, m_Scale;
+            void Start() { m_Base = transform.position; m_Scale = transform.localScale; }
+            void Update()
+            {
+                m_T += Time.deltaTime;
+                float n = m_T / kLife;
+                if (n >= 1f) { Destroy(gameObject); return; }
+                transform.position = m_Base + Vector3.up * (2.3f * n);        // 천천히 승천
+                transform.rotation = Quaternion.Euler(0f, 80f * m_T, 0f);     // 빙글
+                float s = n < 0.12f ? Mathf.SmoothStep(0f, 1f, n / 0.12f)     // 뿅 등장
+                        : n > 0.6f  ? Mathf.SmoothStep(1f, 0f, (n - 0.6f) / 0.4f)   // 사르르 소멸
+                        : 1f;
+                transform.localScale = m_Scale * Mathf.Max(0.001f, s);
+            }
+        }
+
+        // 보호 구역 반짝 — 안착 방위가 지키는 그리드 절반 볼륨을 방위색 반투명 발광 박스로 덮었다가 페이드.
+        // 경계선은 IsCellImmune과 같은 기준(그리드 중심 절반)이라 시각과 판정이 정확히 일치한다.
+        private void ZoneFlash(int kind)
+        {
+            var size = Grid != null ? Grid.EffectiveSize : new Vector3Int(30, 13, 20);
+            int cx = size.x / 2, cz = size.z / 2;
+            int x0 = 0, x1 = size.x, z0 = 0, z1 = size.z;
+            switch (kind)
+            {
+                case 0: x0 = cx; break;   // 동: x ≥ 중심
+                case 1: x1 = cx; break;   // 서
+                case 2: z1 = cz; break;   // 남: z < 중심
+                case 3: z0 = cz; break;   // 북
+            }
+            Vector3 wmin = GridCoordinates.CellToWorld(new Vector3Int(x0, 0, z0));
+            Vector3 wmax = GridCoordinates.CellToWorld(new Vector3Int(x1, size.y, z1));
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "~GuardZoneFlash";
+            Object.Destroy(go.GetComponent<Collider>());
+            go.transform.position = (wmin + wmax) * 0.5f;
+            go.transform.localScale = wmax - wmin;
+            var c = kKindColors[kind];
+            go.GetComponent<Renderer>().sharedMaterial = MakeGlow(new Color(c.r, c.g, c.b, 0.13f));   // 은은하게(가산 발광)
+            var fade = go.AddComponent<PillarFade>();
+            fade.Life = 2.5f;
         }
 
         // 절차 생성 빛기둥 — 세로로 긴 발광 기둥이 2초에 걸쳐 사라진다.

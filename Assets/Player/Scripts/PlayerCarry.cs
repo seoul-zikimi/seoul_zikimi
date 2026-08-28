@@ -38,8 +38,10 @@ namespace Player
         [SerializeField] private GameObject m_HammerModel;
         [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
         [SerializeField] private GameObject m_PaintCanModel;
-        [Tooltip("든 '양동이'(화재 진화 도구 — 경복궁) 외형 모델. 비우면 하늘색 구로 폴백.")]
+        [Tooltip("든 '양동이'(화재 진화 도구 — 경복궁) 외형 모델(물 찬 상태). 비우면 하늘색 구로 폴백.")]
         [SerializeField] private GameObject m_BucketModel;
+        [Tooltip("든 '양동이'의 빈 상태 외형 모델. 비우면 물 찬 모델 + 방울 표시로 폴백.")]
+        [SerializeField] private GameObject m_BucketEmptyModel;
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
         [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
@@ -1682,9 +1684,10 @@ namespace Player
             }
             else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
+                // 양동이는 물 유무로 모델 스왑(찬 것/빈 것) — 빈 모델이 없으면 찬 모델 + 방울 표시로 폴백
                 var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel
                           : (tool & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
-                          : (tool & (int)ProcessType.Bucket) != 0 ? m_BucketModel
+                          : (tool & (int)ProcessType.Bucket) != 0 ? BucketModelFor(m_NetBucketFilled.Value)
                           : null;
                 if (model != null)
                 {
@@ -1693,6 +1696,18 @@ namespace Player
                     vis.transform.localPosition = Vector3.zero;
                     m_HeldVisual.transform.localScale = Vector3.one * m_ToolModelScale;
                     foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
+                    // 빈 양동이 모델이 없을 때만: '찼음'을 위에 뜨는 하늘색 방울로 표시(폴백).
+                    // (물 상태가 바뀌면 OnBucketFilledChanged가 RebuildHeldVisual을 다시 불러 모델/방울이 갱신된다)
+                    if ((tool & (int)ProcessType.Bucket) != 0 && m_NetBucketFilled.Value && m_BucketEmptyModel == null)
+                    {
+                        var drop = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        drop.name = "~WaterDrop";
+                        Destroy(drop.GetComponent<Collider>());
+                        drop.transform.SetParent(m_HeldVisual.transform, false);
+                        drop.transform.localPosition = Vector3.up * 1.5f;
+                        drop.transform.localScale = Vector3.one * 0.28f;
+                        Paint(drop, new Color(0.30f, 0.80f, 1.00f));
+                    }
                 }
                 else
                 {
@@ -1717,6 +1732,14 @@ namespace Player
             }
 
             Debug.Log($"[FXSync] RebuildHeld {(IsOwner ? "owner" : "remote")} mat={matId} tool={tool} visual={(m_HeldVisual != null)}", this);
+        }
+
+        // 양동이 손 모델 — 프리팹 배선이 비어 있으면 Resources 폴백(배선 누락 사고 방지). 물 유무로 스왑.
+        private GameObject BucketModelFor(bool filled)
+        {
+            if (m_BucketModel == null) m_BucketModel = Resources.Load<GameObject>("Tools/BucketModel_Fit");
+            if (m_BucketEmptyModel == null) m_BucketEmptyModel = Resources.Load<GameObject>("Tools/BucketEmpty_Fit");
+            return filled || m_BucketEmptyModel == null ? m_BucketModel : m_BucketEmptyModel;
         }
 
         // 카탈로그(드는 재료 목록)를 lazy-find — 모든 클라에서 동일 에셋.

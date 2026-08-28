@@ -8,6 +8,8 @@ namespace GridSystem
     /// 네트워크 동기화가 따로 필요 없다(전 피어가 같은 상태를 보고 같은 프레임쯤 활성화).
     /// 까치발 콜라이더가 ExternalSupportBelow 지지 판정을 통과시켜 마루(y4) 배치가 가능해진다.
     /// → 시공 순서 강제: 1층 벽 완공 → 까치발 등장 → 마루 깔기.
+    /// [08/28] 마루가 전부 프리셋으로 깔린 채 시작하면서 맵 툴이 StubRoot를 처음부터 활성으로 굽는다
+    /// — 그 경우 이 컴포넌트는 첫 Update에서 스스로 꺼진다(마루 프리셋을 되돌릴 때를 대비해 남겨둠).
     /// </summary>
     public class GyeongbokgungCorbels : MonoBehaviour
     {

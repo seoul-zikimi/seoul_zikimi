@@ -11,14 +11,14 @@ namespace GridSystem
     public class GyeongbokgungGimmickConfig : ScriptableObject
     {
         [Header("화마 (화재)")]
-        [Tooltip("건축 시작 후 첫 발화까지의 유예(초). 기획: 1분 — 맵·동선 학습 구간.")]
-        [Min(0f)] public float FireStartDelay = 60f;
+        [Tooltip("건축 시작 후 첫 발화까지의 유예(초). [08/28] 60→30: 1층 프리셋 확대로 학습 구간이 짧아져 앞당김.")]
+        [Min(0f)] public float FireStartDelay = 30f;
 
-        [Tooltip("첫 발화 시점의 발화 간격(초). 시간이 갈수록 짧아진다.")]
-        [Min(5f)] public float FireIntervalStart = 75f;
+        [Tooltip("첫 발화 시점의 발화 간격(초). 시간이 갈수록 짧아진다. [08/28] 75→60: 1층 프리셋 확대(건축 난이도↓) 보상으로 소폭 상향.")]
+        [Min(5f)] public float FireIntervalStart = 60f;
 
-        [Tooltip("발화 간격 하한(초). 기획: 최소 30초.")]
-        [Min(5f)] public float FireIntervalMin = 30f;
+        [Tooltip("발화 간격 하한(초). [08/28] 30→25: 1층 프리셋 확대 보상.")]
+        [Min(5f)] public float FireIntervalMin = 25f;
 
         [Tooltip("발화 간격이 시작값에서 하한까지 줄어드는 데 걸리는 시간(초). 라운드 후반 긴장 곡선.")]
         [Min(30f)] public float FireIntervalRampSeconds = 360f;
@@ -37,6 +37,10 @@ namespace GridSystem
 
         [Tooltip("불타는 블록 위 화염 이펙트 크기 배율.")]
         [Min(0.2f)] public float FlameScale = 2.2f;
+
+        [Tooltip("기본 제공(프리셋) 블록도 발화 대상인가. [08/28] 1층이 거의 프리셋으로 깔리면서 기본 true — " +
+                 "'미리 지어진 건물을 화마로부터 지켜라'가 게임플레이. false면 프리셋 불연(예전 규칙 — 태울 게 거의 없어진다).")]
+        public bool BurnPresetBlocks = true;
 
         [Header("사방신 석상")]
         [Tooltip("석상이 낙하하는 '건축 시간' 진행률(%) 문턱들 — 제한시간 기준. 기획: 20/30/45/60 (10분이면 2분/3분/4분30초/6분).")]

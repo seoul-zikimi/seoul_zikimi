@@ -13,8 +13,7 @@ namespace GridSystem.EditorTools
     ///   벽모듈_측면 ← 벽모듈(90°), 직선기와_단 ← 직선기와(짧게), _장세로/_단세로 ← 직선기와(90°),
     ///   2층벽모듈_측면 ← 2층벽모듈(90°).
     /// 없는 GLB는 건너뛴다(부분 적용 가능). 몇 번을 다시 실행해도 같은 결과.
-    /// 모서리기와는 정답의 rotationStep(GyeongbokgungMapTool.kCornerRots)으로 4모서리가 바깥을 보게 배치된다.
-    /// 방향이 일괄로 어긋나 보이면 그쪽 kCornerRotOffset을 조절할 것.
+    /// (모서리기와·쿼터 슬라이스는 08/28 폐기 — 정답이 직선 기와만 쓴다.)
     /// </summary>
     public static class GyeongbokgungModelApplyTool
     {
@@ -34,14 +33,10 @@ namespace GridSystem.EditorTools
             ("경복궁_벽모듈",           "경복궁_벽모듈",     new Vector3Int(4, 3, 1), 0f,  1.10f, 1.14f),
             ("경복궁_벽모듈_측면",      "경복궁_벽모듈",     new Vector3Int(1, 3, 5), 90f, 1.10f, 1.14f),
             ("경복궁_문모듈",           "경복궁_문모듈",     new Vector3Int(4, 3, 1), 0f,  1.18f, 1.14f),
-            // 모서리기와: 생성기가 항상 '4면 완성 피라미드 지붕'을 만들므로(대칭 보정 습성, 재롤 무의미)
-            // 그 완성형을 1/4로 잘라 쓴다(EnsureQuarterCorner). 잘린 쿼터의 바깥 모서리 = 추녀 코너.
-            // 오버필 큼(1.35/1.30): 쿼터가 이웃 직선기와보다 작아 보이는 문제 보정(08/27 스크린샷) — 코너는 원래 돌출 부위라 커도 자연스럽다.
-            ("경복궁_모서리기와",       "경복궁_모서리쿼터", new Vector3Int(3, 3, 3), 0f,  1.35f, 1.30f),
+            // (모서리기와는 08/28 폐기 — 코너 모델이 계속 안 예뻐서 정답을 직선 기와만으로 재설계)
+            // 세로 변형(구 장세로·단세로)은 08/28 폐기 — 세로 자리는 같은 기와를 회전 배치(rot1)로 채운다
             ("경복궁_직선기와_장",      "경복궁_직선기와",   new Vector3Int(8, 3, 3), 0f,  1.10f, 1.12f),
             ("경복궁_직선기와_단",      "경복궁_직선기와",   new Vector3Int(6, 3, 3), 0f,  1.10f, 1.12f),
-            ("경복궁_직선기와_장세로",  "경복궁_직선기와",   new Vector3Int(3, 3, 8), 90f, 1.10f, 1.12f),
-            ("경복궁_직선기와_단세로",  "경복궁_직선기와",   new Vector3Int(3, 3, 6), 90f, 1.10f, 1.12f),
             ("경복궁_2층벽모듈",        "경복궁_2층벽모듈",  new Vector3Int(4, 2, 1), 0f,  1.10f, 1.16f),
             ("경복궁_2층벽모듈_측면",   "경복궁_2층벽모듈",  new Vector3Int(1, 2, 6), 90f, 1.10f, 1.16f),
             // 지붕: 삼각 왕관 한 덩어리(레퍼런스 사진 기반 재생성 모델). 반쪽 잇기 폐기 — 이음새·참조 문제 원천 제거.
@@ -57,8 +52,6 @@ namespace GridSystem.EditorTools
         [MenuItem("Tools/Map/★ 경복궁 VARCO 모델 적용")]
         public static void Apply()
         {
-            EnsureQuarterCorner();   // 모서리기와 완성형 피라미드 → 1/4 쿼터 프리팹(멱등)
-
             int applied = 0, skipped = 0;
             foreach (var (defName, modelName, fp, yRot, xzOver, yOver) in kParts)
             {
@@ -107,6 +100,8 @@ namespace GridSystem.EditorTools
             ("경복궁_받침대",   new Vector3(2.4f, 0.9f, 2.4f)),
             ("경복궁_돌울타리", new Vector3(2.1f, 1.1f, 0.55f)),
             ("경복궁_돌계단",   new Vector3(4f, 1.2f, 2.5f)),
+            ("경복궁_회랑",     new Vector3(8f, 4.5f, 3.5f)),   // 8칸 세그먼트 — 맵 툴 Cloister가 줄지어 세운다
+            ("경복궁_근정문",   new Vector3(12f, 7f, 5f)),      // 남쪽 정문 — 회랑 링 남쪽 중앙
         };
 
         // 박석 타일 텍스처를 마당 머티리얼에 입힌다(색은 흰색으로 — 텍스처 원색 유지). 파일 없으면 조용히 통과.
@@ -135,90 +130,6 @@ namespace GridSystem.EditorTools
                 if (go != null) return go;
             }
             return null;
-        }
-
-        // ── 모서리기와 쿼터 만들기: 생성기가 만든 '4면 완성 피라미드 지붕'을 X·Z 가운데서 갈라
-        // (-x,-z) 사분면만 남긴다 — 그 사분면의 바깥 꼭짓점이 추녀 코너다. 중앙을 2% 넘겨 잘라 이웃과 밀봉.
-        // ⚠ 머티리얼은 glb 서브에셋을 직접 참조하면 glb 교체 시 참조가 깨진다(지붕 투명화 사고의 원인 추정)
-        //   → 독립 .mat 파일로 복제해 참조한다. 실패해도 Apply는 계속(catch).
-        private static void EnsureQuarterCorner()
-        {
-            var full = LoadModel("경복궁_모서리기와");
-            if (full == null) return;
-
-            var root = (GameObject)PrefabUtility.InstantiatePrefab(full);
-            try
-            {
-                PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-                root.name = "경복궁_모서리쿼터";
-                root.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-
-                var rends = root.GetComponentsInChildren<Renderer>();
-                if (rends.Length == 0) return;
-                var b = rends[0].bounds;
-                foreach (var r in rends) b.Encapsulate(r.bounds);
-                float cutX = b.center.x + b.size.x * 0.02f;
-                float cutZ = b.center.z + b.size.z * 0.02f;
-
-                int meshIdx = 0;
-                foreach (var mf in root.GetComponentsInChildren<MeshFilter>())
-                {
-                    var src = mf.sharedMesh;
-                    if (src == null) continue;
-                    var quarter = new Mesh { name = src.name + "_quarter", indexFormat = src.indexFormat };
-                    quarter.vertices = src.vertices;
-                    quarter.normals = src.normals;
-                    quarter.uv = src.uv;
-                    quarter.tangents = src.tangents;
-                    quarter.colors = src.colors;
-                    quarter.subMeshCount = src.subMeshCount;
-
-                    var verts = src.vertices;
-                    for (int s = 0; s < src.subMeshCount; s++)
-                    {
-                        var tris = src.GetTriangles(s);
-                        var keep = new List<int>(tris.Length);
-                        for (int t = 0; t < tris.Length; t += 3)
-                        {
-                            var c = (mf.transform.TransformPoint(verts[tris[t]])
-                                   + mf.transform.TransformPoint(verts[tris[t + 1]])
-                                   + mf.transform.TransformPoint(verts[tris[t + 2]])) / 3f;
-                            if (c.x <= cutX && c.z <= cutZ)
-                            { keep.Add(tris[t]); keep.Add(tris[t + 1]); keep.Add(tris[t + 2]); }
-                        }
-                        quarter.SetTriangles(keep, s);
-                    }
-                    quarter.RecalculateBounds();
-
-                    string meshPath = $"{kModelDir}/경복궁_모서리쿼터_{meshIdx++}.asset";
-                    AssetDatabase.CreateAsset(quarter, meshPath);
-                    mf.sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-                }
-
-                // 머티리얼 독립 복제 — glb 재임포트/교체에도 참조가 살아남게
-                int matIdx = 0;
-                foreach (var r in root.GetComponentsInChildren<Renderer>())
-                {
-                    var mats = r.sharedMaterials;
-                    for (int i = 0; i < mats.Length; i++)
-                    {
-                        if (mats[i] == null) continue;
-                        string matPath = $"{kModelDir}/Mat_모서리쿼터_{matIdx++}.mat";
-                        var copy = new Material(mats[i]);
-                        AssetDatabase.CreateAsset(copy, matPath);
-                        mats[i] = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-                    }
-                    r.sharedMaterials = mats;
-                }
-
-                PrefabUtility.SaveAsPrefabAsset(root, $"{kModelDir}/경복궁_모서리쿼터.prefab");
-                Debug.Log("[경복궁모델] 모서리쿼터 생성 ✔ — 피라미드 지붕을 1/4로 갈라 추녀 코너만 남김(겹침 2%, 머티리얼 독립 복제)");
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"[경복궁모델] 모서리쿼터 생성 실패 — 모서리기와는 이전 프리팹 유지. 원인: {e.Message}\n{e.StackTrace}");
-            }
-            finally { Object.DestroyImmediate(root); }
         }
 
         // 모델을 Y축 회전 후 목표 크기 상자에 맞춰(축별 스케일) 래핑한 프리팹 생성.

@@ -158,7 +158,13 @@ namespace GridSystem
                 foreach (var c in GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep))
                     if (!ans.IsPreset(c) || !ans.TryGet(c, out var ac) || ac.materialId != a.materialId)
                     { valid = false; break; }
-                if (!valid || !m_ServerGrid.CanPlace(a.cell, def, a.rotationStep)) continue;
+                if (!valid || !m_ServerGrid.CanPlace(a.cell, def, a.rotationStep))
+                {
+                    // 조용한 스킵 금지 — 프리셋 블록이 안 깔리면 맵에 구멍이 나는데 원인을 못 찾는다(08/28 모서리기와 실종 사건)
+                    Debug.LogWarning($"[프리셋] 스폰 스킵: 앵커 {a.cell} 재료 {a.materialId} rot {a.rotationStep} — " +
+                                     (!valid ? "footprint 셀 검증 실패(전 셀이 같은 재료의 preset이어야 함)" : "CanPlace 거부(겹침/범위)"));
+                    continue;
+                }
 
                 ulong owner = ++m_OwnerCounter;
                 m_ServerGrid.Place(a.cell, def, a.rotationStep, owner);

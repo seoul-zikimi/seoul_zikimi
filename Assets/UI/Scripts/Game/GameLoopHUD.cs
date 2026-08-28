@@ -153,8 +153,17 @@ public sealed class GameLoopHUD : UIHUD
         m_UrgentBgmStarted = false;
         m_PrevPhase = (GridSystem.GamePhase)(-1);
 
+        // 화마 첫 발화 시네마틱 구독(경복궁) — Init 재호출 대비 중복 방지 후 등록, OnDestroy에서 해제
+        FireNetwork.FirstFireCinematic -= PlayFireCinematic;
+        FireNetwork.FirstFireCinematic += PlayFireCinematic;
+
         if (SoundManager.Instance != null)
             SoundManager.Instance.SetPhase(global::GamePhase.Building);
+    }
+
+    private void OnDestroy()
+    {
+        FireNetwork.FirstFireCinematic -= PlayFireCinematic;
     }
 
     // 타이머 강조: 글자 주변에 부드러운 흰 빛 번짐(Underlay 를 halo 로) — 유리 알약 배경(프리팹) 위에서 은은하게 빛나게
@@ -279,7 +288,7 @@ public sealed class GameLoopHUD : UIHUD
                 PulseTimerLine(1f + 0.14f * beat);
                 m_TimerText.color = Color.Lerp(new Color(1f, 0.20f, 0.16f, 1f), Color.white, beat * 0.35f);
                 EnsureVignette();
-                if (m_Vignette != null) m_Vignette.intensity.Override(0.16f + 0.14f * beat);
+                if (m_Vignette != null) m_Vignette.intensity.Override(Mathf.Max(0.16f + 0.14f * beat, m_FireVignette));
             }
             else
             {
@@ -287,7 +296,7 @@ public sealed class GameLoopHUD : UIHUD
                 m_TimerTick = Mathf.Max(0f, m_TimerTick - Time.unscaledDeltaTime * 6f);
                 PulseTimerLine(1f + 0.12f * m_TimerTick);
                 m_TimerText.color = m_Loop.IsBuilding && m_Loop.TimeLeft <= 60f ? new Color(1f, 0.28f, 0.22f, 1f) : Color.white;   // 1분 미만 빨강(기획서 3.2)
-                if (m_Vignette != null) m_Vignette.intensity.Override(0f);
+                if (m_Vignette != null) m_Vignette.intensity.Override(m_FireVignette);   // 화마 시네마틱 몫은 유지
             }
             m_LastTimerSecs = secs;
         }
@@ -695,6 +704,40 @@ public sealed class GameLoopHUD : UIHUD
 
     private Volume m_UrgentVolume;
     private UnityEngine.Rendering.Universal.Vignette m_Vignette;
+    private float m_FireVignette;      // 화마 첫 등장 시네마틱의 비네트 몫(막판 30초 펄스와 Max 합성)
+    private Coroutine m_FireCineCo;
+
+    // ── 화마 첫 등장 연출(경복궁): 빨간 비네트가 확 조여들며 경고 배너 + 사방신 안내. FireNetwork가 호출 ──
+    public void PlayFireCinematic()
+    {
+        ShowBanner("화마가 나타났다!\n<size=55%>불이 붙을지도 모른다…</size>", new Color(1f, 0.30f, 0.12f, 1f));
+        if (m_FireCineCo != null) StopCoroutine(m_FireCineCo);
+        m_FireCineCo = StartCoroutine(FireCinematicCo());
+    }
+
+    private IEnumerator FireCinematicCo()
+    {
+        EnsureVignette();
+        for (float e = 0f; e < 0.5f; e += Time.unscaledDeltaTime)   // 확 조여들기
+        { m_FireVignette = Mathf.Lerp(0f, 0.42f, e / 0.5f); yield return null; }
+
+        bool toastShown = false;
+        for (float hold = 0f; hold < 2.2f; hold += Time.unscaledDeltaTime)   // 두근두근 유지
+        {
+            m_FireVignette = 0.34f + 0.08f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 6f));
+            if (!toastShown && hold >= 1.6f)   // 배너 퇴장 직후 이어지는 안내 멘트
+            {
+                toastShown = true;
+                ShowToast("사방신 석상을 배치하면 그들의 힘이 화마를 억누를지도…", 5f);
+            }
+            yield return null;
+        }
+
+        for (float e = 0f; e < 1.5f; e += Time.unscaledDeltaTime)   // 천천히 풀리기
+        { m_FireVignette = Mathf.Lerp(0.34f, 0f, e / 1.5f); yield return null; }
+        m_FireVignette = 0f;
+        m_FireCineCo = null;
+    }
 
     private void EnsureVignette()
     {

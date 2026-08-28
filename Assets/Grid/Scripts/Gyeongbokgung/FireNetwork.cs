@@ -37,6 +37,7 @@ namespace GridSystem
 
         private readonly NetworkList<FireEntry> m_Fires = new();
         private float m_NextFireAt;                       // 서버 전용
+        private bool m_FirstFireShown;                    // 서버 전용 — 라운드당 1회 첫 등장 시네마틱
         private readonly List<CellEntry> m_CellScratch = new();
         private readonly List<Vector3Int> m_BlockScratch = new();
         private readonly Dictionary<ulong, GameObject> m_Flames = new();
@@ -60,6 +61,7 @@ namespace GridSystem
             if (!IsServer || !Active) return;
             for (int i = m_Fires.Count - 1; i >= 0; i--) m_Fires.RemoveAt(i);
             m_NextFireAt = 0f;
+            m_FirstFireShown = false;
         }
 
         private void Update()
@@ -78,6 +80,7 @@ namespace GridSystem
             if (!Loop.IsBuilding)
             {
                 if (m_Fires.Count > 0) for (int i = m_Fires.Count - 1; i >= 0; i--) m_Fires.RemoveAt(i);
+                m_FirstFireShown = false;   // 다음 라운드에 시네마틱 재생 가능
                 return;
             }
 
@@ -125,7 +128,7 @@ namespace GridSystem
             {
                 if (!seen.Add(e.ownerObjectId)) continue;
                 if (IsBurning(e.ownerObjectId)) continue;
-                if (answer != null && answer.IsPreset(e.cell)) continue;      // 기본 제공 블록은 불연
+                if (!Config.BurnPresetBlocks && answer != null && answer.IsPreset(e.cell)) continue;   // 프리셋 불연 옵션
                 if (GuardianNetwork.IsCellImmune(e.cell)) continue;           // 정령 보호 방위
                 candidates.Add((e.ownerObjectId, e.cell));
             }
@@ -144,12 +147,24 @@ namespace GridSystem
                 if (e.cell == cell) { owner = e.ownerObjectId; found = true; break; }
             if (!found || IsBurning(owner)) return;
             var ansCheck = Grid != null ? Grid.Answer : null;
-            if (ansCheck != null && ansCheck.IsPreset(cell)) return;
+            if (!Config.BurnPresetBlocks && ansCheck != null && ansCheck.IsPreset(cell)) return;
             if (GuardianNetwork.IsCellImmune(cell)) return;
 
             m_Fires.Add(new FireEntry { owner = owner, cx = cell.x, cy = cell.y, cz = cell.z, endTime = Now + Config.BurnSeconds });
             IgniteFxRpc(CellCenter(cell));
+            if (!m_FirstFireShown)   // 라운드 첫 발화 — 화면 전체 등장 시네마틱(비네트+배너+사방신 안내)
+            {
+                m_FirstFireShown = true;
+                FirstFireCinematicRpc();
+            }
         }
+
+        /// <summary>첫 발화 시네마틱 훅 — GameLoopHUD가 Init에서 구독(GridSystem 어셈블리는 UI를 참조 못 하므로 이벤트로 뒤집는다. GridJuice.FovPunchHandler와 같은 계약).</summary>
+        public static event Action FirstFireCinematic;
+
+        // 첫 발화 시네마틱 — 모든 클라 화면에 빨간 비네트 + "화마가 나타났다!" 배너 + 사방신 안내 토스트.
+        [Rpc(SendTo.Everyone)]
+        private void FirstFireCinematicRpc() => FirstFireCinematic?.Invoke();
 
         // 대표 셀이 속한 블록의 전(全) 셀에서 면접촉 이웃 블록 대표 셀들을 모아 무작위 SpreadCount개 반환.
         private List<Vector3Int> CollectSpreadTargets(Vector3Int repCell, ulong burningOwner)
@@ -173,7 +188,7 @@ namespace GridSystem
                     if (n.ownerObjectId == burningOwner) continue;
                     if (IsBurning(n.ownerObjectId)) continue;
                     if (!neighborOwners.Add(n.ownerObjectId)) continue;
-                    if (answer != null && answer.IsPreset(n.cell)) continue;
+                    if (!Config.BurnPresetBlocks && answer != null && answer.IsPreset(n.cell)) continue;
                     if (GuardianNetwork.IsCellImmune(n.cell)) continue;
                     candidates.Add(n.cell);
                 }
@@ -323,7 +338,8 @@ namespace GridSystem
             }
         }
 
-        // 블록 '전체'가 타는 느낌 — 대표 셀 하나가 아니라 블록 최상층 셀들에 2칸 간격으로 불꽃을 깐다.
+        // 블록 '전체'가 타는 느낌 — 대표 셀 하나가 아니라 블록 중간층 셀들에 2칸 간격으로 불꽃을 깐다.
+        // [08/28 피드백] 최상층+위 0.6칸은 블록 위에 떠 보임 → 세로 중앙층에 배치(모델 몸통이 탄다).
         private readonly List<Vector3Int> m_FlameCellScratch = new();
         private GameObject BuildFlameGroup(Vector3Int repCell)
         {
@@ -332,15 +348,16 @@ namespace GridSystem
             if (Net == null || !Net.TryGetBlockCells(repCell, cells) || cells.Count == 0)
             { cells.Clear(); cells.Add(repCell); }
 
-            int topY = int.MinValue;
-            foreach (var c in cells) topY = Mathf.Max(topY, c.y);
+            int minY = int.MaxValue, maxY = int.MinValue;
+            foreach (var c in cells) { minY = Mathf.Min(minY, c.y); maxY = Mathf.Max(maxY, c.y); }
+            int midY = (minY + maxY) / 2;   // 3층짜리 블록이면 가운데 층
             var spots = new List<Vector3Int>();
-            foreach (var c in cells) if (c.y == topY && ((c.x + c.z) & 1) == 0) spots.Add(c);
+            foreach (var c in cells) if (c.y == midY && ((c.x + c.z) & 1) == 0) spots.Add(c);
             if (spots.Count == 0) spots.Add(cells[0]);
 
             float per = spots.Count > 3 ? 0.7f : 1f;   // 넓은 블록은 개당 살짝 작게(과밀 방지)
             foreach (var c in spots)
-                BuildFlame(CellCenter(c) + Vector3.up * (0.6f * GridContract.Unit), per).transform.SetParent(root.transform, true);
+                BuildFlame(CellCenter(c) + Vector3.up * (0.1f * GridContract.Unit), per).transform.SetParent(root.transform, true);
             return root;
         }
 

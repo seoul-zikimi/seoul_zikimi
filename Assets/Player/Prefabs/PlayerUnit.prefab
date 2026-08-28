@@ -342,16 +342,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCarry
   ShowTopMostFoldoutHeaderGroup: 1
   m_HoldOffset: {x: 0, y: 1.2, z: 0}
-  m_BlockHoldRaise: 0.6
+  m_FrontHoldDist: 0.35
+  m_FrontHoldHeight: 0.55
+  m_HeavySoloSpeed: 0.7
   m_GrabRange: 2
   m_ProcessSeconds: 1.2
   m_ThrowRange: 12
   m_HammerModel: {fileID: 3939406923825996935, guid: 43caca03382ec364ea6d9321d50d92a3, type: 3}
   m_PaintCanModel: {fileID: 3939406923825996935, guid: c418b9fb70bd20d46825878db51f693b, type: 3}
+  m_BucketModel: {fileID: 7665667134649875882, guid: 316171008195f9d44a54ed7e6a1d0257, type: 3}
+  m_BucketEmptyModel: {fileID: 5366740471436564462, guid: 0756979ef2be3a54591e89a981e1146b, type: 3}
   m_ToolModelScale: 0.4
   m_HammerFx: {fileID: 2504214343621411470, guid: 3ed0d324122d7b24eaec75c55c74aafc, type: 3}
   m_FixDoneFx: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
   m_PaintFx: {fileID: 4553287630450876385, guid: 15483e51212e3d74886ea57291f4639a, type: 3}
+  m_TetherStiffness: 6
+  m_TetherSlack: 0.5
+  m_CargoTurnFollow: 14
+  m_JoinRange: 3
   m_AimLineMat: {fileID: 2100000, guid: 3fe8d5916c7dd3a46bdd282d53ed89a2, type: 2}
 --- !u!114 &5322060586137079395
 MonoBehaviour:
