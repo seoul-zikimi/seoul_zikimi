@@ -23,8 +23,8 @@ public static class MobileControlsPrefabGenerator
     private static readonly Color InkSoft = new(0.20f, 0.20f, 0.19f, 0.72f);
     private static readonly Color PanelFill = new(0.96f, 0.96f, 0.95f, 0.97f);
 
-    private static readonly string[] kEmoteNames =
-        { "하트깨짐", "반함", "멋짐", "붐업", "메롱", "힘듦", "폭소", "미소" };
+    // 감정표현 행 라벨은 실제 발동 대사(EmoteDefs)에서 가져온다 — UI와 대사 불일치 방지.
+    // 런타임(MobileControlsHUD.RebuildEmoteRows)에서도 같은 원본으로 다시 쓰므로 프리팹이 낡아도 안전.
 
     [MenuItem("Jobsnail/UI/Mobile/Generate Mobile Controls Prefab")]
     public static void Generate()
@@ -221,18 +221,23 @@ public static class MobileControlsPrefabGenerator
         SetFlatColors(btn, BtnFill);
         Label("Label", button, "감정표현 ▾", 24, Ink);
 
+        int count = Player.EmoteDefs.Count;
+        float height = 72f + 56f * (count - 1);   // 행 피치 56 + 패딩(위 8/아래 16), 8행이면 464
         var panel = Panel("EmotePanel", parent, Vector2.one, Vector2.one,
-            new Vector2(-130f, -445f), new Vector2(220f, 464f), PanelFill);
-        for (int i = 0; i < kEmoteNames.Length; i++)
+            new Vector2(-130f, -213f - height * 0.5f), new Vector2(220f, height), PanelFill);
+        for (int i = 0; i < count; i++)
         {
             var rt = Rect($"Emote{i + 1}", panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 200f - i * 56f), new Vector2(196f, 48f));
+                new Vector2(0f, height * 0.5f - 32f - i * 56f), new Vector2(196f, 48f));
             var img = rt.gameObject.AddComponent<Image>();
             img.sprite = RoundSprite(); img.type = Image.Type.Sliced;
             img.color = new Color(0.90f, 0.90f, 0.89f, 1f);
             var rowBtn = rt.gameObject.AddComponent<Button>(); rowBtn.targetGraphic = img;
             SetFlatColors(rowBtn, img.color);
-            Label("Label", rt, kEmoteNames[i], 21, Ink);
+            var label = Label("Label", rt, Player.EmoteDefs.All[i].Line, 21, Ink);
+            label.textWrappingMode = TextWrappingModes.NoWrap;   // 긴 대사는 줄바꿈 대신 글자 축소
+            label.enableAutoSizing = true;
+            label.fontSizeMax = 21f; label.fontSizeMin = 12f;
         }
     }
 

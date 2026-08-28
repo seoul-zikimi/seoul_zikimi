@@ -1,5 +1,6 @@
 using GridSystem;
 using Player;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -91,15 +92,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
         WireClick("PhoneButton", MobileGameplayInput.ToggleOrder);
         WireClick("AnswerToggleButton", ToggleAnswerGhost);
         WireClick("EmoteButton", ToggleEmotes);
-        for (int i = 0; i < 8; i++)
-        {
-            int index = i;
-            WireClick($"Emote{index + 1}", () =>
-            {
-                MobileGameplayInput.TriggerEmote(index);
-                if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
-            });
-        }
+        RebuildEmoteRows();
 
         JobsnailUiKit.ApplyFontPolicy(transform);
         if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
@@ -108,6 +101,55 @@ public sealed class MobileControlsHUD : MonoBehaviour
         // 모바일은 폰(TAB)과 별개로 인월드 정답 고스트를 눈 버튼으로 켜고 끈다 — 기본 켜짐.
         if (ShouldUseMobileUI) AnswerPreview.GhostPinned = true;
         UpdateAnswerToggleVisual();
+    }
+
+    // 감정표현 드롭다운을 실제 발동 대사(EmoteDefs) 기준으로 재구성 — 프리팹에 구워진 옛 이모지 이름(미소·붐업 등)과
+    // 실제 대사가 달랐고, 대사 11종 중 8종만 노출되던 것도 함께 해소. 대사를 바꾸면 여기도 자동 반영(휠 UI와 동일 원칙).
+    private void RebuildEmoteRows()
+    {
+        if (m_EmotePanel == null) return;
+        var panel = (RectTransform)m_EmotePanel.transform;
+        var template = Find("Emote1");
+        if (template == null) return;
+
+        const float kPitch = 56f;   // 프리팹 생성기(BuildEmotes)의 행 피치와 동일
+        int count = EmoteDefs.Count;
+
+        // 행 수에 맞춰 패널 높이부터 조정 — 위 모서리는 고정(감정표현 버튼과의 간격 유지), 아래로만 늘린다.
+        // 행 좌표가 패널 '중심' 기준이라 리사이즈를 먼저 해야 행 배치가 새 높이에 맞는다.
+        float top = panel.anchoredPosition.y + panel.sizeDelta.y * 0.5f;
+        float h = 72f + kPitch * (count - 1);   // 8행일 때 원본 높이 464와 일치하는 식(패딩 8+16 포함)
+        panel.sizeDelta = new Vector2(panel.sizeDelta.x, h);
+        panel.anchoredPosition = new Vector2(panel.anchoredPosition.x, top - h * 0.5f);
+
+        for (int i = 0; i < count; i++)
+        {
+            var row = Find($"Emote{i + 1}");
+            if (row == null)
+            {
+                row = Instantiate(template, panel);
+                row.name = $"Emote{i + 1}";
+            }
+            ((RectTransform)row.transform).anchoredPosition = new Vector2(0f, h * 0.5f - 32f - i * kPitch);
+            var label = row.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null)
+            {
+                label.text = EmoteDefs.All[i].Line;
+                label.textWrappingMode = TextWrappingModes.NoWrap;   // 긴 대사는 줄바꿈 대신 글자 축소
+                label.enableAutoSizing = true;
+                label.fontSizeMax = 21f; label.fontSizeMin = 12f;
+            }
+
+            int index = i;
+            var btn = row.GetComponent<Button>();
+            if (btn == null) continue;
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() =>
+            {
+                MobileGameplayInput.TriggerEmote(index);
+                if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
+            });
+        }
     }
 
     private void ToggleAnswerGhost()
