@@ -51,6 +51,18 @@ MonoBehaviour:
   - type: 12
     clips:
     - {fileID: 8300000, guid: 7fb1445db77f64d82b7250d2f05d425e, type: 3}
+  - type: 13
+    clips:
+    - {fileID: 8300000, guid: 94767006acb4a1c43ba4830f1e275b1e, type: 3}
+  - type: 15
+    clips:
+    - {fileID: 8300000, guid: 3e94dac3809ced2418c06a1f1581166d, type: 3}
+  - type: 16
+    clips:
+    - {fileID: 8300000, guid: 37b33439f04f6a042b4155fce1d46a56, type: 3}
+  - type: 17
+    clips:
+    - {fileID: 8300000, guid: ec6baa5ead691d848bb7434b1c15876f, type: 3}
   bgmEntries:
   - phase: 0
     clip: {fileID: 8300000, guid: 7fc011adfdae0864e82134e5df56f0b5, type: 3}
