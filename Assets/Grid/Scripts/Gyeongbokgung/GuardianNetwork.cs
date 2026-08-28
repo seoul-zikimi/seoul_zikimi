@@ -155,6 +155,7 @@ namespace GridSystem
                 m_NextDropAllowedAt = Now + Config.StatueDropMinGapSeconds;
                 Debug.Log($"[경복궁] 사방신 석상 낙하 {dropped + 1}/4 ({kKindNames[dropped]}) — 경과 {Loop.Elapsed:F0}초, 진행도 {(Net != null ? Net.ScorePercent : 0f):F0}% ({(scoreHit ? "진행도" : "시간")} 문턱)");
                 StatueDropFxRpc(to, dropped);
+                FireNetwork.ServerDeferForStatueDrop();   // 발화 연출과 겹쳐 둘 다 안 읽히는 것을 방지
             }
 
             // ② 받침대 근처의 석상 픽업 스캔 (0.25초 간격이면 충분)

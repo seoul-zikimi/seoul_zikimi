@@ -23,6 +23,14 @@ namespace GridSystem
         [Tooltip("발화 간격이 시작값에서 하한까지 줄어드는 데 걸리는 시간(초). 라운드 후반 긴장 곡선.")]
         [Min(30f)] public float FireIntervalRampSeconds = 360f;
 
+        [Tooltip("발화 간격 흔들림(0~1). 곡선 값을 중심으로 매번 ±비율만큼 랜덤. " +
+                 "0이면 예전처럼 정확히 일정한 간격이라 석상 낙하와 반복해서 겹친다. 0.3이면 60초 구간에서 42~78초.")]
+        [Range(0f, 0.9f)] public float FireIntervalJitter = 0.3f;
+
+        [Tooltip("석상이 낙하한 직후 이 시간(초)만큼 발화를 미룬다. 두 연출이 동시에 터지면 " +
+                 "무엇이 일어났는지 읽을 수 없다. 0이면 미루지 않음.")]
+        [Min(0f)] public float FireDeferAfterStatueSeconds = 6f;
+
         [Tooltip("발화한 블록이 소실되기까지의 진화 제한시간(초).")]
         [Min(3f)] public float BurnSeconds = 18f;
 
@@ -76,6 +84,19 @@ namespace GridSystem
         {
             float t = FireIntervalRampSeconds <= 0f ? 1f : Mathf.Clamp01(elapsedSinceFirstFire / FireIntervalRampSeconds);
             return Mathf.Lerp(FireIntervalStart, FireIntervalMin, t);
+        }
+
+        /// <summary>
+        /// 실제로 쓸 다음 발화 간격 — 곡선 기준값(FireIntervalAt)에 FireIntervalJitter 만큼 흔들림을 준다.
+        /// 곡선을 중심으로 흔들기 때문에 '후반으로 갈수록 잦아진다'는 난이도 설계는 그대로 두면서,
+        /// 매 발화 시점만 예측 불가능해진다. 서버에서만 호출된다(발화 판정이 서버 권위라 클라 간 어긋나지 않는다).
+        /// </summary>
+        public float NextFireInterval(float elapsedSinceFirstFire)
+        {
+            float baseInterval = FireIntervalAt(elapsedSinceFirstFire);
+            if (FireIntervalJitter <= 0f) return baseInterval;
+            float scale = Random.Range(1f - FireIntervalJitter, 1f + FireIntervalJitter);
+            return Mathf.Max(5f, baseInterval * scale);
         }
     }
 }

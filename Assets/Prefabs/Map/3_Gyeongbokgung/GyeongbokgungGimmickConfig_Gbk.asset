@@ -16,6 +16,8 @@ MonoBehaviour:
   FireIntervalStart: 60
   FireIntervalMin: 25
   FireIntervalRampSeconds: 360
+  FireIntervalJitter: 0.3
+  FireDeferAfterStatueSeconds: 6
   BurnSeconds: 18
   SpreadCount: 2
   ExtinguishSeconds: 1.2

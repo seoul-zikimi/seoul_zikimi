@@ -58,6 +58,24 @@ namespace GridSystem
             m_Flames.Clear();
         }
 
+        /// <summary>
+        /// 석상이 낙하한 직후 발화를 잠깐 미룬다 — 화마 급강하와 석상 낙하가 동시에 터지면
+        /// 빛기둥·토스트·비네트가 겹쳐 무슨 일이 일어났는지 읽을 수 없다(GuardianNetwork가 호출).
+        /// 이미 화마가 급강하 중이면 건드리지 않는다: 발화 시각은 DemonSwoopRpc로 클라에 이미 예고돼
+        /// 있어서, 뒤늦게 바꾸면 화마가 도착했는데 불이 안 붙는 어긋남이 생긴다.
+        /// </summary>
+        public static void ServerDeferForStatueDrop()
+        {
+            var inst = Instance;
+            if (inst == null || !inst.IsServer || !inst.Active || inst.m_HasPending) return;
+
+            float defer = inst.Config.FireDeferAfterStatueSeconds;
+            if (defer <= 0f) return;
+
+            float lead = Mathf.Max(0.5f, inst.Config.DemonLeadSeconds);
+            inst.m_NextFireAt = Mathf.Max(inst.m_NextFireAt, inst.Now + defer + lead);
+        }
+
         public void ServerReset()
         {
             if (!IsServer || !Active) return;
@@ -179,7 +197,7 @@ namespace GridSystem
             {
                 m_HasPending = false;
                 IgniteAt(m_PendingCell);   // 내부 재검증 — 그 사이 사라졌으면 조용히 통과
-                m_NextFireAt = Now + Config.FireIntervalAt(elapsed - Config.FireStartDelay);
+                m_NextFireAt = Now + Config.NextFireInterval(elapsed - Config.FireStartDelay);
             }
         }
 
