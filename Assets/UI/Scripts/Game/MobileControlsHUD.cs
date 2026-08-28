@@ -82,6 +82,9 @@ public sealed class MobileControlsHUD : MonoBehaviour
         var answerToggle = Find("AnswerToggleButton");
         m_AnswerToggleGroup = answerToggle != null ? answerToggle.GetComponent<CanvasGroup>() : null;
 
+        // 폰(작은 화면)에선 터치 컨트롤을 물리적으로 키운다 — 가장자리 앵커라 잘림 없음. 태블릿은 1배 그대로.
+        MobileUiScale.Apply(GetComponent<CanvasScaler>());
+
         WireClick("JumpButton", MobileGameplayInput.PressJump);
         WireClick("ScaffoldButton", MobileGameplayInput.PressScaffold);
         WireClick("RotateButton", MobileGameplayInput.PressRotateHeld);

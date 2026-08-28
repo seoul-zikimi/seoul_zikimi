@@ -455,6 +455,10 @@ public class AnswerPanelHUD : UIHUD
     {
         if (!m_MobileLayout || m_Phone == null) return;
         var avail = ((RectTransform)transform).rect.size;
+        // 노치·펀치홀 폰: 세이프영역 비율만큼 가용 크기를 줄여 레이아웃이 노치에 안 가리게(태블릿은 보통 그대로).
+        var sa = Screen.safeArea;
+        if (Screen.width > 0 && Screen.height > 0)
+            avail = new Vector2(avail.x * sa.width / Screen.width, avail.y * sa.height / Screen.height);
         float s = Mathf.Min(1f, (avail.x - 40f) / 1800f, (avail.y - 40f) / 940f);
         if (s > 0f) m_Phone.transform.localScale = new Vector3(s, s, 1f);
     }
