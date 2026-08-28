@@ -28,7 +28,8 @@
 | `롯데_자이로드롭.glb` | 섬 동쪽 놀이기구(구형 통짜 — 아래 분리형이 있으면 무시됨) | gyro drop tower ride, tall pole with ring gondola, amusement park, stylized lowpoly |
 | `롯데_자이로기둥.glb` | 자이로드롭 기둥(분리형) | tall white drop tower pylon, GYRO DROP lettering, hexagonal cap |
 | `롯데_자이로원반.glb` | 자이로드롭 원반 — 기둥을 타고 오르내림(LotteAmbientRides) | yellow ring gondola with outward seats |
-| `롯데_다리.glb` | 입구 다리(장축 x — 맵에서 90° 회전 배치) | wide stone footbridge, white balustrade, black lampposts |
+| `롯데_다리.glb` | 입구 다리 12칸(장축 x — 맵에서 90° 회전 배치, 통짜 난간벽) | long stone footbridge, thick solid parapet walls, arches |
+| `롯데_가로등.glb` | 다리 난간 가로등(코드로 8개 줄배치) | black vintage park lamppost, single lantern head |
 | `롯데_다리탑.glb` | 다리 중간 쌍둥이 성탑(좌우 2개 배치) | round ivory turret, bright blue conical roof, golden finial |
 | `롯데_모노레일.glb` | 섬을 두르는 링 궤도 | circular elevated monorail track ring, sky blue beam, white columns |
 | `롯데_모노레일열차.glb` | 궤도를 도는 열차(LotteAmbientRides) | cute monorail train, red and white, three cars |

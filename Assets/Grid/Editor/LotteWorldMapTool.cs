@@ -261,26 +261,34 @@ namespace GridSystem.EditorTools
             AddBox(root, "ParadeRoad", new Vector3(6.5f, -0.485f, -3.2f), new Vector3(36f, 1.03f, 2.6f), road).isStatic = true;
 
             // 성 앞 다리(호수 남쪽 기슭 → 광장, 실제 롯데월드 매직아일랜드 입구 다리)
-            // VARCO 다리(난간·가로등 포함, 장축 x로 뽑음)를 90° 돌려 남북으로 놓고, 보행은 기존 박스 콜라이더가 담당.
-            var bridgeBox = AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(6f, 0.4f, 7f), stoneW);
+            // 사진 구도: 일직선 다리 12칸, 중간만 원형 광장으로 넓어지고 그 곡선부 좌우에 쌍둥이 성탑.
+            // VARCO 다리(통짜 석재 난간벽, 장축 x로 뽑음)를 90° 돌려 남북으로 놓고, 보행은 박스 콜라이더가 담당.
+            var bridgeBox = AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -18f), new Vector3(6f, 0.4f, 12f), stoneW);
             bridgeBox.isStatic = true;
-            var bridgeMesh = PlaceProp(root, "롯데_다리", new Vector3(6.5f, -1.35f, -15.5f), 90f, 1f, addCollider: false);
+            var bridgeMesh = PlaceProp(root, "롯데_다리", new Vector3(6.5f, -1.35f, -18f), 90f, 1f, addCollider: false);
             if (bridgeMesh != null)
                 bridgeBox.GetComponent<MeshRenderer>().enabled = false;   // 석재 박스는 콜라이더만 남긴다
 
-            // 남쪽 호안(육지) — 다리가 호수 한가운데서 끊기지 않고 뭍에서 출발하게(사진 재현).
-            // 다리 남단(z=-19)과 맞닿는 넓은 기슭 + 잔디빛 마감.
+            // 남쪽 호안(육지) — 다리가 뭍(z=-24)에서 출발하게(사진 재현). 잔디빛 기슭.
             var shore = EnsureMaterial("Mat_LotteShore", new Color(0.55f, 0.72f, 0.42f));
-            AddBox(root, "SouthShore", new Vector3(6.5f, -0.5f, -23.5f), new Vector3(24f, 1f, 9f), shore).isStatic = true;
+            AddBox(root, "SouthShore", new Vector3(6.5f, -0.5f, -27.5f), new Vector3(24f, 1f, 8f), shore).isStatic = true;
 
-            // 다리 중간 원형 광장(실제 다리의 원형 확장부) — 다리 폭보다 넓은 원판을 데크 높이에 맞춰 깔고
-            // 그 위 좌우에 쌍둥이 성탑(파랑 고깔)을 올린다(사진 재현). 모델 없으면 기존 게이트 타워 폴백.
-            var circle = AddCylinder(root, "BridgeCircle", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(11f, 0.2f, 11f), stoneW);
-            // 납작 원기둥의 캡슐 콜라이더는 공처럼 불룩해져(반지름 5.5) 다리를 막는다 — 평평한 박스로 교체
+            // 다리 중간 원형 광장 — 다리 폭(6)보다 넓은 원판(7.6)을 데크보다 2cm 높게 깔고(Z-파이팅 방지)
+            // 그 곡선부 좌우에 쌍둥이 성탑(파랑 고깔)을 올린다. 모델 없으면 기존 게이트 타워 폴백.
+            var circle = AddCylinder(root, "BridgeCircle", new Vector3(6.5f, -0.33f, -18f), new Vector3(7.6f, 0.2f, 7.6f), stoneW);
+            // 납작 원기둥의 캡슐 콜라이더는 공처럼 불룩해져 다리를 막는다 — 평평한 박스로 교체
             Object.DestroyImmediate(circle.GetComponent<Collider>());
             circle.AddComponent<BoxCollider>();
-            bool turretL = TryPlaceProp(root, "롯데_다리탑", new Vector3(2.9f, -0.15f, -15.5f));
-            bool turretR = TryPlaceProp(root, "롯데_다리탑", new Vector3(10.1f, -0.15f, -15.5f));
+            bool turretL = TryPlaceProp(root, "롯데_다리탑", new Vector3(2.85f, -0.13f, -18f));
+            bool turretR = TryPlaceProp(root, "롯데_다리탑", new Vector3(10.15f, -0.13f, -18f));
+
+            // 난간 가로등(사진의 검정 주철 램프) — 원형 광장 앞뒤 직선 구간 양옆에 줄지어(모델 있을 때만)
+            float[] lampZ = { -13.2f, -15.3f, -20.7f, -22.8f };
+            foreach (float lz in lampZ)
+            {
+                TryPlaceProp(root, "롯데_가로등", new Vector3(3.8f, -0.15f, lz));
+                TryPlaceProp(root, "롯데_가로등", new Vector3(9.2f, -0.15f, lz));
+            }
             if (!turretL || !turretR)
             {
                 // 다리 입구 양옆 게이트 타워 — 광장 타일 '안쪽'(남단 z-12보다 안)에 세워 바닥에 딱 붙게.
@@ -400,12 +408,12 @@ namespace GridSystem.EditorTools
                 (new Vector3(-6.5f, 0f, -5.5f), 70f, 0.9f),
                 (new Vector3(19f, 0f, -11f), 140f, 1.05f),
                 (new Vector3(18.5f, 0f, -5.5f), 210f, 0.95f),
-                (new Vector3(2.9f, 0f, -12.3f), 30f, 0.85f),    // 다리 입구 왼쪽
-                (new Vector3(10.1f, 0f, -12.3f), 300f, 0.85f),  // 다리 입구 오른쪽
+                (new Vector3(2.9f, 0f, -11.6f), 30f, 0.85f),    // 다리 입구 왼쪽(광장 남단)
+                (new Vector3(10.1f, 0f, -11.6f), 300f, 0.85f),  // 다리 입구 오른쪽(광장 남단)
                 (new Vector3(-7f, 0f, 16.5f), 45f, 1.1f),       // 섬 북서 모서리
                 (new Vector3(20f, 0f, 16.5f), 260f, 1.0f),      // 섬 북동 모서리
-                (new Vector3(-2.5f, 0f, -22f), 120f, 1.05f),    // 남쪽 기슭 왼쪽
-                (new Vector3(15.5f, 0f, -22f), 200f, 0.95f),    // 남쪽 기슭 오른쪽
+                (new Vector3(-2.5f, 0f, -26f), 120f, 1.05f),    // 남쪽 기슭 왼쪽
+                (new Vector3(15.5f, 0f, -26f), 200f, 0.95f),    // 남쪽 기슭 오른쪽
             };
             foreach (var (p, rot, sc) in cherrySpots)
                 TryPlaceProp(root, "롯데_벚나무", p, rot, sc);
