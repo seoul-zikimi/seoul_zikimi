@@ -24,7 +24,8 @@ namespace SeoulZikimi.UI.New
             JobsnailUiKit.ApplyFontPolicy(transform);
             foreach (ScreenBinding binding in screens)
                 if (binding.root != null)
-                    AddBackgroundFill(binding.root);
+                    try { AddBackgroundFill(binding.root); }   // 장식용 — 어떤 일이 있어도 로비 진입을 막으면 안 된다
+                    catch (Exception e) { Debug.LogError($"[UI_NEW] 배경 여백 채움 실패(무시): {e.Message}"); }
             Show(initialScreen);
         }
 
@@ -46,26 +47,29 @@ namespace SeoulZikimi.UI.New
             hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0.5f);
             hrt.sizeDelta = Vector2.zero;
 
+            // RawImage + uvRect로 가장자리 1px 줄만 잘라 늘린다 — Sprite.Create는 iOS의 ASTC 압축 텍스처에서
+            // 서브렉트 스프라이트 생성이 기기 크래시를 낼 수 있어 금지(에디터 무압축에선 멀쩡해 못 잡는다).
             var tex = bgImage.sprite.texture;
-            var r = bgImage.sprite.textureRect;
-            // (샘플 영역, 밴드 중심, 밴드 크기) — Expand에선 한 축만 여백이 생기므로 모서리 걱정은 없다.
-            (Rect sample, Vector2 pos, Vector2 size)[] strips =
+            float px = 1f / Mathf.Max(1, tex.width), py = 1f / Mathf.Max(1, tex.height);
+            // (UV 샘플 영역, 밴드 중심) — Expand에선 한 축만 여백이 생기므로 모서리 걱정은 없다.
+            (Rect uv, Vector2 pos)[] strips =
             {
-                (new Rect(r.x, r.y, 2f, r.height),                new Vector2(-1920f, 0f), new Vector2(1920f, 1080f)),   // 왼쪽
-                (new Rect(r.xMax - 2f, r.y, 2f, r.height),        new Vector2(1920f, 0f),  new Vector2(1920f, 1080f)),   // 오른쪽
-                (new Rect(r.x, r.yMax - 2f, r.width, 2f),         new Vector2(0f, 1080f),  new Vector2(1920f, 1080f)),   // 위
-                (new Rect(r.x, r.y, r.width, 2f),                 new Vector2(0f, -1080f), new Vector2(1920f, 1080f)),   // 아래
+                (new Rect(0f, 0f, px, 1f),      new Vector2(-1920f, 0f)),   // 왼쪽
+                (new Rect(1f - px, 0f, px, 1f), new Vector2(1920f, 0f)),    // 오른쪽
+                (new Rect(0f, 1f - py, 1f, py), new Vector2(0f, 1080f)),    // 위
+                (new Rect(0f, 0f, 1f, py),      new Vector2(0f, -1080f)),   // 아래
             };
-            foreach (var (sample, pos, size) in strips)
+            foreach (var (uv, pos) in strips)
             {
-                var strip = new GameObject("EdgeFill", typeof(RectTransform), typeof(Image));
+                var strip = new GameObject("EdgeFill", typeof(RectTransform), typeof(RawImage));
                 var rt = (RectTransform)strip.transform;
                 rt.SetParent(hrt, false);
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = size;
+                rt.sizeDelta = new Vector2(1920f, 1080f);
                 rt.anchoredPosition = pos;
-                var img = strip.GetComponent<Image>();
-                img.sprite = Sprite.Create(tex, sample, new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+                var img = strip.GetComponent<RawImage>();
+                img.texture = tex;
+                img.uvRect = uv;
                 img.raycastTarget = false;
                 img.color = new Color(0.9f, 0.9f, 0.9f, 1f);   // 본 구도보다 아주 살짝 가라앉게
             }
