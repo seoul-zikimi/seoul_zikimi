@@ -260,7 +260,7 @@ namespace GridSystem.EditorTools
             // 퍼레이드 길 — 섬과 광장 사이(z=-3)를 동서로 관통. 양쪽 어디서든 건널 수 있는 평지.
             AddBox(root, "ParadeRoad", new Vector3(6.5f, -0.485f, -3.2f), new Vector3(36f, 1.03f, 2.6f), road).isStatic = true;
 
-            // 성 앞 다리(광장 남쪽 → 호수 건너, 실제 롯데월드 매직아일랜드 입구 다리)
+            // 성 앞 다리(호수 남쪽 기슭 → 광장, 실제 롯데월드 매직아일랜드 입구 다리)
             // VARCO 다리(난간·가로등 포함, 장축 x로 뽑음)를 90° 돌려 남북으로 놓고, 보행은 기존 박스 콜라이더가 담당.
             var bridgeBox = AddBox(root, "Bridge", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(6f, 0.4f, 7f), stoneW);
             bridgeBox.isStatic = true;
@@ -268,10 +268,19 @@ namespace GridSystem.EditorTools
             if (bridgeMesh != null)
                 bridgeBox.GetComponent<MeshRenderer>().enabled = false;   // 석재 박스는 콜라이더만 남긴다
 
-            // 다리 중간 양옆 쌍둥이 성탑(실제 매직아일랜드 다리 재현) — 다리 폭 밖 호수에서 솟는 교각 탑.
-            // 수면(-0.6) 기준으로 심어 물에서 바로 올라온다. 모델 없으면 기존 게이트 타워 폴백.
-            bool turretL = TryPlaceProp(root, "롯데_다리탑", new Vector3(2.9f, -0.6f, -15.5f));
-            bool turretR = TryPlaceProp(root, "롯데_다리탑", new Vector3(10.1f, -0.6f, -15.5f));
+            // 남쪽 호안(육지) — 다리가 호수 한가운데서 끊기지 않고 뭍에서 출발하게(사진 재현).
+            // 다리 남단(z=-19)과 맞닿는 넓은 기슭 + 잔디빛 마감.
+            var shore = EnsureMaterial("Mat_LotteShore", new Color(0.55f, 0.72f, 0.42f));
+            AddBox(root, "SouthShore", new Vector3(6.5f, -0.5f, -23.5f), new Vector3(24f, 1f, 9f), shore).isStatic = true;
+
+            // 다리 중간 원형 광장(실제 다리의 원형 확장부) — 다리 폭보다 넓은 원판을 데크 높이에 맞춰 깔고
+            // 그 위 좌우에 쌍둥이 성탑(파랑 고깔)을 올린다(사진 재현). 모델 없으면 기존 게이트 타워 폴백.
+            var circle = AddCylinder(root, "BridgeCircle", new Vector3(6.5f, -0.35f, -15.5f), new Vector3(11f, 0.2f, 11f), stoneW);
+            // 납작 원기둥의 캡슐 콜라이더는 공처럼 불룩해져(반지름 5.5) 다리를 막는다 — 평평한 박스로 교체
+            Object.DestroyImmediate(circle.GetComponent<Collider>());
+            circle.AddComponent<BoxCollider>();
+            bool turretL = TryPlaceProp(root, "롯데_다리탑", new Vector3(2.9f, -0.15f, -15.5f));
+            bool turretR = TryPlaceProp(root, "롯데_다리탑", new Vector3(10.1f, -0.15f, -15.5f));
             if (!turretL || !turretR)
             {
                 // 다리 입구 양옆 게이트 타워 — 광장 타일 '안쪽'(남단 z-12보다 안)에 세워 바닥에 딱 붙게.
@@ -282,8 +291,13 @@ namespace GridSystem.EditorTools
 
             // ── 원경 프롭: VARCO _Fit 우선, 없으면 그레이박스 폴백 ──
 
-            // 롯데월드타워(북동, 호수 바로 건너 — 랜드마크가 화면에 늘 보이게)
-            if (!TryPlaceProp(root, "롯데_롯데월드타워", new Vector3(27f, -0.6f, 30f)))
+            // 원경용 호안 육지 — 배경 건물·랜드마크가 물에 떠 있지 않게 호수 가장자리에 뭍을 두른다
+            AddBox(root, "NorthShore", new Vector3(6.5f, -0.5f, 39f), new Vector3(74f, 1f, 14f), shore).isStatic = true;   // z 32~46
+            AddBox(root, "EastShore",  new Vector3(35f, -0.5f, 14f), new Vector3(12f, 1f, 34f), shore).isStatic = true;    // x 29~41
+            AddBox(root, "WestShore",  new Vector3(-25f, -0.5f, 12f), new Vector3(14f, 1f, 40f), shore).isStatic = true;   // x -32~-18
+
+            // 롯데월드타워(북동, 호수 건너 북쪽 기슭 — 랜드마크가 화면에 늘 보이게)
+            if (!TryPlaceProp(root, "롯데_롯데월드타워", new Vector3(27f, 0f, 35f)))
             {
                 AddBox(root, "TowerBase", new Vector3(27f, 7f, 30f), new Vector3(7f, 16f, 7f), glass).isStatic = true;
                 AddBox(root, "TowerMid",  new Vector3(27f, 20f, 30f), new Vector3(5f, 10f, 5f), glass).isStatic = true;
@@ -344,6 +358,7 @@ namespace GridSystem.EditorTools
                 ro.FindProperty("m_RingCenter").vector3Value = new Vector3(6.5f, trainY, 8.5f);
                 ro.FindProperty("m_RingRadiusX").floatValue = 17f;   // 링 목표 크기 37×27의 빔 중심선 근사
                 ro.FindProperty("m_RingRadiusZ").floatValue = 12f;
+                ro.FindProperty("m_TrainYawOffsetDeg").floatValue = -90f;   // 열차 장축(x) → 진행방향 정렬
                 ro.ApplyModifiedPropertiesWithoutUndo();
             }
 
@@ -369,14 +384,14 @@ namespace GridSystem.EditorTools
             // ── 원경(사진 재현): 호수 건너 어드벤처 본관·청록 돔 요새·아파트 스카이라인 ──
             // 전부 모델 있을 때만 배치(폴백 없음 — 그레이박스 박스는 오히려 어색).
 
-            // 어드벤처 본관(북쪽 호수 건너 — 유리 돔이 섬 뒤 배경을 채운다)
-            TryPlaceProp(root, "롯데_어드벤처돔", new Vector3(2f, -0.6f, 36f));
-            // 청록 돔 석조 요새(동쪽 호수 건너 — 항공사진 오른편의 그 건물)
-            TryPlaceProp(root, "롯데_돔요새", new Vector3(34f, -0.6f, 17f), 235f);
-            // 원경 아파트/타워(북서~서쪽 스카이라인, 잠실 아파트 숲)
-            TryPlaceProp(root, "롯데_원경아파트", new Vector3(-17f, -0.6f, 31f), 15f);
-            TryPlaceProp(root, "롯데_원경아파트", new Vector3(-26f, -0.6f, 14f), 75f, 0.85f);
-            TryPlaceProp(root, "롯데_원경빌딩", new Vector3(17f, -0.6f, 38f), 10f);
+            // 어드벤처 본관(북쪽 기슭 — 유리 돔이 섬 뒤 배경을 채운다)
+            TryPlaceProp(root, "롯데_어드벤처돔", new Vector3(2f, 0f, 38f));
+            // 청록 돔 석조 요새(동쪽 기슭 — 항공사진 오른편의 그 건물)
+            TryPlaceProp(root, "롯데_돔요새", new Vector3(35f, 0f, 16f), 235f);
+            // 원경 아파트/타워(북서~서쪽 기슭 스카이라인, 잠실 아파트 숲)
+            TryPlaceProp(root, "롯데_원경아파트", new Vector3(-14f, 0f, 38f), 15f);
+            TryPlaceProp(root, "롯데_원경아파트", new Vector3(-25f, 0f, 20f), 75f, 0.85f);
+            TryPlaceProp(root, "롯데_원경빌딩", new Vector3(17f, 0f, 39f), 10f);
 
             // 호안 벚꽃(석촌호수 봄) — 광장 양끝·다리 입구·섬 모서리
             (Vector3 p, float rot, float sc)[] cherrySpots =
@@ -389,6 +404,8 @@ namespace GridSystem.EditorTools
                 (new Vector3(10.1f, 0f, -12.3f), 300f, 0.85f),  // 다리 입구 오른쪽
                 (new Vector3(-7f, 0f, 16.5f), 45f, 1.1f),       // 섬 북서 모서리
                 (new Vector3(20f, 0f, 16.5f), 260f, 1.0f),      // 섬 북동 모서리
+                (new Vector3(-2.5f, 0f, -22f), 120f, 1.05f),    // 남쪽 기슭 왼쪽
+                (new Vector3(15.5f, 0f, -22f), 200f, 0.95f),    // 남쪽 기슭 오른쪽
             };
             foreach (var (p, rot, sc) in cherrySpots)
                 TryPlaceProp(root, "롯데_벚나무", p, rot, sc);

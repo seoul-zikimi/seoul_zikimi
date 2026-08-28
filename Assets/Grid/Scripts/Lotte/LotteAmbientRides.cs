@@ -21,6 +21,7 @@ namespace GridSystem
         [SerializeField] private float m_RingRadiusX = 17f;
         [SerializeField] private float m_RingRadiusZ = 12f;
         [SerializeField] private float m_TrainSpeedDeg = 9f;   // 초당 각도 — 실물처럼 느긋하게
+        [SerializeField] private float m_TrainYawOffsetDeg = -90f;   // 모델 장축(x)을 진행방향(z)에 맞추는 보정 — 뒤로 달리면 +90으로
 
         // 자이로드롭 사이클(초): 상승 → 꼭대기 정지(긴장) → 낙하! → 바닥 휴식
         private const float kRise = 7f, kHold = 3f, kDrop = 0.8f, kRest = 5f;
@@ -65,7 +66,7 @@ namespace GridSystem
             var tangent = new Vector3(Mathf.Cos(a) * m_RingRadiusX, 0f, -Mathf.Sin(a) * m_RingRadiusZ);
             m_Train.position = pos;
             if (tangent.sqrMagnitude > 1e-4f)
-                m_Train.rotation = Quaternion.LookRotation(tangent);
+                m_Train.rotation = Quaternion.LookRotation(tangent) * Quaternion.Euler(0f, m_TrainYawOffsetDeg, 0f);
         }
     }
 }
