@@ -48,21 +48,21 @@ namespace GridSystem.EditorTools
         {
             // 1층 몸체 — 기둥+창호지벽 일체 칸(間) 모듈. 기둥 포함이라 하중부재.
             new Part{ Name="경복궁_벽모듈",        Id=30, Fp=new Vector3Int(4,3,1), Procs=kFix,      Color=new Color(0.63f,0.36f,0.22f), MustFix=true  },
-            new Part{ Name="경복궁_벽모듈_측면",   Id=31, Fp=new Vector3Int(1,3,5), Procs=kFix,      Color=new Color(0.55f,0.31f,0.19f), MustFix=true  },
-            new Part{ Name="경복궁_문모듈",        Id=32, Fp=new Vector3Int(4,3,1), Procs=kFix,      Color=new Color(0.78f,0.68f,0.52f), MustFix=true  },
+            new Part{ Name="경복궁_벽모듈_측면",   Id=54, Fp=new Vector3Int(1,3,5), Procs=kFix,      Color=new Color(0.55f,0.31f,0.19f), MustFix=true  },
+            new Part{ Name="경복궁_문모듈",        Id=55, Fp=new Vector3Int(4,3,1), Procs=kFix,      Color=new Color(0.78f,0.68f,0.52f), MustFix=true  },
             // 기와 — 직선 2종뿐(모서리기와·세로 변형 전부 08/28 폐기 — 재료 종류 최소화).
             // 세로 자리는 같은 기와를 R로 90° 돌려 배치한다(채점은 회전 무시 — 점유 칸+재료만 비교).
-            new Part{ Name="경복궁_직선기와_장",   Id=34, Fp=new Vector3Int(8,3,3), Procs=kFix,      Color=new Color(0.47f,0.53f,0.62f), Heavy=true },
-            new Part{ Name="경복궁_직선기와_단",   Id=35, Fp=new Vector3Int(6,3,3), Procs=kFix,      Color=new Color(0.56f,0.61f,0.70f), Heavy=true },
+            new Part{ Name="경복궁_직선기와_장",   Id=56, Fp=new Vector3Int(8,3,3), Procs=kFix,      Color=new Color(0.47f,0.53f,0.62f), Heavy=true },
+            new Part{ Name="경복궁_직선기와_단",   Id=57, Fp=new Vector3Int(6,3,3), Procs=kFix,      Color=new Color(0.56f,0.61f,0.70f), Heavy=true },
             // 2층 몸체 — 망치질+페인트칠(단청) 2공정. 최종전 작업량은 여기서 나온다.
-            new Part{ Name="경복궁_2층벽모듈",     Id=38, Fp=new Vector3Int(4,2,1), Procs=kFixPaint, Color=new Color(0.87f,0.55f,0.25f), MustFix=true },
+            new Part{ Name="경복궁_2층벽모듈",     Id=58, Fp=new Vector3Int(4,2,1), Procs=kFixPaint, Color=new Color(0.87f,0.55f,0.25f), MustFix=true },
             new Part{ Name="경복궁_2층벽모듈_측면", Id=39, Fp=new Vector3Int(1,2,6), Procs=kFixPaint, Color=new Color(0.80f,0.48f,0.20f), MustFix=true },
             // 지붕 — 삼각 왕관 한 덩어리. 8칸 상한의 유일한 예외(마지막에 다 같이 올리는 클라이맥스 블록).
             // 반쪽 2개 잇기는 폐기(08/27) — 슬라이스 프리팹의 머티리얼 참조가 glb 교체마다 깨져서 투명화 사고.
-            new Part{ Name="경복궁_지붕",          Id=40, Fp=new Vector3Int(16,3,8), Procs=kFix,     Color=new Color(0.30f,0.42f,0.72f), Heavy=true },
+            new Part{ Name="경복궁_지붕",          Id=59, Fp=new Vector3Int(16,3,8), Procs=kFix,     Color=new Color(0.30f,0.42f,0.72f), Heavy=true },
             // 2층 마루 — 하층 기와와 '같은 층'에서 안쪽 구멍(16×8)을 메우는 바닥판. 윗면이 기와 윗면과 평평.
             // 아래는 배경 프리팹의 1층 천장(Ceiling1F)이 받친다. 공정 없음(놓으면 자동 고정), 가벼움.
-            new Part{ Name="경복궁_마루",          Id=41, Fp=new Vector3Int(8,1,4), Procs=kNone,     Color=new Color(0.76f,0.60f,0.38f) },
+            new Part{ Name="경복궁_마루",          Id=60, Fp=new Vector3Int(8,1,4), Procs=kNone,     Color=new Color(0.76f,0.60f,0.38f) },
         };
 
         // ── 근정전 조립(정답): (파츠 id, 앵커 셀=min-corner). 총 49블록, 높이 13 ──
@@ -71,28 +71,28 @@ namespace GridSystem.EditorTools
         private static readonly (int id, Vector3Int anchor)[] kPalace =
         {
             // 1층 벽 링 x5..24, z4..15 (문은 앞뒤 중앙)
-            (30, new Vector3Int( 5, 0,  4)), (30, new Vector3Int( 9, 0,  4)), (32, new Vector3Int(13, 0,  4)), (30, new Vector3Int(17, 0,  4)), (30, new Vector3Int(21, 0,  4)),
-            (30, new Vector3Int( 5, 0, 15)), (30, new Vector3Int( 9, 0, 15)), (32, new Vector3Int(13, 0, 15)), (30, new Vector3Int(17, 0, 15)), (30, new Vector3Int(21, 0, 15)),
-            (31, new Vector3Int( 5, 0,  5)), (31, new Vector3Int( 5, 0, 10)),
-            (31, new Vector3Int(24, 0,  5)), (31, new Vector3Int(24, 0, 10)),
+            (30, new Vector3Int( 5, 0,  4)), (30, new Vector3Int( 9, 0,  4)), (55, new Vector3Int(13, 0,  4)), (30, new Vector3Int(17, 0,  4)), (30, new Vector3Int(21, 0,  4)),
+            (30, new Vector3Int( 5, 0, 15)), (30, new Vector3Int( 9, 0, 15)), (55, new Vector3Int(13, 0, 15)), (30, new Vector3Int(17, 0, 15)), (30, new Vector3Int(21, 0, 15)),
+            (54, new Vector3Int( 5, 0,  5)), (54, new Vector3Int( 5, 0, 10)),
+            (54, new Vector3Int(24, 0,  5)), (54, new Vector3Int(24, 0, 10)),
             // 하층 기와 링 x4..25, z3..16 — 직선 기와만, 네 모서리(3×3)는 의도적으로 비움(08/28: 코너 모델 폐기, 뚫린 게 낫다)
             // 세로 자리 2곳은 장기와를 rot1(90°)로 — kRotatedAnchors 참조
-            (34, new Vector3Int( 7, 3,  3)), (34, new Vector3Int(15, 3,  3)),
-            (34, new Vector3Int( 7, 3, 14)), (34, new Vector3Int(15, 3, 14)),
-            (34, new Vector3Int( 4, 3,  6)), (34, new Vector3Int(23, 3,  6)),
+            (56, new Vector3Int( 7, 3,  3)), (56, new Vector3Int(15, 3,  3)),
+            (56, new Vector3Int( 7, 3, 14)), (56, new Vector3Int(15, 3, 14)),
+            (56, new Vector3Int( 4, 3,  6)), (56, new Vector3Int(23, 3,  6)),
             // 마루 y4 — 하층 기와 안쪽 구멍(x7..22, z6..13)을 테두리보다 1칸 낮게 메움(움푹 들어간 2층 바닥)
-            (41, new Vector3Int( 7, 4,  6)), (41, new Vector3Int(15, 4,  6)),
-            (41, new Vector3Int( 7, 4, 10)), (41, new Vector3Int(15, 4, 10)),
+            (60, new Vector3Int( 7, 4,  6)), (60, new Vector3Int(15, 4,  6)),
+            (60, new Vector3Int( 7, 4, 10)), (60, new Vector3Int(15, 4, 10)),
             // 2층 벽 링 x7..22, z6..13 (마루 위 — 아랫단 1칸이 기와 테두리 뒤에 가려진다)
-            (38, new Vector3Int( 7, 5,  6)), (38, new Vector3Int(11, 5,  6)), (38, new Vector3Int(15, 5,  6)), (38, new Vector3Int(19, 5,  6)),
-            (38, new Vector3Int( 7, 5, 13)), (38, new Vector3Int(11, 5, 13)), (38, new Vector3Int(15, 5, 13)), (38, new Vector3Int(19, 5, 13)),
+            (58, new Vector3Int( 7, 5,  6)), (58, new Vector3Int(11, 5,  6)), (58, new Vector3Int(15, 5,  6)), (58, new Vector3Int(19, 5,  6)),
+            (58, new Vector3Int( 7, 5, 13)), (58, new Vector3Int(11, 5, 13)), (58, new Vector3Int(15, 5, 13)), (58, new Vector3Int(19, 5, 13)),
             (39, new Vector3Int( 7, 5,  7)), (39, new Vector3Int(22, 5,  7)),
             // 상층 기와 링 x5..24, z4..15 — 직선 기와만, 네 모서리(3×3)는 의도적으로 비움. 세로 자리는 단기와 rot1
-            (34, new Vector3Int( 8, 7,  4)), (35, new Vector3Int(16, 7,  4)),
-            (34, new Vector3Int( 8, 7, 13)), (35, new Vector3Int(16, 7, 13)),
-            (35, new Vector3Int( 5, 7,  7)), (35, new Vector3Int(22, 7,  7)),
+            (56, new Vector3Int( 8, 7,  4)), (57, new Vector3Int(16, 7,  4)),
+            (56, new Vector3Int( 8, 7, 13)), (57, new Vector3Int(16, 7, 13)),
+            (57, new Vector3Int( 5, 7,  7)), (57, new Vector3Int(22, 7,  7)),
             // 지붕 x7..22, z6..13 (한 덩어리 — 상층 기와 안쪽 테두리에 1칸 걸침)
-            (40, new Vector3Int( 7, 10, 6)),
+            (59, new Vector3Int( 7, 10, 6)),
         };
 
         // 세로 자리(측면 처마) — 가로 기와를 90° 돌려 배치하는 앵커들. 세로 전용 def(구 id36·37)는 폐기.
@@ -107,8 +107,8 @@ namespace GridSystem.EditorTools
         // IsHeavy(2인 운반), 공정 없음. GuardianNetwork가 진행도 문턱마다 ServerDeliver로 낙하시킨다.
         private static readonly Part[] kStatues =
         {
-            new Part{ Name="경복궁_석상_청룡", Id=50, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.30f,0.55f,1.00f), Heavy=true },
-            new Part{ Name="경복궁_석상_백호", Id=51, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.92f,0.92f,0.95f), Heavy=true },
+            new Part{ Name="경복궁_석상_청룡", Id=61, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.30f,0.55f,1.00f), Heavy=true },
+            new Part{ Name="경복궁_석상_백호", Id=62, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.92f,0.92f,0.95f), Heavy=true },
             new Part{ Name="경복궁_석상_주작", Id=52, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(1.00f,0.35f,0.30f), Heavy=true },
             new Part{ Name="경복궁_석상_현무", Id=53, Fp=new Vector3Int(2,2,2), Procs=kNone, Color=new Color(0.25f,0.22f,0.35f), Heavy=true },
         };

@@ -33,7 +33,7 @@ MonoBehaviour:
   - 40
   - 60
   - 80
-  StatueMaterialIds: 32000000330000003400000035000000
+  StatueMaterialIds: 3d0000003e0000003400000035000000
   StatueDropMinGapSeconds: 20
   PedestalSnapRange: 2.5
   RejectBounceDistance: 3.5

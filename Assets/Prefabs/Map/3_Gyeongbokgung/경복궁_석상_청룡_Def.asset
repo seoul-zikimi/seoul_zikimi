@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c9502f08cc24a78a50bfd3f09a6f79e, type: 3}
   m_Name: "\uACBD\uBCF5\uAD81_\uC11D\uC0C1_\uCCAD\uB8E1_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
-  m_Id: 50
+  m_Id: 61
   m_Footprint: {x: 2, y: 2, z: 2}
   m_Prefab: {fileID: 189739789158381575, guid: d907b7bf876a8ce448c7d3e8af429d6d, type: 3}
   m_RequiredProcesses: 

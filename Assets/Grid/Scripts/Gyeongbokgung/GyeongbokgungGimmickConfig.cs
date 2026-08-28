@@ -55,7 +55,7 @@ namespace GridSystem
         public float[] StatueDropScorePercents = { 25f, 40f, 60f, 80f };
 
         [Tooltip("석상 재료 id (동=청룡, 서=백호, 남=주작, 북=현무 순). GyeongbokgungMapTool이 만드는 def와 일치해야 한다.")]
-        public int[] StatueMaterialIds = { 50, 51, 52, 53 };
+        public int[] StatueMaterialIds = { 61, 62, 52, 53 };
 
         [Tooltip("진행도가 한 번에 여러 문턱을 넘어도 석상은 이 간격(초)을 두고 한 개씩만 낙하한다(우르르 방지).")]
         [Min(0f)] public float StatueDropMinGapSeconds = 20f;

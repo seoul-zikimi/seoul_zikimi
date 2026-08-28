@@ -87,40 +87,40 @@ MonoBehaviour:
     materialId: 30
     rotationStep: 0
   - cell: {x: 13, y: 0, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 13, y: 1, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 13, y: 2, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 14, y: 0, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 14, y: 1, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 14, y: 2, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 15, y: 0, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 15, y: 1, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 15, y: 2, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 16, y: 0, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 16, y: 1, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 16, y: 2, z: 4}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 17, y: 0, z: 4}
     materialId: 30
@@ -267,40 +267,40 @@ MonoBehaviour:
     materialId: 30
     rotationStep: 0
   - cell: {x: 13, y: 0, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 13, y: 1, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 13, y: 2, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 14, y: 0, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 14, y: 1, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 14, y: 2, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 15, y: 0, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 15, y: 1, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 15, y: 2, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 16, y: 0, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 16, y: 1, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 16, y: 2, z: 15}
-    materialId: 32
+    materialId: 55
     rotationStep: 0
   - cell: {x: 17, y: 0, z: 15}
     materialId: 30
@@ -375,2056 +375,2056 @@ MonoBehaviour:
     materialId: 30
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 5}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 6}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 7}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 8}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 9}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 5}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 6}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 7}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 8}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 9}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 5}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 6}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 7}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 8}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 9}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 10}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 11}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 12}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 13}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 0, z: 14}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 10}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 11}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 12}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 13}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 1, z: 14}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 10}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 11}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 12}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 13}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 5, y: 2, z: 14}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 5}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 6}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 7}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 8}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 9}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 5}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 6}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 7}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 8}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 9}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 5}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 6}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 7}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 8}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 9}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 10}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 11}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 12}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 13}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 0, z: 14}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 10}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 11}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 12}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 13}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 1, z: 14}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 10}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 11}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 12}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 13}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 24, y: 2, z: 14}
-    materialId: 31
+    materialId: 54
     rotationStep: 0
   - cell: {x: 7, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 3, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 3, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 3, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 3}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 3, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 3, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 3, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 16}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 4, y: 3, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 3, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 3, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 3, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 4, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 4, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 4, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 4, y: 5, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 5, y: 5, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 6, y: 5, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 12}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 11}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 10}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 9}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 8}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 7}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 3, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 3, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 3, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 4, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 4, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 4, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 23, y: 5, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 24, y: 5, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 25, y: 5, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 1
   - cell: {x: 7, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 6}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 7}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 8}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 9}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 8, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 9, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 10, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 11, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 12, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 13, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 14, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 15, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 16, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 17, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 18, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 19, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 20, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 21, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 10}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 11}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 12}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 22, y: 4, z: 13}
-    materialId: 41
+    materialId: 60
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 7, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 8, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 9, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 10, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 11, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 12, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 13, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 14, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 15, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 16, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 17, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 18, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 19, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 20, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 21, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 22, y: 6, z: 6}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 7, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 8, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 8, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 9, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 9, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 10, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 10, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 11, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 11, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 12, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 12, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 13, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 13, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 14, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 14, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 15, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 15, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 16, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 16, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 17, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 17, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 18, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 18, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 19, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 19, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 20, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 20, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 21, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 21, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 22, y: 5, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 22, y: 6, z: 13}
-    materialId: 38
+    materialId: 58
     rotationStep: 0
   - cell: {x: 7, y: 5, z: 7}
     materialId: 39
@@ -2499,2236 +2499,2236 @@ MonoBehaviour:
     materialId: 39
     rotationStep: 0
   - cell: {x: 8, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 7, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 7, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 7, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 8, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 8, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 8, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 4}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 5}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 6}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 7, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 7, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 7, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 8, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 8, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 8, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 7, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 7, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 7, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 8, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 8, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 8, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 7, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 7, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 7, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 8, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 8, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 8, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 7, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 7, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 7, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 8, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 8, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 8, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 7, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 7, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 7, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 8, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 8, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 8, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 7, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 7, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 7, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 8, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 8, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 8, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 4}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 5}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 6}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 8, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 8, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 9, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 10, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 11, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 12, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 13, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 14, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 7, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 7, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 7, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 8, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 8, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 8, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 13}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 14}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 15, y: 9, z: 15}
-    materialId: 34
+    materialId: 56
     rotationStep: 0
   - cell: {x: 16, y: 7, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 7, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 7, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 8, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 8, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 8, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 16, y: 9, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 7, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 7, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 7, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 8, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 8, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 8, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 17, y: 9, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 7, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 7, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 7, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 8, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 8, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 8, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 18, y: 9, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 7, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 7, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 7, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 8, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 8, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 8, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 19, y: 9, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 7, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 7, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 7, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 8, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 8, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 8, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 20, y: 9, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 7, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 7, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 7, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 8, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 8, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 8, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 13}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 14}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 21, y: 9, z: 15}
-    materialId: 35
+    materialId: 57
     rotationStep: 0
   - cell: {x: 5, y: 7, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 7, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 7, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 8, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 8, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 8, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 9, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 9, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 7, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 7, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 7, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 8, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 8, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 8, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 9, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 9, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 7, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 7, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 7, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 8, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 8, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 8, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 9, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 9, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 7, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 7, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 7, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 8, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 8, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 8, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 9, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 9, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 7, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 7, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 7, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 8, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 8, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 8, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 9, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 9, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 7, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 7, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 7, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 8, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 8, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 8, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 5, y: 9, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 6, y: 9, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 9, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 7, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 7, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 7, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 8, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 8, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 8, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 9, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 9, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 9, z: 12}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 7, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 7, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 7, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 8, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 8, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 8, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 9, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 9, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 9, z: 11}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 7, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 7, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 7, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 8, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 8, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 8, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 9, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 9, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 9, z: 10}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 7, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 7, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 7, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 8, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 8, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 8, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 9, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 9, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 9, z: 9}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 7, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 7, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 7, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 8, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 8, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 8, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 9, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 9, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 9, z: 8}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 7, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 7, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 7, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 8, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 8, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 8, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 22, y: 9, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 23, y: 9, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 24, y: 9, z: 7}
-    materialId: 35
+    materialId: 57
     rotationStep: 1
   - cell: {x: 7, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 7, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 8, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 9, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 10, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 11, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 12, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 13, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 14, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 15, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 16, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 17, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 18, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 19, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 20, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 21, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 10, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 11, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 6}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 7}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 8}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 9}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 10}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 11}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 12}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   - cell: {x: 22, y: 12, z: 13}
-    materialId: 40
+    materialId: 59
     rotationStep: 0
   m_PresetCells:
   - {x: 5, y: 0, z: 4}
