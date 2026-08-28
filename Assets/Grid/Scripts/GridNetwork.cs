@@ -65,6 +65,7 @@ namespace GridSystem
         private static bool CanReclaim(MaterialDef def, int completedMask)
         {
             if (def == null) return false;
+            if (!def.MustBeFixed) return true;   // 배치 즉시 자동 세팅되는 앵커 Fixed는 플레이어 공정이 아님 — 회수를 막지 않는다
             return (completedMask & (int)ProcessType.Fixed) == 0;
         }
 
@@ -333,7 +334,7 @@ namespace GridSystem
 
             // 서버 권위 재검증: 아직 망치 고정 전이면 회수 가능(고정 완료 블록은 C 철거로만) — IsPickupable과 동일 규칙
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
-            if (def == null || (cs.completedProcessMask & (int)ProcessType.Fixed) != 0)
+            if (!CanReclaim(def, cs.completedProcessMask))
                 return false;
 
             ulong owner = cs.ownerObjectId;
