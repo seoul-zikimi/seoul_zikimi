@@ -201,6 +201,7 @@ public class JobsnailSessionManager
             m_CachedHostId = null;
             m_IsHost = false;
             m_IsLeaving = false;
+            JobsnailRoomClosedNotice.ShowOnMainMenu();   // 방폭파로 튕긴 팀원에게 안내 팝업 예약
             ShowMainMenuScene();
         }
     }

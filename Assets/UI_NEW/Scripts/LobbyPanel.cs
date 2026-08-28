@@ -283,7 +283,15 @@ namespace SeoulZikimi.UI.New
         private void RequestLeave()
         {
             LeaveRequested?.Invoke();
-            router.Show(UiNewScreen.HostLeaveWarning);
+            // 경고 팝업 문구("나갈 경우, 방이 삭제됩니다")는 방장에게만 해당한다.
+            // 팀원은 방이 유지되므로 경고 없이 바로 퇴장한다.
+            bool isHost = JobsnailSessionManager.Instance.ActiveSession?.IsHost ?? localIsHost;
+            if (isHost)
+            {
+                router.Show(UiNewScreen.HostLeaveWarning);
+                return;
+            }
+            transform.root.GetComponentInChildren<HostLeaveWarningPanel>(true)?.Confirm();
         }
 
         private void SendQuickChat(int index)
