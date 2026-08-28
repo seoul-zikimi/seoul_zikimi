@@ -36,7 +36,13 @@ namespace GridSystem
     public class MapDef : ScriptableObject
     {
         [SerializeField] private string m_DisplayName;         // 로비 표시 이름(비우면 에셋 파일명)
+#if UNITY_EDITOR
+        // 에디터 전용 직접 참조 — 빌드에선 이 필드가 직렬화되지 않아 카탈로그→맵 모델 의존이 끊긴다.
+        // (직접 참조를 빌드에 남기면 로비에서 카탈로그를 여는 순간 모든 맵의 모델·텍스처 수 GB가
+        //  한꺼번에 메모리에 올라와 iOS가 앱을 죽인다 — EXC_RESOURCE. 빌드는 아래 경로로 지연 로드.)
         [SerializeField] private GameObject m_BackgroundPrefab; // 환경(배경) 통째 프리팹 — MapLoader가 스폰
+#endif
+        [SerializeField, HideInInspector] private string m_BackgroundPrefabPath;   // Resources 상대 경로(OnValidate가 동기화)
         [SerializeField] private List<MapAnswerData> m_Answers = new();   // 이 맵 전용 정답 세트(비우면 GridManager 기본 목록 사용)
         [SerializeField] private Sprite m_Thumbnail;           // 로비 "선택된 맵 이미지"용(선택)
         [Tooltip("이 맵의 건축 영역 크기(칸). 비워두면(0) GameScene의 GridManager 값을 씁니다. 2vs2에서는 가로가 2배가 됩니다.")]
@@ -57,13 +63,32 @@ namespace GridSystem
                  "DDP처럼 큰 곡면 모델을 격자로 잘라 짓는 맵은, 조각 이음매가 아무리 잘 맞아도\n" +
                  "잘린 단면 때문에 완성본이 매끈하게 안 보인다. 그래서 다 지으면 조각을 감추고\n" +
                  "자르기 전 원본 하나로 갈아 끼운다 — 완공 계획도(정답 UI)도 이 모델로 보여준다.")]
-        [SerializeField] private GameObject m_CompletedModel;
+#if UNITY_EDITOR
+        [SerializeField] private GameObject m_CompletedModel;   // 에디터 전용 — 빌드는 경로 지연 로드(위 배경 프리팹과 동일 이유)
+#endif
+        [SerializeField, HideInInspector] private string m_CompletedModelPath;
         [Tooltip("완성체 프리팹을 놓을 기준 셀(그 셀의 min-corner에 프리팹 원점이 온다).")]
         [SerializeField] private Vector3Int m_CompletedModelAnchor;
 
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
-        public GameObject BackgroundPrefab => m_BackgroundPrefab;
         public IReadOnlyList<MapAnswerData> Answers => m_Answers;
+
+        [System.NonSerialized] private GameObject m_BgCache, m_CompletedCache;
+
+        /// <summary>환경(배경) 프리팹. 빌드에선 첫 접근(게임 시작) 때 Resources에서 지연 로드 — 로비 메모리 보호.</summary>
+        public GameObject BackgroundPrefab
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return m_BackgroundPrefab;
+#else
+                if (m_BgCache == null && !string.IsNullOrEmpty(m_BackgroundPrefabPath))
+                    m_BgCache = Resources.Load<GameObject>(m_BackgroundPrefabPath);
+                return m_BgCache;
+#endif
+            }
+        }
         public Sprite Thumbnail => m_Thumbnail;
 
         /// <summary>2vs2 전용 공터(경기장) 여부 — 로비 맵 선택지에서 제외되고, 대전 모드에서 배경/그리드로 강제 사용된다.
@@ -85,10 +110,49 @@ namespace GridSystem
         /// <summary>이 맵 전용 BGM 슬롯(비운 칸은 공용 BGM 폴백).</summary>
         public MapBgm Bgm => m_Bgm;
 
-        /// <summary>정답을 다 맞췄을 때 조각 대신 보여줄 통짜 완성 모델(null이면 조각 그대로).</summary>
-        public GameObject CompletedModel => m_CompletedModel;
+        /// <summary>정답을 다 맞췄을 때 조각 대신 보여줄 통짜 완성 모델(null이면 조각 그대로). 빌드는 지연 로드.</summary>
+        public GameObject CompletedModel
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return m_CompletedModel;
+#else
+                if (m_CompletedCache == null && !string.IsNullOrEmpty(m_CompletedModelPath))
+                    m_CompletedCache = Resources.Load<GameObject>(m_CompletedModelPath);
+                return m_CompletedCache;
+#endif
+            }
+        }
         /// <summary>완성체를 놓을 기준 셀(min-corner 기준).</summary>
         public Vector3Int CompletedModelAnchor => m_CompletedModelAnchor;
+
+        /// <summary>지연 로드 캐시 해제(로비 복귀 시) — 이후 Resources.UnloadUnusedAssets가 실제 메모리를 회수한다.</summary>
+        public void ReleaseHeavyCache() { m_BgCache = null; m_CompletedCache = null; }
+
+#if UNITY_EDITOR
+        // 직접 참조 → Resources 경로 동기화(저장 시). 빌드가 이 경로로 지연 로드한다.
+        private void OnValidate()
+        {
+            m_BackgroundPrefabPath = ToResourcesPath(m_BackgroundPrefab, name, "Background Prefab");
+            m_CompletedModelPath = ToResourcesPath(m_CompletedModel, name, "Completed Model");
+        }
+
+        private static string ToResourcesPath(Object asset, string owner, string label)
+        {
+            if (asset == null) return "";
+            string p = UnityEditor.AssetDatabase.GetAssetPath(asset);
+            int i = p.IndexOf("/Resources/", System.StringComparison.Ordinal);
+            if (i < 0)
+            {
+                Debug.LogError($"[MapDef:{owner}] {label}이 Resources 폴더 밖({p}) — 빌드에서 로드 불가. Assets/Resources/MapPrefabs/로 옮기세요.");
+                return "";
+            }
+            p = p.Substring(i + "/Resources/".Length);
+            int dot = p.LastIndexOf('.');
+            return dot >= 0 ? p.Substring(0, dot) : p;
+        }
+#endif
 
         /// <summary>맵 전용 건축 영역 크기. 세 축이 모두 1 이상일 때만 유효(아니면 씬 기본값 사용).</summary>
         public Vector3Int GridSize => m_GridSize;

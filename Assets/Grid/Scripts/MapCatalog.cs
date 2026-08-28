@@ -44,6 +44,13 @@ namespace GridSystem
             return size;
         }
 
+        /// <summary>게임 → 로비 복귀 시 맵 모델 지연 로드 캐시 해제(모바일 메모리) — Resources.UnloadUnusedAssets와 함께 쓸 것.</summary>
+        public void ReleaseHeavyCaches()
+        {
+            foreach (var m in m_Maps)
+                if (m != null) m.ReleaseHeavyCache();
+        }
+
         private static MapCatalog s_Instance;
         public static MapCatalog Instance
         {
