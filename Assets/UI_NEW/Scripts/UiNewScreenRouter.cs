@@ -29,7 +29,9 @@ namespace SeoulZikimi.UI.New
         }
 
         // 화면 아트(1920x1080 통짜 구도)는 16:9가 아니면 여백이 생긴다(캔버스 Expand — 구도는 절대 안 자름).
-        // 그 여백을 같은 아트를 화면 전체로 확대(비율 유지·크롭)한 어두운 겹으로 채워 검은 띠 없이 자연스럽게.
+        // 여백은 아트의 최외곽 2px 줄을 뽑아 그 방향으로 쭉 늘려 채운다(가장자리 색 연장) —
+        // 경계에서 색이 정확히 이어지고, 아트에 구워진 창/프레임 같은 구조물은 절대 다시 나타나지 않는다.
+        // (아트를 확대하거나 거울 반사하면 창이 유령처럼 겹쳐 보인다 — 이 아트는 프레임이 가장자리에 바짝 붙어 여백이 없다.)
         private static void AddBackgroundFill(GameObject screenRoot)
         {
             var bg = screenRoot.transform.Find("Background");
@@ -37,20 +39,36 @@ namespace SeoulZikimi.UI.New
             if (bgImage == null || bgImage.sprite == null)
                 return;   // 팝업(딤 배경) 화면은 해당 없음
 
-            var fill = new GameObject("BackgroundFill", typeof(RectTransform), typeof(Image), typeof(AspectRatioFitter));
-            var rt = (RectTransform)fill.transform;
-            rt.SetParent(screenRoot.transform, false);
-            rt.SetAsFirstSibling();   // 본 구도·UI 전부의 뒤에 깔린다
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            var holder = new GameObject("BackgroundExtend", typeof(RectTransform));
+            var hrt = (RectTransform)holder.transform;
+            hrt.SetParent(screenRoot.transform, false);
+            hrt.SetAsFirstSibling();   // 본 구도·UI 전부의 뒤에 깔린다
+            hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0.5f);
+            hrt.sizeDelta = Vector2.zero;
 
-            var img = fill.GetComponent<Image>();
-            img.sprite = bgImage.sprite;
-            img.raycastTarget = false;
-            img.color = new Color(0.55f, 0.55f, 0.55f, 1f);   // 살짝 어둡게 — 본 구도가 또렷이 구분되게
-
-            var fitter = fill.GetComponent<AspectRatioFitter>();
-            fitter.aspectRatio = 1920f / 1080f;
-            fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;   // 비율 유지한 채 화면을 완전히 덮는 최소 크기
+            var tex = bgImage.sprite.texture;
+            var r = bgImage.sprite.textureRect;
+            // (샘플 영역, 밴드 중심, 밴드 크기) — Expand에선 한 축만 여백이 생기므로 모서리 걱정은 없다.
+            (Rect sample, Vector2 pos, Vector2 size)[] strips =
+            {
+                (new Rect(r.x, r.y, 2f, r.height),                new Vector2(-1920f, 0f), new Vector2(1920f, 1080f)),   // 왼쪽
+                (new Rect(r.xMax - 2f, r.y, 2f, r.height),        new Vector2(1920f, 0f),  new Vector2(1920f, 1080f)),   // 오른쪽
+                (new Rect(r.x, r.yMax - 2f, r.width, 2f),         new Vector2(0f, 1080f),  new Vector2(1920f, 1080f)),   // 위
+                (new Rect(r.x, r.y, r.width, 2f),                 new Vector2(0f, -1080f), new Vector2(1920f, 1080f)),   // 아래
+            };
+            foreach (var (sample, pos, size) in strips)
+            {
+                var strip = new GameObject("EdgeFill", typeof(RectTransform), typeof(Image));
+                var rt = (RectTransform)strip.transform;
+                rt.SetParent(hrt, false);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = size;
+                rt.anchoredPosition = pos;
+                var img = strip.GetComponent<Image>();
+                img.sprite = Sprite.Create(tex, sample, new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+                img.raycastTarget = false;
+                img.color = new Color(0.9f, 0.9f, 0.9f, 1f);   // 본 구도보다 아주 살짝 가라앉게
+            }
         }
 
         public void Show(UiNewScreen screen)
