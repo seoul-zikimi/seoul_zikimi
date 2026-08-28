@@ -297,7 +297,7 @@ public sealed class GameLoopHUD : UIHUD
         SetCrane(!m_Loop.IsBuilding);       // 정산 중 = 건축물 한 바퀴 크레인샷
         UpdateMilestoneToast();             // 완성도 25/50/75/90% 돌파 토스트
 
-        // 정확히 100%(만점) 완공일 때만 폭죽 멈춤없이. 반올림(99.6→100) 오발화 방지.
+        // 정확히 100%(만점) 완공일 때만 폭죽(최대 kFireworksSeconds). 반올림(99.6→100) 오발화 방지.
         if (IsComplete()) StartResultFireworks();
         else StopResultFireworks();
 
@@ -610,24 +610,31 @@ public sealed class GameLoopHUD : UIHUD
 
     // ── 축하 폭죽(Resources/Fx/ResultFirework = CFXR4 랜덤색 사본) ──
     private Coroutine m_FireworksCo;
+    private bool m_FireworksDone;                    // 이번 100% 유지 구간에서 이미 다 쏘았음(재점화 방지)
+    private const float kFireworksSeconds = 10f;     // 100% 축하 폭죽 지속 시간
 
-    private void StartResultFireworks()   // 결과창 동안 멈춤없이 팡팡
+    private void StartResultFireworks()   // 100% 달성 순간부터 kFireworksSeconds 동안 팡팡
     {
-        if (m_FireworksCo == null) m_FireworksCo = StartCoroutine(FireworksLoop());
+        if (!m_FireworksDone && m_FireworksCo == null) m_FireworksCo = StartCoroutine(FireworksLoop());
     }
     private void StopResultFireworks()
     {
         if (m_FireworksCo != null) { StopCoroutine(m_FireworksCo); m_FireworksCo = null; }
+        m_FireworksDone = false;   // 100%가 깨졌다가 다시 완성되면 새로 축하
     }
 
     private IEnumerator FireworksLoop()
     {
         var prefab = Resources.Load<GameObject>("Fx/ResultFirework");
-        while (IsComplete())   // 만점(100%) 유지되는 동안 멈춤없이
+        float elapsed = 0f;
+        while (IsComplete() && elapsed < kFireworksSeconds)   // 만점(100%) 유지 중 최대 kFireworksSeconds
         {
             SpawnFireworkBurst(prefab, Camera.main);
-            yield return new WaitForSecondsRealtime(Random.Range(0.3f, 0.55f));
+            float wait = Random.Range(0.3f, 0.55f);
+            yield return new WaitForSecondsRealtime(wait);
+            elapsed += wait;
         }
+        m_FireworksDone = true;   // 시간 소진 — 100%가 유지되는 동안은 다시 안 쏨
         m_FireworksCo = null;
     }
 

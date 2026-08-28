@@ -528,7 +528,11 @@ namespace Player
                     if (m_HasTarget) TryPlace();   // 그리드 위 → 그리드 배치
                     else             Drop();       // 그리드 밖 '배치' = 발밑에 버리기(기존 Q 통합)
                 }
-                else if (!HasTool)
+                else if (HasTool)
+                {
+                    HandleToolClick();   // 재료 클릭 = "손에 도구가 있어요!" 안내 · 허공 클릭 = 도구 발밑에 버리기
+                }
+                else
                 {
                     if (m_GrabCargoOf != null) JoinCarry(m_GrabCargoOf);   // 남이 든 화물 클릭 = 같이 들기
                     else if (m_GrabValid) TryGrab();          // 바닥 픽업/도구함 우선
@@ -547,6 +551,33 @@ namespace Player
             UpdateHud();         // 프리팹 HUD 갱신(조작법·공정바·공정힌트)
         }
         
+        // [08/28] 도구 들고 좌클릭: 재료(바닥 픽업·회수 가능 블록)를 가리키면 "손에 도구가 있어요!" 안내,
+        // 도구함·고정 블록이면 무동작(오클릭으로 도구 흘리기 방지), 그 외 허공(빈 땅 포함)은 도구를 발밑에 버려 빈손으로.
+        private void HandleToolClick()
+        {
+            bool aimPickup = false, aimStation = false;   // 커서 아래 바닥 픽업/도구함(UpdateGrabTarget은 빈손 전용이라 별도 판정)
+            if (m_Cam != null && m_Input != null)
+            {
+                var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
+                foreach (var h in Physics.RaycastAll(ray, 100f, ~0, QueryTriggerInteraction.Collide))
+                {
+                    var pb = h.collider.GetComponentInParent<PickupBody>();
+                    if (pb != null && pb.Owner != null) { aimPickup = true; continue; }
+                    if (h.collider.GetComponentInParent<Workstation>() != null) aimStation = true;
+                }
+            }
+
+            bool aimBlock = m_HasTarget && m_Net != null && m_Net.VisualAt(m_Target) != null;
+            if (aimPickup || (aimBlock && m_Net.IsPickupable(m_Target)))
+            {
+                GridJuice.WorldToast(transform.position + Vector3.up * 2.2f,
+                                     "손에 도구가 있어요!", new Color(1f, 0.65f, 0.2f));
+                return;
+            }
+            if (aimStation || aimBlock) return;
+            Drop();
+        }
+
         // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
         private void TryPickupPlaced()
         {
