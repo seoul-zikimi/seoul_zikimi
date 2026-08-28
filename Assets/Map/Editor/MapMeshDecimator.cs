@@ -82,7 +82,8 @@ namespace SeoulZikimi.MapTools
             {
                 if (m == null) return 0;
                 if (triCache.TryGetValue(m, out var t)) return t;
-                t = m.isReadable ? m.triangles.Length / 3 : 0;
+                // isReadable=false는 플레이어 전용 제약 — 에디터에선 읽힌다(임포터가 메모리 절약용으로 꺼둔 메시 대응)
+                try { t = m.triangles.Length / 3; } catch { t = 0; }
                 return triCache[m] = t;
             }
 
@@ -129,7 +130,12 @@ namespace SeoulZikimi.MapTools
                                     var dst = ms.ToMesh();
                                     dst.name = src.name + "_d" + target;
                                     dst.RecalculateBounds();
+                                    MeshUtility.SetMeshCompression(dst, ModelImporterMeshCompression.Medium);   // 빌드 용량(배경용이라 양자화 무해)
                                     AssetDatabase.CreateAsset(dst, outPath);
+                                    // 플레이어에서 CPU 사본 제거(런타임 메모리 반감) — 에디터 QEM은 어차피 원본에서 읽는다
+                                    var so = new SerializedObject(dst);
+                                    so.FindProperty("m_IsReadable").boolValue = false;
+                                    so.ApplyModifiedProperties();
                                     simplified++;
                                     result = map[src] = dst;
                                 }
