@@ -271,7 +271,9 @@ public sealed class GameLoopHUD : UIHUD
             if (m_Loop.TimeLeft > 60f)
                 m_UrgentBgmStarted = false;
 
-            if (!m_UrgentBgmStarted && m_Loop.TimeLeft <= 60f)
+            // 씬 가드: 로비로 복귀한 뒤 이 갱신이 한 프레임 늦게 돌면 로비 BGM을 긴박 BGM으로 덮어쓴다.
+            if (!m_UrgentBgmStarted && m_Loop.TimeLeft <= 60f
+                && SceneManager.GetActiveScene().name == SceneNames.GameScene)
             {
                 m_UrgentBgmStarted = true;
                 if (SoundManager.Instance != null)
