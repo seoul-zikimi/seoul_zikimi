@@ -24,9 +24,11 @@ public static class MobileControlsPrefabGenerator
     private static readonly Color InkSoft = new(0.20f, 0.20f, 0.19f, 0.72f);
     private static readonly Color PanelFill = new(0.96f, 0.96f, 0.95f, 0.97f);
 
-    // 감정표현 행 크기 — 대사 11종이 우상단 버튼 아래에 다 들어가도록 기존(48/56)보다 조금 좁혔다.
-    private const float kEmoteRowHeight = 44f;
-    private const float kEmoteRowStep = 48f;
+    // 감정표현 행 라벨은 실제 발동 대사(EmoteDefs)에서 가져온다 — UI와 대사 불일치 방지.
+    // 런타임(MobileControlsHUD.RebuildEmoteRows)에서도 같은 원본·같은 행 크기로 다시 쓰므로 프리팹이 낡아도 안전.
+    // 행 크기 — 대사 11종이 우상단 버튼 아래에 다 들어가도록 기존(48/56)보다 조금 좁혔다(런타임 재구성과 동일 값 유지 필수).
+    internal const float kEmoteRowHeight = 44f;
+    internal const float kEmoteRowStep = 48f;
     private const float kEmotePanelTop = -213f;   // EmoteButton(y -170, 높이 70) 바로 아래
 
     [MenuItem("Jobsnail/UI/Mobile/Generate Mobile Controls Prefab")]
@@ -241,7 +243,10 @@ public static class MobileControlsPrefabGenerator
             img.color = new Color(0.90f, 0.90f, 0.89f, 1f);
             var rowBtn = rt.gameObject.AddComponent<Button>(); rowBtn.targetGraphic = img;
             SetFlatColors(rowBtn, img.color);
-            Label("Label", rt, EmoteDefs.All[i].Line, 20, Ink);
+            var label = Label("Label", rt, EmoteDefs.All[i].Line, 20, Ink);
+            label.textWrappingMode = TextWrappingModes.NoWrap;   // 긴 대사는 줄바꿈 대신 글자 축소
+            label.enableAutoSizing = true;
+            label.fontSizeMax = 20f; label.fontSizeMin = 12f;
         }
     }
 

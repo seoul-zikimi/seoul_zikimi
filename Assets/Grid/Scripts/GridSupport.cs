@@ -28,12 +28,17 @@ namespace GridSystem
 
         // 그리드 '바깥' 솔리드 콜라이더가 이 셀을 채우고 있나(환경 바닥·스캐폴드 등).
         // 트리거·플레이어·경계벽·그리드 내부 콜라이더(~Solid/~Ground)는 지지로 안 친다.
+        // 붕괴 연쇄가 셀 수만큼 반복 호출한다 — OverlapBox는 호출마다 배열을 할당하므로 버퍼 재사용.
+        // 0.9유닛 박스에 16개 초과 중첩은 사실상 불가.
+        private static readonly Collider[] s_Hits = new Collider[16];
+
         public static bool ExternalSolidAt(Vector3Int cell, float unit)
         {
             Vector3 center = GridCoordinates.CellToWorld(cell) + Vector3.one * (0.5f * unit);
-            var hits = Physics.OverlapBox(center, Vector3.one * (0.45f * unit), Quaternion.identity, ~(1 << 2), QueryTriggerInteraction.Ignore);   // Ignore Raycast 제외(플레이어가 앞에 든 화물은 지지 아님)
-            foreach (var h in hits)
+            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * (0.45f * unit), s_Hits, Quaternion.identity, ~(1 << 2), QueryTriggerInteraction.Ignore);   // Ignore Raycast 제외(플레이어가 앞에 든 화물은 지지 아님)
+            for (int i = 0; i < count; i++)
             {
+                var h = s_Hits[i];
                 if (h.CompareTag("Player") || h.CompareTag("Boundary")) continue;
                 var n = h.name;
                 if (n == "~Solid" || n == "~Ground") continue;   // 그리드 내부는 그리드 로직이 따로 처리

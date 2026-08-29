@@ -219,6 +219,9 @@ namespace Player
         }
 
         private static readonly Collider[] s_OverlapBuf = new Collider[16];
+        // 빈손 조준 레이(UpdateGrabTarget)용 — RaycastAll이 매 프레임 배열을 할당하던 것을 재사용 버퍼로.
+        // 100m 레이가 건축 현장을 관통해도 64개를 넘기 어렵다(넘치는 히트는 버려지지만 후보는 근거리라 무관).
+        private static readonly RaycastHit[] s_GrabRayBuf = new RaycastHit[64];
 
         /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
         /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
@@ -1214,10 +1217,14 @@ namespace Player
         // 사거리 판정 대상 셀: 들고 있으면 놓을 자리(풋프린트 전체), 빈손이면 가리킨 블록이 차지한 셀 전체.
         // 어느 쪽도 아니면 가리킨 칸 하나.
         private readonly System.Collections.Generic.List<Vector3Int> m_ReachCells = new();
+        private readonly System.Collections.Generic.List<Vector3Int> m_PreviewCells = new();   // 프리뷰·배치 판정 스크래치(즉시 소비)
         private System.Collections.Generic.List<Vector3Int> ReachCells(Vector3Int target)
         {
             if (HasMaterial && m_HeldMaterial != null)
-                return GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation);
+            {
+                GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation, m_ReachCells);
+                return m_ReachCells;
+            }
 
             if (m_Net != null && m_Net.TryGetBlockCells(target, m_ReachCells)) return m_ReachCells;
 
@@ -1248,8 +1255,10 @@ namespace Player
                 var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
                 float reach2 = m_GrabRange * m_GrabRange;
                 float best = float.MaxValue;
-                foreach (var h in Physics.RaycastAll(ray, 100f, ~0, QueryTriggerInteraction.Collide))
+                int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~0, QueryTriggerInteraction.Collide);
+                for (int hi = 0; hi < hitCount; hi++)
                 {
+                    var h = s_GrabRayBuf[hi];
                     var cc = h.collider.GetComponentInParent<CarryCargo>();   // 남이 든 화물 → 클릭하면 같이 들기
                     if (cc != null)
                     {
@@ -1540,14 +1549,16 @@ namespace Player
             if (!m_HasTarget || m_Net == null || m_Grid == null) return;
             var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배(팀B 구역 포함)
             var (xMin, xMax) = PlaceableXRange(s);
-            foreach (var cell in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
+            GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+            for (int i = 0; i < m_PreviewCells.Count; i++)
             {
+                var cell = m_PreviewCells[i];
                 if (cell.x < xMin || cell.x >= xMax || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
                 if (!m_Net.IsCellFree(cell)) { ShakePreview(); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
-                    GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation),
+                    m_PreviewCells,
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
             { ShakePreview(); return; }
@@ -1572,6 +1583,9 @@ namespace Player
         // 타격 세트(스파크·스퀴시·타격음·카메라펀치)를 재생 → 소리/이펙트가 애니메이션과 싱크.
         private const float kSwingDown = 0.09f;   // 내려찍기 시간 = 타격 싱크 기준
         private const float kSwingBack = 0.16f;   // 복귀 시간
+        private static readonly WaitForSeconds s_SwingDownWait = new WaitForSeconds(kSwingDown);
+        // ⚠ CFXR 타격 이펙트 풀링 2회 시도(clearBehavior=Disable+루트 Play / None+시스템별 Stop+Play) 모두
+        // 실기 QA에서 스파크가 안 나와 원복. 정적 분석으로 원인 미확정 — 재도전은 에디터에서 직접 검증하며 할 것.
 
         private void SpawnHammerFx(Vector3 pos)
         {
@@ -1595,7 +1609,7 @@ namespace Player
         // 망치가 닿는 순간의 타격 세트. big = 고정 완료(별·큰 스퀴시·카메라).
         private System.Collections.IEnumerator HammerImpactCo(Vector3 pos, bool big)
         {
-            yield return new WaitForSeconds(kSwingDown);   // 내려찍히는 순간에 맞춤
+            yield return s_SwingDownWait;   // 내려찍히는 순간에 맞춤
 
             var prefab = big ? m_FixDoneFx : m_HammerFx;
             if (prefab != null)
@@ -1645,7 +1659,7 @@ namespace Player
 
         private System.Collections.IEnumerator PaintSplashCo(Vector3 pos, bool big)
         {
-            yield return new WaitForSeconds(kSwingDown);   // 붓이 닿는 순간에 맞춤
+            yield return s_SwingDownWait;   // 붓이 닿는 순간에 맞춤
 
             if (m_PaintFx != null)   // 피 튀김 이펙트를 주황으로 틴트 → 페인트 튀김
             {
@@ -1983,7 +1997,11 @@ namespace Player
         private GameObject m_Preview;
         private Material m_PreviewMat;
         private readonly List<Material> m_PreviewGhostMats = new();   // 프리팹 고스트 머티리얼(정리용)
+        private readonly List<Color> m_PreviewGhostCols = new();      // m_PreviewGhostMats와 1:1 — 원본 색(정답/오답 틴트에서 복귀용)
         private int m_PreviewKey = int.MinValue;                      // 현재 프리뷰 종류((재료Id<<2)|회전, 박스=-1)
+        // 설치 고스트 정답/오답 색: 정답 자리(재료까지 일치)면 초록, 아니면 빨강 — 정답 고스트(원색)와 확실히 구분.
+        private static readonly Color kPreviewOk  = new Color(0.30f, 1f, 0.45f);
+        private static readonly Color kPreviewBad = new Color(1f, 0.32f, 0.28f);
         private Vector3 m_PreviewOffset;                              // 프리팹 프리뷰 피벗 오프셋(빌드 시 1회 산출)
         private static readonly int s_PvBase = Shader.PropertyToID("_BaseColor");
         private static readonly int s_PvCol  = Shader.PropertyToID("_Color");
@@ -1997,9 +2015,7 @@ namespace Player
         {
             float u = GridContract.Unit;
             var fp = m_HeldMaterial.Footprint;
-            var cells = GridFootprint.EnumerateFootprintCells(m_Target, fp, m_Rotation);
-            Vector3Int minCell = cells[0];
-            for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
+            Vector3Int minCell = m_Target;   // EnumerateFootprintCells가 앵커=min-corner로 정규화한다(불변식)
             bool swap = ((((m_Rotation % 4) + 4) % 4) % 2) == 1;
             size = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z) * u;
             center = GridCoordinates.CellToWorld(minCell) + size * 0.5f;
@@ -2024,17 +2040,19 @@ namespace Player
                 int key = (m_HeldMaterial.Id << 2) | (m_Rotation & 3);
                 if (m_Preview == null || m_PreviewKey != key) BuildPrefabPreview(key);   // 재료/회전 바뀔 때만 재빌드
 
-                var cells = GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation);
-                Vector3Int minCell = cells[0];
-                for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
-                m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
+                GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+                var cells = m_PreviewCells;   // 앵커=min-corner 불변식 → minCell = m_Target
+                m_Preview.transform.position = GridCoordinates.CellToWorld(m_Target) + m_PreviewOffset;   // 위치만 매 프레임
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
 
-                float pa = 0.82f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 원색이 살아있는 수준(정답 고스트와 대비), 숨쉬기는 유지
+                // 정답 자리(초록)/오답 자리(빨강) 틴트 — 원색만으론 정답 고스트와 구분이 어렵다는 피드백.
+                var judge = IsAnswerPlacement(cells) ? kPreviewOk : kPreviewBad;
+                float pa = 0.82f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 숨쉬기는 유지
                 for (int i = 0; i < m_PreviewGhostMats.Count; i++)
                     if (m_PreviewGhostMats[i] != null)
                     {
-                        var c = m_PreviewGhostMats[i].GetColor(s_PvBase); c.a = pa;
+                        var baseCol = i < m_PreviewGhostCols.Count ? m_PreviewGhostCols[i] : Color.white;
+                        var c = Color.Lerp(baseCol, judge, 0.7f); c.a = pa;   // 원색 기운을 살짝 남긴 초록/빨강
                         m_PreviewGhostMats[i].SetColor(s_PvBase, c);
                         m_PreviewGhostMats[i].SetColor(s_PvCol, c);
                     }
@@ -2053,12 +2071,34 @@ namespace Player
 
             Vector3 center, size; Color col;
             HeldPlacementBox(out center, out size);
-            col = new Color(0.25f, 0.9f, 1f, 0.32f);    // 시안: 배치 자리
+            // 박스 폴백도 정답/오답 색을 따른다(프리팹 고스트와 같은 언어).
+            GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+            col = IsAnswerPlacement(m_PreviewCells)
+                ? new Color(kPreviewOk.r, kPreviewOk.g, kPreviewOk.b, 0.32f)
+                : new Color(kPreviewBad.r, kPreviewBad.g, kPreviewBad.b, 0.32f);
             m_Preview.transform.SetPositionAndRotation(center, Quaternion.identity);
             m_Preview.transform.localScale = size;
             m_PreviewMat.SetColor(s_PvBase, col);
             m_PreviewMat.SetColor(s_PvCol, col);
             if (!m_Preview.activeSelf) m_Preview.SetActive(true);
+        }
+
+        // 이 자리에 놓으면 정답인가 — 채점(RuntimeGrid.ScoreAgainst)과 동일 기준: 모든 풋프린트 칸이 정답 칸이고
+        // 재료가 일치(회전은 점유 칸 형태로 이미 검증됨). 기본 제공(preset) 칸은 지을 필요가 없으니 오답 취급.
+        private bool IsAnswerPlacement(List<Vector3Int> cells)
+        {
+            var answer = m_Grid != null ? m_Grid.Answer : null;
+            if (answer == null || m_HeldMaterial == null || cells == null || cells.Count == 0) return false;
+            // 2vs2 팀B는 자기 구역(x+구역폭)에 짓는다 — 정답 좌표로 되돌려 조회(ScoreAgainst 오프셋과 동일 기준).
+            var offset = (m_Loop != null && m_Loop.IsVersus && m_Loop.LocalTeam == 1 && m_Grid != null)
+                ? new Vector3Int(m_Grid.ZoneSize.x, 0, 0) : Vector3Int.zero;
+            foreach (var c in cells)
+            {
+                var a = c - offset;
+                if (answer.IsPreset(a) || !answer.TryGet(a, out var ac) || ac.materialId != m_HeldMaterial.Id)
+                    return false;
+            }
+            return true;
         }
 
         // 실제 블록 프리팹을 반투명 고스트로. 회전/피벗 오프셋은 PlaceRotatedPrefab으로 1회 산출(이후 위치만 갱신).
@@ -2119,6 +2159,7 @@ namespace Player
             for (int i = 0; i < m_PreviewGhostMats.Count; i++)
                 if (m_PreviewGhostMats[i] != null) Destroy(m_PreviewGhostMats[i]);
             m_PreviewGhostMats.Clear();
+            m_PreviewGhostCols.Clear();
         }
 
         // 렌더러 머티리얼을 반투명 URP Lit 사본으로 교체(원본 색/텍스처 유지 → 진짜 블록처럼 보이되 고스트). 사본은 정리용 리스트에.
@@ -2155,6 +2196,7 @@ namespace Player
                     m.SetColor(s_PvBase, tint);
                     m.SetColor(s_PvCol, tint);
                     m_PreviewGhostMats.Add(m);
+                    m_PreviewGhostCols.Add(tint);
                     dst[i] = m;
                 }
                 r.sharedMaterials = dst;
@@ -2179,9 +2221,22 @@ namespace Player
         }
 
         // ── 프리팹 HUD 구동(구 OnGUI 대체 · 비주얼은 Resources/UI/HUD/CarryHudUI 프리팹) ──
+        // Scene.name은 접근마다 네이티브 문자열을 새로 만든다 — 씬 전환 이벤트로 1회만 판정해 캐시.
+        private static bool s_SceneHooked;
+        private static bool s_InGameScene;
+        private static void EnsureSceneHook()
+        {
+            if (s_SceneHooked) return;
+            s_SceneHooked = true;
+            s_InGameScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == SceneNames.GameScene;
+            UnityEngine.SceneManagement.SceneManager.activeSceneChanged +=
+                (_, next) => s_InGameScene = next.name == SceneNames.GameScene;
+        }
+
         private void UpdateHud()
         {
-            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene)   // 조작법 HUD는 GameScene만
+            EnsureSceneHook();
+            if (!s_InGameScene)   // 조작법 HUD는 GameScene만
             {
                 if (m_Hud != null) m_Hud.gameObject.SetActive(false);
                 return;
@@ -2208,11 +2263,20 @@ namespace Player
             m_PrevScorePct = pct;
         }
 
+        // 회전값(0~3)별 힌트 문자열 사전 생성 — 재료를 든 동안 매 프레임 보간 할당을 막는다.
+        private static readonly string[] s_HeldHints =
+        {
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 0)",
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 1)",
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 2)",
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 3)",
+        };
+
         private string BuildHintText()
         {
             string heldStr;
             if (HasMaterial)
-                heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
+                heldStr = s_HeldHints[m_Rotation & 3];
             else if (HasTool)
                 heldStr = m_HeldTool switch
                 {

@@ -21,6 +21,7 @@ public class MirrorReflection : MonoBehaviour
     private float m_CharHeight = 1f;
     private float m_FeetY;
     private Renderer[] m_CharRenderers;
+    private int m_CharHierarchyCount = -1;   // 옷 갈아입기(조각 생성/파괴) 감지용 — O(1) 조회
 
     private void Start()
     {
@@ -77,9 +78,16 @@ public class MirrorReflection : MonoBehaviour
             m_Char = ch.transform;
         }
 
-        // 옷 갈아입기(조각 생성/파괴)로 렌더러가 바뀌므로 매 프레임 다시 수집 + 레이어 재적용
-        SetLayerRecursively(m_Char, kMirrorLayer);   // 거울 카메라 전용 레이어(메인 카메라도 이 레이어를 그림)
-        m_CharRenderers = m_Char.GetComponentsInChildren<Renderer>();
+        // 옷 갈아입기(조각 생성/파괴)로 렌더러가 바뀔 때만 다시 수집 + 레이어 재적용.
+        // hierarchyCount는 계층 내 트랜스폼 수라 조각이 생기고 사라지면 반드시 변한다(같은 프레임 교체도
+        // Destroy가 프레임 끝까지 지연돼 한 프레임 +1로 잡힌다).
+        int hierarchyCount = m_Char.hierarchyCount;
+        if (m_CharRenderers == null || hierarchyCount != m_CharHierarchyCount)
+        {
+            m_CharHierarchyCount = hierarchyCount;
+            SetLayerRecursively(m_Char, kMirrorLayer);   // 거울 카메라 전용 레이어(메인 카메라도 이 레이어를 그림)
+            m_CharRenderers = m_Char.GetComponentsInChildren<Renderer>();
+        }
 
         // 매 프레임 실제 키·발 위치 측정(스폰 직후 낙하 → 착지로 위치가 변해도 따라감)
         bool got = false;

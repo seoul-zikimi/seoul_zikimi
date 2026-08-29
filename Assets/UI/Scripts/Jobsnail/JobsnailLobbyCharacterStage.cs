@@ -23,6 +23,9 @@ public sealed class JobsnailLobbyCharacterStage : MonoBehaviour
 
     private Camera m_Camera;
     private RenderTexture m_RT;
+    // GPU 내부 복사(RT→Texture2D) 지원 여부 — 지원하면 ReadPixels의 GPU→CPU 동기 스톨 없이
+    // 열 복사가 전부 GPU 안에서 끝난다. 미지원 기기만 기존 ReadPixels 경로.
+    private bool m_CanCopy;
     private readonly Transform[] m_BoothAnchors = new Transform[kBooths];
     private readonly GameObject[] m_Models = new GameObject[kBooths];
     private readonly Texture2D[] m_CaptureTextures = new Texture2D[kBooths];
@@ -49,6 +52,7 @@ public sealed class JobsnailLobbyCharacterStage : MonoBehaviour
             antiAliasing = 1
         };
         m_RT.Create();
+        m_CanCopy = (SystemInfo.copyTextureSupport & UnityEngine.Rendering.CopyTextureSupport.RTToTexture) != 0;
 
         // 카메라 — 4부스를 한 줄로 담는 직교 카메라(투명 배경).
         var camGo = new GameObject("StageCamera");
@@ -110,17 +114,15 @@ public sealed class JobsnailLobbyCharacterStage : MonoBehaviour
             return null;
 
         m_Camera.Render();
-        RenderTexture previous = RenderTexture.active;
-        RenderTexture.active = m_RT;
-        var texture = new Texture2D(kColumnPixels, m_RT.height, TextureFormat.RGBA32, false)
-        {
-            name = $"LobbyCharacter{index}Texture",
-            filterMode = FilterMode.Bilinear,
-            wrapMode = TextureWrapMode.Clamp
-        };
-        texture.ReadPixels(new Rect(index * kColumnPixels, 0, kColumnPixels, m_RT.height), 0, 0, false);
-        texture.Apply(false, false);
-        RenderTexture.active = previous;
+        // RT와 같은 graphicsFormat으로 만들어야 CopyTexture가 유효하다(포맷 불일치 = 플랫폼별 실패).
+        var texture = m_CanCopy
+            ? new Texture2D(kColumnPixels, m_RT.height, m_RT.graphicsFormat,
+                            UnityEngine.Experimental.Rendering.TextureCreationFlags.None)
+            : new Texture2D(kColumnPixels, m_RT.height, TextureFormat.RGBA32, false);
+        texture.name = $"LobbyCharacter{index}Texture";
+        texture.filterMode = FilterMode.Bilinear;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        CopyColumnInto(index, texture);
         m_CaptureTextures[index] = texture;
 
         // 캡처 직후의 알파 실루엣으로 Tight 메시를 만들면 이후 걷기/회전 프레임이
@@ -201,16 +203,29 @@ public sealed class JobsnailLobbyCharacterStage : MonoBehaviour
 
         m_NextCaptureAt = Time.unscaledTime + 0.1f;
         m_Camera.Render();
-        RenderTexture previous = RenderTexture.active;
-        RenderTexture.active = m_RT;
         for (int i = 0; i < m_CaptureTextures.Length; i++)
         {
             Texture2D texture = m_CaptureTextures[i];
             if (texture == null)
                 continue;
-            texture.ReadPixels(new Rect(i * kColumnPixels, 0, kColumnPixels, m_RT.height), 0, 0, false);
-            texture.Apply(false, false);
+            CopyColumnInto(i, texture);
         }
+    }
+
+    // RT의 부스 열 하나를 캡처 텍스처로 복사. CopyTexture는 GPU 안에서 끝나 스톨이 없고,
+    // 스프라이트는 같은 Texture2D를 참조하므로 화면에는 그대로 반영된다.
+    private void CopyColumnInto(int index, Texture2D texture)
+    {
+        if (m_CanCopy && texture.graphicsFormat == m_RT.graphicsFormat)
+        {
+            Graphics.CopyTexture(m_RT, 0, 0, index * kColumnPixels, 0, kColumnPixels, m_RT.height,
+                                 texture, 0, 0, 0, 0);
+            return;
+        }
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = m_RT;
+        texture.ReadPixels(new Rect(index * kColumnPixels, 0, kColumnPixels, m_RT.height), 0, 0, false);
+        texture.Apply(false, false);
         RenderTexture.active = previous;
     }
 

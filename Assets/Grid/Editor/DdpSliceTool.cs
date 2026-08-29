@@ -34,6 +34,9 @@ namespace GridSystem.EditorTools
         private const string kDir      = "Assets/Prefabs/Map/4_Ddp";
         private const string kModelDir = kDir + "/Models";
         private const string kOutDir   = kDir + "/Sliced";
+        // 완성체는 빌드가 Resources 경로로 지연 로드한다(MapDef.m_CompletedModelPath — iOS 로비 메모리 보호).
+        // 여기 밖에 저장하면 에디터는 직접 참조로 잘 돌지만 빌드에서 완성체가 안 나온다 — 경로 고정.
+        private const string kCompletedPrefabPath = "Assets/Resources/MapPrefabs/DDP_본관_완성.prefab";
         private const string kSourceName = "DDP_본관";
 
         /// <summary>파츠 id 시작값. 기존 블록 파츠(31~38)와 겹치지 않게 40번대를 쓴다.</summary>
@@ -186,7 +189,8 @@ namespace GridSystem.EditorTools
             foreach (var r in rends) wb.Encapsulate(r.bounds);
             inst.transform.localPosition -= (wb.min - root.transform.position);
 
-            var prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{kOutDir}/DDP_본관_완성.prefab");
+            Directory.CreateDirectory(Path.GetDirectoryName(kCompletedPrefabPath));
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, kCompletedPrefabPath);
             Object.DestroyImmediate(root);
             Debug.Log("[DDP절단] 완성체 프리팹 저장 — 다 지으면 조각 대신 이게 얹힌다");
             return prefab;

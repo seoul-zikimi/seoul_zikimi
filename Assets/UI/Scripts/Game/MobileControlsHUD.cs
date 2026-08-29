@@ -1,5 +1,6 @@
 using GridSystem;
 using Player;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -39,13 +40,21 @@ public sealed class MobileControlsHUD : MonoBehaviour
         }
     }
 
+    private static bool s_InGameScene;   // Scene.name 접근은 호출마다 문자열 할당 — 전환 이벤트로 캐시
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
+        SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+        SceneManager.activeSceneChanged += OnActiveSceneChanged;
+        s_InGameScene = SceneManager.GetActiveScene().name == SceneNames.GameScene;
         OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
     }
+
+    private static void OnActiveSceneChanged(Scene _, Scene next)
+        => s_InGameScene = next.name == SceneNames.GameScene;
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
@@ -82,23 +91,16 @@ public sealed class MobileControlsHUD : MonoBehaviour
         var answerToggle = Find("AnswerToggleButton");
         m_AnswerToggleGroup = answerToggle != null ? answerToggle.GetComponent<CanvasGroup>() : null;
 
+        // 폰(작은 화면)에선 터치 컨트롤을 물리적으로 키운다 — 가장자리 앵커라 잘림 없음. 태블릿은 1배 그대로.
+        MobileUiScale.Apply(GetComponent<CanvasScaler>());
+
         WireClick("JumpButton", MobileGameplayInput.PressJump);
         WireClick("ScaffoldButton", MobileGameplayInput.PressScaffold);
         WireClick("RotateButton", MobileGameplayInput.PressRotateHeld);
         WireClick("PhoneButton", MobileGameplayInput.ToggleOrder);
         WireClick("AnswerToggleButton", ToggleAnswerGhost);
         WireClick("EmoteButton", ToggleEmotes);
-        // 대사 전체(EmoteDefs.Count)를 와이어링 — 프리팹 행이 모자라면 WireClick이 조용히 넘어간다.
-        // 행 수는 MobileControlsPrefabGenerator가 같은 EmoteDefs.Count로 만든다.
-        for (int i = 0; i < EmoteDefs.Count; i++)
-        {
-            int index = i;
-            WireClick($"Emote{index + 1}", () =>
-            {
-                MobileGameplayInput.TriggerEmote(index);
-                if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
-            });
-        }
+        RebuildEmoteRows();   // 행 생성·라벨·와이어링을 EmoteDefs 기준으로 일괄 — 프리팹이 낡아도 안전
 
         JobsnailUiKit.ApplyFontPolicy(transform);
         if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
@@ -107,6 +109,61 @@ public sealed class MobileControlsHUD : MonoBehaviour
         // 모바일은 폰(TAB)과 별개로 인월드 정답 고스트를 눈 버튼으로 켜고 끈다 — 기본 켜짐.
         if (ShouldUseMobileUI) AnswerPreview.GhostPinned = true;
         UpdateAnswerToggleVisual();
+    }
+
+    // 감정표현 드롭다운을 실제 발동 대사(EmoteDefs) 기준으로 재구성 — 프리팹에 구워진 옛 이모지 이름(미소·붐업 등)과
+    // 실제 대사가 달랐고, 대사 11종 중 8종만 노출되던 것도 함께 해소. 대사를 바꾸면 여기도 자동 반영(휠 UI와 동일 원칙).
+    private void RebuildEmoteRows()
+    {
+        if (m_EmotePanel == null) return;
+        var panel = (RectTransform)m_EmotePanel.transform;
+        var template = Find("Emote1");
+        if (template == null) return;
+
+        // 행 크기·피치는 프리팹 생성기(MobileControlsPrefabGenerator.BuildEmotes)와 반드시 동일 값 —
+        // 대사 11종이 우상단 버튼 아래 화면 안에 다 들어가도록 좁힌 수치(44/48).
+        const float kRowHeight = 44f;
+        const float kPitch = 48f;
+        int count = EmoteDefs.Count;
+
+        // 행 수에 맞춰 패널 높이부터 조정 — 위 모서리는 고정(감정표현 버튼과의 간격 유지), 아래로만 늘린다.
+        // 행 좌표가 패널 '중심' 기준이라 리사이즈를 먼저 해야 행 배치가 새 높이에 맞는다.
+        float top = panel.anchoredPosition.y + panel.sizeDelta.y * 0.5f;
+        float h = count * kPitch + 16f;   // 생성기와 동일 식(위 8/아래 8 패딩)
+        panel.sizeDelta = new Vector2(panel.sizeDelta.x, h);
+        panel.anchoredPosition = new Vector2(panel.anchoredPosition.x, top - h * 0.5f);
+
+        float firstRowY = h * 0.5f - 8f - kRowHeight * 0.5f;
+        for (int i = 0; i < count; i++)
+        {
+            var row = Find($"Emote{i + 1}");
+            if (row == null)
+            {
+                row = Instantiate(template, panel);
+                row.name = $"Emote{i + 1}";
+            }
+            var rowRt = (RectTransform)row.transform;
+            rowRt.anchoredPosition = new Vector2(0f, firstRowY - i * kPitch);
+            rowRt.sizeDelta = new Vector2(196f, kRowHeight);   // 옛(48px) 프리팹 행도 새 크기로 통일
+            var label = row.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null)
+            {
+                label.text = EmoteDefs.All[i].Line;
+                label.textWrappingMode = TextWrappingModes.NoWrap;   // 긴 대사는 줄바꿈 대신 글자 축소
+                label.enableAutoSizing = true;
+                label.fontSizeMax = 20f; label.fontSizeMin = 12f;   // 생성기와 동일(행 44px 기준)
+            }
+
+            int index = i;
+            var btn = row.GetComponent<Button>();
+            if (btn == null) continue;
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() =>
+            {
+                MobileGameplayInput.TriggerEmote(index);
+                if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
+            });
+        }
     }
 
     private void ToggleAnswerGhost()
@@ -142,7 +199,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
 
     private void Update()
     {
-        bool inGame = SceneManager.GetActiveScene().name == SceneNames.GameScene;
+        bool inGame = s_InGameScene;
         // 정산(크레인샷) 단계에선 컨트롤을 내려 하단 중앙의 '건축물 둘러보기' 버튼 등을 가리지 않는다.
         bool show = inGame && ShouldUseMobileUI && !m_PhoneOpen && InBuildPhase();
         if (show != m_LastControlsVisible)

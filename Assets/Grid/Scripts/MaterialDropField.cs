@@ -230,17 +230,60 @@ namespace GridSystem
             for (int i = m_Pickups.Count - 1; i >= 0; i--) m_Pickups.RemoveAt(i);
         }
 
-        // ── 비주얼(reconcile: 새 픽업 생성, 위치변경 시 굴림 목표 갱신, 사라진 건 제거) ──
-        private void OnChanged(NetworkListEvent<PickupEntry> _) => Reconcile();
+        // ── 비주얼(이벤트 기반 reconcile) ──────────────────────────────────
+        // 물길 급송(ServerFloat)·킥은 0.2초마다 픽업당 Value 이벤트를 쏟아낸다 — 그때마다 전체 대조 대신
+        // 이벤트 페이로드로 해당 비주얼만 갱신한다. NGO 함정: Clear 이벤트는 Value가 비어 있고,
+        // Full(전체 동기화)은 이벤트가 별도 경로라 미지/기타 타입은 전체 Reconcile로 폴백.
+        private void OnChanged(NetworkListEvent<PickupEntry> evt)
+        {
+            if (m_Root == null) return;
+            switch (evt.Type)
+            {
+                case NetworkListEvent<PickupEntry>.EventType.Value:
+                    if (m_Visuals.TryGetValue(evt.Value.pickupId, out var moved))
+                    {
+                        if (moved != null) moved.GetComponent<PickupBody>().SetTarget(evt.Value.pos);   // 킥/급류 → 새 목표로 굴림
+                    }
+                    else Reconcile();   // 비주얼 없는 픽업의 값 변경(있어선 안 됨) — 안전 폴백
+                    break;
+
+                case NetworkListEvent<PickupEntry>.EventType.Add:
+                case NetworkListEvent<PickupEntry>.EventType.Insert:
+                    if (!m_Visuals.ContainsKey(evt.Value.pickupId))
+                        m_Visuals[evt.Value.pickupId] = MakeVisual(evt.Value, m_Spawned);   // 라이브 추가는 연출
+                    break;
+
+                case NetworkListEvent<PickupEntry>.EventType.Remove:
+                case NetworkListEvent<PickupEntry>.EventType.RemoveAt:   // 서버·클라 모두 Value에 제거된 엔트리가 실려 온다
+                    if (m_Visuals.TryGetValue(evt.Value.pickupId, out var gone))
+                    {
+                        if (gone != null) Destroy(gone);   // 루트 GameObject째 파괴(컴포넌트만 파괴 금지)
+                        m_Visuals.Remove(evt.Value.pickupId);
+                    }
+                    break;
+
+                case NetworkListEvent<PickupEntry>.EventType.Clear:   // Value 비어 있음 — 전부 제거
+                    foreach (var kv in m_Visuals) if (kv.Value != null) Destroy(kv.Value);
+                    m_Visuals.Clear();
+                    break;
+
+                default:   // Full 등 — 전체 대조 폴백
+                    Reconcile();
+                    break;
+            }
+        }
+
+        private readonly HashSet<ulong> m_Present = new();   // Reconcile 스크래치(멤버 재사용 — 핫패스 GC 소거)
+        private readonly List<ulong> m_Gone = new();
 
         private void Reconcile()
         {
             if (m_Root == null) return;
 
-            var present = new HashSet<ulong>();
+            m_Present.Clear();
             foreach (var p in m_Pickups)
             {
-                present.Add(p.pickupId);
+                m_Present.Add(p.pickupId);
                 if (m_Visuals.TryGetValue(p.pickupId, out var go))
                 {
                     if (go != null) go.GetComponent<PickupBody>().SetTarget(p.pos);   // 킥 → 새 목표로 굴림
@@ -248,9 +291,9 @@ namespace GridSystem
                 else m_Visuals[p.pickupId] = MakeVisual(p, m_Spawned);   // 최초 복원은 스냅, 라이브 추가는 연출
             }
 
-            var gone = new List<ulong>();
-            foreach (var kv in m_Visuals) if (!present.Contains(kv.Key)) gone.Add(kv.Key);
-            foreach (var id in gone)
+            m_Gone.Clear();
+            foreach (var kv in m_Visuals) if (!m_Present.Contains(kv.Key)) m_Gone.Add(kv.Key);
+            foreach (var id in m_Gone)
             {
                 if (m_Visuals[id] != null) Destroy(m_Visuals[id]);
                 m_Visuals.Remove(id);

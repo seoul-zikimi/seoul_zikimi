@@ -23,6 +23,9 @@ public sealed class JuicyText : MonoBehaviour
     private void LateUpdate()
     {
         if (m_Text == null) return;
+        // 빈 텍스트(도장 사용 시 등급 텍스트 등)에 매 프레임 풀 리빌드를 돌릴 이유가 없다.
+        // 비워질 때의 메시 정리는 TMP의 text setter가 스스로 한다.
+        if (string.IsNullOrEmpty(m_Text.text)) return;
         m_Text.ForceMeshUpdate();
         var info = m_Text.textInfo;
         if (info.characterCount == 0) return;

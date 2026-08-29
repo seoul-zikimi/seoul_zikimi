@@ -108,6 +108,7 @@ namespace GridSystem
         {
             m_VisualRoot = new GameObject("~ItemVisuals");
             m_Items.OnListChanged += OnItemsChanged;
+            m_LocalHeldDirty = true;   // 늦참: 스폰 시점 리스트로 재검사
             if (IsServer)
             {
                 var definitions = m_Definitions = CompetitiveItemDefinitionCatalog.CreateDefault();
@@ -137,8 +138,11 @@ namespace GridSystem
         private void SyncHeldBubbles()
         {
             s_WantBubbles.Clear();
-            foreach (var e in m_Items)
+            for (int i = 0; i < m_Items.Count; i++)   // NetworkList foreach는 열거자 박싱 — 인덱스 순회
+            {
+                var e = m_Items[i];
                 if (e.Held) s_WantBubbles[e.Holder] = (CompetitiveItemKind)e.Kind;
+            }
 
             s_BubbleGone.Clear();
             foreach (var kv in m_HeldBubbles)
@@ -175,16 +179,33 @@ namespace GridSystem
         /// <summary>내가 아이템을 들고 있는가(E 사용 가능).</summary>
         public bool LocalHasItem => LocalHeldName() != "";
 
+        // 로컬 보유 아이템 캐시 — HUD가 매 프레임 묻는다. NetworkList 전수 스캔(+foreach 박싱)을
+        // 리스트가 실제로 바뀐 뒤 1회로 줄인다. NGO의 초기 전체 동기화는 이벤트가 안 오므로 초기값 dirty.
+        private bool m_LocalHeldDirty = true;
+        private string m_LocalHeldName = "";
+        private bool m_LocalHoldsCannon;
+
+        private void RefreshLocalHeld()
+        {
+            if (!m_LocalHeldDirty) return;
+            m_LocalHeldDirty = false;
+            m_LocalHeldName = "";
+            m_LocalHoldsCannon = false;
+            ulong me = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : ulong.MaxValue;
+            for (int i = 0; i < m_Items.Count; i++)
+            {
+                var e = m_Items[i];
+                if (!e.Held || e.Holder != me) continue;
+                m_LocalHeldName = KindName((CompetitiveItemKind)e.Kind);
+                m_LocalHoldsCannon = (CompetitiveItemKind)e.Kind == CompetitiveItemKind.Cannon;
+                break;
+            }
+        }
+
         /// <summary>내가 든 게 대포인가 — 대포만 '꾹 눌렀다 떼기'로 발사한다(기획서).</summary>
         public bool LocalHoldsCannon
         {
-            get
-            {
-                ulong me = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : ulong.MaxValue;
-                foreach (var e in m_Items)
-                    if (e.Held && e.Holder == me) return (CompetitiveItemKind)e.Kind == CompetitiveItemKind.Cannon;
-                return false;
-            }
+            get { RefreshLocalHeld(); return m_LocalHoldsCannon; }
         }
 
         /// <summary>[기획] 아이템을 든 채로 E — 입력은 PlayerCarry가 공정(도구)과 갈라서 호출한다.</summary>
@@ -196,10 +217,8 @@ namespace GridSystem
         /// <summary>내(로컬 플레이어)가 들고 있는 아이템 이름. 없으면 "".</summary>
         public string LocalHeldName()
         {
-            ulong me = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : ulong.MaxValue;
-            foreach (var e in m_Items)
-                if (e.Held && e.Holder == me) return KindName((CompetitiveItemKind)e.Kind);
-            return "";
+            RefreshLocalHeld();
+            return m_LocalHeldName;
         }
 
         /// <summary>로컬 플레이어 팀의 이동속도 배율(PlayerMovement가 곱함). 협동/미배정 = 1.</summary>
@@ -376,15 +395,17 @@ namespace GridSystem
                 }
             }
 
-            // 근접 자동 획득(빈손만)
+            // 근접 자동 획득(빈손만) — 거리 비교는 제곱거리로(sqrt 제거), 위치 조회는 루프 밖에서 1회
+            const float pickupRangeSq = kPickupRange * kPickupRange;
             foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
             {
                 var po = client.PlayerObject;
                 if (po == null || HasHeld(client.ClientId)) continue;
+                Vector3 playerPos = po.transform.position;
                 for (int i = 0; i < m_Items.Count; i++)
                 {
                     var e = m_Items[i];
-                    if (e.Held || Vector3.Distance(po.transform.position, e.Pos) > kPickupRange) continue;
+                    if (e.Held || (playerPos - e.Pos).sqrMagnitude > pickupRangeSq) continue;
                     e.Held = true; e.Holder = client.ClientId;
                     m_Items[i] = e;
                     m_Director?.NotifyConsumed(e.Id.ToString());   // 소지 중엔 60초 소멸 제외
@@ -569,7 +590,8 @@ namespace GridSystem
 
         private bool HasHeld(ulong clientId)
         {
-            foreach (var e in m_Items) if (e.Held && e.Holder == clientId) return true;
+            for (int i = 0; i < m_Items.Count; i++)
+                if (m_Items[i].Held && m_Items[i].Holder == clientId) return true;
             return false;
         }
 
@@ -682,6 +704,7 @@ namespace GridSystem
         // 증분 갱신: 리스트 변화 종류로 등장/획득/사용/소멸을 구분해야 FX가 맞는 순간에 터진다.
         private void OnItemsChanged(NetworkListEvent<ItemEntry> e)
         {
+            m_LocalHeldDirty = true;   // 어떤 변경이든 로컬 보유 캐시 재검사
             switch (e.Type)
             {
                 case NetworkListEvent<ItemEntry>.EventType.Add:
@@ -739,7 +762,7 @@ namespace GridSystem
         {
             foreach (var kv in m_Visuals) if (kv.Value != null) Destroy(kv.Value);
             m_Visuals.Clear();
-            foreach (var e in m_Items) AddVisual(e);
+            for (int i = 0; i < m_Items.Count; i++) AddVisual(m_Items[i]);
         }
 
         /// <summary>종류별 대표색(비주얼·FX 공용).</summary>

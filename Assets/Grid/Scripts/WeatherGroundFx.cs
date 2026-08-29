@@ -33,6 +33,9 @@ namespace GridSystem
         private Transform m_ScatterRoot;
         private Transform m_TrailRoot;
         private readonly List<TrailMark> m_Trails = new();
+        // 수명 다한 자국은 파괴하지 않고 꺼서 여기 쌓아뒀다 재사용 — 이동 중 초당 수십 개
+        // GameObject 생성·파괴 churn을 없앤다. 크기는 TrailMax로 자연 제한된다.
+        private readonly Stack<TrailMark> m_TrailPool = new();
         private readonly Dictionary<Transform, Vector3> m_LastPlayerPos = new();
         private readonly List<Transform> m_Players = new();
         private readonly RaycastHit[] m_Hits = new RaycastHit[8];
@@ -334,7 +337,7 @@ namespace GridSystem
                 float age = now - mark.SpawnTime;
                 if (age >= life)
                 {
-                    Destroy(mark.Transform.gameObject);
+                    RecycleTrail(mark);
                     m_Trails.RemoveAt(i);
                     continue;
                 }
@@ -357,25 +360,49 @@ namespace GridSystem
                 return;
             if (m_Trails.Count >= Mathf.Max(1, m_Kit.TrailMax))
             {
-                TrailMark oldest = m_Trails[0];
-                if (oldest.Transform != null) Destroy(oldest.Transform.gameObject);
+                RecycleTrail(m_Trails[0]);
                 m_Trails.RemoveAt(0);
             }
 
+            // 풀에서 재사용(씬 전환 등으로 파괴된 항목은 건너뜀), 없으면 새로 만든다.
+            TrailMark mark = null;
+            while (m_TrailPool.Count > 0)
+            {
+                var candidate = m_TrailPool.Pop();
+                if (candidate.Transform != null) { mark = candidate; break; }
+            }
+            if (mark == null)
+            {
+                var go = new GameObject("trail");
+                go.transform.SetParent(m_TrailRoot, false);
+                go.AddComponent<MeshFilter>().sharedMesh = m_Kit.Quad;
+                var renderer = go.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial = m_Kit.SnowTrail;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+                renderer.lightProbeUsage = LightProbeUsage.Off;
+                renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+                mark = new TrailMark { Transform = go.transform, Renderer = renderer };
+            }
+            else
+            {
+                mark.Transform.gameObject.SetActive(true);
+                mark.Renderer.SetPropertyBlock(null);   // 페이드 알파 초기화 — 새 오브젝트와 같은 상태로
+            }
+
             float yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
-            var go = new GameObject("trail");
-            go.transform.SetParent(m_TrailRoot, false);
-            go.transform.SetPositionAndRotation(point + normal * 0.025f,
+            mark.Transform.SetPositionAndRotation(point + normal * 0.025f,
                 Quaternion.FromToRotation(Vector3.up, normal) * Quaternion.AngleAxis(yaw, Vector3.up));
-            go.transform.localScale = new Vector3(m_Kit.TrailSize.x, 1f, m_Kit.TrailSize.y);
-            go.AddComponent<MeshFilter>().sharedMesh = m_Kit.Quad;
-            var renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = m_Kit.SnowTrail;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            renderer.lightProbeUsage = LightProbeUsage.Off;
-            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
-            m_Trails.Add(new TrailMark { Transform = go.transform, Renderer = renderer, SpawnTime = now });
+            mark.Transform.localScale = new Vector3(m_Kit.TrailSize.x, 1f, m_Kit.TrailSize.y);
+            mark.SpawnTime = now;
+            m_Trails.Add(mark);
+        }
+
+        private void RecycleTrail(TrailMark mark)
+        {
+            if (mark.Transform == null) return;
+            mark.Transform.gameObject.SetActive(false);
+            m_TrailPool.Push(mark);
         }
 
         private void RefreshPlayers()

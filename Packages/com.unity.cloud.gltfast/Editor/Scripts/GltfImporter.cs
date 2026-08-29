@@ -1,0 +1,460 @@
+// SPDX-FileCopyrightText: 2023 Unity Technologies and the glTFast authors
+// SPDX-License-Identifier: Apache-2.0
+
+#if !GLTFAST_EDITOR_IMPORT_OFF
+
+// glTFast is on the path to being official, so it should have highest priority as importer by default
+// This define is included for completeness.
+// Other glTF importers should specify this via AsmDef dependency, for example
+// `com.unity.cloud.gltfast@3.0.0: HAVE_GLTFAST` and then checking here `#if HAVE_GLTFAST`
+#if false
+#define ANOTHER_IMPORTER_HAS_HIGHER_PRIORITY
+#endif
+
+#if !ANOTHER_IMPORTER_HAS_HIGHER_PRIORITY && !GLTFAST_FORCE_DEFAULT_IMPORTER_OFF
+#define ENABLE_DEFAULT_GLB_IMPORTER
+#endif
+#if GLTFAST_FORCE_DEFAULT_IMPORTER_ON
+#define ENABLE_DEFAULT_GLB_IMPORTER
+#endif
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using GLTFast.Logging;
+using GLTFast.Utils;
+using UnityEditor;
+using UnityEditor.AssetImporters;
+using UnityEngine;
+using UnityEngine.Rendering;
+using Object = UnityEngine.Object;
+
+namespace GLTFast.Editor
+{
+
+// [서울지키미 패치] 버전 1→2: 텍스처 플랫폼 압축 추가로 전체 재임포트 유도
+#if ENABLE_DEFAULT_GLB_IMPORTER
+    [ScriptedImporter(2, new[] { "gltf", "glb" })]
+#else
+    [ScriptedImporter(2, null, overrideExts: new[] { "gltf","glb" })]
+#endif
+    class GltfImporter : ScriptedImporter
+    {
+
+        [SerializeField]
+        EditorImportSettings editorImportSettings;
+
+        [SerializeField]
+        ImportSettings importSettings;
+
+        [SerializeField]
+        InstantiationSettings instantiationSettings;
+
+        // These are used/read in the GltfImporterEditor
+        // ReSharper disable NotAccessedField.Local
+        [SerializeField]
+        GltfAssetDependency[] assetDependencies;
+
+        [SerializeField]
+        internal LogItem[] reportItems;
+        // ReSharper restore NotAccessedField.Local
+
+        GltfImport m_Gltf;
+
+        HashSet<string> m_ImportedNames;
+        HashSet<Object> m_ImportedObjects;
+
+        // static string[] GatherDependenciesFromSourceFile(string path) {
+        //     // Called before actual import for each changed asset that is imported by this importer type
+        //     // Extract the dependencies for the asset specified in path.
+        //     // For asset dependencies that are discovered, return them in the string array, where the string is the path to asset
+        //
+        //     // TODO: Texture files with relative URIs should be included here
+        //     return null;
+        // }
+
+        public override void OnImportAsset(AssetImportContext ctx)
+        {
+
+            reportItems = null;
+
+            var downloadProvider = new EditorDownloadProvider();
+            var logger = new CollectingLogger();
+
+            m_Gltf = new GltfImport(
+                downloadProvider,
+                new UninterruptedDeferAgent(),
+                null,
+                logger
+                );
+
+            var gltfIcon = AssetDatabase.LoadAssetAtPath<Texture2D>($"Packages/{GltfGlobals.GltfPackageName}/Editor/UI/gltf-icon-bug.png");
+
+            if (editorImportSettings == null)
+            {
+                // Design-time import specific settings
+                editorImportSettings = new EditorImportSettings();
+            }
+
+            if (importSettings == null)
+            {
+                // Design-time import specific changes to default settings
+                importSettings = new ImportSettings
+                {
+                    // Avoid naming conflicts by default
+                    NodeNameMethod = NameImportMethod.OriginalUnique,
+                    GenerateMipMaps = true,
+                    AnimationMethod = AnimationMethod.Mecanim,
+                };
+            }
+
+            if (instantiationSettings == null)
+            {
+                instantiationSettings = new InstantiationSettings();
+            }
+
+            // [서울지키미 패치] 압축(CompressTexture)은 CPU 픽셀이 필요하다 — 로드는 readable로 하고,
+            // 아래 CompressImportedTexture에서 플랫폼 포맷으로 압축해 아티팩트에 저장한다.
+            // (원본 동작: 무압축 RGBA32 그대로 직렬화 → 4096 텍스처 한 장 85MB, 모바일 메모리·용량 폭발)
+            importSettings.TexturesReadable = true;
+
+            var success = AsyncHelpers.RunSync(() => m_Gltf.Load(ctx.assetPath, importSettings));
+
+            CollectingLogger instantiationLogger = null;
+            if (success)
+            {
+                m_ImportedNames = new HashSet<string>();
+                m_ImportedObjects = new HashSet<Object>();
+
+                if (instantiationSettings.SceneObjectCreation == SceneObjectCreation.Never)
+                {
+
+                    // There *has* to be a common parent GameObject that gets
+                    // added to the ScriptedImporter, so we overrule this
+                    // setting.
+
+                    instantiationSettings.SceneObjectCreation = SceneObjectCreation.WhenMultipleRootNodes;
+                    Debug.LogWarning("SceneObjectCreation setting \"Never\" is not available for Editor (design-time) imports. Falling back to WhenMultipleRootNodes.", this);
+                }
+
+                instantiationLogger = new CollectingLogger();
+                for (var sceneIndex = 0; sceneIndex < m_Gltf.SceneCount; sceneIndex++)
+                {
+                    try
+                    {
+                        ImportScene(ctx, sceneIndex, instantiationLogger);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        instantiationLogger.Error($"Failed creating scene {sceneIndex} instance.");
+                    }
+
+                    if (m_Gltf.MaterialsVariantsCount > 0)
+                    {
+                        for (var variantIndex = 0; variantIndex < m_Gltf.MaterialsVariantsCount; variantIndex++)
+                        {
+                            try
+                            {
+                                ImportScene(ctx, sceneIndex, instantiationLogger, variantIndex);
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                instantiationLogger.Error($"Failed creating scene {sceneIndex} materials variant " +
+                                    $"{variantIndex} instance.");
+                            }
+                        }
+                    }
+                }
+
+                for (var i = 0; i < m_Gltf.TextureCount; i++)
+                {
+                    var texture = m_Gltf.GetTexture(i);
+                    if (texture != null)
+                    {
+                        var textureAssetPath = AssetDatabase.GetAssetPath(texture);
+                        if (string.IsNullOrEmpty(textureAssetPath))
+                        {
+                            CompressImportedTexture(texture, ctx.selectedBuildTarget);   // [서울지키미 패치]
+                            AddObjectToAsset(ctx, $"textures/{texture.name}", texture);
+                        }
+                    }
+                }
+
+                for (var i = 0; i < m_Gltf.MaterialCount; i++)
+                {
+                    var mat = m_Gltf.GetMaterial(i);
+
+                    // Overriding double-sided for GI baking
+                    // Resolves problems with meshes that are not a closed
+                    // volume at a potential minor cost of baking speed.
+                    mat.doubleSidedGI = true;
+
+                    if (mat != null)
+                    {
+                        AddObjectToAsset(ctx, $"materials/{mat.name}", mat);
+                    }
+                }
+
+                if (m_Gltf.defaultMaterial != null)
+                {
+                    // If a default/fallback material was created, import it as well'
+                    // to avoid (pink) objects without materials
+                    var mat = m_Gltf.defaultMaterial;
+                    AddObjectToAsset(ctx, $"materials/{mat.name}", mat);
+                }
+
+                var meshes = m_Gltf.Meshes;
+                if (meshes != null)
+                {
+                    foreach (var mesh in meshes)
+                    {
+                        if (mesh == null)
+                        {
+                            continue;
+                        }
+                        if (editorImportSettings.generateSecondaryUVSet && !HasSecondaryUVs(mesh))
+                        {
+                            Unwrapping.GenerateSecondaryUVSet(mesh);
+                        }
+                        MarkNonReadable(mesh);   // [서울지키미 패치] 플레이어에서 CPU 사본 제거(메모리 반감)
+                        AddObjectToAsset(ctx, $"meshes/{mesh.name}", mesh);
+                    }
+                }
+
+#if UNITY_ANIMATION
+                var clips = m_Gltf.GetAnimationClips();
+                if (clips != null)
+                {
+                    foreach (var animationClip in clips)
+                    {
+                        if (animationClip == null)
+                        {
+                            continue;
+                        }
+                        if (importSettings.AnimationMethod == AnimationMethod.Mecanim)
+                        {
+                            var settings = AnimationUtility.GetAnimationClipSettings(animationClip);
+                            settings.loopTime = true;
+                            AnimationUtility.SetAnimationClipSettings(animationClip, settings);
+                        }
+                        AddObjectToAsset(ctx, $"animations/{animationClip.name}", animationClip);
+                    }
+                }
+
+                // TODO seems the states don't properly connect to the Animator here
+                // (would need to be saved as SubAssets of the AnimatorController)
+                // var animators = go.GetComponentsInChildren<Animator>();
+                // foreach (var animator in animators)
+                // {
+                //     var controller = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
+                //     if (controller != null) {
+                //         AddObjectToAsset(ctx, $"animatorControllers/{animator.name}", controller);
+                //         foreach (var layer in controller.layers)
+                //         {
+                //             var stateMachine = layer.stateMachine;
+                //             stateMachine.hideFlags = HideFlags.HideInHierarchy;
+                //             if(stateMachine)
+                //                 AddObjectToAsset(ctx, $"animatorControllers/{animator.name}/{stateMachine.name}", stateMachine);
+                //         }
+                //     }
+                // }
+#endif
+
+                m_ImportedNames = null;
+                m_ImportedObjects = null;
+            }
+
+            var deps = new List<GltfAssetDependency>();
+            for (var index = 0; index < downloadProvider.assetDependencies.Count; index++)
+            {
+                var dependency = downloadProvider.assetDependencies[index];
+                if (ctx.assetPath == dependency.originalUri)
+                {
+                    // Skip original gltf/glb file
+                    continue;
+                }
+
+                var guid = AssetDatabase.AssetPathToGUID(dependency.originalUri);
+                if (!string.IsNullOrEmpty(guid))
+                {
+                    dependency.assetPath = dependency.originalUri;
+                    ctx.DependsOnSourceAsset(dependency.assetPath);
+                }
+
+                deps.Add(dependency);
+            }
+
+            assetDependencies = deps.ToArray();
+
+            var reportItemList = new List<LogItem>();
+            if (logger.Count > 0)
+            {
+                reportItemList.AddRange(logger.Items);
+            }
+            if (instantiationLogger?.Items != null)
+            {
+                reportItemList.AddRange(instantiationLogger.Items);
+            }
+
+            if (reportItemList.Any(x => x.Type == LogType.Error || x.Type == LogType.Exception))
+            {
+                Debug.LogError($"Failed to import {assetPath} (see inspector for details)", this);
+            }
+            reportItems = reportItemList.ToArray();
+
+            m_Gltf.DisposeRequiredForInstantiationData();
+        }
+
+        void ImportScene(
+            AssetImportContext ctx,
+            int sceneIndex,
+            CollectingLogger instantiationLogger,
+            int? materialsVariantIndex = null
+            )
+        {
+            var scene = m_Gltf.GetSourceScene(sceneIndex);
+            var sceneName = m_Gltf.GetSceneName(sceneIndex);
+            string sceneObjectName = null;
+            string variantNameSuffix = null;
+            if (materialsVariantIndex.HasValue)
+            {
+                variantNameSuffix = m_Gltf.GetMaterialsVariantName(materialsVariantIndex.Value);
+                if (string.IsNullOrEmpty(variantNameSuffix))
+                {
+                    variantNameSuffix = $"variant_{materialsVariantIndex.Value}";
+                }
+                sceneObjectName = $"{sceneName}_{variantNameSuffix}";
+            }
+            else
+            {
+                sceneObjectName = sceneName;
+            }
+
+            var go = new GameObject(sceneObjectName);
+            var instantiator = new GameObjectInstantiator(m_Gltf, go.transform, instantiationLogger, instantiationSettings);
+            var index = sceneIndex;
+            var success = AsyncHelpers.RunSync(() => m_Gltf.InstantiateSceneAsync(instantiator, index));
+            if (!success)
+            {
+                throw new InvalidOperationException("Instantiating scene failed");
+            }
+            var useFirstChild = scene.nodes is { Length: > 0 };
+            var singleNode = scene.nodes is { Length: 1 };
+            var hasAnimation = false;
+#if UNITY_ANIMATION
+            if (importSettings.AnimationMethod != AnimationMethod.None
+                && (instantiationSettings.Mask & ComponentType.Animation) != 0)
+            {
+                var animationClips = m_Gltf.GetAnimationClips();
+                if (animationClips != null && animationClips.Length > 0)
+                {
+                    hasAnimation = true;
+                }
+            }
+#endif
+
+            if (instantiationSettings.SceneObjectCreation == SceneObjectCreation.Never
+                || instantiationSettings.SceneObjectCreation == SceneObjectCreation.WhenMultipleRootNodes && singleNode)
+            {
+                // No scene GameObject was created, so the first
+                // child is the first (and in this case only) node.
+
+                // If there's animation, its clips' paths are relative
+                // to the root GameObject (which will also carry the
+                // `Animation` component. If not, we can import the the
+                // first and only node as root directly.
+
+                useFirstChild = !hasAnimation;
+            }
+
+            var sceneTransform = useFirstChild
+                ? go.transform.GetChild(0)
+                : go.transform;
+            var sceneGo = sceneTransform.gameObject;
+
+            if (materialsVariantIndex.HasValue)
+            {
+                sceneGo.name = $"{sceneGo.name}_{variantNameSuffix}";
+
+                var variantsControl = instantiator.SceneInstance.MaterialsVariantsControl;
+                AsyncHelpers.RunSync(() => variantsControl.ApplyMaterialsVariantAsync(materialsVariantIndex.Value));
+            }
+            AddObjectToAsset(ctx, $"scenes/{sceneObjectName}", sceneGo);
+            if (sceneIndex == m_Gltf.DefaultSceneIndex && !materialsVariantIndex.HasValue)
+            {
+                ctx.SetMainObject(sceneGo);
+            }
+        }
+
+        // [서울지키미 패치] glTF 내장 텍스처를 빌드 타깃 포맷으로 압축 — 원본은 무압축 RGBA32로 직렬화돼
+        // 4096 한 장이 85MB(밉맵 포함)씩 빌드와 런타임 메모리를 차지한다(ASTC 6x6이면 ~10MB).
+        static void CompressImportedTexture(Texture2D tex, BuildTarget target)
+        {
+            if (tex == null || !tex.isReadable) return;
+            try
+            {
+                var fmt = target switch
+                {
+                    BuildTarget.iOS or BuildTarget.Android or BuildTarget.tvOS => TextureFormat.ASTC_6x6,
+                    _ => TextureFormat.DXT5,   // 데스크톱/에디터 — 4의 배수 크기가 아니면 실패해 원본 유지(catch)
+                };
+                EditorUtility.CompressTexture(tex, fmt, TextureCompressionQuality.Normal);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[GltfImporter] 텍스처 압축 실패({tex.name}) — 무압축 유지: {e.Message}");
+            }
+            MarkNonReadable(tex);   // 압축 데이터는 아티팩트에 남고, 플레이어는 GPU 업로드 후 CPU 사본을 버린다
+        }
+
+        // [서울지키미 패치] 직렬화 플래그로 non-readable 지정 — 데이터는 그대로 직렬화되고,
+        // 플레이어가 로드→GPU 업로드 후 CPU 사본을 해제한다(런타임 메모리 반감). 에디터 동작엔 영향 없음.
+        static void MarkNonReadable(Object obj)
+        {
+            if (obj == null) return;
+            var so = new SerializedObject(obj);
+            var prop = so.FindProperty("m_IsReadable");
+            if (prop != null) { prop.boolValue = false; so.ApplyModifiedProperties(); }
+        }
+
+        void AddObjectToAsset(AssetImportContext ctx, string originalName, Object obj, Texture2D thumbnail = null)
+        {
+            if (m_ImportedObjects.Contains(obj))
+            {
+                return;
+            }
+            var uniqueAssetName = GetUniqueAssetName(originalName);
+            ctx.AddObjectToAsset(uniqueAssetName, obj, thumbnail);
+            m_ImportedNames.Add(uniqueAssetName);
+            m_ImportedObjects.Add(obj);
+        }
+
+        string GetUniqueAssetName(string originalName)
+        {
+            if (string.IsNullOrWhiteSpace(originalName))
+            {
+                originalName = "Asset";
+            }
+            if (m_ImportedNames.Contains(originalName))
+            {
+                var i = 0;
+                string extName;
+                do
+                {
+                    extName = $"{originalName}_{i++}";
+                } while (m_ImportedNames.Contains(extName));
+                return extName;
+            }
+            return originalName;
+        }
+
+        static bool HasSecondaryUVs(Mesh mesh)
+        {
+            var attributes = mesh.GetVertexAttributes();
+            return attributes.Any(attribute => attribute.attribute == VertexAttribute.TexCoord1);
+        }
+    }
+}
+
+#endif // !GLTFAST_EDITOR_IMPORT_OFF

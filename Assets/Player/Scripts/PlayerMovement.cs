@@ -64,12 +64,18 @@ namespace Player
             m_WasGrounded = g;
         }
 
+        // 레이캐스트 결과 재사용 버퍼 — RaycastAll은 호출마다 배열을 할당해 매 프레임 GC를 만든다.
+        // 메인스레드에서 호출 즉시 소비하므로 전 인스턴스 공유가 안전하다.
+        private static readonly RaycastHit[] s_Hits = new RaycastHit[16];
+
         // 밟힌 대상 디용: 비계면 그 비주얼, 그리드 블록(~Solid)이면 그 셀의 블록 비주얼.
         private void SquishLandedOn()
         {
-            foreach (var h in Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                                 0.5f, kCastMask, QueryTriggerInteraction.Ignore))
+            int n = Physics.RaycastNonAlloc(transform.position + Vector3.up * 0.1f, Vector3.down,
+                                            s_Hits, 0.5f, kCastMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
             {
+                var h = s_Hits[i];
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;
                 var go = h.collider.gameObject;
@@ -117,15 +123,30 @@ namespace Player
                 SoundManager.Instance.PlaySFX(SFXType.Jump);
         }
 
+        // 접지 캐시: Update/PlayerAnimator/PlayerUnit/PlayerCarry가 한 프레임에 최대 4~5회 겹쳐 부른다.
+        // fixedTime도 키에 넣어 같은 프레임에 물리 스텝이 여러 번 돌면(스턴 틱·점프) 스텝마다 다시 잰다.
+        private int m_GroundedFrame = -1;
+        private float m_GroundedFixedTime = -1f;
+        private bool m_CachedGrounded;
+
         // 발밑 짧은 레이로 접지 판정(자기/자식 콜라이더는 제외).
         public bool IsGrounded()
         {
-            var hits = Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                          0.3f, kCastMask, QueryTriggerInteraction.Ignore);
-            foreach (var h in hits)
-                if (h.collider.transform != transform && !h.collider.transform.IsChildOf(transform))
-                    return true;
-            return false;
+            if (m_GroundedFrame == Time.frameCount && m_GroundedFixedTime == Time.fixedTime)
+                return m_CachedGrounded;
+
+            int n = Physics.RaycastNonAlloc(transform.position + Vector3.up * 0.1f, Vector3.down,
+                                            s_Hits, 0.3f, kCastMask, QueryTriggerInteraction.Ignore);
+            bool grounded = false;
+            for (int i = 0; i < n; i++)
+            {
+                var t = s_Hits[i].collider.transform;
+                if (t != transform && !t.IsChildOf(transform)) { grounded = true; break; }
+            }
+            m_GroundedFrame = Time.frameCount;
+            m_GroundedFixedTime = Time.fixedTime;
+            m_CachedGrounded = grounded;
+            return grounded;
         }
 
         // ── 벽 기어오르기 ───────────────────────────────────────────
@@ -134,8 +155,10 @@ namespace Player
         {
             inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             var origin = transform.position + Vector3.up * kClimbRayH;
-            foreach (var h in Physics.RaycastAll(origin, inDir, kWallReach, kCastMask, QueryTriggerInteraction.Ignore))
+            int n = Physics.RaycastNonAlloc(origin, inDir, s_Hits, kWallReach, kCastMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
             {
+                var h = s_Hits[i];
                 var t = h.collider.transform;
                 if (t == transform || t.IsChildOf(transform)) continue;   // 자기/자식 제외
                 if (h.collider.CompareTag("Player")) continue;            // 다른 플레이어는 벽 아님(기어오르기 X → 바운스)

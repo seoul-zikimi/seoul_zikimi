@@ -74,6 +74,9 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         logoImage.preserveAspect = true;
 
         var snail = JobsnailUiKit.Rect("SnailPic", root, new Vector2(0.11f, 0.21f), new Vector2(0.43f, 0.68f), Vector2.zero, Vector2.zero);
+        snail.offsetMin = new Vector2(-56f, -80f);   // 플레이 모드에서 잡은 확대 배치 그대로
+        snail.offsetMax = new Vector2(56f, 80f);
+        snail.localScale = Vector3.one * 2.2779f;
         var snailImage = snail.gameObject.AddComponent<Image>();
         snailImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/SnailPic");
         snailImage.preserveAspect = true;

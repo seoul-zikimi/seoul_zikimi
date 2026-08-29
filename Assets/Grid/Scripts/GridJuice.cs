@@ -34,20 +34,52 @@ namespace GridSystem
             return m;
         }
 
+        // FX 조각 풀: 붕괴 한 번에 5~20개 CreatePrimitive(+Destroy)가 터지던 것을 재사용으로.
+        // 씬 전환으로 파괴된 잔재가 스택에 남을 수 있어 Pop 시 Unity-null 체크로 걸러낸다.
+        static readonly Stack<JuiceParticle> s_BitPool = new();
+        const int kBitPoolMax = 64;
+
         /// <summary>수명 자율 FX 조각 하나(위치·크기·색). 나머지 물리값은 호출측이 채운다.</summary>
         internal static JuiceParticle MakeBit(Vector3 pos, float size, Color col)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "~Fx";
-            var c = go.GetComponent<Collider>();
-            if (c != null) c.enabled = false;   // 즉시 끔(Destroy는 1프레임 지연 → 물리 간섭 방지). 순수 비주얼.
+            JuiceParticle fx = null;
+            while (s_BitPool.Count > 0)
+            {
+                fx = s_BitPool.Pop();
+                if (fx != null) break;   // Unity-null(씬 전환 파괴 잔재)은 버리고 다음 것
+            }
+
+            GameObject go;
+            if (fx == null)
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "~Fx";
+                var c = go.GetComponent<Collider>();
+                if (c != null) c.enabled = false;   // 즉시 끔(Destroy는 1프레임 지연 → 물리 간섭 방지). 순수 비주얼.
+                fx = go.AddComponent<JuiceParticle>();
+            }
+            else
+            {
+                go = fx.gameObject;
+                go.transform.rotation = Quaternion.identity;   // 이전 수명의 회전 잔재 제거
+                go.SetActive(true);
+                fx.Reinit();   // SetActive 재사용은 Start()가 다시 안 돈다 — 필드·타이머 명시 리셋
+            }
             go.transform.position = pos;
             go.transform.localScale = Vector3.one * size;
             var mat = FxMat();
-            if (mat != null) go.GetComponent<Renderer>().sharedMaterial = mat;
-            var fx = go.AddComponent<JuiceParticle>();
+            if (mat != null) go.GetComponent<Renderer>().sharedMaterial = mat;   // 유지 — 스파크(ItemFx 가산재질)가 바꿔둔 재질 오염 방지
             fx.color = col;
             return fx;
+        }
+
+        /// <summary>수명이 끝난 FX 조각 반납(JuiceParticle 전용). 상한 초과분은 그냥 파괴.</summary>
+        internal static void ReleaseBit(JuiceParticle fx)
+        {
+            if (fx == null) return;
+            if (s_BitPool.Count >= kBitPoolMax) { Object.Destroy(fx.gameObject); return; }
+            fx.gameObject.SetActive(false);
+            s_BitPool.Push(fx);
         }
 
         // 놓기: 블록 밑에서 먼지 몇 톨이 바깥으로 퍼지며 사라짐.
@@ -219,6 +251,19 @@ namespace GridSystem
             if (spinAxis == Vector3.zero) spinAxis = Vector3.up;
         }
 
+        /// <summary>풀 재사용 리셋 — 필드 초기화식·Start()는 재실행되지 않으므로 여기서 전부 기본값으로.</summary>
+        public void Reinit()
+        {
+            vel = Vector3.zero; gravity = 0f; life = 0.4f; spinDeg = 0f; spinAxis = Vector3.up;
+            scaleVel = 0f; color = Color.white; startAlpha = 1f;
+            m_T = 0f;
+            if (m_R != null && m_Mpb != null)   // 이전 수명의 색/알파(거의 0) 잔재 제거 — 첫 프레임 투명 방지
+            {
+                m_Mpb.Clear();
+                m_R.SetPropertyBlock(m_Mpb);
+            }
+        }
+
         void Update()
         {
             float dt = Time.deltaTime;
@@ -228,7 +273,7 @@ namespace GridSystem
             if (spinDeg != 0f) transform.Rotate(spinAxis, spinDeg * dt, Space.World);
 
             var s = transform.localScale + Vector3.one * (scaleVel * dt);
-            if (s.x <= 0.001f) { Destroy(gameObject); return; }
+            if (s.x <= 0.001f) { GridJuice.ReleaseBit(this); return; }
             transform.localScale = s;
 
             float k = Mathf.Clamp01(1f - m_T / life);
@@ -240,7 +285,7 @@ namespace GridSystem
                 m_Mpb.SetColor(s_Color, c);
                 m_R.SetPropertyBlock(m_Mpb);
             }
-            if (m_T >= life) Destroy(gameObject);
+            if (m_T >= life) GridJuice.ReleaseBit(this);
         }
     }
 

@@ -148,39 +148,68 @@ namespace Player
 
         // 이동/스프린트 상태를 받아 먼지·트레일 emission 적용.
         // owner는 Rigidbody 속도로, 원격은 NetworkVariable 복제값으로 PlayerUnit이 호출.
+        // 커스텀 트레일(상점) 캐시 — transform.Find와 GetComponentsInChildren 배열 할당이 매 프레임
+        // 돌던 것을, 계층 구조가 실제로 바뀔 때(hierarchyCount 변화 = 착용/해제 포함)만 재수집한다.
+        private Transform m_CustomTrail;
+        private TrailRenderer[] m_CustomTrailRenderers;
+        private int m_TrailHierarchyCount = -1;
+        private bool? m_LastDustEmit;
+        private bool? m_LastCustomEmit;
+        private bool? m_LastSprintEmit;
+
+        private void RefreshCustomTrail()
+        {
+            int hc = transform.hierarchyCount;
+            if (hc == m_TrailHierarchyCount) return;
+            m_TrailHierarchyCount = hc;
+            m_CustomTrail = transform.Find("~Trail");
+            m_CustomTrailRenderers = m_CustomTrail != null
+                ? m_CustomTrail.GetComponentsInChildren<TrailRenderer>(true) : null;
+            m_LastDustEmit = m_LastCustomEmit = null;   // 구성이 바뀌었으니 상태 강제 재적용
+        }
+
         public void Apply(bool isMoving, bool isSprinting)
         {
             // 커스텀 트레일(상점) 착용 여부 — 착용 중이면 기본 먼지/점액 대신 새 트레일이 그 자리를 대체
-            var custom = transform.Find("~Trail");
+            RefreshCustomTrail();
+            var custom = m_CustomTrail;
 
             // 회색 먼지 — 스프린트 중 끔, 커스텀 트레일 착용 중에도 끔
-            if (m_Ps != null)
+            bool dustEmit = isMoving && !isSprinting && custom == null;
+            if (m_Ps != null && dustEmit != m_LastDustEmit)
             {
+                m_LastDustEmit = dustEmit;
                 var dustEmission = m_Ps.emission;
-                dustEmission.enabled = isMoving && !isSprinting && custom == null;
+                dustEmission.enabled = dustEmit;
 
                 var main = m_Ps.main;
                 main.startSize = m_Config.DustSize;
             }
 
-            
-
             // 커스텀 트레일(상점): 걷기/일반 이동에만 그림 — 달릴 땐 기본 빨간 부스터가 대신 나온다
-            if (custom != null)
-                foreach (var tr in custom.GetComponentsInChildren<TrailRenderer>(true))
-                    tr.emitting = isMoving && !isSprinting;
+            bool customEmit = isMoving && !isSprinting;
+            if (m_CustomTrailRenderers != null && customEmit != m_LastCustomEmit)
+            {
+                m_LastCustomEmit = customEmit;
+                for (int i = 0; i < m_CustomTrailRenderers.Length; i++)
+                    if (m_CustomTrailRenderers[i] != null) m_CustomTrailRenderers[i].emitting = customEmit;
+            }
 
             if (m_SprintTrails != null)
             {
                 bool emit = isMoving && isSprinting;
-                int  half = m_SprintTrails.Length / 2;
-                for (int i = 0; i < m_SprintTrails.Length; i++)
+                if (emit != m_LastSprintEmit)
                 {
-                    var t = m_SprintTrails[i];
-                    if (t == null) continue;
-                    t.emitting        = emit;
-                    t.widthMultiplier = i < half ? m_Config.SprintCoreWidth : m_Config.SprintGlowWidth;
-                    t.time            = m_Config.SprintTrailTime;
+                    m_LastSprintEmit = emit;
+                    int  half = m_SprintTrails.Length / 2;
+                    for (int i = 0; i < m_SprintTrails.Length; i++)
+                    {
+                        var t = m_SprintTrails[i];
+                        if (t == null) continue;
+                        t.emitting        = emit;
+                        t.widthMultiplier = i < half ? m_Config.SprintCoreWidth : m_Config.SprintGlowWidth;
+                        t.time            = m_Config.SprintTrailTime;
+                    }
                 }
             }
         }

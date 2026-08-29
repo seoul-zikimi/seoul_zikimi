@@ -62,6 +62,7 @@ public class AnswerPanelHUD : UIHUD
     private bool m_ExpandedView;        // PC에서 확대 버튼으로 가로 전체화면 보기 중
     private RenderTexture m_Texture;    // 재구성 때 되살릴 정답 뷰 RT
     private int m_LastPct;
+    private int m_ShownPct = -1;   // 실제 텍스트에 반영된 값 — 같으면 SetCompletion이 조기 리턴
     private IReadOnlyList<OrderEntry> m_CachedItems;
     private readonly Dictionary<int, int> m_CachedRemaining = new();
     private GameObject m_HelpTip;
@@ -88,11 +89,21 @@ public class AnswerPanelHUD : UIHUD
     public RectTransform SurfaceRect => m_Surface != null ? m_Surface.rectTransform : null;
     public void SetTexture(RenderTexture rt) { m_Texture = rt; if (m_Surface != null) m_Surface.texture = rt; }
 
+    // UIManager가 HUD를 캐시하므로, 만들어질 때와 지금의 모바일 여부가 달라졌으면(에디터 프리뷰 토글 등)
+    // 데스크톱 폰 UI가 모바일 화면에 그대로 재사용된다 — 표시될 때마다 검사해 전부 다시 짓는다.
+    private void OnEnable()
+    {
+        if (m_Phone == null || m_IsMobileDevice == MobileControlsHUD.ShouldUseMobileUI) return;
+        Rebuild();   // 자식을 전부 지우고 백지에서 다시 지은 뒤 RT·주문·선택·완성도를 복원
+    }
+
     /// <summary>'현재 완성도 : N%' 숫자 갱신(GameHudDriver가 매 프레임 호출).</summary>
     public void SetCompletion(int percent)
     {
         int clamped = Mathf.Clamp(percent, 0, 100);
         m_LastPct = clamped;
+        if (clamped == m_ShownPct) return;   // 매 프레임 호출됨 — 값이 그대로면 문자열 조립부터 스킵
+        m_ShownPct = clamped;
         string s = clamped.ToString();
         if (m_PctText != null && m_PctText.text != s) m_PctText.text = s;
         if (m_CompletionText != null)
@@ -108,6 +119,18 @@ public class AnswerPanelHUD : UIHUD
         if (s_Font == null) s_Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (!InGameUiSkin.Available)
             Debug.LogWarning("[AnswerPanelHUD] 리마스터 스프라이트 없음 — Assets/Resources/UI_pngs/3.inGame/Remaster 확인");
+
+        // 어떤 경로로 두 번 불려도(레이아웃 재구축·유령 중복 인스턴스) 요소가 누적되지 않게 항상 백지에서 짓는다.
+        // 스케일 안 맞은 옛 3D 뷰/카드가 새 폰 위에 겹쳐 보이던 문제의 방어선.
+        for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
+        m_Phone = null; m_GridRoot = null; m_Surface = null; m_Tip = null;
+        m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
+        m_SelName = m_SelSub = m_CompletionText = null;
+        m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
+        m_ShownPct = -1;   // 텍스트를 새로 지었으니 다음 SetCompletion이 반드시 다시 채우게
+        m_Cards.Clear(); m_SelectedId = -1; ChromeHovered = false;
+        foreach (var other in FindObjectsByType<AnswerPanelHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (other != this) Destroy(other.gameObject);   // 루트/캐시 꼬임으로 남은 중복 HUD 정리
 
         m_IsMobileDevice = MobileControlsHUD.ShouldUseMobileUI;
         m_MobileLayout = m_IsMobileDevice || m_ExpandedView;   // 확대 보기 = 모바일과 같은 가로 폰 화면
@@ -197,6 +220,8 @@ public class AnswerPanelHUD : UIHUD
 
     private void ApplyCollapsed()
     {
+        // 폰이 접히면 미니씬 RT가 화면에서 사라지므로 정답 카메라도 쉬게 한다(AnswerPreview가 읽음)
+        GridSystem.AnswerPreview.PanelOpen = !m_Collapsed;
         if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
         if (m_CollapseTab != null)
         {
@@ -301,7 +326,6 @@ public class AnswerPanelHUD : UIHUD
         m_GridRoot = null; m_Tip = null; m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
         m_Cards.Clear();
         m_SelectedId = -1;
-        m_LastFitSize = Vector2.zero;
         ChromeHovered = false;
 
         Init();
@@ -431,15 +455,16 @@ public class AnswerPanelHUD : UIHUD
         closeLabel.fontStyle = FontStyle.Bold;
     }
 
-    // 폰(1800x940 고정 저작 크기)을 화면 크기에 맞춰 축소. 16:9에선 1배(여백 유지), 4:3 태블릿에선 알아서 줄어든다.
-    private Vector2 m_LastFitSize;
-
+    // 폰(1800x940 고정 저작 크기)을 화면 크기에 맞춰 축소. 16:9에선 1배(여백 유지), 세로 태블릿 등에선 알아서 줄어든다.
+    // 크기 캐시 가드 없이 매 프레임 맞춘다 — 재구축으로 폰이 새로 만들어져도(스케일 1) 다음 프레임에 바로 교정된다.
     private void LateUpdate()
     {
         if (!m_MobileLayout || m_Phone == null) return;
         var avail = ((RectTransform)transform).rect.size;
-        if (avail == m_LastFitSize) return;
-        m_LastFitSize = avail;
+        // 노치·펀치홀 폰: 세이프영역 비율만큼 가용 크기를 줄여 레이아웃이 노치에 안 가리게(태블릿은 보통 그대로).
+        var sa = Screen.safeArea;
+        if (Screen.width > 0 && Screen.height > 0)
+            avail = new Vector2(avail.x * sa.width / Screen.width, avail.y * sa.height / Screen.height);
         float s = Mathf.Min(1f, (avail.x - 40f) / 1800f, (avail.y - 40f) / 940f);
         if (s > 0f) m_Phone.transform.localScale = new Vector3(s, s, 1f);
     }

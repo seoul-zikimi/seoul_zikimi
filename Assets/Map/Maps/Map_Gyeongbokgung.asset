@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: "\uACBD\uBCF5\uAD81 \uADFC\uC815\uC804"
   m_BackgroundPrefab: {fileID: 8507847005581591266, guid: 20762e5f7c74c614fbf70b3a7097647f, type: 3}
+  m_BackgroundPrefabPath: MapPrefabs/MapBg_Gyeongbokgung
   m_Answers:
   - {fileID: 11400000, guid: 805c4ae924b576e46810ae5e83cc8e50, type: 2}
   m_Thumbnail: {fileID: 21300000, guid: 5d1f97dff3a613d4eb122350a43287bd, type: 3}
@@ -37,4 +38,5 @@ MonoBehaviour:
     Urgent: {fileID: 8300000, guid: 35a57bb86f6bbff469a2462825db56a3, type: 3}
     Result: {fileID: 0}
   m_CompletedModel: {fileID: 0}
+  m_CompletedModelPath: 
   m_CompletedModelAnchor: {x: 0, y: 0, z: 0}
