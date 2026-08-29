@@ -36,7 +36,11 @@ namespace Player
         public static void SetSprint(bool pressed) => Input?.SetMobileSprint(pressed);
         public static void SetPointerPosition(Vector2 screenPosition) => Input?.SetMobilePointer(screenPosition);
         public static void AddCameraDrag(Vector2 screenDelta) => Input?.AddMobileCameraDrag(screenDelta);
-        public static void AddPinchZoom(float screenDelta) => Input?.AddMobileZoom(screenDelta * 4f);
+        /// <summary>핀치 1px → 줌 입력 배율. 4일 땐 확대/축소가 '뽝뽝' 튄다는 실기기 피드백으로 1.5로 완화(2026-08-30).
+        /// 감도 조정은 이 상수 한 곳만 만지면 된다.</summary>
+        private const float kPinchZoomScale = 1.5f;
+
+        public static void AddPinchZoom(float screenDelta) => Input?.AddMobileZoom(screenDelta * kPinchZoomScale);
 
         public static void TapWorld(Vector2 screenPosition)
         {
