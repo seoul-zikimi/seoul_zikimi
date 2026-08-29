@@ -195,15 +195,17 @@ public static class MobileControlsPrefabGenerator
             new Vector2(-425f, 225f), new Vector2(150f, 150f), bottomRight);
         revertButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Revert);
 
-        // 기획서 외 보조 버튼(기능 유지) — 클러스터 왼쪽에 작고 옅게
-        SmallButton("RotateButton", parent, "회전", new Vector2(-630f, 190f), bottomRight);
-        SmallButton("ScaffoldButton", parent, "비계", new Vector2(-630f, 315f), bottomRight);
+        // 기획서 외 보조 버튼(기능 유지) — 클러스터 왼쪽에 작고 옅게.
+        // x -630 → -570: 점프 클러스터와 너무 떨어져 엄지가 안 닿는다는 피드백 — 공정취소(-500까지)와 20px 여백 한계까지 당김.
+        SmallButton("RotateButton", parent, "회전", new Vector2(-570f, 190f), bottomRight);
+        SmallButton("ScaffoldButton", parent, "비계", new Vector2(-570f, 315f), bottomRight);
     }
 
     private static void BuildPhoneButton(Transform parent)
     {
+        // y 52 → 90: 아이폰 하단 홈 인디케이터 제스처 영역과 겹쳐 스와이프가 Siri/AI를 소환하던 문제 — 살짝 위로.
         var rt = Rect("PhoneButton", parent, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 52f), new Vector2(300f, 86f));
+            new Vector2(0f, 90f), new Vector2(300f, 86f));
         var image = rt.gameObject.AddComponent<Image>();
         image.sprite = RoundSprite();
         image.type = Image.Type.Sliced;
