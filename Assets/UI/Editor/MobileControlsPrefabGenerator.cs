@@ -218,11 +218,9 @@ public static class MobileControlsPrefabGenerator
         Label("Label", revertButton, "공정취소", 30, Ink);
         revertButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Revert);
 
-        // 기획서 외 보조 버튼(기능 유지) — 클러스터 왼쪽에 작고 옅게.
-        // 좌표는 실기기에서 엄지 닿는 위치로 직접 튜닝한 값(2026-08-30). 공정취소(-500..-350, y150..300)와
-        // 살짝 겹치지만 회전=재료 든 상태·공정취소=공정 중이라 동시에 뜨는 상황이 없다 — 동시 노출이 생기면 재배치.
+        // 기획서 외 보조 버튼 — 클러스터 왼쪽에 작고 옅게. 좌표는 실기기 튜닝값(2026-08-30).
+        // 비계(Scaffold) 버튼은 기획 결정으로 모바일에서 제외(2026-08-30) — WireClick("ScaffoldButton")은 조용히 스킵된다.
         SmallButton("RotateButton", parent, "회전", new Vector2(-381f, 190f), bottomRight);
-        SmallButton("ScaffoldButton", parent, "비계", new Vector2(-335f, 315f), bottomRight);
     }
 
     private static void BuildPhoneButton(Transform parent)

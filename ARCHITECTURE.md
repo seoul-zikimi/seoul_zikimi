@@ -23,6 +23,7 @@ Assembly-CSharp         ← Player, UI, Sound, Network 로비 등 asmdef 없는 
   - **리플렉션 브릿지**: `GridSoundBridge`(GridSystem → SoundManager). 새 브릿지를 늘리기 전에 정말 필요한지 재고.
   - **정적 창구**: `GridSystem.LocalPlayerHands`처럼 하위 어셈블리에 상태 슬롯을 두고 상위가 채워 넣는 방식.
 - 새 시스템이 계약(인터페이스)을 가질 수 있으면 GameplayFramework/Weather 스타일로: 인터페이스 + 운영 구현 + 테스트용 Fake.
+- **Grid도 계약 보유(2026-08-30)**: `GridInterfaces.cs` — `IGridState`(읽기+CellsChanged) / `IGridRequests`(클라 요청) / `IGridServerOps`(서버 권위) / `IPickupField`(픽업 필드). 새 소비자는 필드를 인터페이스 타입으로 선언(찾을 땐 구체 타입으로 GetComponent). 기존 소비자는 손대는 김에 점진 전환 — 일괄 치환 금지.
 
 ## 2. 통신 규약 — 서로를 찾는 방법 (우선순위 순)
 

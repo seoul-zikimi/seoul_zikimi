@@ -48,7 +48,7 @@ namespace GridSystem
         private readonly Queue<int>[] m_Queue = { new(), new() };   // 레인별 대기 주문(materialId)
         private readonly float[] m_NextDispatchAt = new float[kMaxLanes];   // 레인별 뒷차 출발 간격 제어
         private ulong[] m_DockedPickup;                             // 곤돌라별(carId) 도킹 화물 pickupId(0=없음)
-        private MaterialDropField m_Drop;
+        private IPickupField m_Drop;   // 배송·회수 계약만(ServerDeliver/Remove/TryGetPickupPos) — GridInterfaces.cs 채택 규약
 
         private int m_Lanes = 1;   // 협동 1, 2vs2 2
 
