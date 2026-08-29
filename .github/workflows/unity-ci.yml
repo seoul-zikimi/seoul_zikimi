@@ -1,0 +1,121 @@
+# 서울지키미 CI — EditMode 테스트(자동) + Android 스모크 빌드(수동)
+#
+# 필요한 시크릿(Settings ▸ Secrets and variables ▸ Actions): docs/CI_SETUP.md 참고
+#   UNITY_LICENSE  — Personal 라이선스 .ulf 파일 내용
+#   UNITY_EMAIL    — Unity 계정 이메일
+#   UNITY_PASSWORD — Unity 계정 비밀번호
+#
+# 에디터 버전은 ProjectSettings/ProjectVersion.txt에서 자동 감지된다(버전 올려도 여기 손댈 것 없음).
+# 저장소가 4.4GiB라: 얕은 체크아웃(depth 1) + Library 캐시 + 러너 디스크 청소로 버틴다.
+
+name: Unity CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_android_build:
+        description: 'Android 스모크 빌드도 실행'
+        type: boolean
+        default: false
+
+# 같은 브랜치에 새 푸시가 오면 이전 실행 취소 — 분 낭비 방지
+concurrency:
+  group: unity-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write   # 테스트 결과를 PR 체크로 표시
+
+jobs:
+  test:
+    name: EditMode 테스트 (계약 테스트 포함)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # 대형 Unity 이미지+4.4GiB 저장소 대비 러너 디스크 확보(기본 프리인스톨 제거, ~25GB 회수)
+      - name: 러너 디스크 청소
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af || true
+          df -h /
+
+      - name: 체크아웃 (얕게 — 히스토리 4.4GiB 회피)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Library 캐시
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-test-${{ hashFiles('Packages/manifest.json', 'Packages/packages-lock.json', 'ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: |
+            Library-test-
+
+      - name: EditMode 테스트 실행
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          testMode: EditMode
+          checkName: EditMode 테스트 결과
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 테스트 결과 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: artifacts
+          retention-days: 14
+
+  # 수동 트리거 전용 — Unity 빌드는 회당 30~60분이라 상시 돌리면 무료 분(2,000분/월)이 순식간에 사라진다.
+  # iOS는 macOS 러너(분당 10배)+서명이 필요해 CI에서 제외 — 기존 로컬 파이프라인(~/Developer/seoulzikimi_ios) 유지.
+  build-android:
+    name: Android 스모크 빌드 (수동)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_android_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: 러너 디스크 청소
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af || true
+          df -h /
+
+      - name: 체크아웃
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Library 캐시
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-android-${{ hashFiles('Packages/manifest.json', 'Packages/packages-lock.json', 'ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: |
+            Library-android-
+
+      - name: Android 빌드 (개발용 — 키스토어 서명 없음)
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          buildName: SeoulZikimi
+
+      - name: APK 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeoulZikimi-Android
+          path: build/Android
+          retention-days: 7
