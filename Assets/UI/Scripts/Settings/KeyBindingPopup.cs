@@ -178,8 +178,14 @@ public sealed class KeyBindingPopup : UIPopup
             {
                 "up" => "위", "down" => "아래", "left" => "왼쪽", "right" => "오른쪽", _ => info.BindingName
             });
+        // 감정표현은 11줄이라 번호만 있으면 뭐가 뭔지 모른다 — 실제 대사를 붙여 준다.
         if (info.ActionPath.StartsWith("Player/Emote", StringComparison.Ordinal) && info.ActionName != "EmoteWheel")
-            return "감정표현 " + info.ActionName.Replace("Emote", "");
+        {
+            string number = info.ActionName.Replace("Emote", "");
+            return int.TryParse(number, out int n) && n >= 1 && n <= EmoteDefs.Count
+                ? $"감정표현 - {EmoteDefs.All[n - 1].Line}"
+                : "감정표현 " + number;
+        }
         return info.ActionPath switch
         {
             GameplayInputBindings.Sprint => "달리기",

@@ -12,7 +12,7 @@ namespace Player
         private InputAction m_Move, m_Sprint, m_Jump, m_Interact, m_Process, m_Revert;
         private InputAction m_RotateHeld, m_Throw, m_ToggleOrder, m_CameraRotate, m_CameraZoom;
         private InputAction m_EmoteWheel;
-        private readonly InputAction[] m_Emotes = new InputAction[10];
+        private readonly InputAction[] m_Emotes = new InputAction[GameplayInputBindings.EmoteHotkeyCount];
         private bool m_JumpQueued;
         private bool m_ScaffoldQueued;
         private float m_LastSpaceTime = -10f;
@@ -106,7 +106,7 @@ namespace Player
         }
 
         public bool ConsumeToggleOrder() => !GameplayInputBlocker.Blocked && ((m_ToggleOrder?.WasPressedThisFrame() ?? false) || m_OrderFrame == Time.frameCount);
-        // 키 설정 팝업 등 입력 차단 중엔 이모트도 막는다(리바인딩 대기 중 F1~F10·T가 그대로 발동하던 문제).
+        // 키 설정 팝업 등 입력 차단 중엔 이모트도 막는다(리바인딩 대기 중 F1~F11·T가 그대로 발동하던 문제).
         public bool EmoteWheelPressedThisFrame => !GameplayInputBlocker.Blocked && (m_EmoteWheel?.WasPressedThisFrame() ?? false);
         public bool EmoteWheelReleasedThisFrame => m_EmoteWheel?.WasReleasedThisFrame() ?? false;
 

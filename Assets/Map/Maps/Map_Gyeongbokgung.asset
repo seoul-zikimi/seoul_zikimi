@@ -34,8 +34,8 @@ MonoBehaviour:
   m_DdpGimmicks: {fileID: 0}
   m_GyeongbokgungGimmicks: {fileID: 11400000, guid: 8c3bc79eaf6ec3e42903168e9bf4f8f6, type: 2}
   m_Bgm:
-    Building: {fileID: 0}
-    Urgent: {fileID: 0}
+    Building: {fileID: 8300000, guid: d88faf5838f548d489ab87f5d8b869b9, type: 3}
+    Urgent: {fileID: 8300000, guid: 35a57bb86f6bbff469a2462825db56a3, type: 3}
     Result: {fileID: 0}
   m_CompletedModel: {fileID: 0}
   m_CompletedModelPath: 

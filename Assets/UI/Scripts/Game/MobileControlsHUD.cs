@@ -100,7 +100,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
         WireClick("PhoneButton", MobileGameplayInput.ToggleOrder);
         WireClick("AnswerToggleButton", ToggleAnswerGhost);
         WireClick("EmoteButton", ToggleEmotes);
-        RebuildEmoteRows();
+        RebuildEmoteRows();   // 행 생성·라벨·와이어링을 EmoteDefs 기준으로 일괄 — 프리팹이 낡아도 안전
 
         JobsnailUiKit.ApplyFontPolicy(transform);
         if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
@@ -120,16 +120,20 @@ public sealed class MobileControlsHUD : MonoBehaviour
         var template = Find("Emote1");
         if (template == null) return;
 
-        const float kPitch = 56f;   // 프리팹 생성기(BuildEmotes)의 행 피치와 동일
+        // 행 크기·피치는 프리팹 생성기(MobileControlsPrefabGenerator.BuildEmotes)와 반드시 동일 값 —
+        // 대사 11종이 우상단 버튼 아래 화면 안에 다 들어가도록 좁힌 수치(44/48).
+        const float kRowHeight = 44f;
+        const float kPitch = 48f;
         int count = EmoteDefs.Count;
 
         // 행 수에 맞춰 패널 높이부터 조정 — 위 모서리는 고정(감정표현 버튼과의 간격 유지), 아래로만 늘린다.
         // 행 좌표가 패널 '중심' 기준이라 리사이즈를 먼저 해야 행 배치가 새 높이에 맞는다.
         float top = panel.anchoredPosition.y + panel.sizeDelta.y * 0.5f;
-        float h = 72f + kPitch * (count - 1);   // 8행일 때 원본 높이 464와 일치하는 식(패딩 8+16 포함)
+        float h = count * kPitch + 16f;   // 생성기와 동일 식(위 8/아래 8 패딩)
         panel.sizeDelta = new Vector2(panel.sizeDelta.x, h);
         panel.anchoredPosition = new Vector2(panel.anchoredPosition.x, top - h * 0.5f);
 
+        float firstRowY = h * 0.5f - 8f - kRowHeight * 0.5f;
         for (int i = 0; i < count; i++)
         {
             var row = Find($"Emote{i + 1}");
@@ -138,14 +142,16 @@ public sealed class MobileControlsHUD : MonoBehaviour
                 row = Instantiate(template, panel);
                 row.name = $"Emote{i + 1}";
             }
-            ((RectTransform)row.transform).anchoredPosition = new Vector2(0f, h * 0.5f - 32f - i * kPitch);
+            var rowRt = (RectTransform)row.transform;
+            rowRt.anchoredPosition = new Vector2(0f, firstRowY - i * kPitch);
+            rowRt.sizeDelta = new Vector2(196f, kRowHeight);   // 옛(48px) 프리팹 행도 새 크기로 통일
             var label = row.GetComponentInChildren<TextMeshProUGUI>(true);
             if (label != null)
             {
                 label.text = EmoteDefs.All[i].Line;
                 label.textWrappingMode = TextWrappingModes.NoWrap;   // 긴 대사는 줄바꿈 대신 글자 축소
                 label.enableAutoSizing = true;
-                label.fontSizeMax = 21f; label.fontSizeMin = 12f;
+                label.fontSizeMax = 20f; label.fontSizeMin = 12f;   // 생성기와 동일(행 44px 기준)
             }
 
             int index = i;
