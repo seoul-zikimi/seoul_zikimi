@@ -12,6 +12,10 @@ namespace GridSystem
         None    = 0,
         Fixed   = 1 << 0,  // 고정 (망치)
         Painted = 1 << 1,  // 페인트칠 (페인트통)
+
+        // ⚠ 공정이 아님 — 경복궁 화재 진화 전용 '도구'. ProcessOrder.Sequence에 절대 넣지 말 것.
+        // Sequence 밖이라 NextNeeded/채점(RequiredMask)에는 영향 없음. MaterialDef의 요구 공정에도 꽂지 말 것.
+        Bucket  = 1 << 2,  // 양동이 (물 — 드므에서 리필)
     }
     
     /// <summary>공정의 정규 순서. 앞에서부터 순차로만 적용된다(고정 → 페인트).</summary>

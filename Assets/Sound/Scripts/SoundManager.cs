@@ -38,6 +38,10 @@ public class SoundManager : Singleton<SoundManager>
     // AudioSource 볼륨 = "믹서에 얼마나 보낼지" 비율(0~1). 실제 사용자 볼륨은 AudioMixer 파라미터가 담당.
     const float kBgmVolume = 1f;
 
+    // 3D 효과음 거리 감쇠 — 카메라(=리스너)가 플레이어에서 12유닛 뒤에 있는 것을 감안한 값.
+    const float kSfx3DMinDistance = 15f;   // 이 안쪽은 원음 — 내 주변에서 난 소리는 온전히 들린다
+    const float kSfx3DMaxDistance = 70f;   // 이 밖은 무음 — 맵 전체(대각 약 38)를 넉넉히 덮는다
+
     AudioSource   _bgmSource;   // BGM
     AudioSource   _sfx2D;       // 2D 효과음 — PlayOneShot으로 겹쳐 재생
     AudioSource[] _sfx3D;       // 3D 효과음 — 위치별 동시 발음 위해 자식 소스 여러 개 round-robin
@@ -109,6 +113,7 @@ public class SoundManager : Singleton<SoundManager>
             var src = go.AddComponent<AudioSource>();
             src.outputAudioMixerGroup = sfxGroup;
             src.spatialBlend = 1f;      // 3D (위치 기준)
+            ApplySpatialRange(src);
             src.playOnAwake  = false;
             _sfx3D[i] = src;
         }
@@ -124,7 +129,21 @@ public class SoundManager : Singleton<SoundManager>
         _tapSrc = tapGo.AddComponent<AudioSource>();
         _tapSrc.outputAudioMixerGroup = sfxGroup;
         _tapSrc.spatialBlend = 1f;
+        ApplySpatialRange(_tapSrc);
         _tapSrc.playOnAwake  = false;
+    }
+
+    /// <summary>
+    /// 3D 소스의 거리 감쇠. 유니티 기본값(min 1 · max 500 · Logarithmic)은 이 게임에 맞지 않는다 —
+    /// AudioListener가 Main Camera에 있고 카메라는 플레이어에서 12유닛 떨어져 있어서,
+    /// 기본값이면 '내 발밑' 소리조차 8% 볼륨이고 맵 반대편 이벤트(발화·석상 낙하)는 사실상 무음이 된다.
+    /// min을 카메라 거리보다 크게 잡아 내 주변은 원음으로, max는 맵 대각선(경복궁 30x20 → 약 38) 밖에서 소멸하도록.
+    /// </summary>
+    static void ApplySpatialRange(AudioSource src)
+    {
+        src.rolloffMode = AudioRolloffMode.Linear;
+        src.minDistance = kSfx3DMinDistance;
+        src.maxDistance = kSfx3DMaxDistance;
     }
 
     AudioSource _tapSrc;

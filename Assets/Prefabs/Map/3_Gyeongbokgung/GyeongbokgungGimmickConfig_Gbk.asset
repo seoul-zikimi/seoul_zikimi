@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f4451324edb72946ac65acd9e20d1d5, type: 3}
+  m_Name: GyeongbokgungGimmickConfig_Gbk
+  m_EditorClassIdentifier: GridSystem::GridSystem.GyeongbokgungGimmickConfig
+  FireStartDelay: 30
+  FireIntervalStart: 60
+  FireIntervalMin: 25
+  FireIntervalRampSeconds: 360
+  FireIntervalJitter: 0.3
+  FireDeferAfterStatueSeconds: 6
+  BurnSeconds: 18
+  SpreadCount: 2
+  ExtinguishSeconds: 1.2
+  DeumeuRefillRange: 2.2
+  FlameScale: 2.2
+  DemonLeadSeconds: 4
+  BurnPresetBlocks: 1
+  StatueDropPercents:
+  - 20
+  - 30
+  - 45
+  - 60
+  StatueDropScorePercents:
+  - 25
+  - 40
+  - 60
+  - 80
+  StatueMaterialIds: 3d0000003e0000003400000035000000
+  StatueDropMinGapSeconds: 20
+  PedestalSnapRange: 2.5
+  RejectBounceDistance: 3.5
+  ImmunityBandFraction: 0.34

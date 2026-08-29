@@ -160,7 +160,13 @@ namespace GridSystem
                 foreach (var c in GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep))
                     if (!ans.IsPreset(c) || !ans.TryGet(c, out var ac) || ac.materialId != a.materialId)
                     { valid = false; break; }
-                if (!valid || !m_ServerGrid.CanPlace(a.cell, def, a.rotationStep)) continue;
+                if (!valid || !m_ServerGrid.CanPlace(a.cell, def, a.rotationStep))
+                {
+                    // 조용한 스킵 금지 — 프리셋 블록이 안 깔리면 맵에 구멍이 나는데 원인을 못 찾는다(08/28 모서리기와 실종 사건)
+                    Debug.LogWarning($"[프리셋] 스폰 스킵: 앵커 {a.cell} 재료 {a.materialId} rot {a.rotationStep} — " +
+                                     (!valid ? "footprint 셀 검증 실패(전 셀이 같은 재료의 preset이어야 함)" : "CanPlace 거부(겹침/범위)"));
+                    continue;
+                }
 
                 ulong owner = ++m_OwnerCounter;
                 m_ServerGrid.Place(a.cell, def, a.rotationStep, owner);
@@ -348,6 +354,53 @@ namespace GridSystem
                 RemoveCollapsed(co);
 
             return true;   // 집은 블록 자체는 드롭 X → 손으로
+        }
+
+        /// <summary>서버 전용: 복제 셀 목록 스냅샷(기믹용 — 화재 대상 선정 등). into를 비우고 채운다.</summary>
+        public void ServerCollectCells(System.Collections.Generic.List<CellEntry> into)
+        {
+            into.Clear();
+            if (!IsServer) return;
+            foreach (var e in m_Cells) into.Add(e);
+        }
+
+        /// <summary>서버 전용: 화재 소실 — cell이 속한 오브젝트를 '재료 환원 없이' 태워 없앤다(경복궁 화마).
+        /// 받침을 잃고 무너지는 위쪽 블록들은 탄 게 아니므로 기존 붕괴 규칙대로 재료를 돌려준다.
+        /// 소실된 블록의 재료 id를 반환(-1 = 대상 없음) — 호출자(FireNetwork)가 전이 대상 계산에 쓴다.</summary>
+        public int ServerBurnBlock(Vector3Int cell)
+        {
+            if (!IsServer || m_ServerGrid == null) return -1;
+            var cs = m_ServerGrid.GetCell(cell);
+            if (!cs.occupied) return -1;
+
+            ulong owner = cs.ownerObjectId;
+            int materialId = cs.materialId;
+            m_ServerGrid.Remove(cell);                       // 같은 owner 전 셀 제거(멀티셀)
+
+            Vector3 from = default; bool have = false;
+            for (int i = m_Cells.Count - 1; i >= 0; i--)
+                if (m_Cells[i].ownerObjectId == owner)
+                {
+                    if (!have) { from = CellWorld(m_Cells[i].cell); have = true; }
+                    m_Cells.RemoveAt(i);
+                }
+            // ★ 여기서 ServerDrop을 부르지 않는다 — 불탄 블록은 소실(다시 주문해서 지어야 함)
+
+            if (have) BurnedFxRpc(from);
+            foreach (var co in m_ServerGrid.SettleUnsupported())   // 받침 잃은 위 블록은 기존대로 무너져 드롭
+                RemoveCollapsed(co);
+            return materialId;
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void BurnedFxRpc(Vector3 center)
+        {
+            GridJuice.CollapseBurst(center, GridContract.Unit);
+            GridJuice.GroundHit(center, 1.2f);
+            GridJuice.FovPunch(Camera.main, -4f);
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f), "불타 사라졌다…!", new Color(1f, 0.42f, 0.15f));
+            if (m_VisualRoot != null) GridJuice.Ripple(m_VisualRoot.transform, center, GridContract.Unit * 4f, 0.10f, 8f);
         }
 
         [Rpc(SendTo.Server)]
@@ -656,10 +709,21 @@ namespace GridSystem
         }
 
         // ── 비주얼 (모든 클라이언트가 리스트로 재구성) ───────────────────────
+        // 리스트 이벤트는 '셀 하나'마다 온다 — 멀티셀 블록 하나만 놓아도 수십 번, 프리셋 스폰이면 수백 번.
+        // 이벤트마다 전체 비주얼을 재구성하면 O(n²) 인스턴스화로 수십 초 멈춘다(경복궁 프리셋에서 실측 ~1분).
+        // → 더티 플래그만 세우고 LateUpdate에서 프레임당 1번만 재구성한다.
+        private bool m_VisualsDirty, m_ScoreDirty;
+
         private void OnCellsChanged(NetworkListEvent<CellEntry> _)
         {
-            RebuildVisuals();
-            if (IsServer) RecomputeScore();
+            m_VisualsDirty = true;
+            if (IsServer) m_ScoreDirty = true;
+        }
+
+        private void LateUpdate()
+        {
+            if (m_VisualsDirty) { m_VisualsDirty = false; RebuildVisuals(); }
+            if (m_ScoreDirty)   { m_ScoreDirty = false; RecomputeScore(); }
         }
 
         public void RecomputeScore()

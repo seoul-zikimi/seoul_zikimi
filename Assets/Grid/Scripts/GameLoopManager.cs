@@ -169,6 +169,12 @@ namespace GridSystem
                 gameObject.AddComponent<WaterGateNetwork>();
             if (!TryGetComponent<ExcavationNetwork>(out _))
                 gameObject.AddComponent<ExcavationNetwork>();
+            // 경복궁 기믹 호스트들 — 맵 카드에 GyeongbokgungGimmickConfig가 없으면 스스로 잠잔다
+            // (사방신이 화재 면역/봉인을 제공하므로 Guardian을 Fire보다 먼저 부착)
+            if (!TryGetComponent<GuardianNetwork>(out _))
+                gameObject.AddComponent<GuardianNetwork>();
+            if (!TryGetComponent<FireNetwork>(out _))
+                gameObject.AddComponent<FireNetwork>();
             // LedRoseNetwork(LED 장미 발판)는 더 이상 붙이지 않는다 — DDP 맵에서 뺀 기믹.
             // 광장 위에 분홍 원판이 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
         }
@@ -459,6 +465,8 @@ namespace GridSystem
             if (TryGetComponent<ParadeNetwork>(out var parade)) parade.ServerReset();   // 롯데월드: 퍼레이드 주기 리셋
             if (TryGetComponent<WaterGateNetwork>(out var water)) water.ServerReset();  // DDP: 물길 주기 리셋
             if (TryGetComponent<ExcavationNetwork>(out var dig)) dig.ServerReset();     // DDP: 발굴터·누적 출토 리셋
+            if (TryGetComponent<GuardianNetwork>(out var guard)) guard.ServerReset();   // 경복궁: 사방신 리셋
+            if (TryGetComponent<FireNetwork>(out var fire)) fire.ServerReset();         // 경복궁: 화마 리셋
             if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);

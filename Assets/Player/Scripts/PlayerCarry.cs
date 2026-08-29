@@ -37,6 +37,10 @@ namespace Player
         [SerializeField] private GameObject m_HammerModel;
         [Tooltip("든 '페인트통'(페인트 도구) 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
         [SerializeField] private GameObject m_PaintCanModel;
+        [Tooltip("든 '양동이'(화재 진화 도구 — 경복궁) 외형 모델(물 찬 상태). 비우면 하늘색 구로 폴백.")]
+        [SerializeField] private GameObject m_BucketModel;
+        [Tooltip("든 '양동이'의 빈 상태 외형 모델. 비우면 물 찬 모델 + 방울 표시로 폴백.")]
+        [SerializeField] private GameObject m_BucketEmptyModel;
         [Tooltip("든 도구 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.4f;
         [SerializeField] private GameObject m_HammerFx;   // 망치질 타격 이펙트 프리팹(CFXR3 Hit Fire B (Air))
@@ -50,6 +54,9 @@ namespace Player
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         // 무거운 재료를 혼자 끙끙 드는 중(땀 이펙트 · 전 클라 표시)
         private readonly NetworkVariable<bool> m_NetStraining =
+            new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // 양동이에 물이 차 있는가(경복궁 화마 진화 — 드므 근처에서 자동 리필, 물 붓기로 소모)
+        private readonly NetworkVariable<bool> m_NetBucketFilled =
             new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private MaterialDef m_HeldDef;        // 모든 클라: 든 재료 정의(화물 크기·무게)
         private PlayerFacing m_Facing;        // 모델이 보는 방향(물리 루트는 회전 안 함)
@@ -405,6 +412,7 @@ namespace Player
         {
             m_NetMaterialId.OnValueChanged += OnHeldChanged;
             m_NetTool.OnValueChanged += OnHeldChanged;
+            m_NetBucketFilled.OnValueChanged += OnBucketFilledChanged;   // 양동이 물 유무 → 원격 외형 갱신
             RebuildHeldVisual();                 // 초기/늦참
             if (IsOwner)
             {
@@ -417,8 +425,11 @@ namespace Player
         {
             m_NetMaterialId.OnValueChanged -= OnHeldChanged;
             m_NetTool.OnValueChanged -= OnHeldChanged;
+            m_NetBucketFilled.OnValueChanged -= OnBucketFilledChanged;
             if (IsOwner) GridSystem.LocalPlayerHands.Clear();
             if (m_HeldVisual != null) Destroy(m_HeldVisual);
+            if (m_PedestalHl != null) Destroy(m_PedestalHl);
+            if (m_StatueArrow != null) Destroy(m_StatueArrow);
             if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
             m_HelpTarget = null;
             if (m_ThrowAim != null) Destroy(m_ThrowAim);
@@ -523,7 +534,26 @@ namespace Player
             // 좌클릭만 게임 조작(빈손→집기 / 재료→배치). 정답 패널 위에선 카메라 조작이라 무시.
             if (!AnswerPanelFocus.Active && m_Input.InteractPressedThisFrame)
             {
-                if (HasMaterial)
+                if (HasMaterial && GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out int statueKind))
+                {
+                    // 사방신 석상: 그리드 배치 금지 — 받침대 클릭 배치 전용(테두리 뜬 받침대를 클릭)
+                    if (m_AimPedIndex >= 0)
+                    {
+                        if (m_AimPedIndex == statueKind && !GuardianNetwork.IsKindPlaced(statueKind))
+                        {
+                            GuardianNetwork.RequestPlaceOnPedestal(statueKind);   // 석상은 종류당 1개 — 낙관 소모 안전
+                            ClearHeld();
+                            PlaySFX(SFXType.LandObject);
+                        }
+                        else if (m_AimPedIndex != statueKind)
+                        {
+                            GridJuice.WorldToast(m_AimPedPos + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
+                            PlaySFX(SFXType.BumpPlayers);
+                        }
+                    }
+                    else Drop();   // 받침대 아닌 곳 클릭 = 내려놓기(근처에 놓아도 기존 근접 안착이 받아줌)
+                }
+                else if (HasMaterial)
                 {
                     if (m_HasTarget) TryPlace();   // 그리드 위 → 그리드 배치
                     else             Drop();       // 그리드 밖 '배치' = 발밑에 버리기(기존 Q 통합)
@@ -543,6 +573,7 @@ namespace Player
             UpdateProcessInput(m_Input); // E/패드/모바일 꾹=공정(로딩바)
             UpdateRevertInput(m_Input);  // Z/패드/모바일 꾹=마지막 공정 되돌리기
             UpdateProcessHint();     // 도구 들었을 때 "지금 무슨 공정 차례인지" 안내 갱신
+            UpdateStatueAim();       // 경복궁: 석상 든 채 받침대 조준(테두리) + 방향 화살표
 
             TryBumpCollapse();   // C3: 미고정 기둥/벽에 몸으로 부딪히면 무너뜨림
             TryKickPickups();    // 노답중력: 몸에 닿은 바닥 재료를 찬다
@@ -551,6 +582,106 @@ namespace Player
             UpdateHud();         // 프리팹 HUD 갱신(조작법·공정바·공정힌트)
         }
         
+        // ── 경복궁 사방신 석상: 받침대 조준(발광 테두리) + 목표 받침대 방향 화살표 (오너 로컬 전용) ──
+        // 조준은 물리 레이캐스트가 아니라 '마우스 광선이 받침대 근처를 지나는가' 기하 판정 —
+        // 받침대 콜라이더/컴포넌트/맵 재생성에 의존하지 않아 인식이 절대 안 빠진다.
+        private int m_AimPedIndex = -1;                      // 이번 프레임 조준 중인 받침대 방위(-1 = 없음)
+        private Vector3 m_AimPedPos;
+        private GameObject m_PedestalHl;                     // 받침대 위 발광 테두리
+        private GameObject m_StatueArrow;                    // 머리 위 방향 화살표
+        private static Material s_PedHlOk, s_PedHlBad;       // 테두리 재질 캐시(프레임당 생성 방지)
+        private const float kPedestalAimRadius = 1.9f;       // 광선-받침대 허용 거리(후하게)
+        private const float kPedestalUseRange = 7f;          // 플레이어-받침대 수평 사거리
+
+        private void UpdateStatueAim()
+        {
+            bool holdingStatue = HasMaterial && GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out int kind);
+            if (!holdingStatue)
+            {
+                m_AimPedIndex = -1;
+                if (m_PedestalHl != null) m_PedestalHl.SetActive(false);
+                if (m_StatueArrow != null) m_StatueArrow.SetActive(false);
+                return;
+            }
+            GuardianNetwork.TryGetStatueKind(m_HeldMaterial.Id, out kind);
+
+            // 화살표: 목표 받침대 방향으로 머리 위에서 안내(둥실둥실)
+            if (GuardianNetwork.TryGetPedestalPos(kind, out var target) && !GuardianNetwork.IsKindPlaced(kind))
+            {
+                if (m_StatueArrow == null) m_StatueArrow = BuildStatueArrow();
+                m_StatueArrow.SetActive(true);
+                Vector3 dir = target - transform.position; dir.y = 0f;
+                if (dir.sqrMagnitude > 0.04f)
+                {
+                    float bob = Mathf.Sin(Time.time * 4f) * 0.15f;
+                    m_StatueArrow.transform.position = transform.position + Vector3.up * (2.8f + bob) + dir.normalized * 0.6f;
+                    m_StatueArrow.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                }
+            }
+            else if (m_StatueArrow != null) m_StatueArrow.SetActive(false);
+
+            // 받침대 조준: 마우스 광선과 각 받침대 중심의 최근접 거리로 판정(4방위 전부 검사, 가장 가까운 것)
+            m_AimPedIndex = -1;
+            if (m_Cam == null) m_Cam = Camera.main;
+            if (m_Cam != null && m_Input != null)
+            {
+                var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
+                float best = kPedestalAimRadius;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (!GuardianNetwork.TryGetPedestalPos(i, out var pp)) continue;
+                    Vector3 flat = pp - transform.position; flat.y = 0f;
+                    if (flat.magnitude > kPedestalUseRange) continue;   // 사거리 밖
+                    Vector3 center = pp + Vector3.up * 0.9f;
+                    Vector3 toC = center - ray.origin;
+                    float along = Vector3.Dot(toC, ray.direction);
+                    if (along < 0f) continue;                            // 카메라 뒤
+                    float rayDist = Vector3.Cross(ray.direction, toC).magnitude;
+                    if (rayDist < best) { best = rayDist; m_AimPedIndex = i; m_AimPedPos = pp; }
+                }
+            }
+
+            // 발광 테두리(블록 배치 테두리와 같은 언어) — 맞는 방위면 초록, 틀리면 주황
+            if (m_AimPedIndex >= 0)
+            {
+                if (m_PedestalHl == null)
+                {
+                    m_PedestalHl = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Destroy(m_PedestalHl.GetComponent<Collider>());
+                    m_PedestalHl.name = "~PedestalHl";
+                    m_PedestalHl.transform.localScale = new Vector3(2.1f, 1.3f, 2.1f);
+                }
+                bool match = m_AimPedIndex == kind;
+                if (s_PedHlOk == null) s_PedHlOk = GuardianNetwork.MakeGlow(new Color(0.35f, 1f, 0.45f, 0.30f));
+                if (s_PedHlBad == null) s_PedHlBad = GuardianNetwork.MakeGlow(new Color(1f, 0.55f, 0.2f, 0.30f));
+                m_PedestalHl.GetComponent<Renderer>().sharedMaterial = match ? s_PedHlOk : s_PedHlBad;
+                m_PedestalHl.transform.position = m_AimPedPos + Vector3.up * 0.65f;
+                m_PedestalHl.SetActive(true);
+            }
+            else if (m_PedestalHl != null) m_PedestalHl.SetActive(false);
+        }
+
+        private GameObject BuildStatueArrow()
+        {
+            var root = new GameObject("~StatueArrow");
+            // 몸통(길쭉) + 촉(짧고 굵게) — 발광 노랑, 앞(+Z)이 목표 방향
+            var shaft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(shaft.GetComponent<Collider>());
+            shaft.transform.SetParent(root.transform, false);
+            shaft.transform.localPosition = new Vector3(0f, 0f, 0.15f);
+            shaft.transform.localScale = new Vector3(0.14f, 0.14f, 0.65f);
+            var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(tip.GetComponent<Collider>());
+            tip.transform.SetParent(root.transform, false);
+            tip.transform.localPosition = new Vector3(0f, 0f, 0.62f);
+            tip.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+            tip.transform.localScale = new Vector3(0.3f, 0.14f, 0.3f);
+            var mat = GuardianNetwork.MakeGlow(new Color(1f, 0.9f, 0.35f, 0.85f));
+            shaft.GetComponent<Renderer>().sharedMaterial = mat;
+            tip.GetComponent<Renderer>().sharedMaterial = mat;
+            return root;
+        }
+
         // [08/28] 도구 들고 좌클릭: 재료(바닥 픽업·회수 가능 블록)를 가리키면 "손에 도구가 있어요!" 안내,
         // 도구함·고정 블록이면 무동작(오클릭으로 도구 흘리기 방지), 그 외 허공(빈 땅 포함)은 도구를 발밑에 버려 빈손으로.
         private void HandleToolClick()
@@ -619,7 +750,10 @@ namespace Player
         // 꾹: '든 도구'가 조준 블록에 필요할 때만 바가 차고, 다 차면 그 공정을 적용(누른 채로 다음 단계 이어짐).
         // 페인트 공정 시간 = SFX_Painting.wav 길이(1.31s) → 붓질 사운드·로딩바가 함께 시작해서 함께 끝남.
         private const float kPaintSeconds = 1.31f;
-        private float ProcessDurationFor(ProcessType kind) => kind == ProcessType.Painted ? kPaintSeconds : m_ProcessSeconds;
+        private float ProcessDurationFor(ProcessType kind)
+            => kind == ProcessType.Painted ? kPaintSeconds
+             : kind == ProcessType.Bucket ? FireNetwork.ExtinguishSeconds
+             : m_ProcessSeconds;
 
         // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
         // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 완성 파츠 중 무작위로 고른다(기획서).
@@ -694,6 +828,9 @@ namespace Player
             m_CannonCharge = 0f;
             ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 궤적 제거
 
+            // 양동이(경복궁 화마 진화)는 그리드 공정이 아니라 '불타는 블록에 물 붓기' — 전용 분기.
+            if (m_HeldTool == ProcessType.Bucket) { UpdateBucket(input); return; }
+
             if (input.ProcessReleasedThisFrame || !input.ProcessIsPressed)
             {
                 CancelPaintStroke();
@@ -760,6 +897,44 @@ namespace Player
                 m_PendingCell = m_ProcessCell;   // 복제 반영 전까지 같은 공정 재적용 방지
                 m_PendingKind = m_HeldTool;
                 m_ProcessHold = 0f;
+            }
+        }
+
+        // 양동이(경복궁): 드므 근처면 자동으로 물이 차고, 물 든 채로 불타는 블록 근처에서 E 꾹 → 물 붓기.
+        // 로딩바·HUD는 공정 바(m_ProcessHold)를 그대로 재사용한다.
+        private void UpdateBucket(PlayerInputHandler input)   // [머지] 모바일 입력 추상화(main)에 맞춰 이식
+        {
+            // 리필: 드므 근처면 자동(E 불필요 — 설명 없는 게임이라 '가면 채워진다'가 제일 배우기 쉬움)
+            if (!m_NetBucketFilled.Value && FireNetwork.NearDeumeu(transform.position, out var dm))
+            {
+                m_NetBucketFilled.Value = true;
+                PlaySFX(SFXType.WaterFill);   // 물 뜨기 SFX(08/28 사운드 적용)
+                GridJuice.WorldToast(dm + Vector3.up * 1.6f, "물을 채웠다!", new Color(0.45f, 0.8f, 1f));
+                RebuildHeldVisual();   // 물 표시 갱신(오너 즉시 — 원격은 복제 콜백)
+            }
+
+            if (input.ProcessReleasedThisFrame || !input.ProcessIsPressed || !m_NetBucketFilled.Value)
+            {
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
+                return;
+            }
+
+            float reach = kBuildReachCells * GridContract.Unit + 2.5f;   // [08/28] 진화 판정 후하게(+1칸)
+            if (!FireNetwork.TryGetNearestBurning(transform.position, reach, out var cell, out _))
+            {
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
+                return;
+            }
+
+            if (cell != m_ProcessCell) { m_ProcessCell = cell; m_ProcessHold = 0f; }
+            m_ProcessKind = ProcessType.Bucket;
+            m_ProcessHold += Time.deltaTime;
+            if (m_ProcessHold >= ProcessDurationFor(ProcessType.Bucket))
+            {
+                FireNetwork.RequestExtinguish(m_ProcessCell);
+                m_NetBucketFilled.Value = false;   // 물 소모 — 드므에서 다시 채워야
+                RebuildHeldVisual();
+                m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
             }
         }
 
@@ -857,6 +1032,13 @@ namespace Player
         private void UpdateProcessHint()
         {
             m_ProcessHint = "";
+            if (HasTool && m_HeldTool == ProcessType.Bucket)   // 양동이는 그리드 공정이 아님 — 전용 안내
+            {
+                m_ProcessHint = m_NetBucketFilled.Value
+                    ? "불타는 블록 근처에서 E 꾹 — 물 붓기"
+                    : "드므(청동 항아리) 근처로 가면 물이 채워져요";
+                return;
+            }
             if (!HasTool || !m_HasTarget || m_Net == null) return;
             if (m_Loop != null && !m_Loop.IsBuilding) return;
             if (!m_Net.TryGetCell(m_Target, out int matId, out int completed)) { m_ProcessHint = "빈 칸 — 블록을 가리키세요"; return; }
@@ -874,7 +1056,9 @@ namespace Player
         }
 
         private static string ProcName(ProcessType p)
-            => p == ProcessType.Painted ? "페인트(페인트통/초록)" : "고정(망치/파랑)";
+            => p == ProcessType.Painted ? "페인트(페인트통/초록)"
+             : p == ProcessType.Bucket ? "물 붓기(양동이/하늘색)"
+             : "고정(망치/파랑)";
 
         // 근접 진입한 바닥 재료를 '닿은 순간' 1회 찬다(서버가 그 방향으로 굴림).
         private void TryKickPickups()
@@ -1102,6 +1286,9 @@ namespace Player
             {
                 if (m_Input != null && m_Input.RevertIsPressed && RevertReadyOnTarget())
                     hitGo = m_Net.VisualAt(m_AimedRevertCell);          // Z 되돌리기 대상
+                else if (HasTool && m_HeldTool == ProcessType.Bucket && m_NetBucketFilled.Value
+                         && FireNetwork.TryGetNearestBurning(transform.position, kBuildReachCells * GridContract.Unit + 2.5f, out var fc, out _))
+                    hitGo = m_Net.VisualAt(fc);                          // 물 붓기 대상(불타는 블록) — 다른 공정과 같은 초록 테두리
                 else if (HasTool && TryAimProcessCell(out var pc))
                     hitGo = m_Net.VisualAt(pc);                          // 공정 대상
                 else if (!HasMaterial && !HasTool && m_HasTarget && m_Net.IsPickupable(m_Target))
@@ -1163,7 +1350,14 @@ namespace Player
             m_HeldTool = tool;
             m_NetMaterialId.Value = -1;
             m_NetTool.Value = (int)tool;
+            if (tool == ProcessType.Bucket) m_NetBucketFilled.Value = false;   // 새로 든 양동이는 빈 상태 — 드므에서 채운다
             PlaySFX(SFXType.PickUpObject);
+        }
+
+        private void OnBucketFilledChanged(bool _, bool __)
+        {
+            if (HasTool && m_HeldTool == ProcessType.Bucket) RebuildHeldVisual();
+            else if (!IsOwner && m_NetTool.Value == (int)ProcessType.Bucket) RebuildHeldVisual();
         }
 
         private void Drop()
@@ -1578,8 +1772,10 @@ namespace Player
             }
             else if (tool != 0)   // 든 도구 — 망치(고정)는 모델, 그 외/폴백은 공정색 구
             {
+                // 양동이는 물 유무로 모델 스왑(찬 것/빈 것) — 빈 모델이 없으면 찬 모델 + 방울 표시로 폴백
                 var model = (tool & (int)ProcessType.Fixed) != 0 ? m_HammerModel
                           : (tool & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
+                          : (tool & (int)ProcessType.Bucket) != 0 ? BucketModelFor(m_NetBucketFilled.Value)
                           : null;
                 if (model != null)
                 {
@@ -1588,12 +1784,28 @@ namespace Player
                     vis.transform.localPosition = Vector3.zero;
                     m_HeldVisual.transform.localScale = Vector3.one * m_ToolModelScale;
                     foreach (var c in m_HeldVisual.GetComponentsInChildren<Collider>()) Destroy(c);
+                    // 빈 양동이 모델이 없을 때만: '찼음'을 위에 뜨는 하늘색 방울로 표시(폴백).
+                    // (물 상태가 바뀌면 OnBucketFilledChanged가 RebuildHeldVisual을 다시 불러 모델/방울이 갱신된다)
+                    if ((tool & (int)ProcessType.Bucket) != 0 && m_NetBucketFilled.Value && m_BucketEmptyModel == null)
+                    {
+                        var drop = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        drop.name = "~WaterDrop";
+                        Destroy(drop.GetComponent<Collider>());
+                        drop.transform.SetParent(m_HeldVisual.transform, false);
+                        drop.transform.localPosition = Vector3.up * 1.5f;
+                        drop.transform.localScale = Vector3.one * 0.28f;
+                        Paint(drop, new Color(0.30f, 0.80f, 1.00f));
+                    }
                 }
                 else
                 {
                     m_HeldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     m_HeldVisual.transform.localScale = Vector3.one * 0.4f;
-                    Paint(m_HeldVisual, ColorForMask(tool));
+                    // 양동이: 물 유무를 색으로 — 찬 물=밝은 하늘색, 빈 양동이=회청색
+                    Color c = (tool & (int)ProcessType.Bucket) != 0
+                        ? (m_NetBucketFilled.Value ? new Color(0.30f, 0.80f, 1.00f) : new Color(0.45f, 0.55f, 0.62f))
+                        : ColorForMask(tool);
+                    Paint(m_HeldVisual, c);
                     StripCollider(m_HeldVisual);
                 }
             }
@@ -1608,6 +1820,14 @@ namespace Player
             }
 
             Debug.Log($"[FXSync] RebuildHeld {(IsOwner ? "owner" : "remote")} mat={matId} tool={tool} visual={(m_HeldVisual != null)}", this);
+        }
+
+        // 양동이 손 모델 — 프리팹 배선이 비어 있으면 Resources 폴백(배선 누락 사고 방지). 물 유무로 스왑.
+        private GameObject BucketModelFor(bool filled)
+        {
+            if (m_BucketModel == null) m_BucketModel = Resources.Load<GameObject>("Tools/BucketModel_Fit");
+            if (m_BucketEmptyModel == null) m_BucketEmptyModel = Resources.Load<GameObject>("Tools/BucketEmpty_Fit");
+            return filled || m_BucketEmptyModel == null ? m_BucketModel : m_BucketEmptyModel;
         }
 
         // 카탈로그(드는 재료 목록)를 lazy-find — 모든 클라에서 동일 에셋.
@@ -1991,9 +2211,14 @@ namespace Player
             if (HasMaterial)
                 heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
             else if (HasTool)
-                heldStr = m_HeldTool == ProcessType.Fixed
-                    ? "🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요."
-                    : "🪣 페인트통을 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 색칠하세요.";
+                heldStr = m_HeldTool switch
+                {
+                    ProcessType.Fixed  => "🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요.",
+                    ProcessType.Bucket => m_NetBucketFilled.Value
+                        ? "💧 양동이에 물이 찼어요!  불타는 블록 근처에서  [E] 꾹 눌러 물을 부으세요."
+                        : "🪣 양동이가 비었어요!  드므(청동 항아리) 근처로 가면 물이 채워져요.",
+                    _                  => "🎨 페인트통을 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 색칠하세요.",
+                };
             else if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
                 heldStr = "✋ 이 블록을 집을 수 있어요!  [좌클릭] 으로 집어보세요.";
             else
@@ -2019,8 +2244,18 @@ namespace Player
                 bool proc = m_ProcessHold > 0f && m_ProcessCell != s_NoCell
                             && WorldToScreen(GridCoordinates.CellToWorld(m_ProcessCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
                 m_Hud.SetProcessBar(proc, sp, Mathf.Clamp01(m_ProcessHold / ProcessDurationFor(m_ProcessKind)),
-                    m_ProcessKind == ProcessType.Painted ? new Color(0.30f, 0.85f, 0.40f) : new Color(0.35f, 0.60f, 1.00f),
-                    m_ProcessKind == ProcessType.Painted ? "페인트 중…" : "고정 중…");
+                    m_ProcessKind switch
+                    {
+                        ProcessType.Painted => new Color(0.30f, 0.85f, 0.40f),
+                        ProcessType.Bucket  => new Color(0.30f, 0.80f, 1.00f),
+                        _                   => new Color(0.35f, 0.60f, 1.00f),
+                    },
+                    m_ProcessKind switch
+                    {
+                        ProcessType.Painted => "페인트 중…",
+                        ProcessType.Bucket  => "물 붓는 중…",
+                        _                   => "고정 중…",
+                    });
             }
 
             bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell

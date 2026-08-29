@@ -49,6 +49,8 @@ namespace GridSystem
         [SerializeField] private LotteGimmickConfig m_LotteGimmicks;
         [Tooltip("DDP 전용 기믹(이간수문 물길·유구 발굴터·LED 장미) 설정. 비워두면 기믹 없음.")]
         [SerializeField] private DdpGimmickConfig m_DdpGimmicks;
+        [Tooltip("경복궁 전용 기믹(화마·사방신 석상) 설정. 비워두면 기믹 없음 — 일반 맵은 그대로 두세요.")]
+        [SerializeField] private GyeongbokgungGimmickConfig m_GyeongbokgungGimmicks;
         [Tooltip("이 맵에서만 쓸 배경음악. 비운 칸은 SoundLibrary의 공용 BGM을 그대로 씁니다.")]
         [SerializeField] private MapBgm m_Bgm;
 
@@ -81,6 +83,9 @@ namespace GridSystem
 
         /// <summary>DDP 기믹 설정(null이면 이 맵엔 기믹 없음).</summary>
         public DdpGimmickConfig DdpGimmicks => m_DdpGimmicks;
+
+        /// <summary>경복궁 기믹 설정(null이면 이 맵엔 기믹 없음).</summary>
+        public GyeongbokgungGimmickConfig GyeongbokgungGimmicks => m_GyeongbokgungGimmicks;
 
         /// <summary>이 맵 전용 BGM 슬롯(비운 칸은 공용 BGM 폴백).</summary>
         public MapBgm Bgm => m_Bgm;

@@ -16,6 +16,8 @@ namespace GridSystem
         [SerializeField] private GameObject m_HammerModel;
         [Tooltip("던져진/버려진 '페인트통'(페인트 도구)의 바닥 외형 모델(PaintCan.glb). 비우면 초록 구로 폴백.")]
         [SerializeField] private GameObject m_PaintCanModel;
+        [Tooltip("던져진/버려진 '양동이'(화마 진화 도구 — 경복궁)의 바닥 외형 모델 — 바닥 양동이는 항상 빈 상태라 빈 양동이 모델(BucketEmpty_Fit)을 배선. 비우면 하늘색 구로 폴백.")]
+        [SerializeField] private GameObject m_BucketModel;
         [Tooltip("도구 픽업 모델 스케일.")]
         [SerializeField] private float m_ToolModelScale = 0.5f;
 
@@ -102,6 +104,14 @@ namespace GridSystem
                 if (p.pickupId == pickupId) { pos = p.pos; return true; }
             pos = default;
             return false;
+        }
+
+        /// <summary>서버: 현재 픽업 목록 스냅샷(기믹용 — 사방신 받침대 판정 등). into를 비우고 채운다.</summary>
+        public void ServerCollectPickups(System.Collections.Generic.List<PickupEntry> into)
+        {
+            into.Clear();
+            if (!IsServer) return;
+            foreach (var p in m_Pickups) into.Add(p);
         }
 
         /// <summary>서버: 특정 픽업 제거(케이블카 미수령 회수 등). 있었으면 true.</summary>
@@ -247,6 +257,13 @@ namespace GridSystem
             }
         }
 
+        // 양동이 바닥 모델 — 씬 배선이 비어 있으면 Resources 폴백(씬 저장 누락 사고 방지). 바닥 양동이는 항상 빈 상태.
+        private GameObject BucketModelOrFallback()
+        {
+            if (m_BucketModel == null) m_BucketModel = Resources.Load<GameObject>("Tools/BucketEmpty_Fit");
+            return m_BucketModel;
+        }
+
         // 픽업에 '통과는 그대로, 레이캐스트만 맞는' 트리거 콜라이더 부여(마우스로 가리켜 집기).
         private static void AddPickupTrigger(GameObject go, Vector3 size)
         {
@@ -262,6 +279,7 @@ namespace GridSystem
             {
                 var model = (p.toolBit & (int)ProcessType.Fixed) != 0 ? m_HammerModel
                           : (p.toolBit & (int)ProcessType.Painted) != 0 ? m_PaintCanModel
+                          : (p.toolBit & (int)ProcessType.Bucket) != 0 ? BucketModelOrFallback()
                           : null;
                 if (model != null)
                 {
@@ -278,7 +296,9 @@ namespace GridSystem
                     go.transform.localScale = Vector3.one * 0.5f;
                     var tc = go.GetComponent<Collider>();
                     if (tc != null) Destroy(tc);
-                    SetColor(go, ColorForMask(p.toolBit));
+                    SetColor(go, (p.toolBit & (int)ProcessType.Bucket) != 0
+                        ? new Color(0.30f, 0.80f, 1.00f)     // 양동이 — 하늘색(경복궁)
+                        : ColorForMask(p.toolBit));
                 }
                 go.transform.SetParent(m_Root.transform, true);
                 var tbody = go.AddComponent<PickupBody>();
