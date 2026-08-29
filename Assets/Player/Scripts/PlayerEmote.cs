@@ -10,7 +10,7 @@ namespace Player
     /// <summary>
     /// 감정표현(기획서 '인게임 소통 수단 시스템' 07/24) — 대사 11종(EmoteDefs) 전용.
     /// T 꾹 = 휠 표시, 떼면 가리킨 대사 발동. F1~F10 = 앞 10개 대사 단축키.
-    /// 발동 = 머리 위 대사 말풍선 + 보이스 재생(클립이 Resources/Voices/Emotes/에 있으면).
+    /// 발동 = 머리 위 대사 말풍선 + 보이스 재생(클립이 Resources/Voices/Emotes/&lt;캐릭터&gt;/에 있으면).
     /// 입력·연출·원격 동기화만 담당 — 들기/공정(PlayerCarry)과 분리.
     /// </summary>
     public class PlayerEmote : NetworkBehaviour
@@ -106,8 +106,10 @@ namespace Player
             // 말풍선(+ 대사별 아이콘 — 있는 대사만. '망치 갖다줘!' 등은 망치 이모티콘이 붙는다)
             EmoteBubble.ShowText(EmoteDefs.All[index].Line, EmoteDefs.Icon(index), pos);
 
-            // 보이스: 클립이 준비된 대사만 재생(3D — 멀면 작게, SFX 볼륨 슬라이더 적용)
-            var voice = EmoteDefs.Voice(index);
+            // 보이스: 말하는 플레이어의 캐릭터(달팽이/거북이/소라게) 폴더에서 찾아 재생.
+            // 캐릭터 id는 CharacterWearer가 모두에게 복제하므로 원격에서도 같은 목소리가 난다.
+            // 클립이 준비된 대사만 소리가 난다(3D — 멀면 작게, SFX 볼륨 슬라이더 적용).
+            var voice = EmoteDefs.Voice(index, CharacterSwap.CurrentId(gameObject));
             if (voice != null)
             {
                 if (SoundManager.Instance != null) SoundManager.Instance.PlaySFXAt(voice, pos);
