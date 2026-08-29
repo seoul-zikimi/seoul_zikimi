@@ -13,9 +13,13 @@ Voices/Emotes/
 **넣는 법**: 각 폴더의 README에 있는 파일 이름 그대로 오디오를 넣으면 끝입니다.
 코드 수정도, 인스펙터 드래그도 필요 없습니다. 파일이 없으면 그 칸만 무음 — 에러가 아닙니다.
 
-- [달팽이 11칸](default/README.md)
-- [거북이 11칸](char_turtle/README.md)
-- [게 11칸](char_crab/README.md)
+**현재 33칸 전부 채워져 있습니다** (VARCO 보이스, 2026-08-29):
+
+| 캐릭터 | 폴더 | VARCO 보이스 | 상태 |
+|---|---|---|---|
+| 달팽이 | [`default/`](default/README.md) | `아밀로` | 11/11 ✅ |
+| 거북이 | [`char_turtle/`](char_turtle/README.md) | `모모` | 11/11 ✅ |
+| 게 | [`char_crab/`](char_crab/README.md) | `테요` | 11/11 ✅ |
 
 ## 대사 11종 (파일 이름 ↔ 대사)
 
