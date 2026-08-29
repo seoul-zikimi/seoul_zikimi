@@ -37,4 +37,10 @@ public enum SFXType
     Dash,
     Jump,
     GameOver,
+    // ── 경복궁(08/28) — 클립: Assets/Sound/Clips/Gyeongbokgung, 연결: Tools ▸ Sound ▸ 경복궁 사운드 연결 ──
+    FireIgnite,    // 발화 순간(화마 급강하)
+    FireBurning,   // 타는 중 루프 — SoundLibrary가 아니라 Resources/Sfx/FireBurning을 화염 그룹 AudioSource가 직접 재생
+    WaterFill,     // 드므에서 물 뜨기
+    WaterPour,     // 양동이 물 붓기(진화 완료)
+    HolyChime,     // 사방신 낙하·안착·봉인(신성한 소리)
 }

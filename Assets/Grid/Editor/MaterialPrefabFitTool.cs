@@ -17,6 +17,12 @@ namespace GridSystem.EditorTools
     {
         const float kTol = 0.05f;   // 피벗·크기 허용 오차(유닛)
 
+        // 의도적으로 칸보다 크게(오버필) 래핑하는 맵 — 칸맞춤이 건드리면 안 된다.
+        // 경복궁 파츠는 GyeongbokgungModelApplyTool이 이음새를 가리려고 일부러 1.05~1.18배로 키운다.
+        // (LotteWorldAutoSetup이 에디터 로드마다 FitAll을 자동 실행하므로, 여기서 제외하지 않으면 매번 도로 쪼그라든다)
+        static bool IsExempt(MaterialDef def)
+            => AssetDatabase.GetAssetPath(def).Contains("3_Gyeongbokgung");
+
         [MenuItem("Tools/Grid/재료 프리팹 칸 맞춤(전체)")]
         public static void FitAll()
         {
@@ -39,7 +45,7 @@ namespace GridSystem.EditorTools
         /// <summary>규약 검사만(수정 없음). 문제 없으면 null, 있으면 사람이 읽을 설명 반환.</summary>
         public static string Check(MaterialDef def)
         {
-            if (def == null || def.Prefab == null) return null;
+            if (def == null || def.Prefab == null || IsExempt(def)) return null;
             // DDP 절단 조각처럼 칸을 일부만 차지하는 곡면은 의도적으로 footprint를 꽉 채우지 않는다.
             // 전역 자동 맞춤 대상에 넣으면 이미 만든 *_Fit을 다시 감싸 *_Fit_Fit이 계속 생긴다.
             if (def.FreeformVisual) return null;
@@ -78,6 +84,8 @@ namespace GridSystem.EditorTools
         static bool Fit(MaterialDef def)
         {
             if (def == null || def.Prefab == null || def.FreeformVisual) return false;
+            if (IsExempt(def)) return false;   // 오버필 의도 맵(경복궁 등) — 건드리지 않는다
+
             var fp = def.Footprint;
             var probe = (GameObject)PrefabUtility.InstantiatePrefab(def.Prefab);
             if (probe == null) probe = Object.Instantiate(def.Prefab);
@@ -88,6 +96,14 @@ namespace GridSystem.EditorTools
 
             var b = renderers[0].bounds;
             foreach (var r in renderers) b.Encapsulate(r.bounds);
+
+            // 바운즈가 0인 축이 있으면(빈/깨진 메시) 나눗셈이 무한대 스케일을 만든다 — 절대 건드리지 말 것.
+            if (b.size.x < 1e-4f || b.size.y < 1e-4f || b.size.z < 1e-4f)
+            {
+                Debug.LogWarning($"[칸맞춤] {def.name}: 렌더러 바운즈가 0인 축이 있어 건너뜀(빈/깨진 메시 의심) — 크기 {b.size}");
+                Object.DestroyImmediate(probe);
+                return false;
+            }
 
             bool pivotOk = b.min.magnitude <= kTol;
             bool sizeOk = Mathf.Abs(b.size.x - fp.x) <= kTol

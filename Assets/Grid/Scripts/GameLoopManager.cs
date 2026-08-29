@@ -48,6 +48,29 @@ namespace GridSystem
         private GridNetwork m_Net;
         private bool m_UrgentBgmStarted;
 
+        // ── 매치 시작 게이트: 전원 로딩 대기 → 동기 카운트다운 → 타이머 가동 ──
+        // 로딩 속도 편차로 늦게 들어온 사람만 시간이 깎이는 문제 방지.
+        private const float kCountdownSeconds = 3f;      // 3-2-1(각 1초) 뒤 START!
+        private const float kLoadingTimeoutSeconds = 30f; // 로딩 무한 대기 방지(끊긴 클라는 어차피 ids에서 빠짐)
+
+        private readonly NetworkVariable<float> m_CountdownStart =
+            new(-1f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 서버시각, -1=전원 로딩 대기 중
+        private readonly NetworkVariable<int> m_LoadedCount =
+            new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);      // 로딩 완료 인원(로딩바용)
+        private readonly System.Collections.Generic.HashSet<ulong> m_LoadedClients = new();             // 서버 전용
+        private float m_ServerSpawnedAt;                                                                // 서버 전용(타임아웃 기준)
+
+        private float NowNet => NetworkManager != null ? (float)NetworkManager.ServerTime.Time : Time.time;
+
+        /// <summary>전원 로딩이 끝나 카운트다운이 잡혔는가(로딩 화면 → 카운트다운 전환 신호).</summary>
+        public bool CountdownArmed => m_CountdownStart.Value >= 0f;
+        /// <summary>카운트다운 남은 초(3→0). 미시작 -1, 끝나면 음수로 계속 감소.</summary>
+        public float CountdownRemaining => CountdownArmed ? (m_CountdownStart.Value + kCountdownSeconds) - NowNet : -1f;
+        /// <summary>카운트다운까지 끝나 실제 게임(타이머·입력)이 시작됐는가.</summary>
+        public bool MatchStarted => CountdownArmed && CountdownRemaining <= 0f;
+        /// <summary>로딩 완료 인원 / 전체 인원(로딩바 표시용).</summary>
+        public int LoadedPlayerCount => m_LoadedCount.Value;
+
         public GamePhase Phase => (GamePhase)m_Phase.Value;
         public float TimeLeft => m_TimeLeft.Value;
         public bool IsBuilding => Phase == GamePhase.Building;
@@ -146,6 +169,12 @@ namespace GridSystem
                 gameObject.AddComponent<WaterGateNetwork>();
             if (!TryGetComponent<ExcavationNetwork>(out _))
                 gameObject.AddComponent<ExcavationNetwork>();
+            // 경복궁 기믹 호스트들 — 맵 카드에 GyeongbokgungGimmickConfig가 없으면 스스로 잠잔다
+            // (사방신이 화재 면역/봉인을 제공하므로 Guardian을 Fire보다 먼저 부착)
+            if (!TryGetComponent<GuardianNetwork>(out _))
+                gameObject.AddComponent<GuardianNetwork>();
+            if (!TryGetComponent<FireNetwork>(out _))
+                gameObject.AddComponent<FireNetwork>();
             // LedRoseNetwork(LED 장미 발판)는 더 이상 붙이지 않는다 — DDP 맵에서 뺀 기믹.
             // 광장 위에 분홍 원판이 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
         }
@@ -163,12 +192,38 @@ namespace GridSystem
             if (IsServer) ResetTimerAndPhase();        // 선택된 정답 기준 타이머
             OnPhaseChanged((int)Phase, (int)Phase);
             SubmitName();                              // 내 표시 이름 서버 등록(정산서 명단)
+
+            if (IsServer) m_ServerSpawnedAt = NowNet;
+            SubmitLoadedRpc();                         // 내 씬 로딩 완료 통지 → 전원 모이면 카운트다운
+        }
+
+        // ── 매치 시작 게이트(서버) ──────────────────────────────────
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void SubmitLoadedRpc(RpcParams rpc = default)
+        {
+            m_LoadedClients.Add(rpc.Receive.SenderClientId);
+        }
+
+        // 서버 Update에서 호출: 접속자 전원 로딩 완료(또는 타임아웃) 시 카운트다운 예약.
+        private void ServerTickMatchGate(System.Collections.Generic.IReadOnlyList<ulong> ids)
+        {
+            if (m_CountdownStart.Value >= 0f) return;
+
+            m_LoadedClients.RemoveWhere(id => !Contains(ids, id));   // 끊긴 클라 정리
+            m_LoadedCount.Value = m_LoadedClients.Count;
+
+            bool everyoneIn = ids.Count > 0 && m_LoadedClients.Count >= ids.Count;
+            bool timedOut = NowNet - m_ServerSpawnedAt >= kLoadingTimeoutSeconds;
+            if (everyoneIn || timedOut)
+                m_CountdownStart.Value = NowNet + 1.5f;   // 복제 지연 + 막판 합류자도 로딩 화면을 볼 시간 뒤 전원 동시 3-2-1
         }
 
         public override void OnNetworkDespawn()
         {
             m_Phase.OnValueChanged -= OnPhaseChanged;
             m_AnswerIndex.OnValueChanged -= OnAnswerIndexChanged;
+            GameplayInputBlocker.MatchGateBlocked = false;   // 씬 이탈 시 잠금 해제(로비에서 입력 막힘 방지)
         }
 
         private void OnAnswerIndexChanged(int _, int v) => m_Grid.SelectAnswer(v);
@@ -219,6 +274,11 @@ namespace GridSystem
             m_TimeLeft.Value = m_ServerTimeLeft;
             m_Phase.Value = (int)GamePhase.Building;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);
+
+            // 라운드(재)시작마다 카운트다운을 다시 잡는다 — 첫 판은 전원 로딩 후,
+            // 재시작은 전원이 이미 로딩돼 있으므로 다음 서버 틱에 바로 3-2-1이 걸린다.
+            m_CountdownStart.Value = -1f;
+            m_ServerSpawnedAt = NowNet;
         }
 
         // 서버: 2vs2 팀 배정 — 미배정 접속자를 인원 적은 팀에 순서대로. 협동 모드는 배정 안 함.
@@ -237,6 +297,9 @@ namespace GridSystem
         private void Update()
         {
             if (!IsSpawned) return;   // 스폰 전/디스폰 후엔 네트워크 상태 접근 금지(NullRef 방지)
+
+            // 전원 로딩 대기 + 카운트다운 동안 플레이어 입력 잠금(전 클라).
+            GameplayInputBlocker.MatchGateBlocked = IsBuilding && !MatchStarted;
 
             // 입력(모든 클라): Enter = 동의 토글 (건축중=종료 동의 / 종료화면=재시작 동의)
             var kb = Keyboard.current;
@@ -261,6 +324,7 @@ namespace GridSystem
             for (int i = m_Teams.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Teams[i].Id)) m_Teams.RemoveAt(i);
             AssignTeams(ids);   // 2vs2: 새 접속자 팀 배정(협동 모드는 no-op)
+            ServerTickMatchGate(ids);   // 전원 로딩 완료 → 카운트다운 예약
             if (IsBuilding && IsVersus)
             {
                 TryTeamSurrender(ids);   // 2vs2 건축중: 팀 전원 동의 = 그 팀 항복(즉시 패배)
@@ -271,9 +335,10 @@ namespace GridSystem
                 else            Restart();  // 종료 전원동의 → 재시작
             }
 
-            // 타이머 — 원본은 서버 로컬 float로 깎고, 복제는 0.1초 격자로 내려갈 때만.
+            // 타이머 — 카운트다운(START!)이 끝난 뒤부터 흐른다(로딩 편차 보정).
+            // 원본은 서버 로컬 float로 깎고, 복제는 0.1초 격자로 내려갈 때만 —
             // 매 프레임 NetworkVariable에 쓰면 경기 내내 매 틱 델타가 전송된다(표시는 초 단위라 0.1초면 충분).
-            if (IsBuilding)
+            if (IsBuilding && MatchStarted)
             {
                 m_ServerTimeLeft -= Time.deltaTime;
                 if (m_ServerTimeLeft <= 0f) { m_ServerTimeLeft = 0f; m_TimeLeft.Value = 0f; Finish(); }
@@ -410,6 +475,8 @@ namespace GridSystem
             if (TryGetComponent<ParadeNetwork>(out var parade)) parade.ServerReset();   // 롯데월드: 퍼레이드 주기 리셋
             if (TryGetComponent<WaterGateNetwork>(out var water)) water.ServerReset();  // DDP: 물길 주기 리셋
             if (TryGetComponent<ExcavationNetwork>(out var dig)) dig.ServerReset();     // DDP: 발굴터·누적 출토 리셋
+            if (TryGetComponent<GuardianNetwork>(out var guard)) guard.ServerReset();   // 경복궁: 사방신 리셋
+            if (TryGetComponent<FireNetwork>(out var fire)) fire.ServerReset();         // 경복궁: 화마 리셋
             if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋
             PickRandomAnswer();                        // 재시작마다 새 랜덤 정답
             m_Grid.SelectAnswer(m_AnswerIndex.Value);

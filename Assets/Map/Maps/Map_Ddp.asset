@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Map_Ddp
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: "DDP \uB3D9\uB300\uBB38\uB514\uC790\uC778\uD50C\uB77C\uC790"
-  m_BackgroundPrefab: {fileID: 6978133592019289367, guid: affc1de25da984d3d96b6488d057c71d, type: 3}
+  m_BackgroundPrefab: {fileID: 2402067089498921570, guid: affc1de25da984d3d96b6488d057c71d, type: 3}
   m_BackgroundPrefabPath: MapPrefabs/MapBg_Ddp
   m_Answers:
   - {fileID: 11400000, guid: cf5032aa04edecc458c5fb2c5517041d, type: 2}
@@ -36,9 +36,9 @@ MonoBehaviour:
   m_LotteGimmicks: {fileID: 0}
   m_DdpGimmicks: {fileID: 11400000, guid: 1d914fdc154ea4e4b87a542828023b08, type: 2}
   m_Bgm:
-    Building: {fileID: 0}
+    Building: {fileID: 8300000, guid: 78514bd3b79c3654c9a470f4706c83b8, type: 3}
     Urgent: {fileID: 0}
-    Result: {fileID: 0}
+    Result: {fileID: 8300000, guid: 987b350c7df2fec44888ce3171fd1364, type: 3}
   m_CompletedModel: {fileID: 8398607934909284287, guid: ab2c78436d58240c9bbeab53e8ead008, type: 3}
   m_CompletedModelPath: MapPrefabs/DDP_본관_완성
   m_CompletedModelAnchor: {x: 0, y: 0, z: 2}
