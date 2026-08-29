@@ -434,9 +434,6 @@ namespace Player
             if (m_PedestalHl != null) Destroy(m_PedestalHl);
             if (m_StatueArrow != null) Destroy(m_StatueArrow);
             if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
-            m_HammerFxPool.DestroyAll();   // 타격 FX 풀(월드에 떠 있음 — 주인 잃은 잔재 방지)
-            m_FixDoneFxPool.DestroyAll();
-            m_PaintFxPool.DestroyAll();
             m_HelpTarget = null;
             if (m_ThrowAim != null) Destroy(m_ThrowAim);
             DestroyPreview();
@@ -1587,66 +1584,8 @@ namespace Player
         private const float kSwingDown = 0.09f;   // 내려찍기 시간 = 타격 싱크 기준
         private const float kSwingBack = 0.16f;   // 복귀 시간
         private static readonly WaitForSeconds s_SwingDownWait = new WaitForSeconds(kSwingDown);
-
-        // ── CFXR 타격 이펙트 풀(컴포넌트당 타입별 2개 라운드로빈 — 원격 미러 포함) ──
-        // 연타(0.5초 간격) Instantiate+Destroy를 재사용으로 대체. PlayerBounce의 검증된 풀 규약을 따른다:
-        // clearBehavior=None으로 CFXR의 자기정리(Destroy/비활성화)를 전부 차단하고, 재생은 매번
-        // 전 시스템 개별 Stop(Clear)+Play로 명시 재시작(재생 중 Play()는 no-op이라 이 방식만 안전).
-        private sealed class PooledFx
-        {
-            private const int kSize = 2;
-            private readonly GameObject[] m_Go = new GameObject[kSize];
-            private readonly ParticleSystem[][] m_Ps = new ParticleSystem[kSize][];
-            private readonly Vector3[] m_BaseScale = new Vector3[kSize];   // 프리팹 원 스케일 — 매 재생 절대값 산출용
-            private int m_Idx;
-
-            /// <summary>pos에서 재생(없으면 생성). setup은 생성 시 1회만 — 틴트·simulationSpeed 등.</summary>
-            public void Play(GameObject prefab, Vector3 pos, float scale, System.Action<GameObject> setup)
-            {
-                int i = m_Idx; m_Idx = (m_Idx + 1) % kSize;
-                var go = m_Go[i];
-                if (go == null)
-                {
-                    go = Instantiate(prefab, pos, Quaternion.identity);
-                    // CFXR clearBehavior 기본값(Destroy)은 첫 재생 후 풀 인스턴스를 자멸시킨다 →
-                    // None으로 차단(값 설정만 — 에셋 코드 수정 아님). 수명 관리는 이 풀이 전담한다.
-                    foreach (var eff in go.GetComponentsInChildren<CartoonFX.CFXR_Effect>(true))
-                        eff.clearBehavior = CartoonFX.CFXR_Effect.ClearBehavior.None;
-                    m_Go[i] = go;
-                    m_Ps[i] = go.GetComponentsInChildren<ParticleSystem>(true);
-                    m_BaseScale[i] = go.transform.localScale;
-                    setup?.Invoke(go);
-                }
-                go.transform.position = pos;
-                go.transform.localScale = m_BaseScale[i] * scale;   // 절대값 — 재사용 시 *= 누적 축소 방지
-                if (!go.activeSelf) go.SetActive(true);
-                var systems = m_Ps[i];
-                for (int s = 0; s < systems.Length; s++)   // 시스템별 명시적 재시작(PlayerBounce와 동일)
-                {
-                    if (systems[s] == null) continue;
-                    systems[s].Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                    systems[s].Play();
-                }
-            }
-
-            public void DestroyAll()
-            {
-                for (int i = 0; i < kSize; i++)
-                    if (m_Go[i] != null) { Destroy(m_Go[i]); m_Go[i] = null; m_Ps[i] = null; }
-            }
-        }
-
-        private readonly PooledFx m_HammerFxPool = new PooledFx();
-        private readonly PooledFx m_FixDoneFxPool = new PooledFx();
-        private readonly PooledFx m_PaintFxPool = new PooledFx();
-
-        // 생성 시 1회 셋업(캐시된 정적 델리게이트 — 재생마다 클로저 할당 없음)
-        private static readonly System.Action<GameObject> s_HammerFxSetup = go =>
-        {
-            foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
-            { var main = ps.main; main.simulationSpeed = 1.5f; }   // 더 빠르게 탁! 튀고 사라짐
-        };
-        private static readonly System.Action<GameObject> s_PaintFxSetup = go => TintParticles(go, kPaintOrange);
+        // ⚠ CFXR 타격 이펙트 풀링 2회 시도(clearBehavior=Disable+루트 Play / None+시스템별 Stop+Play) 모두
+        // 실기 QA에서 스파크가 안 나와 원복. 정적 분석으로 원인 미확정 — 재도전은 에디터에서 직접 검증하며 할 것.
 
         private void SpawnHammerFx(Vector3 pos)
         {
@@ -1672,10 +1611,18 @@ namespace Player
         {
             yield return s_SwingDownWait;   // 내려찍히는 순간에 맞춤
 
-            if (big && m_FixDoneFx != null)
-                m_FixDoneFxPool.Play(m_FixDoneFx, pos, 1f, null);
-            else if (!big && m_HammerFx != null)
-                m_HammerFxPool.Play(m_HammerFx, pos, 0.65f, s_HammerFxSetup);   // 블록 스케일에 맞게 축소
+            var prefab = big ? m_FixDoneFx : m_HammerFx;
+            if (prefab != null)
+            {
+                var go = Instantiate(prefab, pos, Quaternion.identity);
+                if (!big)
+                {
+                    go.transform.localScale *= 0.65f;                                  // 블록 스케일에 맞게 축소
+                    foreach (var ps in go.GetComponentsInChildren<ParticleSystem>())
+                    { var main = ps.main; main.simulationSpeed = 1.5f; }               // 더 빠르게 탁! 튀고 사라짐
+                }
+                Destroy(go, 5f);   // CFXR 자체 정리 실패 대비 안전망
+            }
 
             var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();   // 원격 인스턴스는 m_Net 미탐색
             if (net != null)
@@ -1715,7 +1662,12 @@ namespace Player
             yield return s_SwingDownWait;   // 붓이 닿는 순간에 맞춤
 
             if (m_PaintFx != null)   // 피 튀김 이펙트를 주황으로 틴트 → 페인트 튀김
-                m_PaintFxPool.Play(m_PaintFx, pos, big ? 1f : 0.55f, s_PaintFxSetup);
+            {
+                var go = Instantiate(m_PaintFx, pos, Quaternion.identity);
+                go.transform.localScale *= big ? 1f : 0.55f;
+                TintParticles(go, kPaintOrange);
+                Destroy(go, 5f);
+            }
             else
                 GridJuice.PaintPop(pos, GridContract.Unit, big ? 1.6f : 1f);   // 프리팹 없으면 방울 폴백
 

@@ -28,7 +28,7 @@
 
 ## 완료 — 3차 (2026-08-29)
 
-- [x] **P1** `PlayerCarry.cs` — 망치/페인트/완료 CFXR FX를 컴포넌트당 타입별 2개 라운드로빈 풀로(Instantiate+Destroy 제거). 프리팹 3종 모두 clearBehavior=Destroy(자멸) 확인 → 생성 시 Disable로 전환, 재생 중 Play() no-op 대비 Stop(Clear)+Play 명시 재시작, 스케일은 프리팹 원값 기준 절대값 재계산(*= 누적 방지), WaitForSeconds(kSwingDown) 정적 캐시. *QA: 망치 E꾹 연타·페인트·고정 완료(2vs2 원격 미러 포함).*
+- [x] ~~**P1** `PlayerCarry.cs` — 망치/페인트 CFXR FX 풀링~~ **원복(2026-08-29)**: 2회 시도(① clearBehavior=Disable+루트 Play(true) ② None+전 시스템 개별 Stop(Clear)+Play, PlayerBounce 규약) 모두 실기 QA에서 스파크 미표시 — ①은 재사용부터, ②는 전면. 예외·로그 없음, 정적 분석으로 원인 미확정. Instantiate+Destroy 원상 복구(WaitForSeconds 캐시만 유지). **재도전 시 에디터에서 직접 재생 확인하며 진행할 것.**
 - [x] **P1** `GridJuice.cs` — 코드 파티클(FX당 5~20개 CreatePrimitive) Stack 풀(≤64). SetActive 재사용은 Start() 미재실행 → Reinit로 필드·타이머·MPB 명시 리셋, MakeBit의 sharedMaterial 재할당 유지(ItemFx 스파크 가산재질 오염 방지), Pop 시 Unity-null 체크. *QA: 배치/붕괴/아이템 FX.*
 - [x] **P1** `CableCarNetwork.cs` — 2초마다 씬 전체 Transform 순회 2회 → 마커·철탑(+렌더러) 캐시 후 위치만 재샘플. 씬 hierarchyCount 합 변화·캐시 파괴·캐시 없음일 때만 풀 재스캔. 경유점·루트 목록 스크래치 멤버 승격. *QA: 남산 주문→배송, 마커 이동 반영.*
 - [x] **P1** `WaterGateNetwork.cs`→`MaterialDropField.cs` — 물길 급송(0.2초 픽업당 Value 이벤트)마다 전체 Reconcile 돌던 것을 이벤트 기반으로: Value=해당 픽업만 SetTarget, Add/Insert=해당 비주얼 생성, Remove/RemoveAt=Value 페이로드로 해당 비주얼 파괴(GameObject째), Clear=전부 제거(Value 비어 있음), 미지 타입=풀 Reconcile 폴백. Reconcile 스크래치(HashSet/List) 멤버 승격. kTick 0.2→0.5는 Value 경로가 싸져 불필요해짐. *QA: DDP 물길 재료 급송·킥·줍기·늦참.*
