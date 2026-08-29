@@ -41,6 +41,7 @@
 - `Assets/Grid/Scripts/Weather3DVfxRig.cs:96` (P1·비주얼) maxParticles 절대 캡(모바일 800~1000) — 대형 맵 밀도는 startSize로 보전. 비주얼 영향 확인 필요.
 - `Assets/Grid/Scripts/ZoneFogFx.cs:59` (P2·비주얼/게임플레이) 안개 다이어트 — 시야 차단 아이템이라 기획 확인 후.
 - `Assets/Grid/Scripts/PickupBody.cs` (P3) 숨쉬기 스케일을 '~Vis' 자식 래퍼로 옮겨 콜라이더 루트 불변화(스케일 리베이크 제거).
+- `Assets/Resources/Voices/Emotes` (P3) 보이스 mp3 33종 loadType DecompressOnLoad→CompressedInMemory 검토 — 전부 로드돼도 ~수 MB라 급하지 않음(지연 로드+캐시 설계는 이미 양호). 신규 브금 4종은 Streaming+프리로드 끔으로 이미 최적.
 - 미검증 4건: CameraObstructionFader SetColor 문자열 / GridSoundBridge 리플렉션 / ItemFx.CannonShot Material 누수 의심 / (BuffBar는 처리됨).
 
 ## 남은 항목 — 프로젝트 설정 (에디터에서 변경 권장)
