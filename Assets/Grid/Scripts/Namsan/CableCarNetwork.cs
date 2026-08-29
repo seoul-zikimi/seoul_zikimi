@@ -340,23 +340,76 @@ namespace GridSystem
             }
         }
 
+        // 씬 순회 캐시: 마커·철탑 Transform은 한 번 찾아두고 2초마다 '위치만' 재샘플한다.
+        // 배경 스폰/파괴로 씬 계층 수(hierarchyCount 합)가 변할 때만 풀 재스캔(MirrorReflection과 같은 패턴).
+        // 캐시가 비어 있으면(배경이 아직 안 떴으면) 종전처럼 2초마다 재시도한다.
+        private readonly List<(int n, Transform tr)> m_WireMarkers = new();        // Spot_CableWireN(번호순 정렬)
+        private readonly List<(Transform root, Renderer[] rends)> m_PylonCache = new();   // 남산_철탑 루트 + 렌더러
+        private readonly List<GameObject> m_SceneRoots = new();                    // hierarchyCount 합산용 스크래치
+        private readonly List<(float t, Vector3 p)> m_PylonTops = new();           // 경유점 스크래치
+        private int m_ScannedHierarchy = -1;
+
+        private int SceneHierarchyCount()
+        {
+            gameObject.scene.GetRootGameObjects(m_SceneRoots);   // 비할당 오버로드
+            int n = 0;
+            for (int i = 0; i < m_SceneRoots.Count; i++) n += m_SceneRoots[i].transform.hierarchyCount;
+            return n;
+        }
+
+        private bool WireCacheValid()
+        {
+            for (int i = 0; i < m_WireMarkers.Count; i++)
+                if (m_WireMarkers[i].tr == null) return false;
+            for (int i = 0; i < m_PylonCache.Count; i++)
+            {
+                if (m_PylonCache[i].root == null) return false;
+                var rends = m_PylonCache[i].rends;
+                for (int r = 0; r < rends.Length; r++)
+                    if (rends[r] == null) return false;
+            }
+            return true;
+        }
+
+        private void RescanWireTransforms()
+        {
+            m_WireMarkers.Clear();
+            m_PylonCache.Clear();
+            foreach (var tr in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                if (tr.name.StartsWith("Spot_CableWire"))
+                {
+                    int.TryParse(tr.name.Substring("Spot_CableWire".Length), out int n);
+                    m_WireMarkers.Add((n, tr));
+                }
+                else if (tr.name.Contains("남산_철탑"))
+                {
+                    if (tr.parent != null && tr.parent.name.Contains("남산_철탑")) continue;   // 루트만
+                    var rends = tr.GetComponentsInChildren<Renderer>();
+                    if (rends.Length == 0) continue;
+                    m_PylonCache.Add((tr, rends));
+                }
+            }
+            m_WireMarkers.Sort((x, y) => x.n.CompareTo(y.n));
+        }
+
         private void BuildTeamAWire(List<Vector3> pts)
         {
             pts.Clear();
 
+            int hc = SceneHierarchyCount();
+            bool empty = m_WireMarkers.Count == 0 && m_PylonCache.Count == 0;
+            if (hc != m_ScannedHierarchy || empty || !WireCacheValid())
+            {
+                m_ScannedHierarchy = hc;
+                RescanWireTransforms();
+            }
+
             // 수동 경로 우선: 배경에 Spot_CableWire1, 2, 3… 마커가 있으면 그 위치(높이 포함)를
             // 번호 순서대로 '그대로' 통과한다 — 기획자가 선을 완전히 직접 그리는 방식.
-            var manual = new List<(int n, Vector3 p)>();
-            foreach (var tr in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            if (m_WireMarkers.Count >= 2)
             {
-                if (!tr.name.StartsWith("Spot_CableWire")) continue;
-                int.TryParse(tr.name.Substring("Spot_CableWire".Length), out int n);
-                manual.Add((n, tr.position));
-            }
-            if (manual.Count >= 2)
-            {
-                manual.Sort((x, y) => x.n.CompareTo(y.n));
-                foreach (var m in manual) pts.Add(m.p);
+                foreach (var m in m_WireMarkers) pts.Add(m.tr.position);
                 return;
             }
 
@@ -367,21 +420,17 @@ namespace GridSystem
 
             var dir = b - a;
             float dl2 = Mathf.Max(1e-4f, dir.sqrMagnitude);
-            var pylons = new List<(float t, Vector3 p)>();
-            foreach (var tr in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            m_PylonTops.Clear();
+            foreach (var (_, rends) in m_PylonCache)
             {
-                if (!tr.name.Contains("남산_철탑")) continue;
-                if (tr.parent != null && tr.parent.name.Contains("남산_철탑")) continue;   // 루트만
-                var rends = tr.GetComponentsInChildren<Renderer>();
-                if (rends.Length == 0) continue;
                 var bd = rends[0].bounds;
                 foreach (var r in rends) bd.Encapsulate(r.bounds);
                 var top = new Vector3(bd.center.x, bd.max.y - 0.15f, bd.center.z);   // 크로스암 살짝 아래
                 float t = Vector3.Dot(top - a, dir) / dl2;
-                if (t > 0.02f && t < 0.98f) pylons.Add((t, top));
+                if (t > 0.02f && t < 0.98f) m_PylonTops.Add((t, top));
             }
-            pylons.Sort((x, y) => x.t.CompareTo(y.t));
-            foreach (var p in pylons) pts.Add(p.p);
+            m_PylonTops.Sort((x, y) => x.t.CompareTo(y.t));
+            foreach (var p in m_PylonTops) pts.Add(p.p);
             pts.Add(b);
         }
 

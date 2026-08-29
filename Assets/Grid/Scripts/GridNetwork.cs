@@ -727,6 +727,10 @@ namespace GridSystem
         // → 더티 플래그만 세우고 LateUpdate에서 프레임당 1번만 재구성한다.
         private bool m_VisualsDirty, m_ScoreDirty;
 
+        /// <summary>셀 리스트 변경이 실제 반영(더티 flush)되는 프레임에 발화 — 폴링 기믹(엘리베이터 등)의
+        /// 더티 게이트용. 셀 하나짜리 이벤트 폭주(프리셋 스폰 등)도 프레임당 1회로 합쳐진다.</summary>
+        public event System.Action CellsChanged;
+
         private void OnCellsChanged(NetworkListEvent<CellEntry> _)
         {
             m_VisualsDirty = true;
@@ -735,7 +739,7 @@ namespace GridSystem
 
         private void LateUpdate()
         {
-            if (m_VisualsDirty) { m_VisualsDirty = false; RebuildVisuals(); }
+            if (m_VisualsDirty) { m_VisualsDirty = false; RebuildVisuals(); CellsChanged?.Invoke(); }
             if (m_ScoreDirty)   { m_ScoreDirty = false; if (IsServer && IsSpawned) RecomputeScore(); }   // 디스폰 직후 NetworkVariable 쓰기 방지
         }
 

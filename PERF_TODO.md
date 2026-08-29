@@ -26,18 +26,20 @@
 - [x] **P1** `GameLoopHUD.cs` UpdateResultPanel — 표시값(점수·유물·경과·승패·이름 수) 변화 프레임에만 문자열 조립·스프라이트 Load(점수 늦복제도 값 변화로 자동 갱신).
 - [x] **P2** `AnswerPanelHUD.cs` SetCompletion 조기 리턴 / `GameLoopHUD.cs` EndRequestButton 캐시+상태 키, BuffBar 초 게이트 / `PlayerCarry.cs`·`MobileControlsHUD.cs` Scene.name 캐시(+회전 힌트 사전 생성) / `PlayerDustTrail.cs`·`PlayerUnit.cs` 커스텀 트레일 hierarchyCount 캐시+상태 게이트 / `GustNetwork.cs` NonAlloc / `PickupBody.cs` 안착 후 위치 쓰기 생략 / `ItemNetwork.cs` 보유 캐시(더티 플래그)+for 치환 / `CompetitiveItemSpawnDirector.cs` 틱 버퍼 재사용.
 
+## 완료 — 3차 (2026-08-29)
+
+- [x] **P1** `PlayerCarry.cs` — 망치/페인트/완료 CFXR FX를 컴포넌트당 타입별 2개 라운드로빈 풀로(Instantiate+Destroy 제거). 프리팹 3종 모두 clearBehavior=Destroy(자멸) 확인 → 생성 시 Disable로 전환, 재생 중 Play() no-op 대비 Stop(Clear)+Play 명시 재시작, 스케일은 프리팹 원값 기준 절대값 재계산(*= 누적 방지), WaitForSeconds(kSwingDown) 정적 캐시. *QA: 망치 E꾹 연타·페인트·고정 완료(2vs2 원격 미러 포함).*
+- [x] **P1** `GridJuice.cs` — 코드 파티클(FX당 5~20개 CreatePrimitive) Stack 풀(≤64). SetActive 재사용은 Start() 미재실행 → Reinit로 필드·타이머·MPB 명시 리셋, MakeBit의 sharedMaterial 재할당 유지(ItemFx 스파크 가산재질 오염 방지), Pop 시 Unity-null 체크. *QA: 배치/붕괴/아이템 FX.*
+- [x] **P1** `CableCarNetwork.cs` — 2초마다 씬 전체 Transform 순회 2회 → 마커·철탑(+렌더러) 캐시 후 위치만 재샘플. 씬 hierarchyCount 합 변화·캐시 파괴·캐시 없음일 때만 풀 재스캔. 경유점·루트 목록 스크래치 멤버 승격. *QA: 남산 주문→배송, 마커 이동 반영.*
+- [x] **P1** `WaterGateNetwork.cs`→`MaterialDropField.cs` — 물길 급송(0.2초 픽업당 Value 이벤트)마다 전체 Reconcile 돌던 것을 이벤트 기반으로: Value=해당 픽업만 SetTarget, Add/Insert=해당 비주얼 생성, Remove/RemoveAt=Value 페이로드로 해당 비주얼 파괴(GameObject째), Clear=전부 제거(Value 비어 있음), 미지 타입=풀 Reconcile 폴백. Reconcile 스크래치(HashSet/List) 멤버 승격. kTick 0.2→0.5는 Value 경로가 싸져 불필요해짐. *QA: DDP 물길 재료 급송·킥·줍기·늦참.*
+- [x] **P2** `ElevatorNetwork.cs` — GridNetwork에 `CellsChanged` 이벤트 추가(LateUpdate 더티 flush 프레임에 1회 발화) 후 0.5초 폴링에 더티 게이트(스폰 직후 1회는 무조건 판정). *QA: 남산 전망대 완성→개통.*
+
 ## 남은 항목 — 코드
 
 - `Assets/UI/Scripts/UIManager.cs:32` (P1·설계) 인게임 HUD 전부 단일 Canvas — 동적 서브트리(타이머·버프바·로딩바)에 중첩 Canvas로 더티 격리. 레이아웃 검증 필요.
-- `Assets/Player/Scripts/PlayerCarry.cs:1383` (P1) 망치/페인트 CFXR 프리팹 Instantiate+Destroy — 컴포넌트당 타입별 2개 라운드로빈 풀. **함정**: CFXR clearBehavior 기본 Destroy(자멸)→Disable 필수, 재생 중 Play() no-op, localScale *= 누적.
-- `Assets/Grid/Scripts/GridJuice.cs:40` (P1) 코드 파티클 FX당 5~20개 CreatePrimitive — Stack 풀(≤64), 재사용 시 명시적 Reinit + sharedMaterial 재할당 유지.
-- `Assets/Grid/Scripts/Namsan/CableCarNetwork.cs` (P1) 2초마다 씬 전체 순회 — Transform 캐시+hierarchyCount 재스캔.
-- `Assets/Grid/Scripts/Ddp/WaterGateNetwork.cs` (P1) Value 이벤트면 해당 픽업만 SetTarget, 컬렉션 멤버 승격. (kTick 0.2→0.5는 선택)
 - `Assets/UI/Scripts/Game/GameHudDriver.cs:87` (P1) 1초 버튼 전수 스윕 — 인스턴스화 시 1회 부착으로 이동(동적 생성 경로 전수 확인 필요).
 - `Assets/Grid/Scripts/Weather3DVfxRig.cs:96` (P1·비주얼) maxParticles 절대 캡(모바일 800~1000) — 대형 맵 밀도는 startSize로 보전. 비주얼 영향 확인 필요.
 - `Assets/Grid/Scripts/ZoneFogFx.cs:59` (P2·비주얼/게임플레이) 안개 다이어트 — 시야 차단 아이템이라 기획 확인 후.
-- `Assets/Grid/Scripts/MaterialDropField.cs:230` (P2) Reconcile 이벤트 기반 전환 — Clear는 Value 없음·Full은 이벤트 미발화 폴백 주의.
-- `Assets/Grid/Scripts/Namsan/ElevatorNetwork.cs` (P2) GridNetwork에 CellsChanged 이벤트 추가 후 더티 게이트.
 - `Assets/Grid/Scripts/PickupBody.cs` (P3) 숨쉬기 스케일을 '~Vis' 자식 래퍼로 옮겨 콜라이더 루트 불변화(스케일 리베이크 제거).
 - 미검증 4건: CameraObstructionFader SetColor 문자열 / GridSoundBridge 리플렉션 / ItemFx.CannonShot Material 누수 의심 / (BuffBar는 처리됨).
 

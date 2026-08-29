@@ -17,6 +17,7 @@ namespace GridSystem
 
         private GridNetwork m_Net;
         private float m_NextCheck;
+        private bool m_CellsDirty = true;   // 그리드 셀이 변한 뒤에만 판정(스폰 직후 1회는 무조건 — 늦참·치트 완성 대비)
         private bool m_WarnedNoBand;   // 판정 영역에 정답 셀이 하나도 없으면 1회 경고
         private float m_RideCooldown;  // 연타로 왕복 떨림 방지
 
@@ -34,14 +35,18 @@ namespace GridSystem
         protected override void OnGimmickSpawn()
         {
             m_Open.OnValueChanged += OnOpenChanged;
+            if (m_Net != null) m_Net.CellsChanged += OnGridCellsChanged;   // 0.5초 폴링의 더티 게이트
         }
 
         public override void OnNetworkDespawn()
         {
             m_Open.OnValueChanged -= OnOpenChanged;
+            if (m_Net != null) m_Net.CellsChanged -= OnGridCellsChanged;
             DestroyVisuals();
             base.OnNetworkDespawn();
         }
+
+        private void OnGridCellsChanged() => m_CellsDirty = true;
 
         /// <summary>재시작용(서버): 다음 라운드는 다시 잠긴 상태부터.</summary>
         public void ServerReset()
@@ -54,9 +59,10 @@ namespace GridSystem
         {
             if (!Active || !IsSpawned) return;
 
-            if (IsServer && !m_Open.Value && Time.time >= m_NextCheck)
+            if (IsServer && !m_Open.Value && m_CellsDirty && Time.time >= m_NextCheck)
             {
                 m_NextCheck = Time.time + 0.5f;
+                m_CellsDirty = false;   // 다음 셀 변경까지 전체 스캔 판정 쉼
                 if (CheckObservatoryComplete()) m_Open.Value = true;
             }
 
