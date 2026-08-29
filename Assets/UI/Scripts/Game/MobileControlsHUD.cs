@@ -88,7 +88,9 @@ public sealed class MobileControlsHUD : MonoBehaviour
         WireClick("PhoneButton", MobileGameplayInput.ToggleOrder);
         WireClick("AnswerToggleButton", ToggleAnswerGhost);
         WireClick("EmoteButton", ToggleEmotes);
-        for (int i = 0; i < 8; i++)
+        // 대사 전체(EmoteDefs.Count)를 와이어링 — 프리팹 행이 모자라면 WireClick이 조용히 넘어간다.
+        // 행 수는 MobileControlsPrefabGenerator가 같은 EmoteDefs.Count로 만든다.
+        for (int i = 0; i < EmoteDefs.Count; i++)
         {
             int index = i;
             WireClick($"Emote{index + 1}", () =>

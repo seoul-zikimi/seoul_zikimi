@@ -9,7 +9,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 최초 실행 인트로 — 건축레인저 결성 컷씬 슬라이드쇼(페이드 전환) + 초기 캐릭터 선택.
 /// 완료 시 SaveService.IntroSeen 저장, 이후엔 다시 뜨지 않음(설정에서 재시청 없음 — 필요 시 IntroSeen 리셋).
-/// 카드는 Resources/Characters/{id}.prefab 이 있을 때만 선택 가능(달팽이·거북이·소라게 모두 열려 있음).
+/// 카드는 Resources/Characters/{id}.prefab 이 있을 때만 선택 가능(달팽이·거북이·게 모두 열려 있음).
 /// </summary>
 public sealed class IntroCutscene : MonoBehaviour
 {
@@ -39,16 +39,18 @@ public sealed class IntroCutscene : MonoBehaviour
     private struct Pick
     {
         public string Id;
-        public string DisplayName;
         public string PortraitPath;
-        public Pick(string id, string name, string portrait) { Id = id; DisplayName = name; PortraitPath = portrait; }
+        /// <summary>표시 이름은 CharacterCatalog가 원본 — 여기서 따로 들고 있지 않는다(옷장과 어긋나지 않게).</summary>
+        public string DisplayName => CharacterCatalog.DisplayName(Id);
+        public Pick(string id, string portrait) { Id = id; PortraitPath = portrait; }
     }
 
+    // 인트로 전용 일러스트 경로만 정한다(파일명 hermitcrab은 아트 에셋 이름이라 그대로 둠).
     private static readonly Pick[] kPicks =
     {
-        new("", "달팽이", "UI_pngs/0.intro/Select_default"),
-        new("char_turtle", "거북이", "UI_pngs/0.intro/Select_char_turtle"),
-        new("char_crab", "소라게", "UI_pngs/0.intro/Select_char_hermitcrab"),
+        new("", "UI_pngs/0.intro/Select_default"),
+        new("char_turtle", "UI_pngs/0.intro/Select_char_turtle"),
+        new("char_crab", "UI_pngs/0.intro/Select_char_hermitcrab"),
     };
 
     private const float kFadeSeconds = 0.4f;

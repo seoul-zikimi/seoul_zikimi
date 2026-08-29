@@ -28,6 +28,10 @@ namespace Player
         public const string CameraRotate = "Camera/Rotate";
         public const string CameraZoom = "Camera/Zoom";
 
+        /// <summary>F1~F(N) 단축키가 붙는 감정표현 개수. 대사를 늘리면 키도 따라 늘지만
+        /// 키보드 F열이 F12까지라 거기서 멈춘다(그 이상은 T 휠·모바일 패널로만 발동).</summary>
+        public static int EmoteHotkeyCount => Mathf.Min(EmoteDefs.Count, 12);
+
         private const string kOverridesKey = "GameplayInput.BindingOverrides.v2";
         private static InputActionRebindingExtensions.RebindingOperation s_Rebind;
         private static PlayerControls s_RebindControls;
@@ -220,7 +224,7 @@ namespace Player
             EnsureButton(player, "Throw", "<Keyboard>/g", "<Gamepad>/rightTrigger");
             EnsureButton(player, "ToggleOrder", "<Keyboard>/tab", "<Gamepad>/select");
             EnsureButton(player, "EmoteWheel", "<Keyboard>/t", "<Gamepad>/start");
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < EmoteHotkeyCount; i++)
                 EnsureKeyboardButton(player, $"Emote{i + 1}", $"<Keyboard>/f{i + 1}");
 
             EnsureBinding(camera.FindAction("Rotate", true), "<Gamepad>/rightStick", "Gamepad", "scaleVector2(x=12,y=12)");

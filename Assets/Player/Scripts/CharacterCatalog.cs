@@ -23,6 +23,16 @@ public static class CharacterCatalog
         new("char_crab", "게"),
     };
 
+    /// <summary>id의 화면 표시 이름(모르는 id면 id 그대로).
+    /// 표시 이름은 이 카탈로그가 유일한 원본 — 화면마다 따로 하드코딩하지 말 것
+    /// (인트로는 "소라게", 옷장은 "게"로 갈렸던 적이 있다).</summary>
+    public static string DisplayName(string id)
+    {
+        foreach (var entry in All)
+            if (entry.Id == id) return entry.DisplayName;
+        return id;
+    }
+
     public static GameObject LoadPrefab(string id)
         => string.IsNullOrEmpty(id) ? null : Resources.Load<GameObject>("Characters/" + id);
 
