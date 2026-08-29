@@ -20,31 +20,41 @@ namespace GridSystem
         private static MethodInfo s_SetPhaseMethod;
         private static MethodInfo s_PlayBgmMethod;
 
+        // 호출당 할당 제거: 파싱된 enum 박싱 값 캐시(실패도 null로 캐시해 반복 예외 방지) + Invoke 인자 버퍼 재사용.
+        // 효과음은 연타 중 초당 수 회 이 브릿지를 타므로 매 호출 Enum.Parse + object[] 할당이 핫패스였다.
+        private static readonly System.Collections.Generic.Dictionary<string, object> s_SfxValueCache = new();
+        private static readonly System.Collections.Generic.Dictionary<string, object> s_PhaseValueCache = new();
+        private static readonly object[] s_Args1 = new object[1];
+        private static readonly object[] s_Args2 = new object[2];
+
         public static void PlaySFX(string sfxName)
         {
-            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, out var value))
+            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, s_SfxValueCache, out var value))
                 return;
 
             s_PlaySfxMethod ??= SoundManagerType.GetMethod("PlaySFX", new[] { SfxType });
-            s_PlaySfxMethod?.Invoke(instance, new[] { value });
+            s_Args1[0] = value;
+            s_PlaySfxMethod?.Invoke(instance, s_Args1);
         }
 
         public static void PlaySFXAt(string sfxName, Vector3 worldPos)
         {
-            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, out var value))
+            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, s_SfxValueCache, out var value))
                 return;
 
             s_PlaySfxAtMethod ??= SoundManagerType.GetMethod("PlaySFXAt", new[] { SfxType, typeof(Vector3) });
-            s_PlaySfxAtMethod?.Invoke(instance, new[] { value, worldPos });
+            s_Args2[0] = value; s_Args2[1] = worldPos;
+            s_PlaySfxAtMethod?.Invoke(instance, s_Args2);
         }
 
         public static void SetPhase(string phaseName)
         {
-            if (!TryGetInstance(out var instance) || !TryParseEnum(GamePhaseType, phaseName, out var value))
+            if (!TryGetInstance(out var instance) || !TryParseEnum(GamePhaseType, phaseName, s_PhaseValueCache, out var value))
                 return;
 
             s_SetPhaseMethod ??= SoundManagerType.GetMethod("SetPhase", new[] { GamePhaseType });
-            s_SetPhaseMethod?.Invoke(instance, new[] { value });
+            s_Args1[0] = value;
+            s_SetPhaseMethod?.Invoke(instance, s_Args1);
         }
 
         /// <summary>맵 전용 BGM(SoundLibrary 미등록 곡)으로 crossfade. 같은 곡이면 SoundManager가 무시한다.</summary>
@@ -54,7 +64,8 @@ namespace GridSystem
                 return;
 
             s_PlayBgmMethod ??= SoundManagerType.GetMethod("PlayBGM", new[] { typeof(AudioClip) });
-            s_PlayBgmMethod?.Invoke(instance, new object[] { clip });
+            s_Args1[0] = clip;
+            s_PlayBgmMethod?.Invoke(instance, s_Args1);
         }
 
         /// <summary>페이즈 BGM을 걸되, 맵 카드(MapDef)에 그 페이즈용 전용 곡이 있으면 그걸 우선한다.
@@ -112,21 +123,26 @@ namespace GridSystem
 
         private static bool s_WarnedNoInstance;
 
-        private static bool TryParseEnum(Type enumType, string enumName, out object value)
+        private static bool TryParseEnum(Type enumType, string enumName,
+                                         System.Collections.Generic.Dictionary<string, object> cache, out object value)
         {
             value = null;
             if (enumType == null || string.IsNullOrEmpty(enumName))
                 return false;
 
+            if (cache.TryGetValue(enumName, out value))
+                return value != null;   // 이름 오타 등 실패도 null로 캐시 — 매 호출 예외 반복 방지
+
             try
             {
                 value = Enum.Parse(enumType, enumName);
-                return true;
             }
             catch
             {
-                return false;
+                value = null;
             }
+            cache[enumName] = value;
+            return value != null;
         }
     }
 }

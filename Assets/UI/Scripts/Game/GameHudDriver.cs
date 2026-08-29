@@ -81,12 +81,19 @@ public class GameHudDriver : MonoBehaviour
         if (SceneManager.GetActiveScene().name != SceneNames.GameScene)
             return;
 
+        // 쫀득 버튼 스윕: 상시 1초 폴링 → '동적 UI가 생겼다'는 요청이 온 프레임 + 10초 안전망만.
+        // 대부분의 생성처(JobsnailUiKit·AnswerPanelHUD 등)는 자체 Attach라 스윕은 빠뜨린 경로의 자가 치유용.
         m_JuicySweep -= Time.unscaledDeltaTime;
-        if (m_JuicySweep > 0f) return;
-        m_JuicySweep = 1f;
+        if (!s_JuicySweepRequested && m_JuicySweep > 0f) return;
+        s_JuicySweepRequested = false;
+        m_JuicySweep = 10f;
         foreach (var b in FindObjectsByType<UnityEngine.UI.Button>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             JuicyButton.Attach(b);
     }
+
+    private static bool s_JuicySweepRequested = true;   // 씬 진입 첫 프레임 1회
+    /// <summary>동적으로 버튼을 만든 쪽이 호출 — 다음 프레임에 스윕 1회(UIManager가 HUD·팝업 생성 시 자동 호출).</summary>
+    public static void RequestJuicySweep() => s_JuicySweepRequested = true;
     private void OnDisable()
     {
         MaterialDepot.Spawned   -= OnDepotSpawned;

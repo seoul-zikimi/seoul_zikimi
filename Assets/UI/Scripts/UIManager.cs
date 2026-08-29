@@ -69,6 +69,7 @@ public class UIManager : Singleton<UIManager>
         JobsnailUiKit.ApplyFontPolicy(go.transform);
         ui.Init();
         _hudCache[typeof(T)] = ui;
+        GameHudDriver.RequestJuicySweep();   // 새 HUD의 버튼들 쫀득 부착(상시 폴링 대체)
         return ui;
     }
 
@@ -90,6 +91,7 @@ public class UIManager : Singleton<UIManager>
         JobsnailUiKit.ApplyFontPolicy(go.transform);
         go.transform.SetAsLastSibling();
         popup.Init();
+        GameHudDriver.RequestJuicySweep();   // 새 팝업의 버튼들 쫀득 부착(상시 폴링 대체)
         return popup;
     }
 
@@ -123,6 +125,7 @@ public class UIManager : Singleton<UIManager>
         JobsnailUiKit.ApplyFontPolicy(go.transform);
         go.transform.SetAsLastSibling();
         popup.Init();
+        GameHudDriver.RequestJuicySweep();   // 새 시스템 팝업의 버튼들 쫀득 부착(상시 폴링 대체)
         return popup;
     }
 

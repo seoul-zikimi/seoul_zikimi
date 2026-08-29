@@ -20,6 +20,8 @@ namespace Player
         [SerializeField] float m_FadeSpeed  = 10f;     // 페이드 인/아웃 속도(클수록 빠름)
         [SerializeField] bool  m_DebugDraw  = false;   // true면 레이 시각화(빨간선) + 페이드 로그
 
+        static readonly int s_BaseColorId = Shader.PropertyToID("_BaseColor");   // 페이드 핫패스 문자열 룩업 제거
+
         Transform m_Target;                            // 카메라가 바라보는 지점(보통 CameraArm = 허리 높이)
         int       m_Mask;                              // 가림 판정 레이어(물/UI/Ignore Raycast 제외)
 
@@ -132,7 +134,7 @@ namespace Player
                     if (m == null) continue;
                     var c = e.baseColors[i];
                     c.a = a;
-                    m.SetColor("_BaseColor", c);
+                    m.SetColor(s_BaseColorId, c);   // 페이드 중 매 프레임 경로 — 문자열 프로퍼티 룩업 제거
                 }
             }
 
@@ -217,7 +219,7 @@ namespace Player
                     { ghost.SetTexture("_BaseMap", src.GetTexture(name)); break; }
             }
             c.a = 1f;
-            ghost.SetColor("_BaseColor", c);
+            ghost.SetColor(s_BaseColorId, c);
             return c;
         }
 
