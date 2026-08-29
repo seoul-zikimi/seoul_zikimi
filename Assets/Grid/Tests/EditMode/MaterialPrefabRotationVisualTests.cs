@@ -20,6 +20,8 @@ namespace GridSystem.Tests
             {
                 var def = AssetDatabase.LoadAssetAtPath<MaterialDef>(AssetDatabase.GUIDToAssetPath(guid));
                 if (def == null || def.Prefab == null) continue;
+                if (MaterialPrefabContractTests.IsOverfillExempt(def)) continue;   // 경복궁 의도적 오버필(이음새 가림)
+                if (def.FreeformVisual) continue;   // DDP 곡면 조각 — 칸 부분 점유가 정상이고 회전 자동 보정도 끈 형상(계약 테스트들과 같은 스킵)
                 var fp = def.Footprint;
 
                 for (int rot = 0; rot < 4; rot++)

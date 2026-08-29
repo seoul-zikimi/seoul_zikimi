@@ -47,19 +47,21 @@ namespace GridSystem
             m_Ps = gameObject.AddComponent<ParticleSystem>();
             m_Ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);   // 설정 전 정지
 
+            // 오버드로 다이어트: 이 연출은 '남이 보는 걸림 표시'라(당한 팀 화면은 TeamWeatherFx 카메라 포그 담당)
+            // 밀도를 줄여도 아이템의 시야 차단 효과는 불변 — 구름 수 절반, 대신 크게·살짝 진하게(같은 덮임 체감).
             var main = m_Ps.main;
             main.loop = true;
             main.prewarm = true;   // 시전 즉시 가득 찬 안개(피드백은 즉각성이 생명)
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.startLifetime = 8f;
             main.startSpeed = 0f;
-            main.startSize = new ParticleSystem.MinMaxCurve(4.5f, 8f);
+            main.startSize = new ParticleSystem.MinMaxCurve(5.5f, 9.5f);
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-            main.startColor = new Color(0.78f, 0.81f, 0.86f, 0.55f);
-            main.maxParticles = 300;
+            main.startColor = new Color(0.78f, 0.81f, 0.86f, 0.62f);
+            main.maxParticles = 150;
 
             var emission = m_Ps.emission;
-            emission.rateOverTime = zone.size.x * zone.size.z / 12f;   // 존 넓이에 비례(13×13 ≈ 14/s)
+            emission.rateOverTime = zone.size.x * zone.size.z / 24f;   // 존 넓이에 비례(13×13 ≈ 7/s, 정상상태 ~56구름)
 
             var shape = m_Ps.shape;
             shape.shapeType = ParticleSystemShapeType.Box;

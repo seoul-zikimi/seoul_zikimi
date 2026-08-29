@@ -433,26 +433,58 @@ public class AnswerPanelHUD : UIHUD
         orderLabel.fontStyle = FontStyle.Bold;
         UpdateOrderButton();
 
-        // 폰 내리기 — 화면 하단 중앙(폰 프레임과 살짝 겹침, 기획서의 '이거 누르면 폰 내려짐')
-        var closeGo = NewRect("ClosePhone", transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 10f), new Vector2(320f, 62f));
-        closeGo.AddComponent<NoJuicyButtonMotion>();   // GameHudDriver의 JuicyButton 스윕에서 제외(모바일 무모션 정책)
-        var closeImg = closeGo.AddComponent<Image>();
-        closeImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
-        closeImg.type = Image.Type.Sliced;
-        closeImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
-        var close = closeGo.AddComponent<Button>();
-        close.targetGraphic = closeImg;
-        if (m_ExpandedView) close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
-        else                close.onClick.AddListener(ToggleCollapsed);   // 모바일 → 폰 내리기
+        GameObject closeGo;
+        if (m_ExpandedView)
+        {
+            // PC 확대 보기: 기존 하단 [작게 보기 ▾] 버튼 유지
+            closeGo = NewRect("ClosePhone", transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 10f), new Vector2(320f, 62f));
+            closeGo.AddComponent<NoJuicyButtonMotion>();   // GameHudDriver의 JuicyButton 스윕에서 제외(모바일 무모션 정책)
+            var closeImg = closeGo.AddComponent<Image>();
+            closeImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            closeImg.type = Image.Type.Sliced;
+            closeImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
+            var close = closeGo.AddComponent<Button>();
+            close.targetGraphic = closeImg;
+            close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
+            var closeLabel = MakeTextPx(closeGo.transform, "작게 보기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
+            closeLabel.color = ink;
+            closeLabel.fontStyle = FontStyle.Bold;
+        }
+        else
+        {
+            // 모바일: 하단 [폰 내리기] 버튼 대신 ① 폰 밖 아무데나 터치 = 내리기(투명 전면 오버레이, 폰 뒤에 깔림)
+            // ② 폰 우상단 X 버튼. (하단 버튼이 아이폰 홈 제스처 영역과 겹치고, 밖-터치가 더 직관적이라는 피드백)
+            closeGo = NewRect("PhoneDismissOverlay", transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            closeGo.AddComponent<NoJuicyButtonMotion>();
+            var overlayImg = closeGo.AddComponent<Image>();
+            overlayImg.color = new Color(0f, 0f, 0f, 0f);   // 완전 투명 — 터치만 받는다
+            var overlayBtn = closeGo.AddComponent<Button>();
+            overlayBtn.targetGraphic = overlayImg;
+            overlayBtn.transition = Selectable.Transition.None;
+            overlayBtn.onClick.AddListener(ToggleCollapsed);
+            closeGo.transform.SetSiblingIndex(m_Phone.transform.GetSiblingIndex());   // 폰보다 뒤(아래) — 폰 위 터치는 폰이 먹는다
+
+            // X 버튼 — 폰(베젤)의 자식이라 폰 표시/숨김에 자동 동행
+            var xGo = NewRect("CloseX", m_Phone.transform, Vector2.one, Vector2.one,
+                new Vector2(-22f, -22f), new Vector2(64f, 64f));
+            xGo.AddComponent<NoJuicyButtonMotion>();
+            var xImg = xGo.AddComponent<Image>();
+            xImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            xImg.type = Image.Type.Sliced;
+            xImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
+            var xBtn = xGo.AddComponent<Button>();
+            xBtn.targetGraphic = xImg;
+            xBtn.onClick.AddListener(ToggleCollapsed);
+            var xLabel = MakeTextPx(xGo.transform, "✕", Vector2.zero, new Vector2(64f, 64f), 30, TextAnchor.MiddleCenter);
+            xLabel.color = ink;
+            xLabel.fontStyle = FontStyle.Bold;
+        }
         m_Collapsed = false;
         if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
         PhoneVisibilityChanged?.Invoke(!m_Collapsed);
         closeGo.SetActive(!m_Collapsed);
-        m_LandscapeClose = closeGo;
-        var closeLabel = MakeTextPx(closeGo.transform, m_ExpandedView ? "작게 보기 ▾" : "폰 내리기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
-        closeLabel.color = ink;
-        closeLabel.fontStyle = FontStyle.Bold;
+        m_LandscapeClose = closeGo;   // 기존 표시/숨김 동기화 그대로 재사용(모바일에선 오버레이가 그 역할)
     }
 
     // 폰(1800x940 고정 저작 크기)을 화면 크기에 맞춰 축소. 16:9에선 1배(여백 유지), 세로 태블릿 등에선 알아서 줄어든다.
