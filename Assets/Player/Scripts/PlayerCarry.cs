@@ -1589,13 +1589,14 @@ namespace Player
         private static readonly WaitForSeconds s_SwingDownWait = new WaitForSeconds(kSwingDown);
 
         // ── CFXR 타격 이펙트 풀(컴포넌트당 타입별 2개 라운드로빈 — 원격 미러 포함) ──
-        // 연타(0.5초 간격) Instantiate+Destroy를 재사용으로 대체. 재생 중인 ParticleSystem에 Play()는
-        // no-op이라 공유 풀 하나로는 동시 작업 시 버스트가 빠진다 → 타입별 2개를 명시적 재시작으로 돌린다.
+        // 연타(0.5초 간격) Instantiate+Destroy를 재사용으로 대체. PlayerBounce의 검증된 풀 규약을 따른다:
+        // clearBehavior=None으로 CFXR의 자기정리(Destroy/비활성화)를 전부 차단하고, 재생은 매번
+        // 전 시스템 개별 Stop(Clear)+Play로 명시 재시작(재생 중 Play()는 no-op이라 이 방식만 안전).
         private sealed class PooledFx
         {
             private const int kSize = 2;
             private readonly GameObject[] m_Go = new GameObject[kSize];
-            private readonly ParticleSystem[] m_Ps = new ParticleSystem[kSize];
+            private readonly ParticleSystem[][] m_Ps = new ParticleSystem[kSize][];
             private readonly Vector3[] m_BaseScale = new Vector3[kSize];   // 프리팹 원 스케일 — 매 재생 절대값 산출용
             private int m_Idx;
 
@@ -1608,22 +1609,23 @@ namespace Player
                 {
                     go = Instantiate(prefab, pos, Quaternion.identity);
                     // CFXR clearBehavior 기본값(Destroy)은 첫 재생 후 풀 인스턴스를 자멸시킨다 →
-                    // 재생이 끝나면 스스로 비활성화되도록 전환(값 설정만 — 에셋 코드 수정 아님).
+                    // None으로 차단(값 설정만 — 에셋 코드 수정 아님). 수명 관리는 이 풀이 전담한다.
                     foreach (var eff in go.GetComponentsInChildren<CartoonFX.CFXR_Effect>(true))
-                        eff.clearBehavior = CartoonFX.CFXR_Effect.ClearBehavior.Disable;
+                        eff.clearBehavior = CartoonFX.CFXR_Effect.ClearBehavior.None;
                     m_Go[i] = go;
-                    m_Ps[i] = go.GetComponent<ParticleSystem>();
+                    m_Ps[i] = go.GetComponentsInChildren<ParticleSystem>(true);
                     m_BaseScale[i] = go.transform.localScale;
                     setup?.Invoke(go);
                 }
                 go.transform.position = pos;
                 go.transform.localScale = m_BaseScale[i] * scale;   // 절대값 — 재사용 시 *= 누적 축소 방지
                 if (!go.activeSelf) go.SetActive(true);
-                if (m_Ps[i] != null)
+                var systems = m_Ps[i];
+                for (int s = 0; s < systems.Length; s++)   // 시스템별 명시적 재시작(PlayerBounce와 동일)
                 {
-                    // 아직 재생 중인 인스턴스를 다시 받았을 때도 버스트가 확실히 나가게 명시적 재시작.
-                    m_Ps[i].Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                    m_Ps[i].Play(true);
+                    if (systems[s] == null) continue;
+                    systems[s].Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                    systems[s].Play();
                 }
             }
 
