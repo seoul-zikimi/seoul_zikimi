@@ -7,10 +7,17 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 모바일 컨트롤 프리팹 생성기 — 기획서 레이아웃(배틀그라운드식):
-///  좌하단 조이스틱 / 우하단 점프·던지기·공정·공정취소 클러스터 /
+/// 모바일 컨트롤 프리팹 '초기' 생성기 — 기획서 레이아웃(배틀그라운드식):
+///  좌하단 조이스틱 / 우하단 점프·던지기·공정 클러스터(+알약형 공정취소) /
 ///  좌상단 눈 아이콘(정답 고스트 토글) / 우상단 감정표현 드롭다운 / 하단 중앙 휴대폰.
 /// 스타일: 반투명 라이트 그레이 원형 버튼 + 짙은 회색 텍스트(미니멀 플랫).
+///
+/// ⚠ 운영 원칙(2026-08-30 확정): 레이아웃의 소스 오브 트루스는 이 코드가 아니라
+/// **MobileControlsCanvas.prefab 자체**다. 위치·크기 조정은 프리팹을 더블클릭해 프리팹 모드에서
+/// 직접 옮기고 저장하면 된다(에디트 모드 — 저장됨). 이 메뉴는 프리팹을 처음 만들거나 구조 자체를
+/// 갈아엎을 때만 쓰고, 실행하면 수동 편집이 전부 덮어써지므로 확인 대화상자를 띄운다.
+/// 단, 오브젝트 '이름'은 바꾸면 안 된다 — MobileControlsHUD가 이름으로 와이어링한다(WireClick).
+/// 감정표현 행(Emote1..N)은 런타임 RebuildEmoteRows가 재배치하므로 수동 조정 대상이 아니다.
 /// </summary>
 public static class MobileControlsPrefabGenerator
 {
@@ -34,6 +41,15 @@ public static class MobileControlsPrefabGenerator
     [MenuItem("Jobsnail/UI/Mobile/Generate Mobile Controls Prefab")]
     public static void Generate()
     {
+        // 소스 오브 트루스는 프리팹(수동 편집) — 이미 있으면 덮어쓰기 전에 반드시 확인받는다.
+        if (File.Exists(kPrefabPath) && !EditorUtility.DisplayDialog(
+                "모바일 컨트롤 프리팹 재생성",
+                "MobileControlsCanvas.prefab을 코드 기본 레이아웃으로 다시 만듭니다.\n\n" +
+                "⚠ 프리팹 모드에서 수동으로 조정한 위치·크기가 전부 덮어써집니다.\n" +
+                "위치만 바꾸려면 취소하고 프리팹을 직접 편집하세요.",
+                "덮어쓰고 재생성", "취소"))
+            return;
+
         Directory.CreateDirectory(kDirectory);
         var root = new GameObject("MobileControlsCanvas", typeof(RectTransform), typeof(Canvas),
             typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(NoJuicyButtonMotion), typeof(MobileControlsHUD));
