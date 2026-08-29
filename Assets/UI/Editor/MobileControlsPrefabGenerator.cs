@@ -198,8 +198,8 @@ public static class MobileControlsPrefabGenerator
         // 기획서 외 보조 버튼(기능 유지) — 클러스터 왼쪽에 작고 옅게.
         // 좌표는 실기기에서 엄지 닿는 위치로 직접 튜닝한 값(2026-08-30). 공정취소(-500..-350, y150..300)와
         // 살짝 겹치지만 회전=재료 든 상태·공정취소=공정 중이라 동시에 뜨는 상황이 없다 — 동시 노출이 생기면 재배치.
-        SmallButton("RotateButton", parent, "회전", new Vector2(-383f, 190f), bottomRight);
-        SmallButton("ScaffoldButton", parent, "비계", new Vector2(-326f, 315f), bottomRight);
+        SmallButton("RotateButton", parent, "회전", new Vector2(-381f, 190f), bottomRight);
+        SmallButton("ScaffoldButton", parent, "비계", new Vector2(-335f, 315f), bottomRight);
     }
 
     private static void BuildPhoneButton(Transform parent)
