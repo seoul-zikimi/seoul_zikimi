@@ -254,10 +254,21 @@ public sealed class MobileControlsHUD : MonoBehaviour
             m_EmotePanel.SetActive(!m_EmotePanel.activeSelf);
     }
 
-    private static void SetActionVisible(GameObject target, bool visible)
+    // 사용 불가 버튼을 숨기는 대신 반투명으로 — 버튼이 '까꿍' 나타나지 않고 항상 제자리에 있다(기획 피드백 2026-08-30).
+    // 비활성 동안엔 터치도 통과시켜(blocksRaycasts=false) 그 자리의 카메라 드래그·월드 탭을 막지 않는다.
+    private const float kDisabledAlpha = 0.35f;
+
+    private static void SetActionVisible(GameObject target, bool available)
     {
-        if (target != null && target.activeSelf != visible)
-            target.SetActive(visible);
+        if (target == null) return;
+        if (!target.activeSelf) target.SetActive(true);   // 프리팹에 숨김으로 저장돼 있던 상태 복구
+        var cg = target.GetComponent<CanvasGroup>();
+        if (cg == null) cg = target.AddComponent<CanvasGroup>();
+        float a = available ? 1f : kDisabledAlpha;
+        if (cg.alpha == a) return;
+        cg.alpha = a;
+        cg.interactable = available;
+        cg.blocksRaycasts = available;
     }
 
     private void WireClick(string objectName, UnityEngine.Events.UnityAction action)

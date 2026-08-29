@@ -137,7 +137,7 @@ public static class MobileControlsPrefabGenerator
     private static void BuildJoystick(Transform parent)
     {
         var baseRt = Rect("MoveJoystick", parent, Vector2.zero, Vector2.zero,
-            new Vector2(220f, 215f), new Vector2(300f, 300f));
+            new Vector2(145f, 173f), new Vector2(300f, 300f));   // 실기기 엄지 위치 튜닝값(2026-08-30)
         var baseImage = baseRt.gameObject.AddComponent<Image>();
         baseImage.sprite = CircleSprite();
         baseImage.color = new Color(0.94f, 0.94f, 0.93f, 0.38f);
@@ -191,8 +191,15 @@ public static class MobileControlsPrefabGenerator
             new Vector2(-400f, 470f), new Vector2(165f, 165f), bottomRight);
         processButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Process);
 
-        var revertButton = ActionButton("RevertButton", parent, "공정\n취소",
-            new Vector2(-425f, 225f), new Vector2(150f, 150f), bottomRight);
+        // 공정취소: 원형 클러스터에서 빼서 감정표현처럼 '알약형'으로, 우측 상단 클러스터 위에(기획 프로토타입 2026-08-30).
+        var revertButton = Rect("RevertButton", parent, bottomRight, bottomRight,
+            new Vector2(-183f, 353f), new Vector2(220f, 70f));
+        var revertImg = revertButton.gameObject.AddComponent<Image>();
+        revertImg.sprite = RoundSprite(); revertImg.type = Image.Type.Sliced; revertImg.color = BtnFill;
+        var revertBtn = revertButton.gameObject.AddComponent<Button>();
+        revertBtn.targetGraphic = revertImg;
+        SetFlatColors(revertBtn, BtnFill);
+        Label("Label", revertButton, "공정취소", 30, Ink);
         revertButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Revert);
 
         // 기획서 외 보조 버튼(기능 유지) — 클러스터 왼쪽에 작고 옅게.
