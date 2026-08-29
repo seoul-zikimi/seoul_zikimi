@@ -173,8 +173,11 @@ namespace GridSystem.EditorTools
             if (rends.Length == 0) { Object.DestroyImmediate(root); return null; }
             var wb = rends[0].bounds;
             foreach (var r in rends) wb.Encapsulate(r.bounds);
+            // 조각 절단은 정점을 (z, y, -x)로 돌린다 = Euler(0, +90°, 0). 완성체도 같은 방향이어야
+            // 완공 계획도·정답 고스트가 조각 배치와 일치한다 — -90°로 돌리면 180° 뒤집혀
+            // '뾰족한 끝이 반대편에 표시되는' 정답 UI가 된다.
             bool yaw = wb.size.z > wb.size.x;
-            if (yaw) inst.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            if (yaw) inst.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
 
             inst.transform.localScale = Vector3.one * k;
 

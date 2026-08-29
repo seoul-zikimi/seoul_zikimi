@@ -252,7 +252,7 @@ namespace GridSystem
             if (o.def != null && o.def.Prefab != null)
             {
                 go = Object.Instantiate(o.def.Prefab, parent);
-                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u);
+                GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u, autoYaw: !o.def.FreeformVisual);
             }
             else
             {

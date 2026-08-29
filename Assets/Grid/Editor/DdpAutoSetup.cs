@@ -57,8 +57,10 @@ namespace GridSystem.EditorTools
         ///     건너며, 원호가 z>-4로 안 넘어가 끝자락이 데크에 파묻히지도 않는다. 난간 안팎 양쪽.
         ///     램프 발자국을 피해 발굴터 B(4→1)·C(14→20)와 스폰(2,-16 → -1,-16.5)을 이동.
         /// 13: 나선램프를 연속 리본에서 '낱장 패널 나선 계단'으로 — 원호·시작·도착은 12와 동일,
-        ///     수평 패널 16장이 0.25m씩 층지며 틈(~0.27m)을 두고 떠 있는 형태(점프 없이 걸어 오름).</summary>
-        private const int kSetupVersion = 13;
+        ///     수평 패널 16장이 0.25m씩 층지며 틈(~0.27m)을 두고 떠 있는 형태(점프 없이 걸어 오름).
+        /// 14: 완성체(DDP_본관_완성) 회전 교정 -90° → +90° — 절단 조각(정점 +90° 회전)과 반대라
+        ///     완공 계획도·정답 고스트가 실제 정답과 180° 뒤집혀 보이던 문제. 완성체 재생성 필요.</summary>
+        private const int kSetupVersion = 14;
 
         private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
 

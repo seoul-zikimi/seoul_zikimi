@@ -2070,7 +2070,10 @@ namespace Player
             foreach (var c in m_Preview.GetComponentsInChildren<Collider>()) Destroy(c);
             MakePreviewTransparent(m_Preview, 0.85f);   // 커서 프리뷰는 거의 원색 — 흐린 흰색 고스트로 보이던 문제
             // cellWorldMin=0으로 배치 → 결과 position = 순수 피벗 오프셋(이후 CellToWorld(minCell)에 더함). 회전은 여기서 확정.
-            GridFootprint.PlaceRotatedPrefab(m_Preview, Vector3.zero, m_HeldMaterial.Footprint, m_Rotation, GridContract.Unit);
+            // autoYaw는 실제 배치(GridNetwork.SpawnPrefabVisual)와 동일하게 자유 형상엔 끈다 —
+            // 안 그러면 곡면 조각(DDP)의 커서 프리뷰만 90° 돌아가 실제 세워지는 자리와 어긋난다.
+            GridFootprint.PlaceRotatedPrefab(m_Preview, Vector3.zero, m_HeldMaterial.Footprint, m_Rotation, GridContract.Unit,
+                                             autoYaw: !m_HeldMaterial.FreeformVisual);
             m_PreviewOffset = m_Preview.transform.position;
             m_PreviewKey = key;
         }
