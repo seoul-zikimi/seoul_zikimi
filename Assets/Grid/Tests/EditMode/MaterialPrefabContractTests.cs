@@ -14,6 +14,11 @@ namespace GridSystem.Tests
     {
         const float kTol = 0.05f;
 
+        /// <summary>경복궁 파츠는 이음새를 가리려고 '일부러' 1.05~1.18배 오버필로 래핑한다 —
+        /// 칸맞춤 검사 면제(MaterialPrefabFitTool.IsExempt와 같은 규칙. 툴에 면제가 생겼는데 테스트가 몰라 CI에서 오탐).</summary>
+        internal static bool IsOverfillExempt(MaterialDef def)
+            => AssetDatabase.GetAssetPath(def).Contains("3_Gyeongbokgung");
+
         static System.Collections.Generic.IEnumerable<MaterialDef> AllDefs()
         {
             foreach (var guid in AssetDatabase.FindAssets("t:MaterialDef"))
@@ -46,6 +51,7 @@ namespace GridSystem.Tests
             foreach (var def in AllDefs())
             {
                 if (def.FreeformVisual) continue;   // 큰 모델을 자른 조각 — 피벗은 '칸의 min-corner'라 메시 바운즈와 다르다
+                if (IsOverfillExempt(def)) continue;   // 경복궁 의도적 오버필
                 if (!TryBounds(def.Prefab, out var b)) continue;
                 Assert.LessOrEqual(b.min.magnitude, kTol,
                     $"[{def.name}] 프리팹 '{def.Prefab.name}' 피벗이 min-corner가 아님(바운드 min {b.min}) — " +
@@ -59,6 +65,7 @@ namespace GridSystem.Tests
             foreach (var def in AllDefs())
             {
                 if (def.FreeformVisual) continue;   // 곡면 조각은 칸을 꽉 채우지 않는다 — 늘리면 조각끼리 곡면이 어긋난다
+                if (IsOverfillExempt(def)) continue;   // 경복궁 의도적 오버필
                 if (!TryBounds(def.Prefab, out var b)) continue;
                 var fp = def.Footprint;
                 Assert.IsTrue(Mathf.Abs(b.size.x - fp.x) <= kTol &&
