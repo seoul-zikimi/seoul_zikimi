@@ -24,7 +24,9 @@ namespace GridSystem.EditorTools
     public static class DdpMapTool
     {
         private const string kDir         = "Assets/Prefabs/Map/4_Ddp";
-        private const string kPrefabPath  = "Assets/Map/Prefabs/MapBg_Ddp.prefab";
+        // 배경 프리팹은 빌드가 Resources 경로로 지연 로드한다(MapDef.m_BackgroundPrefabPath — iOS 로비 메모리 보호).
+        // 예전 경로(Assets/Map/Prefabs)에 저장하면 재생성 때마다 맵 카드가 Resources 밖을 가리키게 회귀한다.
+        private const string kPrefabPath  = "Assets/Resources/MapPrefabs/MapBg_Ddp.prefab";
         private const string kMapDefPath  = "Assets/Map/Maps/Map_Ddp.asset";
         private const string kAnswerPath  = kDir + "/Ans_Ddp.asset";
         private const string kConfigPath  = kDir + "/DdpGimmickConfig_Ddp.asset";
