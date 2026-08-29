@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.Generic;
+using Player;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -23,8 +24,10 @@ public static class MobileControlsPrefabGenerator
     private static readonly Color InkSoft = new(0.20f, 0.20f, 0.19f, 0.72f);
     private static readonly Color PanelFill = new(0.96f, 0.96f, 0.95f, 0.97f);
 
-    private static readonly string[] kEmoteNames =
-        { "하트깨짐", "반함", "멋짐", "붐업", "메롱", "힘듦", "폭소", "미소" };
+    // 감정표현 행 크기 — 대사 11종이 우상단 버튼 아래에 다 들어가도록 기존(48/56)보다 조금 좁혔다.
+    private const float kEmoteRowHeight = 44f;
+    private const float kEmoteRowStep = 48f;
+    private const float kEmotePanelTop = -213f;   // EmoteButton(y -170, 높이 70) 바로 아래
 
     [MenuItem("Jobsnail/UI/Mobile/Generate Mobile Controls Prefab")]
     public static void Generate()
@@ -221,18 +224,24 @@ public static class MobileControlsPrefabGenerator
         SetFlatColors(btn, BtnFill);
         Label("Label", button, "감정표현 ▾", 24, Ink);
 
+        // 행 수·라벨의 원본은 EmoteDefs — 대사를 추가/수정하면 이 메뉴를 다시 돌리기만 하면 된다.
+        // (예전엔 옛 이모지 이름 8개가 여기 하드코딩돼 있어, 라벨과 실제로 나가는 대사가 서로 달랐다.)
+        int count = EmoteDefs.Count;
+        float height = count * kEmoteRowStep + 16f;
         var panel = Panel("EmotePanel", parent, Vector2.one, Vector2.one,
-            new Vector2(-130f, -445f), new Vector2(220f, 464f), PanelFill);
-        for (int i = 0; i < kEmoteNames.Length; i++)
+            new Vector2(-130f, kEmotePanelTop - height * 0.5f), new Vector2(220f, height), PanelFill);
+
+        float firstRowY = height * 0.5f - 8f - kEmoteRowHeight * 0.5f;
+        for (int i = 0; i < count; i++)
         {
             var rt = Rect($"Emote{i + 1}", panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 200f - i * 56f), new Vector2(196f, 48f));
+                new Vector2(0f, firstRowY - i * kEmoteRowStep), new Vector2(196f, kEmoteRowHeight));
             var img = rt.gameObject.AddComponent<Image>();
             img.sprite = RoundSprite(); img.type = Image.Type.Sliced;
             img.color = new Color(0.90f, 0.90f, 0.89f, 1f);
             var rowBtn = rt.gameObject.AddComponent<Button>(); rowBtn.targetGraphic = img;
             SetFlatColors(rowBtn, img.color);
-            Label("Label", rt, kEmoteNames[i], 21, Ink);
+            Label("Label", rt, EmoteDefs.All[i].Line, 20, Ink);
         }
     }
 

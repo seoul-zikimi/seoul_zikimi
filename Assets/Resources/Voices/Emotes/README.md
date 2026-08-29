@@ -6,7 +6,7 @@
 Voices/Emotes/
 ├── default/      ← 달팽이 (기본 캐릭터, id = "")
 ├── char_turtle/  ← 거북이
-├── char_crab/    ← 소라게
+├── char_crab/    ← 게
 └── (이 폴더 바로 밑) ← 공용 폴백: 캐릭터 폴더가 비었을 때 대신 나감(선택)
 ```
 
@@ -15,7 +15,7 @@ Voices/Emotes/
 
 - [달팽이 11칸](default/README.md)
 - [거북이 11칸](char_turtle/README.md)
-- [소라게 11칸](char_crab/README.md)
+- [게 11칸](char_crab/README.md)
 
 ## 대사 11종 (파일 이름 ↔ 대사)
 

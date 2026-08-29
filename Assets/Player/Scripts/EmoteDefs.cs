@@ -10,7 +10,7 @@ namespace Player
     /// [보이스 넣는 법] 캐릭터별로 폴더가 나뉜다 — 맵별 BGM(MapDef.MapBgm)과 같은 "빈 칸은 공용 폴백" 방식.
     ///   Assets/Resources/Voices/Emotes/default/     ← 달팽이
     ///   Assets/Resources/Voices/Emotes/char_turtle/ ← 거북이
-    ///   Assets/Resources/Voices/Emotes/char_crab/   ← 소라게
+    ///   Assets/Resources/Voices/Emotes/char_crab/   ← 게
     ///   Assets/Resources/Voices/Emotes/            ← 캐릭터 폴더가 비었을 때 쓰는 공용(선택)
     /// 각 폴더에 VoiceName과 같은 이름의 오디오 파일(wav/mp3/ogg)을 넣으면 그 캐릭터가 그 대사를 낼 때 재생된다.
     /// 셋 다 없으면 무음 — 에러 아님. mp4는 Unity가 오디오로 임포트하지 못하므로 mp3 등으로 변환할 것.
@@ -32,7 +32,7 @@ namespace Player
             }
         }
 
-        // 순서 = 휠 12시부터 시계방향. F1~F10 단축키는 앞 10개에 대응.
+        // 순서 = 휠 12시부터 시계방향. F1~F11 단축키가 인덱스 0~10에 1:1로 대응한다.
         public static readonly Def[] All =
         {
             new Def("망치 갖다줘!",    "Voice_Emote_00_HammerBring", "Emote_Hammer"),
