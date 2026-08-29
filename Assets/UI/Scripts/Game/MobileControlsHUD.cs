@@ -40,13 +40,21 @@ public sealed class MobileControlsHUD : MonoBehaviour
         }
     }
 
+    private static bool s_InGameScene;   // Scene.name 접근은 호출마다 문자열 할당 — 전환 이벤트로 캐시
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
+        SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+        SceneManager.activeSceneChanged += OnActiveSceneChanged;
+        s_InGameScene = SceneManager.GetActiveScene().name == SceneNames.GameScene;
         OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
     }
+
+    private static void OnActiveSceneChanged(Scene _, Scene next)
+        => s_InGameScene = next.name == SceneNames.GameScene;
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
@@ -185,7 +193,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
 
     private void Update()
     {
-        bool inGame = SceneManager.GetActiveScene().name == SceneNames.GameScene;
+        bool inGame = s_InGameScene;
         // 정산(크레인샷) 단계에선 컨트롤을 내려 하단 중앙의 '건축물 둘러보기' 버튼 등을 가리지 않는다.
         bool show = inGame && ShouldUseMobileUI && !m_PhoneOpen && InBuildPhase();
         if (show != m_LastControlsVisible)

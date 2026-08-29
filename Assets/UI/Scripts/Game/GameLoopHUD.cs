@@ -36,10 +36,19 @@ public sealed class GameLoopHUD : UIHUD
     private GameObject m_TopBar, m_ConsentBar, m_ResultPanel, m_SettingsPopup, m_StartBanner;
     private Button m_SettingsButton, m_EndRequestButton;
     private bool m_ResultDismissed, m_ResultWasShown, m_ResultIntroPlaying, m_UrgentBgmStarted;
+    // 정산 내용 게이트 — 지난 프레임에 그린 값들(같으면 재조립 스킵)
+    private int m_RpPct = int.MinValue, m_RpEnemyPct, m_RpElapsed, m_RpArtifacts, m_RpBonus, m_RpNames, m_RpWinner;
+    private bool m_RpIntro;
     private GridSystem.GamePhase m_PrevPhase = (GridSystem.GamePhase)(-1);
     private Coroutine m_BannerCo, m_StarBobCo;
     private GridNetwork m_Net;
     private int m_LastTimerSecs = -1;  // 초 변화 감지(타이머 톡)
+    private GridSystem.ItemNetwork m_ItemNet;   // 타이머 안내줄용 — 매 프레임 GetComponent 방지
+    // 타이머 문자열은 표시 내용이 바뀐 프레임에만 조립한다(매 프레임 보간·연결 GC 방지)
+    private bool m_ShownTimerBuilding;
+    private int m_ShownTimerSecs = int.MinValue;
+    private int m_ShownTimerPctMine = -2, m_ShownTimerPctOther = -2;
+    private string m_ShownTimerHeld = "";
     private float m_TimerTick;         // 초 넘김 팝 감쇠값
     private bool m_CraneViewing;      // true = 정산서 숨기고 크레인샷 보는 중
     private Button m_CraneToggleBtn;  // 정산서↔크레인샷 토글(프리팹 바인딩, 정산 중에만 표시)
@@ -258,28 +267,41 @@ public sealed class GameLoopHUD : UIHUD
         int secs = Mathf.CeilToInt(m_Loop.TimeLeft);
         if (m_TimerText != null && timeLimited)
         {
-            string timer = m_Loop.IsBuilding ? $"{secs / 60} : {secs % 60:00}" : "종료";
-            // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
-            if (m_Loop.IsVersus && m_Loop.IsBuilding)
+            bool building = m_Loop.IsBuilding;
+            int pctMine = -1, pctOther = -1;   // -1 = 이번 프레임 표시 없음(협동/정산)
+            string held = "";
+            if (m_Loop.IsVersus && building)
             {
                 if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
                 if (m_Net != null)
                 {
                     int my = Mathf.Max(0, m_Loop.LocalTeam);
-                    int a = Mathf.RoundToInt(m_Net.ScoreFor(my).Percent);
-                    int b = Mathf.RoundToInt(m_Net.ScoreFor(1 - my).Percent);
-                    timer += $"\n<size=60%>우리 {a}% : 상대 {b}%</size>";
+                    pctMine = Mathf.RoundToInt(m_Net.ScoreFor(my).Percent);
+                    pctOther = Mathf.RoundToInt(m_Net.ScoreFor(1 - my).Percent);
                 }
+                if (m_ItemNet == null) m_ItemNet = m_Loop.GetComponent<GridSystem.ItemNetwork>();
+                held = m_ItemNet != null ? m_ItemNet.LocalHeldName() : "";
+            }
+
+            if (building != m_ShownTimerBuilding || secs != m_ShownTimerSecs
+                || pctMine != m_ShownTimerPctMine || pctOther != m_ShownTimerPctOther
+                || held != m_ShownTimerHeld)
+            {
+                m_ShownTimerBuilding = building; m_ShownTimerSecs = secs;
+                m_ShownTimerPctMine = pctMine; m_ShownTimerPctOther = pctOther; m_ShownTimerHeld = held;
+
+                string timer = building ? $"{secs / 60} : {secs % 60:00}" : "종료";
+                // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
+                if (pctMine >= 0)
+                    timer += $"\n<size=60%>우리 {pctMine}% : 상대 {pctOther}%</size>";
                 // 소지 아이템 안내(F로 사용)
-                var items = m_Loop.GetComponent<GridSystem.ItemNetwork>();
-                string held = items != null ? items.LocalHeldName() : "";
                 if (!string.IsNullOrEmpty(held))
                     timer += held == "대포"   // 기획서: 대포는 조준+꾹 발사 안내
                         ? "\n<size=55%>[대포] 상대 건물 조준 후 E 꾹 눌렀다 떼면 발사!</size>"
                         : $"\n<size=55%>[{held}] E로 사용</size>";
                 // 걸린 효과(날씨·버프·디버프)는 우상단 버프 아이콘 바가 담당 — UpdateBuffBar()
+                m_TimerText.text = timer;
             }
-            m_TimerText.text = timer;
 
             // 막판 30초: 타이머 빨갛게 + 두근두근 펄스 + 화면 가장자리 빨간 비네트
             if (m_Loop.IsBuilding && m_Loop.TimeLeft <= 30f)
@@ -325,16 +347,33 @@ public sealed class GameLoopHUD : UIHUD
 
     // 종료 요청 버튼 상태: 기본(건축 중·미동의) = '조기 종료 요청 (ENTER)' 구워진 스프라이트,
     // 그 외(동의 취소 / 재시작) = 텍스트 지운 흰 버튼 스프라이트에 틴트 + TMP 라벨.
+    private Image m_EndImg;                    // 매 프레임 Find/GetComponent 방지 캐시
+    private TextMeshProUGUI m_EndLbl;
+    private Button m_EndCachedFor;             // 어떤 버튼 인스턴스 기준 캐시인지(재구축 대응)
+    private int m_EndShownKey = -1;            // (동의, 건축중, 스프라이트 로드됨) 상태 키
+
     private void UpdateEndRequestButton()
     {
         if (m_EndRequestButton == null) return;
         if (m_EndBaked == null) m_EndBaked = InGameUiSkin.Load("EndRequestButton");
         if (m_EndBlank == null) m_EndBlank = InGameUiSkin.Load("EndRequestButton_Blank");
-        var img = m_EndRequestButton.targetGraphic as Image;
-        var lblT = m_EndRequestButton.transform.Find("Label");
-        var lbl = lblT != null ? lblT.GetComponent<TextMeshProUGUI>() : m_EndRequestButton.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (m_EndCachedFor != m_EndRequestButton)
+        {
+            m_EndCachedFor = m_EndRequestButton;
+            m_EndImg = m_EndRequestButton.targetGraphic as Image;
+            var lblT = m_EndRequestButton.transform.Find("Label");
+            m_EndLbl = lblT != null ? lblT.GetComponent<TextMeshProUGUI>() : m_EndRequestButton.GetComponentInChildren<TextMeshProUGUI>(true);
+            m_EndShownKey = -1;
+        }
         bool consent = m_Loop.HasLocalConsent;
-        bool baked = m_EndBaked != null && m_EndBlank != null && img != null && m_Loop.IsBuilding && !consent;
+        bool spritesOk = m_EndBaked != null && m_EndBlank != null;
+        int key = (consent ? 1 : 0) | (m_Loop.IsBuilding ? 2 : 0) | (spritesOk ? 4 : 0);
+        if (spritesOk && key == m_EndShownKey) return;   // 상태 그대로 — 문자열 조립·재대입 스킵(로드 전엔 기존처럼 재시도)
+        m_EndShownKey = key;
+
+        var img = m_EndImg;
+        var lbl = m_EndLbl;
+        bool baked = spritesOk && img != null && m_Loop.IsBuilding && !consent;
         if (baked)
         {
             img.sprite = m_EndBaked; img.color = Color.white;
@@ -414,6 +453,7 @@ public sealed class GameLoopHUD : UIHUD
             if (m_ResultWasShown && m_Net != null) m_Net.EndResultPreview();   // 썸네일 라이브 카메라 끄기
             m_ResultWasShown = false;   // 다시 숨김 → 다음 표시 때 인트로 연출 재생
             m_CraneViewing = false;
+            m_RpPct = int.MinValue;     // 다음 표시 때 내용 강제 재조립
         }
         if (!show)
             return;
@@ -467,6 +507,23 @@ public sealed class GameLoopHUD : UIHUD
                 if (rt != null) m_ResultImage.texture = rt;
             }
         }
+
+        // ── 내용 게이트: 표시값이 지난 프레임과 같으면(정산 화면 대부분의 시간) 아래의
+        // 문자열 조립·스프라이트 Load·텍스트 재대입을 전부 건너뛴다. 점수 복제가 한 틱 늦게
+        // 도착하는 경우도 값 변화로 잡혀 자동 갱신된다.
+        {
+            var dig0 = GridSystem.ExcavationNetwork.Instance;
+            int artifacts0 = dig0 != null ? dig0.ArtifactsFound : 0;
+            int enemyPct0 = versus && m_Net != null ? Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent) : -1;
+            int elapsed0 = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
+            if (!firstShow && pct == m_RpPct && enemyPct0 == m_RpEnemyPct && elapsed0 == m_RpElapsed
+                && artifacts0 == m_RpArtifacts && score.bonus == m_RpBonus && m_ResultIntroPlaying == m_RpIntro
+                && m_Loop.NameCount == m_RpNames && m_Loop.WinnerTeam == m_RpWinner)
+                return;
+            m_RpPct = pct; m_RpEnemyPct = enemyPct0; m_RpElapsed = elapsed0; m_RpArtifacts = artifacts0;
+            m_RpBonus = score.bonus; m_RpIntro = m_ResultIntroPlaying; m_RpNames = m_Loop.NameCount; m_RpWinner = m_Loop.WinnerTeam;
+        }
+
         if (!m_ResultIntroPlaying)
         {
             if (versus && m_Net != null)
@@ -710,16 +767,23 @@ public sealed class GameLoopHUD : UIHUD
             foreach (var st in s_Statuses) if (st.Kind == kv.Key) { alive = true; break; }
             if (!alive) { if (kv.Value.go != null) Destroy(kv.Value.go); s_GoneKinds.Add(kv.Key); }
         }
-        foreach (var k in s_GoneKinds) m_BuffCells.Remove(k);
+        foreach (var k in s_GoneKinds) { m_BuffCells.Remove(k); m_BuffSecsShown.Remove(k); }
 
         foreach (var st in s_Statuses)
         {
             if (!m_BuffCells.TryGetValue(st.Kind, out var cell))
                 m_BuffCells[st.Kind] = cell = MakeBuffCell(st.Kind);
             cell.overlay.fillAmount = 1f - Mathf.Clamp01(st.Remaining / st.Total);   // 경과분이 어둡게 차오름 = 남은 밝은 부분이 줄어듦
-            cell.secs.text = Mathf.CeilToInt(st.Remaining).ToString();
+            int secsLeft = Mathf.CeilToInt(st.Remaining);   // 초가 실제로 넘어갈 때만 문자열 생성(매 프레임 ToString GC 방지)
+            if (!m_BuffSecsShown.TryGetValue(st.Kind, out int shown) || shown != secsLeft)
+            {
+                m_BuffSecsShown[st.Kind] = secsLeft;
+                cell.secs.text = secsLeft.ToString();
+            }
         }
     }
+
+    private readonly System.Collections.Generic.Dictionary<SeoulZikimi.Gameplay.CompetitiveItemKind, int> m_BuffSecsShown = new();
 
     private (GameObject, Image, TextMeshProUGUI) MakeBuffCell(SeoulZikimi.Gameplay.CompetitiveItemKind kind)
     {

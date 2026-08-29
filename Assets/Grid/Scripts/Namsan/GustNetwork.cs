@@ -147,11 +147,15 @@ namespace GridSystem
 
         // 고정된 물체에 기대기/뒤에 숨기 — 바람이 '불어오는' 쪽으로 솔리드가 가까이 있으면 면제.
         // 미고정 재료 픽업은 트리거 콜라이더뿐이라 자동 제외(솔리드만 바람을 막는다).
+        private static readonly RaycastHit[] s_ShelterHits = new RaycastHit[16];   // 매 물리 틱 호출 — 할당 제거
+
         private static bool IsSheltered(Transform player, Vector3 windDir)
         {
             var origin = player.position + Vector3.up * 0.6f;
-            foreach (var h in Physics.RaycastAll(origin, -windDir, 1.2f, ~0, QueryTriggerInteraction.Ignore))
+            int n = Physics.RaycastNonAlloc(origin, -windDir, s_ShelterHits, 1.2f, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
             {
+                var h = s_ShelterHits[i];
                 var t = h.collider.transform;
                 if (t == player || t.IsChildOf(player)) continue;
                 if (h.collider.CompareTag("Player")) continue;     // 다른 달팽이는 바람막이가 아니다

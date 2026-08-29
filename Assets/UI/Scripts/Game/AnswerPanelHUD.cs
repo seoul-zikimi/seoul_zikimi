@@ -62,6 +62,7 @@ public class AnswerPanelHUD : UIHUD
     private bool m_ExpandedView;        // PC에서 확대 버튼으로 가로 전체화면 보기 중
     private RenderTexture m_Texture;    // 재구성 때 되살릴 정답 뷰 RT
     private int m_LastPct;
+    private int m_ShownPct = -1;   // 실제 텍스트에 반영된 값 — 같으면 SetCompletion이 조기 리턴
     private IReadOnlyList<OrderEntry> m_CachedItems;
     private readonly Dictionary<int, int> m_CachedRemaining = new();
     private GameObject m_HelpTip;
@@ -101,6 +102,8 @@ public class AnswerPanelHUD : UIHUD
     {
         int clamped = Mathf.Clamp(percent, 0, 100);
         m_LastPct = clamped;
+        if (clamped == m_ShownPct) return;   // 매 프레임 호출됨 — 값이 그대로면 문자열 조립부터 스킵
+        m_ShownPct = clamped;
         string s = clamped.ToString();
         if (m_PctText != null && m_PctText.text != s) m_PctText.text = s;
         if (m_CompletionText != null)
@@ -124,6 +127,7 @@ public class AnswerPanelHUD : UIHUD
         m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
         m_SelName = m_SelSub = m_CompletionText = null;
         m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
+        m_ShownPct = -1;   // 텍스트를 새로 지었으니 다음 SetCompletion이 반드시 다시 채우게
         m_Cards.Clear(); m_SelectedId = -1; ChromeHovered = false;
         foreach (var other in FindObjectsByType<AnswerPanelHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             if (other != this) Destroy(other.gameObject);   // 루트/캐시 꼬임으로 남은 중복 HUD 정리
@@ -216,6 +220,8 @@ public class AnswerPanelHUD : UIHUD
 
     private void ApplyCollapsed()
     {
+        // 폰이 접히면 미니씬 RT가 화면에서 사라지므로 정답 카메라도 쉬게 한다(AnswerPreview가 읽음)
+        GridSystem.AnswerPreview.PanelOpen = !m_Collapsed;
         if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
         if (m_CollapseTab != null)
         {

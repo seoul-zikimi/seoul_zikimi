@@ -48,8 +48,19 @@ namespace GridSystem
         private bool m_Visible = true;
         private bool m_Built;
 
+        // 고스트 재도색 게이트: 숨쉬기 알파를 0.005 단위로 양자화해 값이 실제로 변한 프레임에만
+        // 전 머티리얼 SetColor를 돈다(초당 60회 → ~22회). 강조(hl) 변화 프레임엔 원색 복귀를 위해 강제 재도색.
+        private int m_LastGaQ = -1;
+        private int m_LastHlId = int.MinValue;
+        private readonly List<bool> m_GhostActive = new();   // 블록별 SetActive 직전 상태 캐시
+        private bool m_UseWholeGhost;        // 완성체 통짜 고스트 맵(DDP류) — 조각 머티리얼은 렌더러가 꺼져 있음
+        private int m_GhostPieceMatCount;    // m_GhostMats에서 조각(비통짜) 구간의 끝
+
         /// <summary>모바일 눈 버튼: 폰(TAB)이 닫혀 있어도 인월드 고스트를 계속 보여줄지. 데스크톱은 건드리지 않는다(false).</summary>
         public static bool GhostPinned;
+        /// <summary>정답 폰 패널이 실제로 펼쳐져 RT가 화면에 보이는지 — AnswerPanelHUD가 접기/펴기 때 넣어준다.
+        /// 접혀 있으면 미니씬 카메라를 꺼서 매 프레임 512² 렌더 패스를 없앤다(펴면 즉시 재개).</summary>
+        public static bool PanelOpen = true;
         /// <summary>선택 재료가 전부 알맞게 지어져 자동 해제됐을 때(HUD 카드 선택 해제 연동용).</summary>
         public event System.Action SelectionAutoCleared;
         private bool m_LastShow;          // Show() 변화 감지 → VisibilityChanged 1회 발화
@@ -78,6 +89,8 @@ namespace GridSystem
             m_SelectedDef = null; m_SelOutlines.Clear();
             m_GhostFloors.Clear();
             m_GhostDone.Clear();
+            m_GhostActive.Clear();
+            m_LastGaQ = -1; m_LastHlId = int.MinValue;   // 재구성 후 첫 프레임 강제 재도색
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
             m_GhostMatCols.Clear();
@@ -111,22 +124,33 @@ namespace GridSystem
 
                 float ga = 0.16f + 0.05f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 더 은은하게(커서 프리뷰가 주인공) + 숨쉬기
                 float ha = 0.45f + 0.15f * Mathf.Abs(Mathf.Sin(Time.time * 5f));     // 강조: 밝고 빠른 펄스
-                for (int i = 0; i < m_GhostMats.Count; i++)
-                    if (m_GhostMats[i] != null)
-                    {
-                        var c = i < m_GhostMatCols.Count ? m_GhostMatCols[i] : m_GhostMats[i].GetColor(s_BaseColor);
-                        c.a = ga;   // 원본 색으로 복귀(강조 초록이 남지 않게) + 숨쉬기 알파
-                        m_GhostMats[i].SetColor(s_BaseColor, c);
-                        m_GhostMats[i].SetColor(s_Color, c);
-                    }
+                int gaQ = Mathf.RoundToInt(ga * 200f);                                // 0.005 스텝 — 시각 차 없음
+                bool hlChanged = hlId != m_LastHlId;
+                if (hlChanged || gaQ != m_LastGaQ)
+                {
+                    m_LastGaQ = gaQ; m_LastHlId = hlId;
+                    float a = gaQ / 200f;
+                    // 통짜 고스트 맵은 조각 렌더러가 꺼져 있어 조각 구간 재도색이 순수 낭비 — 통짜 구간만 칠한다.
+                    int start = m_UseWholeGhost ? m_GhostPieceMatCount : 0;
+                    for (int i = start; i < m_GhostMats.Count; i++)
+                        if (m_GhostMats[i] != null)
+                        {
+                            var c = i < m_GhostMatCols.Count ? m_GhostMatCols[i] : m_GhostMats[i].GetColor(s_BaseColor);
+                            c.a = a;   // 원본 색으로 복귀(강조 초록이 남지 않게) + 숨쉬기 알파
+                            m_GhostMats[i].SetColor(s_BaseColor, c);
+                            m_GhostMats[i].SetColor(s_Color, c);
+                        }
+                }
                 for (int i = 0; i < m_GhostFloors.Count; i++)
                 {
                     var it = m_GhostFloors[i];
                     if (it.go == null) continue;
                     bool hl = it.materialId == hlId;
                     // 강조 중엔 층 필터·완료 숨김을 무시하고 보여준다(다른 층·이미 지은 곳도 위치 확인용).
-                    it.go.SetActive(hl || (it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i])));
-                    if (hl)
+                    bool want = hl || (it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i]));
+                    if (i >= m_GhostActive.Count) { m_GhostActive.Add(!want); }        // 첫 프레임 강제 적용
+                    if (m_GhostActive[i] != want) { m_GhostActive[i] = want; it.go.SetActive(want); }
+                    if (hl && !m_UseWholeGhost)   // 통짜 맵은 조각 렌더러가 꺼져 있어 초록 강조가 안 보임 — 스킵
                         for (int k = it.matStart; k < it.matStart + it.matCount && k < m_GhostMats.Count; k++)
                             if (m_GhostMats[k] != null)
                             {
@@ -135,6 +159,13 @@ namespace GridSystem
                                 m_GhostMats[k].SetColor(s_Color, c);
                             }
                 }
+            }
+
+            // 미니씬 카메라는 폰 패널이 실제로 보일 때만 렌더 — 접힘/정산 중 512² 풀 패스 제거
+            if (m_Cam != null)
+            {
+                bool live = m_Built && Building() && PanelOpen;
+                if (m_Cam.enabled != live) m_Cam.enabled = live;
             }
             // 폰 HUD 가시성은 TAB과 무관 — 건축 중이면 표시(접기/펴기는 AnswerPanelHUD의 탭 버튼 담당)
             if (show != m_LastShow) { m_LastShow = show; VisibilityChanged?.Invoke(show); }
@@ -224,6 +255,8 @@ namespace GridSystem
                                    matStart, m_GhostMats.Count - matStart));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
             }
             // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
+            m_UseWholeGhost = useWhole;
+            m_GhostPieceMatCount = m_GhostMats.Count;   // 여기까지가 조각 구간 — 통짜 머티리얼은 이 뒤에 붙는다
             ShowCompletedModelInstead(m_GhostRoot.transform, ghost: true);
 
             // ② 우하단 3D 미리보기 = 진짜 블록 프리팹 솔리드(멀리 떨어진 미니씬 → RenderTexture)

@@ -212,6 +212,9 @@ namespace Player
         }
 
         private static readonly Collider[] s_OverlapBuf = new Collider[16];
+        // 빈손 조준 레이(UpdateGrabTarget)용 — RaycastAll이 매 프레임 배열을 할당하던 것을 재사용 버퍼로.
+        // 100m 레이가 건축 현장을 관통해도 64개를 넘기 어렵다(넘치는 히트는 버려지지만 후보는 근거리라 무관).
+        private static readonly RaycastHit[] s_GrabRayBuf = new RaycastHit[64];
 
         /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
         /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
@@ -999,10 +1002,14 @@ namespace Player
         // 사거리 판정 대상 셀: 들고 있으면 놓을 자리(풋프린트 전체), 빈손이면 가리킨 블록이 차지한 셀 전체.
         // 어느 쪽도 아니면 가리킨 칸 하나.
         private readonly System.Collections.Generic.List<Vector3Int> m_ReachCells = new();
+        private readonly System.Collections.Generic.List<Vector3Int> m_PreviewCells = new();   // 프리뷰·배치 판정 스크래치(즉시 소비)
         private System.Collections.Generic.List<Vector3Int> ReachCells(Vector3Int target)
         {
             if (HasMaterial && m_HeldMaterial != null)
-                return GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation);
+            {
+                GridFootprint.EnumerateFootprintCells(target, m_HeldMaterial.Footprint, m_Rotation, m_ReachCells);
+                return m_ReachCells;
+            }
 
             if (m_Net != null && m_Net.TryGetBlockCells(target, m_ReachCells)) return m_ReachCells;
 
@@ -1033,8 +1040,10 @@ namespace Player
                 var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
                 float reach2 = m_GrabRange * m_GrabRange;
                 float best = float.MaxValue;
-                foreach (var h in Physics.RaycastAll(ray, 100f, ~0, QueryTriggerInteraction.Collide))
+                int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~0, QueryTriggerInteraction.Collide);
+                for (int hi = 0; hi < hitCount; hi++)
                 {
+                    var h = s_GrabRayBuf[hi];
                     var cc = h.collider.GetComponentInParent<CarryCargo>();   // 남이 든 화물 → 클릭하면 같이 들기
                     if (cc != null)
                     {
@@ -1315,14 +1324,16 @@ namespace Player
             if (!m_HasTarget || m_Net == null || m_Grid == null) return;
             var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배(팀B 구역 포함)
             var (xMin, xMax) = PlaceableXRange(s);
-            foreach (var cell in GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
+            GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+            for (int i = 0; i < m_PreviewCells.Count; i++)
             {
+                var cell = m_PreviewCells[i];
                 if (cell.x < xMin || cell.x >= xMax || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
                 if (!m_Net.IsCellFree(cell)) { ShakePreview(); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
-                    GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation),
+                    m_PreviewCells,
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
             { ShakePreview(); return; }
@@ -1750,9 +1761,7 @@ namespace Player
         {
             float u = GridContract.Unit;
             var fp = m_HeldMaterial.Footprint;
-            var cells = GridFootprint.EnumerateFootprintCells(m_Target, fp, m_Rotation);
-            Vector3Int minCell = cells[0];
-            for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
+            Vector3Int minCell = m_Target;   // EnumerateFootprintCells가 앵커=min-corner로 정규화한다(불변식)
             bool swap = ((((m_Rotation % 4) + 4) % 4) % 2) == 1;
             size = new Vector3(swap ? fp.z : fp.x, fp.y, swap ? fp.x : fp.z) * u;
             center = GridCoordinates.CellToWorld(minCell) + size * 0.5f;
@@ -1777,10 +1786,9 @@ namespace Player
                 int key = (m_HeldMaterial.Id << 2) | (m_Rotation & 3);
                 if (m_Preview == null || m_PreviewKey != key) BuildPrefabPreview(key);   // 재료/회전 바뀔 때만 재빌드
 
-                var cells = GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation);
-                Vector3Int minCell = cells[0];
-                for (int i = 1; i < cells.Count; i++) minCell = Vector3Int.Min(minCell, cells[i]);
-                m_Preview.transform.position = GridCoordinates.CellToWorld(minCell) + m_PreviewOffset;   // 위치만 매 프레임
+                GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+                var cells = m_PreviewCells;   // 앵커=min-corner 불변식 → minCell = m_Target
+                m_Preview.transform.position = GridCoordinates.CellToWorld(m_Target) + m_PreviewOffset;   // 위치만 매 프레임
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
 
                 // 정답 자리(초록)/오답 자리(빨강) 틴트 — 원색만으론 정답 고스트와 구분이 어렵다는 피드백.
@@ -1810,7 +1818,8 @@ namespace Player
             Vector3 center, size; Color col;
             HeldPlacementBox(out center, out size);
             // 박스 폴백도 정답/오답 색을 따른다(프리팹 고스트와 같은 언어).
-            col = IsAnswerPlacement(GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation))
+            GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+            col = IsAnswerPlacement(m_PreviewCells)
                 ? new Color(kPreviewOk.r, kPreviewOk.g, kPreviewOk.b, 0.32f)
                 : new Color(kPreviewBad.r, kPreviewBad.g, kPreviewBad.b, 0.32f);
             m_Preview.transform.SetPositionAndRotation(center, Quaternion.identity);
@@ -1955,9 +1964,22 @@ namespace Player
         }
 
         // ── 프리팹 HUD 구동(구 OnGUI 대체 · 비주얼은 Resources/UI/HUD/CarryHudUI 프리팹) ──
+        // Scene.name은 접근마다 네이티브 문자열을 새로 만든다 — 씬 전환 이벤트로 1회만 판정해 캐시.
+        private static bool s_SceneHooked;
+        private static bool s_InGameScene;
+        private static void EnsureSceneHook()
+        {
+            if (s_SceneHooked) return;
+            s_SceneHooked = true;
+            s_InGameScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == SceneNames.GameScene;
+            UnityEngine.SceneManagement.SceneManager.activeSceneChanged +=
+                (_, next) => s_InGameScene = next.name == SceneNames.GameScene;
+        }
+
         private void UpdateHud()
         {
-            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != SceneNames.GameScene)   // 조작법 HUD는 GameScene만
+            EnsureSceneHook();
+            if (!s_InGameScene)   // 조작법 HUD는 GameScene만
             {
                 if (m_Hud != null) m_Hud.gameObject.SetActive(false);
                 return;
@@ -1984,11 +2006,20 @@ namespace Player
             m_PrevScorePct = pct;
         }
 
+        // 회전값(0~3)별 힌트 문자열 사전 생성 — 재료를 든 동안 매 프레임 보간 할당을 막는다.
+        private static readonly string[] s_HeldHints =
+        {
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 0)",
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 1)",
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 2)",
+            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 3)",
+        };
+
         private string BuildHintText()
         {
             string heldStr;
             if (HasMaterial)
-                heldStr = $"📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: {m_Rotation})";
+                heldStr = s_HeldHints[m_Rotation & 3];
             else if (HasTool)
                 heldStr = m_HeldTool == ProcessType.Fixed
                     ? "🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요."

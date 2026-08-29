@@ -1,0 +1,50 @@
+# Performance TODO
+
+환경: Unity 6000.3.11f1 / NGO 2.11.2. 기능, 네트워크 권한, 비주얼 결과를 보존한다. 외부 에셋은 수정하지 않는다. 각 항목은 원인 확인 후 수정하고 컴파일/관련 테스트로 검증한다.
+감사 이력: 2026-08-28~29 8차원 멀티에이전트 감사 + 발견별 적대적 검증 완료.
+
+## 완료 — 1차 (2026-08-28)
+
+- [x] **P0** `GridNetwork.cs` — 셀 이벤트마다 즉시 재구성(O(N²)) → 더티 플래그로 프레임당 1회.
+- [x] **P1** `JobsnailLobbyCharacterStage.cs` — ReadPixels 동기 리드백 → Graphics.CopyTexture. *QA: 대기방 4슬롯.*
+- [x] **P1** `PlayerMovement.cs` — 접지·벽 판정 NonAlloc + (frame,fixedTime) 캐시.
+- [x] **P1** `MirrorReflection.cs` — 렌더러 재수집을 hierarchyCount 게이트로.
+- [x] **P1** `WeatherGroundFx.cs` — 눈 자국 풀링.
+- [x] **P2** TimeLeft 0.1초 격자 복제 / FacingYaw 0.5° 격자 / ItemNetwork sqrMagnitude / GameLoopHUD 타이머 게이트 / UiNewLobby 스로틀 / Vefects 데모 Resources 이동(-33.7MiB) / PlayerCarry 조준 NonAlloc.
+
+## 완료 — 2차 (2026-08-29)
+
+- [x] **P0** `GridNetwork.cs:720` — RebuildVisuals를 **owner 단위 스냅샷 diff 증분 재구성**으로 교체: 바뀐 블록만 생성·파괴, 공정 마스크 변경은 색·마커·~Solid 콜라이더만 재평가, 완성체 통짜 전환·늦참은 전체 재구성 폴백, 치트 완성의 owner id 재사용은 시그니처 비교로 감지. *QA: 배치/철거/공정/붕괴/리셋/2vs2/DDP 완성 전환.*
+- [x] **P0** `AnswerPreview.cs` — 미니씬 카메라(512² 상시 렌더)를 폰 패널이 실제로 보일 때만 켬(`PanelOpen`, AnswerPanelHUD 접기/펴기 연동) + 정산 중 자동 off.
+- [x] **P1** `AnswerPreview.cs:114` — 고스트 재도색을 알파 0.005 양자화+hlId 게이트로(초당 60→~22회), SetActive 상태 캐시, 통짜 맵의 숨은 조각 머티리얼 스킵.
+- [x] **P1** `GridFootprint.cs` — 비할당 오버로드(min-corner 해석적 계산) + PlayerCarry 프리뷰·사거리·배치 경로 버퍼 재사용, 앵커=min-corner 불변식으로 min 루프 제거.
+- [x] **P1** `GridNetwork.cs:848` — VisualAt을 셀→비주얼 Dictionary O(1) 조회로(완성체 경로 포함).
+- [x] **P1** `GridNetwork.cs:34` — 셀 조회 API·서버 아이템 루프 foreach→인덱스 for(박싱 제거).
+- [x] **P1** `PlayerSplat.cs` — Grounded()를 PlayerMovement.IsGrounded() 캐시에 위임(+NonAlloc 폴백).
+- [x] **P1** `GridSupport.cs` — ExternalSolidAt OverlapBoxNonAlloc.
+- [x] **P1** `JuicyText.cs` — 빈 텍스트 조기 탈출(정산 등급 텍스트가 빈 채로 매 프레임 풀 리빌드하던 것).
+- [x] **P1** `GameLoopHUD.cs` UpdateResultPanel — 표시값(점수·유물·경과·승패·이름 수) 변화 프레임에만 문자열 조립·스프라이트 Load(점수 늦복제도 값 변화로 자동 갱신).
+- [x] **P2** `AnswerPanelHUD.cs` SetCompletion 조기 리턴 / `GameLoopHUD.cs` EndRequestButton 캐시+상태 키, BuffBar 초 게이트 / `PlayerCarry.cs`·`MobileControlsHUD.cs` Scene.name 캐시(+회전 힌트 사전 생성) / `PlayerDustTrail.cs`·`PlayerUnit.cs` 커스텀 트레일 hierarchyCount 캐시+상태 게이트 / `GustNetwork.cs` NonAlloc / `PickupBody.cs` 안착 후 위치 쓰기 생략 / `ItemNetwork.cs` 보유 캐시(더티 플래그)+for 치환 / `CompetitiveItemSpawnDirector.cs` 틱 버퍼 재사용.
+
+## 남은 항목 — 코드
+
+- `Assets/UI/Scripts/UIManager.cs:32` (P1·설계) 인게임 HUD 전부 단일 Canvas — 동적 서브트리(타이머·버프바·로딩바)에 중첩 Canvas로 더티 격리. 레이아웃 검증 필요.
+- `Assets/Player/Scripts/PlayerCarry.cs:1383` (P1) 망치/페인트 CFXR 프리팹 Instantiate+Destroy — 컴포넌트당 타입별 2개 라운드로빈 풀. **함정**: CFXR clearBehavior 기본 Destroy(자멸)→Disable 필수, 재생 중 Play() no-op, localScale *= 누적.
+- `Assets/Grid/Scripts/GridJuice.cs:40` (P1) 코드 파티클 FX당 5~20개 CreatePrimitive — Stack 풀(≤64), 재사용 시 명시적 Reinit + sharedMaterial 재할당 유지.
+- `Assets/Grid/Scripts/Namsan/CableCarNetwork.cs` (P1) 2초마다 씬 전체 순회 — Transform 캐시+hierarchyCount 재스캔.
+- `Assets/Grid/Scripts/Ddp/WaterGateNetwork.cs` (P1) Value 이벤트면 해당 픽업만 SetTarget, 컬렉션 멤버 승격. (kTick 0.2→0.5는 선택)
+- `Assets/UI/Scripts/Game/GameHudDriver.cs:87` (P1) 1초 버튼 전수 스윕 — 인스턴스화 시 1회 부착으로 이동(동적 생성 경로 전수 확인 필요).
+- `Assets/Grid/Scripts/Weather3DVfxRig.cs:96` (P1·비주얼) maxParticles 절대 캡(모바일 800~1000) — 대형 맵 밀도는 startSize로 보전. 비주얼 영향 확인 필요.
+- `Assets/Grid/Scripts/ZoneFogFx.cs:59` (P2·비주얼/게임플레이) 안개 다이어트 — 시야 차단 아이템이라 기획 확인 후.
+- `Assets/Grid/Scripts/MaterialDropField.cs:230` (P2) Reconcile 이벤트 기반 전환 — Clear는 Value 없음·Full은 이벤트 미발화 폴백 주의.
+- `Assets/Grid/Scripts/Namsan/ElevatorNetwork.cs` (P2) GridNetwork에 CellsChanged 이벤트 추가 후 더티 게이트.
+- `Assets/Grid/Scripts/PickupBody.cs` (P3) 숨쉬기 스케일을 '~Vis' 자식 래퍼로 옮겨 콜라이더 루트 불변화(스케일 리베이크 제거).
+- 미검증 4건: CameraObstructionFader SetColor 문자열 / GridSoundBridge 리플렉션 / ItemFx.CannonShot Material 누수 의심 / (BuffBar는 처리됨).
+
+## 남은 항목 — 프로젝트 설정 (에디터에서 변경 권장)
+
+- `accelerometerFrequency: 60` → 미사용이면 0. / `androidUseSwappy: 0` → 켜기. / `metalAPIValidation: 1` → 프로파일링 시 끄기.
+- `il2cppCompilerConfiguration` Release → 스토어 빌드 Master 검토. / `StripUnusedMeshComponents: 0` → 켜기(QA 필요).
+- `Maximum Allowed Timestep 0.333` → 0.1 내외 검토. / 밉맵 스트리밍 비활성 → 별도 작업. / `Resources/Fonts` 45MB 정리.
+- PPv2 패키지(com.unity.postprocessing) 미사용 잔존 — Feel 호환 컴파일 확인 후 제거 후보.
+- ~~Bloom HQ Filtering~~ 기각(빌드 씬 프로파일은 꺼져 있음).

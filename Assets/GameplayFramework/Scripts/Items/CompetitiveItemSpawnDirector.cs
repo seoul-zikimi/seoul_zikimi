@@ -124,12 +124,17 @@ namespace SeoulZikimi.Gameplay
             _remainingLifetimeByItem.Add(instanceId, _itemLifetime);
         }
 
+        private readonly List<string> _tickBuffer = new();   // 매 서버 프레임 스냅샷 — 재사용으로 할당 제거
+
         private void TickLifetimes(float deltaTime)
         {
             if (_remainingLifetimeByItem.Count == 0)
                 return;
 
-            var itemIds = new List<string>(_remainingLifetimeByItem.Keys);
+            _tickBuffer.Clear();
+            foreach (string id in _remainingLifetimeByItem.Keys)   // KeyCollection 열거는 무할당(struct enumerator)
+                _tickBuffer.Add(id);
+            List<string> itemIds = _tickBuffer;
             for (int i = 0; i < itemIds.Count; i++)
             {
                 string itemId = itemIds[i];

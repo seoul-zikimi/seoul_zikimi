@@ -22,19 +22,25 @@ namespace GridSystem
         /// <summary>2vs2 팀별 점수(0=A, 1=B). 협동 모드는 팀 무관하게 m_Score.</summary>
         public ScoreSnapshot ScoreFor(int team) => team == 1 ? m_ScoreB.Value : m_Score.Value;
 
+        // 아래 조회 API 셋은 PlayerCarry 등이 프레임당 여러 번 부르는 핫패스 — NetworkList의
+        // foreach는 IEnumerator 박싱 할당이 있어 인덱스 for로 순회한다(Count·인덱서는 무할당).
+
         /// <summary>복제된 상태 기준 해당 셀이 비어있는지(클라이언트도 호출 가능). 배치 전 사전 검사용.</summary>
         public bool IsCellFree(Vector3Int cell)
         {
-            foreach (var e in m_Cells)
-                if (e.cell == cell) return false;
+            for (int i = 0; i < m_Cells.Count; i++)
+                if (m_Cells[i].cell == cell) return false;
             return true;
         }
 
         /// <summary>복제된 상태에서 셀의 재료 id·완료 공정 비트를 읽는다(클라도 호출 — E 공정 다음단계 판단용).</summary>
         public bool TryGetCell(Vector3Int cell, out int materialId, out int completedMask)
         {
-            foreach (var e in m_Cells)
+            for (int i = 0; i < m_Cells.Count; i++)
+            {
+                var e = m_Cells[i];
                 if (e.cell == cell) { materialId = e.materialId; completedMask = e.completedProcessMask; return true; }
+            }
             materialId = -1; completedMask = 0;
             return false;
         }
@@ -45,11 +51,11 @@ namespace GridSystem
             result.Clear();
             ulong owner = 0;
             bool found = false;
-            foreach (var e in m_Cells)
-                if (e.cell == cell) { owner = e.ownerObjectId; found = true; break; }
+            for (int i = 0; i < m_Cells.Count; i++)
+                if (m_Cells[i].cell == cell) { owner = m_Cells[i].ownerObjectId; found = true; break; }
             if (!found) return false;
-            foreach (var e in m_Cells)
-                if (e.ownerObjectId == owner) result.Add(e.cell);
+            for (int i = 0; i < m_Cells.Count; i++)
+                if (m_Cells[i].ownerObjectId == owner) result.Add(m_Cells[i].cell);
             return true;
         }
 
@@ -184,6 +190,10 @@ namespace GridSystem
         public override void OnNetworkDespawn()
         {
             m_Cells.OnListChanged -= OnCellsChanged;
+            m_VisualsDirty = m_ScoreDirty = false;
+            m_OwnerVisuals.Clear();
+            m_VisualByCell.Clear();
+            m_CompletedShown = false;
             if (m_VisualRoot != null) Destroy(m_VisualRoot);
             if (m_ResultCam != null) Destroy(m_ResultCam.gameObject);
             if (m_ResultRT != null) { m_ResultRT.Release(); m_ResultRT = null; }
@@ -367,8 +377,9 @@ namespace GridSystem
             if (!IsServer || m_ServerGrid == null) return 0;
 
             var victims = new System.Collections.Generic.List<Vector3Int>();
-            foreach (var e in m_Cells)
+            for (int i = 0; i < m_Cells.Count; i++)
             {
+                var e = m_Cells[i];
                 if (!InZone(team, e.cell)) continue;
                 if ((e.completedProcessMask & (int)ProcessType.Fixed) != 0) continue;   // 고정된 건 버팀
                 var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
@@ -395,8 +406,9 @@ namespace GridSystem
             if (!IsServer || m_ServerGrid == null) return false;
 
             var targets = new System.Collections.Generic.List<Vector3Int>();
-            foreach (var e in m_Cells)
+            for (int i = 0; i < m_Cells.Count; i++)
             {
+                var e = m_Cells[i];
                 if (!InZone(team, e.cell)) continue;
                 var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
                 if (def == null) continue;
@@ -452,8 +464,9 @@ namespace GridSystem
             if (!IsServer || m_ServerGrid == null || count <= 0) return 0;
 
             var candidates = new System.Collections.Generic.List<Vector3Int>();
-            foreach (var e in m_Cells)
+            for (int i = 0; i < m_Cells.Count; i++)
             {
+                var e = m_Cells[i];
                 if (!InZone(team, e.cell)) continue;
                 if ((e.completedProcessMask & (int)ProcessType.Fixed) != 0) continue;
                 var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
@@ -655,10 +668,21 @@ namespace GridSystem
         }
 
         // ── 비주얼 (모든 클라이언트가 리스트로 재구성) ───────────────────────
+        // 배치/철거 1회에도 footprint 셀 수만큼(리셋은 전체 셀 수만큼) 이벤트가 연달아 오므로
+        // 이벤트마다 즉시 재구성하면 O(N²) — 플래그만 세우고 같은 프레임 LateUpdate에서 1회 처리.
+        private bool m_VisualsDirty;
+        private bool m_ScoreDirty;
+
         private void OnCellsChanged(NetworkListEvent<CellEntry> _)
         {
-            RebuildVisuals();
-            if (IsServer) RecomputeScore();
+            m_VisualsDirty = true;
+            if (IsServer) m_ScoreDirty = true;
+        }
+
+        private void LateUpdate()
+        {
+            if (m_VisualsDirty) { m_VisualsDirty = false; RebuildVisuals(); }
+            if (m_ScoreDirty)   { m_ScoreDirty = false; if (IsServer && IsSpawned) RecomputeScore(); }
         }
 
         public void RecomputeScore()
@@ -702,89 +726,230 @@ namespace GridSystem
             RecomputeScore();   // 새 정답 기준으로 점수 즉시 재계산(빈 그리드라 OnCellsChanged가 안 떠도)
         }
 
+        // ── 증분 재구성 상태 ──
+        // 블록(owner) 단위로 만든 오브젝트를 기억해 두고, 바뀐 owner만 만들고 지운다(스냅샷 diff).
+        // 이벤트 diff가 아니라 flush 시점의 m_Cells 전체와 비교하므로 NGO Full/Clear·늦참에도 안전.
+        // 전체 파괴+재생성은 완성체 통짜 교체(드묾)와 그 해제 시에만.
+        private sealed class OwnerVisual
+        {
+            public int materialId;
+            public byte rot;
+            public int mask;
+            public Vector3Int minCell;
+            public Vector3 markerPos;
+            public GameObject prefabGo;                        // 프리팹 경로(없으면 큐브 경로)
+            public List<GameObject> cubes;                     // 큐브 경로: cells와 같은 순서
+            public readonly List<Vector3Int> cells = new();
+            public readonly List<GameObject> solids = new();
+            public GameObject marker;
+        }
+        private readonly Dictionary<ulong, OwnerVisual> m_OwnerVisuals = new();
+        private readonly Dictionary<Vector3Int, GameObject> m_VisualByCell = new();   // VisualAt O(1) 조회용
+        private bool m_CompletedShown;
+
+        private struct OwnerWant
+        {
+            public Vector3Int minCell;
+            public Vector3 sumCenter;
+            public int count;
+            public float topY;
+            public int materialId;
+            public byte rot;
+            public int mask;
+        }
+        private readonly Dictionary<ulong, OwnerWant> m_Want = new();   // flush 스크래치(재사용)
+        private readonly List<ulong> m_OwnerKeyScratch = new();
+
         private void RebuildVisuals()
         {
             if (m_VisualRoot == null) return;
-            foreach (Transform t in m_VisualRoot.transform) Destroy(t.gameObject);
 
+            // ── 완성 교체 ──
+            // 큰 곡면 모델을 잘라 짓는 맵(DDP)은 잘린 단면 때문에 완성본이 매끈하게 안 보인다.
+            // 정답을 다 맞춘 순간엔 조각을 감추고 '자르기 전 통짜' 하나로 갈아 끼운다.
+            // 복제 상태(m_Cells + 정답)만으로 판정하므로 전 클라가 같은 결과를 낸다.
+            var completedPrefab = CompletedModelForMap(out var completedAnchor);
+            bool completed = completedPrefab != null && AnswerFullySatisfied();
+            if (completed || m_CompletedShown)
+            {
+                FullRebuild(completed, completedPrefab, completedAnchor);   // 전환·완성 중 변경은 드묾 — 전체 재구성 유지
+                return;
+            }
+            ApplyOwnerDiff();
+        }
+
+        private void ClearAllVisuals()
+        {
+            foreach (Transform t in m_VisualRoot.transform) Destroy(t.gameObject);
+            m_OwnerVisuals.Clear();
+            m_VisualByCell.Clear();
+        }
+
+        private void FullRebuild(bool completed, GameObject completedPrefab, Vector3Int completedAnchor)
+        {
+            ClearAllVisuals();
+            m_CompletedShown = completed;
+            if (!completed) { ApplyOwnerDiff(); return; }
+
+            var whole = Instantiate(completedPrefab, m_VisualRoot.transform);
+            whole.name = "~CompletedModel";
+            whole.transform.SetPositionAndRotation(GridCoordinates.CellToWorld(completedAnchor), Quaternion.identity);
+            foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);   // 물리는 아래 셀 콜라이더가 담당
+            AddCellColliders(m_Manager.Catalog, GridContract.Unit);
+            // 완성 후에도 착지 스퀴시 등 VisualAt 연출이 살아 있게 전 셀을 통짜 모델로 매핑
+            for (int i = 0; i < m_Cells.Count; i++) m_VisualByCell[m_Cells[i].cell] = whole;
+            // (완성 표시 중에는 m_SeenVisualOwners를 건드리지 않는다 — 원본의 조기 리턴과 동일)
+        }
+
+        private void ApplyOwnerDiff()
+        {
             float u = GridContract.Unit;
             var catalog = m_Manager.Catalog;
 
-            // 오브젝트(owner)별 집계: min-corner(프리팹 정렬) + 중심·꼭대기(공정 마커 위치) + 재료/완료공정
-            var agg = new Dictionary<ulong, OwnerAgg>();
-            foreach (var e in m_Cells)
+            // 1) 원하는 상태 집계: min-corner(프리팹 정렬) + 중심·꼭대기(공정 마커 위치) + 재료/회전/공정
+            m_Want.Clear();
+            for (int i = 0; i < m_Cells.Count; i++)
             {
+                var e = m_Cells[i];
                 Vector3 center = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
                 float top = GridCoordinates.CellToWorld(e.cell).y + u;
-                if (agg.TryGetValue(e.ownerObjectId, out var a))
+                if (m_Want.TryGetValue(e.ownerObjectId, out var w))
                 {
-                    a.minCell = Vector3Int.Min(a.minCell, e.cell);
-                    a.sumCenter += center; a.count++;
-                    a.topY = Mathf.Max(a.topY, top);
-                    agg[e.ownerObjectId] = a;
+                    w.minCell = Vector3Int.Min(w.minCell, e.cell);
+                    w.sumCenter += center; w.count++;
+                    w.topY = Mathf.Max(w.topY, top);
+                    m_Want[e.ownerObjectId] = w;
                 }
-                else agg[e.ownerObjectId] = new OwnerAgg
+                else m_Want[e.ownerObjectId] = new OwnerWant
                 {
                     minCell = e.cell, sumCenter = center, count = 1, topY = top,
-                    materialId = e.materialId, completedMask = e.completedProcessMask,
+                    materialId = e.materialId, rot = e.rotationStep, mask = e.completedProcessMask,
                 };
             }
 
-            // ── 완성 교체 ──
-            // 큰 곡면 모델을 잘라 짓는 맵(DDP)은, 조각이 아무리 잘 맞아도 잘린 단면 때문에
-            // 완성본이 매끈하게 안 보인다. 정답을 다 맞춘 순간엔 조각을 감추고 '자르기 전 통짜' 하나로 갈아 끼운다.
-            // 복제 상태(m_Cells + 정답)만으로 판정하므로 전 클라가 같은 결과를 낸다 — 따로 복제할 게 없다.
-            var completed = CompletedModelForMap(out var completedAnchor);
-            if (completed != null && AnswerFullySatisfied())
+            // 2) 사라진 owner 제거
+            m_OwnerKeyScratch.Clear();
+            foreach (var kv in m_OwnerVisuals)
+                if (!m_Want.ContainsKey(kv.Key)) m_OwnerKeyScratch.Add(kv.Key);
+            for (int i = 0; i < m_OwnerKeyScratch.Count; i++)
             {
-                var whole = Instantiate(completed, m_VisualRoot.transform);
-                whole.name = "~CompletedModel";
-                whole.transform.SetPositionAndRotation(GridCoordinates.CellToWorld(completedAnchor), Quaternion.identity);
-                foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);   // 물리는 아래 셀 콜라이더가 담당
-                AddCellColliders(catalog, u);
-                return;
+                DestroyOwnerVisual(m_OwnerVisuals[m_OwnerKeyScratch[i]]);
+                m_OwnerVisuals.Remove(m_OwnerKeyScratch[i]);
             }
 
-            var done = new HashSet<ulong>();
-            foreach (var e in m_Cells)
+            // 3) 추가·변경 owner. 셀 구성은 owner 수명 동안 불변이지만, 치트 완성처럼 같은 프레임에
+            //    전체 삭제+재배치되면 owner id가 재사용되므로 시그니처가 다르면 재생성한다.
+            foreach (var kv in m_Want)
             {
-                bool isNew = !m_SeenVisualOwners.Contains(e.ownerObjectId);   // 이번에 처음 등장한 블록 → 놓기 팝
-                var def = catalog != null ? catalog.GetById(e.materialId) : null;
-                if (def != null && def.Prefab != null)
+                var w = kv.Value;
+                if (m_OwnerVisuals.TryGetValue(kv.Key, out var ov))
                 {
-                    if (!done.Add(e.ownerObjectId)) continue;   // 오브젝트당 프리팹 1개
-                    var vgo = SpawnPrefabVisual(def, e.rotationStep, agg[e.ownerObjectId].minCell);
-                    if (isNew) GridJuice.Squish(vgo, 0.12f);    // 쿵 하고 안착(모든 클라)
+                    if (ov.materialId == w.materialId && ov.rot == w.rot
+                        && ov.minCell == w.minCell && ov.cells.Count == w.count)
+                    {
+                        if (ov.mask != w.mask) UpdateOwnerMask(ov, w.mask, catalog);
+                        continue;
+                    }
+                    DestroyOwnerVisual(ov);
+                    m_OwnerVisuals.Remove(kv.Key);
                 }
-                else
+                m_OwnerVisuals[kv.Key] = CreateOwnerVisual(kv.Key, w, catalog, u);
+            }
+
+            // 4) 다음 flush의 '새 블록'(놓기 팝) 판정용 owner 집합 갱신 — 기존 시맨틱 유지
+            m_SeenVisualOwners.Clear();
+            foreach (var kv in m_Want) m_SeenVisualOwners.Add(kv.Key);
+        }
+
+        private void DestroyOwnerVisual(OwnerVisual ov)
+        {
+            if (ov.prefabGo != null) Destroy(ov.prefabGo);
+            if (ov.cubes != null)
+                for (int i = 0; i < ov.cubes.Count; i++) if (ov.cubes[i] != null) Destroy(ov.cubes[i]);
+            for (int i = 0; i < ov.solids.Count; i++) if (ov.solids[i] != null) Destroy(ov.solids[i]);
+            if (ov.marker != null) Destroy(ov.marker);
+            for (int i = 0; i < ov.cells.Count; i++) m_VisualByCell.Remove(ov.cells[i]);
+        }
+
+        private OwnerVisual CreateOwnerVisual(ulong owner, OwnerWant w, MaterialCatalog catalog, float u)
+        {
+            var def = catalog != null ? catalog.GetById(w.materialId) : null;
+            var ov = new OwnerVisual
+            {
+                materialId = w.materialId, rot = w.rot, mask = w.mask, minCell = w.minCell,
+                markerPos = new Vector3(w.sumCenter.x / w.count, w.topY + 0.35f, w.sumCenter.z / w.count),
+            };
+            for (int i = 0; i < m_Cells.Count; i++)
+                if (m_Cells[i].ownerObjectId == owner) ov.cells.Add(m_Cells[i].cell);
+
+            bool isNew = !m_SeenVisualOwners.Contains(owner);   // 이번에 처음 등장한 블록 → 놓기 팝
+            if (def != null && def.Prefab != null)
+            {
+                ov.prefabGo = SpawnPrefabVisual(def, w.rot, w.minCell);
+                if (isNew) GridJuice.Squish(ov.prefabGo, 0.12f);   // 쿵 하고 안착(모든 클라)
+                for (int i = 0; i < ov.cells.Count; i++) m_VisualByCell[ov.cells[i]] = ov.prefabGo;
+            }
+            else
+            {
+                // 프리팹 없음 → 칸마다 색칠 큐브(완료 공정 색)
+                ov.cubes = new List<GameObject>(ov.cells.Count);
+                for (int i = 0; i < ov.cells.Count; i++)
                 {
-                    // 프리팹 없음 → 칸마다 색칠 큐브(완료 공정 색)
                     var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     cube.transform.SetParent(m_VisualRoot.transform, true);
-                    cube.transform.position = GridCoordinates.CellToWorld(e.cell) + Vector3.one * 0.5f * u;
+                    cube.transform.position = GridCoordinates.CellToWorld(ov.cells[i]) + Vector3.one * 0.5f * u;
                     cube.transform.localScale = Vector3.one * (u * 0.95f);
                     var col = cube.GetComponent<Collider>();
                     if (col != null) col.isTrigger = true;   // 물리는 ~Solid가 담당, 트리거는 시야가림 페이드용
-                    SetColor(cube, ColorForMask(e.completedProcessMask));
+                    SetColor(cube, ColorForMask(w.mask));
                     if (isNew) GridJuice.Squish(cube, 0.12f);
+                    ov.cubes.Add(cube);
+                    m_VisualByCell[ov.cells[i]] = cube;
                 }
             }
 
-            // 다음 재구성에서 '새 블록'을 구분하기 위해 현재 owner 집합 기억
-            m_SeenVisualOwners.Clear();
-            foreach (var e in m_Cells) m_SeenVisualOwners.Add(e.ownerObjectId);
+            RefreshOwnerMarker(ov, def);
+            if (SolidAllowed(def, w.mask))
+                for (int i = 0; i < ov.cells.Count; i++) ov.solids.Add(AddCellCollider(ov.cells[i], u));
+            return ov;
+        }
 
-            // 공정 마커: 아직 할 공정이 남은 블록 위에 색 점(파랑=고정 필요 / 초록=페인트 필요). 다 되면 안 띄움.
-            foreach (var a in agg.Values)
+        // 공정 마스크만 바뀐 블록: 파괴 없이 색·마커·콜라이더만 맞춘다.
+        private void UpdateOwnerMask(OwnerVisual ov, int newMask, MaterialCatalog catalog)
+        {
+            var def = catalog != null ? catalog.GetById(ov.materialId) : null;
+            bool hadSolid = SolidAllowed(def, ov.mask);
+            bool wantSolid = SolidAllowed(def, newMask);
+            ov.mask = newMask;
+
+            if (ov.cubes != null)
+                for (int i = 0; i < ov.cubes.Count; i++)
+                    if (ov.cubes[i] != null) SetColor(ov.cubes[i], ColorForMask(newMask));
+
+            RefreshOwnerMarker(ov, def);
+
+            if (wantSolid && !hadSolid)
             {
-                var def = catalog != null ? catalog.GetById(a.materialId) : null;
-                var next = NextNeeded(def != null ? def.RequiredMask : 0, a.completedMask);
-                if (next == ProcessType.None) continue;
-                var pos = new Vector3(a.sumCenter.x / a.count, a.topY + 0.35f, a.sumCenter.z / a.count);
-                SpawnProcessMarker(pos, next);
+                float u = GridContract.Unit;
+                for (int i = 0; i < ov.cells.Count; i++) ov.solids.Add(AddCellCollider(ov.cells[i], u));
             }
+            else if (!wantSolid && hadSolid)
+            {
+                for (int i = 0; i < ov.solids.Count; i++) if (ov.solids[i] != null) Destroy(ov.solids[i]);
+                ov.solids.Clear();
+            }
+        }
 
-            AddCellColliders(catalog, u);
+        // 미고정 하중부재만 통과(붕괴 유도) — AddCellColliders와 같은 규칙. def 없음 = 콜라이더 없음.
+        private static bool SolidAllowed(MaterialDef def, int mask)
+            => def != null && !(def.MustBeFixed && (mask & (int)ProcessType.Fixed) == 0);
+
+        private void RefreshOwnerMarker(OwnerVisual ov, MaterialDef def)
+        {
+            if (ov.marker != null) { Destroy(ov.marker); ov.marker = null; }
+            var next = NextNeeded(def != null ? def.RequiredMask : 0, ov.mask);
+            if (next == ProcessType.None) return;
+            ov.marker = SpawnProcessMarker(ov.markerPos, next);
         }
 
         // 단단함: 미고정 하중부재(공정 전)만 통과(부딪혀 무너뜨림). 그 외(바닥·물·공정완료 전부)는 막음.
@@ -832,34 +997,12 @@ namespace GridSystem
             return true;
         }
 
-        /// <summary>cell을 덮는 블록 비주얼 루트(프리팹/큐브). 없으면 null — 스퀴시 등 쫀득 연출용.</summary>
+        /// <summary>cell을 덮는 블록 비주얼 루트(프리팹/큐브/완성체). 없으면 null — 스퀴시 등 쫀득 연출용.
+        /// 증분 재구성이 유지하는 셀→비주얼 사전을 O(1)·무할당 조회한다(기존 전수 bounds 스캔 대체).</summary>
         public GameObject VisualAt(Vector3Int cell)
-        {
-            if (m_VisualRoot == null) return null;
-            Vector3 p = GridCoordinates.CellToWorld(cell) + Vector3.one * 0.5f * GridContract.Unit;
-            foreach (Transform t in m_VisualRoot.transform)
-            {
-                var rends = t.GetComponentsInChildren<Renderer>();
-                if (rends.Length == 0) continue;   // 콜라이더 전용(~Solid 등)은 건너뜀
-                Bounds b = rends[0].bounds;
-                for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
-                b.Expand(0.05f);
-                if (b.Contains(p)) return t.gameObject;
-            }
-            return null;
-        }
+            => m_VisualRoot != null && m_VisualByCell.TryGetValue(cell, out var go) && go != null ? go : null;
 
         private readonly HashSet<ulong> m_SeenVisualOwners = new();   // 놓기 팝용: 직전 재구성까지 있던 블록들
-
-        private struct OwnerAgg
-        {
-            public Vector3Int minCell;
-            public Vector3 sumCenter;
-            public int count;
-            public float topY;
-            public int materialId;
-            public int completedMask;
-        }
 
         // 진짜 블록 프리팹을 점유 칸에 맞춰 1개 인스턴스. 프리팹 피벗=바닥 → X/Z만 중심, Y는 셀 바닥에 안착.
         private GameObject SpawnPrefabVisual(MaterialDef def, int rot, Vector3Int minCell)
@@ -894,16 +1037,17 @@ namespace GridSystem
         }
 
         // 칸 하나를 막는 보이지 않는 BoxCollider(렌더러 없음). 칸 실제 크기 = 중력 플레이어가 위에 정확히 서고 옆을 못 지나감.
-        private void AddCellCollider(Vector3Int cell, float u)
+        private GameObject AddCellCollider(Vector3Int cell, float u)
         {
             var go = new GameObject("~Solid");
             go.transform.SetParent(m_VisualRoot.transform, true);
             go.transform.position = GridCoordinates.CellToWorld(cell) + Vector3.one * 0.5f * u;   // 칸 중심
             go.AddComponent<BoxCollider>().size = Vector3.one * u;                                 // 칸 크기
+            return go;
         }
 
         // 공정이 더 필요한 블록 위에 띄우는 도구 모델(고정=망치 / 페인트=페인트통). 모델 없으면 색 점 폴백. 충돌 없음.
-        private void SpawnProcessMarker(Vector3 pos, ProcessType next)
+        private GameObject SpawnProcessMarker(Vector3 pos, ProcessType next)
         {
             var model = next == ProcessType.Painted ? (m_DropField != null ? m_DropField.PaintModel  : null)
                       : next == ProcessType.Fixed   ? (m_DropField != null ? m_DropField.HammerModel : null)
@@ -932,6 +1076,7 @@ namespace GridSystem
             go.transform.localScale = Vector3.one * scale;
             go.transform.position = pos;
             go.AddComponent<JuiceBob>();   // 둥실둥실 + 회전 — "나 눌러줘" 어필
+            return go;
         }
 
         // 고정 → 페인트 순서로 첫 미완료 필수 공정(없으면 None).

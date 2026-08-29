@@ -215,7 +215,8 @@ namespace GridSystem
             if (def.TimeLimitPolicy == TimeLimitPolicy.Fixed) t = def.FixedTimeLimitSeconds;          // 2vs2 = 7분 고정
             else if (def.TimeLimitPolicy == TimeLimitPolicy.Unlimited) t = float.MaxValue;            // 자유모드
             else t = (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 180f;
-            m_TimeLeft.Value = Mathf.Max(1f, t);
+            m_ServerTimeLeft = Mathf.Max(1f, t);
+            m_TimeLeft.Value = m_ServerTimeLeft;
             m_Phase.Value = (int)GamePhase.Building;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);
         }
@@ -270,13 +271,21 @@ namespace GridSystem
                 else            Restart();  // 종료 전원동의 → 재시작
             }
 
-            // 타이머
+            // 타이머 — 원본은 서버 로컬 float로 깎고, 복제는 0.1초 격자로 내려갈 때만.
+            // 매 프레임 NetworkVariable에 쓰면 경기 내내 매 틱 델타가 전송된다(표시는 초 단위라 0.1초면 충분).
             if (IsBuilding)
             {
-                m_TimeLeft.Value -= Time.deltaTime;
-                if (m_TimeLeft.Value <= 0f) { m_TimeLeft.Value = 0f; Finish(); }
+                m_ServerTimeLeft -= Time.deltaTime;
+                if (m_ServerTimeLeft <= 0f) { m_ServerTimeLeft = 0f; m_TimeLeft.Value = 0f; Finish(); }
+                else if (m_ServerTimeLeft < 1e9f)   // 자유모드(float.MaxValue)는 사실상 안 줄어 복제 불필요
+                {
+                    float q = Mathf.Floor(m_ServerTimeLeft * 10f) * 0.1f;
+                    if (q < m_TimeLeft.Value) m_TimeLeft.Value = q;
+                }
             }
         }
+
+        private float m_ServerTimeLeft;   // 서버 권위 타이머 원본 — m_TimeLeft는 이 값의 0.1초 격자 복제본
 
         private static bool Contains(System.Collections.Generic.IReadOnlyList<ulong> ids, ulong id)
         {

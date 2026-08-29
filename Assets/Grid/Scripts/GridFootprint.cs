@@ -27,26 +27,22 @@ namespace GridSystem
         /// </summary>
         public static List<Vector3Int> EnumerateFootprintCells(Vector3Int anchor, Vector3Int footprint, int step)
         {
-            int count = Mathf.Max(0, footprint.x) * Mathf.Max(0, footprint.y) * Mathf.Max(0, footprint.z);
-            var rotated = new List<Vector3Int>(count);
+            var result = new List<Vector3Int>(Mathf.Max(0, footprint.x) * Mathf.Max(0, footprint.y) * Mathf.Max(0, footprint.z));
+            EnumerateFootprintCells(anchor, footprint, step, result);
+            return result;
+        }
 
+        /// <summary>비할당 버전 — 결과를 호출자 버퍼에 채운다(진입 시 Clear). 프리뷰·사거리 등 매 프레임 경로용.
+        /// RotateXZ는 축별 선형이라 min-corner는 원점과 반대 코너((fp-1) 회전값)의 성분별 최소로 닫힌다 —
+        /// 중간 리스트 없이 단일 패스로 기존 오버로드와 동일한 결과를 낸다(FootprintTests가 min-corner 불변식 검증).</summary>
+        public static void EnumerateFootprintCells(Vector3Int anchor, Vector3Int footprint, int step, List<Vector3Int> results)
+        {
+            results.Clear();
+            var minC = Vector3Int.Min(Vector3Int.zero, RotateXZ(footprint - Vector3Int.one, step));
             for (int x = 0; x < footprint.x; x++)
             for (int y = 0; y < footprint.y; y++)
             for (int z = 0; z < footprint.z; z++)
-                rotated.Add(RotateXZ(new Vector3Int(x, y, z), step));
-
-            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
-            foreach (var r in rotated)
-            {
-                if (r.x < minX) minX = r.x;
-                if (r.y < minY) minY = r.y;
-                if (r.z < minZ) minZ = r.z;
-            }
-
-            var result = new List<Vector3Int>(rotated.Count);
-            foreach (var r in rotated)
-                result.Add(anchor + new Vector3Int(r.x - minX, r.y - minY, r.z - minZ));
-            return result;
+                results.Add(anchor + RotateXZ(new Vector3Int(x, y, z), step) - minC);
         }
 
         /// <summary>

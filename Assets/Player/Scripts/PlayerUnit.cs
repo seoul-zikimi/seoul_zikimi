@@ -46,7 +46,16 @@ namespace Player
             0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
         public float FacingYaw => m_NetFacingYaw.Value;
-        public void ReportFacingYaw(float yaw) { if (IsSpawned && IsOwner) m_NetFacingYaw.Value = yaw; }
+
+        // 0.5° 격자로만 복제 — 원격은 Slerp로 따라와 시각 차이가 없고, 직진 중 속도 미세 떨림이
+        // 만드는 소수점 yaw 변화가 매 틱 델타를 전송하던 것을 막는다.
+        public void ReportFacingYaw(float yaw)
+        {
+            if (!IsSpawned || !IsOwner) return;
+            float q = Mathf.Round(Mathf.Repeat(yaw, 360f) * 2f) * 0.5f;
+            if (q >= 360f) q = 0f;
+            if (q != m_NetFacingYaw.Value) m_NetFacingYaw.Value = q;
+        }
 
         public string ProductName { get; set; }
 
@@ -466,14 +475,24 @@ namespace Player
                 m_Nametag.transform.rotation = Camera.main.transform.rotation;
         }
 
+        private int m_TrailHierarchyCount = -1;   // 커스텀 트레일 착용 감지 캐시
+        private bool m_HasCustomTrail;
+
         private void LateUpdate()
         {
             UpdateNametag();
 
             if (m_SlimeTrail == null) return;
             if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();
-            // 커스텀 트레일(상점) 착용 중이면 점액 트레일은 끔(새 트레일로 교체)
-            if (transform.Find("~Trail") != null) { m_SlimeTrail.emitting = false; return; }
+            // 커스텀 트레일(상점) 착용 중이면 점액 트레일은 끔(새 트레일로 교체).
+            // Find는 문자열 자식 탐색이라 매 프레임 돌리지 않고 계층 변화(hierarchyCount) 때만 재확인.
+            int hc = transform.hierarchyCount;
+            if (hc != m_TrailHierarchyCount)
+            {
+                m_TrailHierarchyCount = hc;
+                m_HasCustomTrail = transform.Find("~Trail") != null;
+            }
+            if (m_HasCustomTrail) { m_SlimeTrail.emitting = false; return; }
             // 바닥 위 또는 벽타기 중엔 점액이 나옴(민달팽이니 벽에도 자국 남김). 점프/낙하 공중에선 끊김.
             bool climbing = m_MoveForTrail != null && m_MoveForTrail.IsClimbing;
             m_SlimeTrail.emitting = m_MoveForTrail == null || m_MoveForTrail.IsGrounded() || climbing;

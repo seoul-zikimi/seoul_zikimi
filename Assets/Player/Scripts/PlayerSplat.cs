@@ -18,13 +18,14 @@ namespace Player
         const float kDamp          = 9f;       // 낮을수록 더 출렁
 
         Transform m_Wrap;      // 스케일 전용 래퍼
+        PlayerMovement m_Move; // 접지 판정 위임 — 같은 프레임에 이미 재 온 캐시를 재사용(캐스트 0회)
         Vector3 m_PrevPos;
         bool m_WasGrounded = true;
         float m_Cur, m_Vel;    // 변형량(+=길쭉, −=찌부)과 스프링 속도
         float m_FallSpeed;     // 공중 최대 낙하속도(착지 프레임엔 델타가 0이라 미리 기억)
         float m_FindRetry;
 
-        void Start() { TryWrap(); m_PrevPos = transform.position; }
+        void Start() { TryWrap(); m_PrevPos = transform.position; m_Move = GetComponent<PlayerMovement>(); }
 
         /// <summary>외부 임펄스(점프 발구름 등): 양수=쭉 늘어남, 음수=찌부. 스프링에 속도로 주입.</summary>
         public void AddImpulse(float amount) => m_Vel += amount;
@@ -99,13 +100,21 @@ namespace Player
             m_Wrap.localScale = new Vector3(xz, y, xz);
         }
 
+        static readonly RaycastHit[] s_Hits = new RaycastHit[8];   // 폴백용 재사용 버퍼
+
         bool Grounded()
         {
-            var hits = Physics.RaycastAll(transform.position + Vector3.up * 0.1f, Vector3.down,
-                                          0.3f, ~0, QueryTriggerInteraction.Ignore);
-            foreach (var h in hits)
-                if (h.collider.transform != transform && !h.collider.transform.IsChildOf(transform))
-                    return true;
+            // PlayerMovement가 이미 프레임 캐시된 접지 판정을 갖고 있다 — 중복 레이캐스트 제거.
+            // (시각 연출이 실제 이동 접지 판정과 같은 기준을 쓰게 되는 부수 효과도 의도)
+            if (m_Move != null) return m_Move.IsGrounded();
+
+            int n = Physics.RaycastNonAlloc(transform.position + Vector3.up * 0.1f, Vector3.down,
+                                            s_Hits, 0.3f, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var tr = s_Hits[i].collider.transform;
+                if (tr != transform && !tr.IsChildOf(transform)) return true;
+            }
             return false;
         }
     }

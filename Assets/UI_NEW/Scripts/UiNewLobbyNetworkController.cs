@@ -20,6 +20,7 @@ namespace SeoulZikimi.UI.New
         private readonly SemaphoreSlim metadataGate = new(1, 1);
         private bool netSubscribed;
         private bool spawnWarningShown;
+        private float nextNetPollAt;   // 미바인딩 상태 재탐색 스로틀
 
         private void Awake()
         {
@@ -58,6 +59,14 @@ namespace SeoulZikimi.UI.New
             // Lobby -> GameScene -> Lobby 왕복 시 씬에 직렬화된 참조와 Netcode가 실제로
             // 스폰한 in-scene NetworkObject가 달라질 수 있다. null 여부뿐 아니라
             // IsSpawned까지 확인해 실제 네트워크 객체로 다시 바인딩한다.
+            // 바인딩된 상태에선 RebindLobbyNet이 조기 리턴이라 매 프레임 싸다. 미바인딩/스폰 대기
+            // 상태의 전체 씬 검색(FindObjectsByType 배열 할당)과 스폰 재시도(try/catch)만
+            // 0.25초 간격으로 제한한다 — 복구 지연은 메뉴 화면에서 체감 불가.
+            if (lobbyNet == null || !lobbyNet.IsSpawned)
+            {
+                if (Time.unscaledTime < nextNetPollAt) return;
+                nextNetPollAt = Time.unscaledTime + 0.25f;
+            }
             RebindLobbyNet();
 
             if (lobbyNet != null && !lobbyNet.IsSpawned

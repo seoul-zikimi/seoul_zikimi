@@ -170,6 +170,7 @@ namespace GridSystem
         private void SettleUpdate()
         {
             var pos = transform.position;
+            var pos0 = pos;   // 안착해 움직임이 없으면 트랜스폼 쓰기 생략 — 정적 콜라이더 이동 비용 제거
 
             var toH = new Vector3(m_Target.x - pos.x, 0f, m_Target.z - pos.z);
             float hd = toH.magnitude;
@@ -194,7 +195,7 @@ namespace GridSystem
                 if (m_VVel > 0f) pos.y += m_VVel * Time.deltaTime;   // 재바운스 상승 시작
             }
 
-            transform.position = pos;
+            if (pos != pos0) transform.position = pos;
 
             if (move.sqrMagnitude > 1e-6f)
             {
