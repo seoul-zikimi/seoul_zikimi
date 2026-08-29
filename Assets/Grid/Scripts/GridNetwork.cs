@@ -268,7 +268,10 @@ namespace GridSystem
             m_ServerGrid.Place(anchor, mat, rot, owner);
 
             // 망치질이 필요 없는 재료(바닥 등 비-하중부재)는 배치 즉시 '고정'(앵커) → 위에 다른 블록 놓아도 안 무너짐.
-            int initialMask = mat.MustBeFixed ? 0 : (int)ProcessType.Fixed;
+            // 단 망치(Fixed) 공정을 명시로 요구하는 재료는 자동 고정에서 제외 — 자동 고정하면 요구 공정이
+            // 배치 순간 충족돼 망치 마커도 안 뜨고 망치질할 일이 없어진다(MustBeFixed=false인 DDP 조각이 그랬다).
+            bool needsHammer = (mat.RequiredMask & (int)ProcessType.Fixed) != 0;
+            int initialMask = (mat.MustBeFixed || needsHammer) ? 0 : (int)ProcessType.Fixed;
             if (initialMask != 0) m_ServerGrid.TryApplyProcess(anchor, ProcessType.Fixed, mat);
 
             foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
