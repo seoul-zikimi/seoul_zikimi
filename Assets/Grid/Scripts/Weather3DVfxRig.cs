@@ -70,12 +70,17 @@ namespace GridSystem
         private const float kBaseArea = 12f * 9f;     // 에셋 빌더 기본 박스(12x9)
         private const float kMaxRateMul = 6f;
         private const float kLeafRateMul = 0.3f;     // 낙엽·벚꽃은 맵 전체에 '조금만' 흩날리게(면적 확장은 유지, 밀도만 낮춤)
-        // 시스템당 절대 상한(모바일 GPU) — 종전엔 느린 입자 수명 연장에서 rate×수명×1.35로 재계산돼
-        // 대형 맵 눈이 이론상 1.6만 입자까지 갔다. 개수는 자르고 입자 크기(√비율)로 체감 밀도를 보전한다.
-        // 기획서의 밀도 요구는 정성적(강풍 '거세게'·잎 '조금씩')이라 개수 스펙 위반 아님 — 날씨 기획서 07/24 확인.
-        private const int kMaxParticlesAbs = 1000;
-        private const float kMaxSizeComp = 1.8f;      // 왕눈송이 방지 — 크기 보상 상한
-        private readonly System.Collections.Generic.Dictionary<ParticleSystem, (float rate, int max, float sizeMul)> m_Base = new();
+        // 시스템당 절대 상한 — '모바일 타깃에서만' 적용(기획 확정: 입자 크기 보상은 이질감 있어 금지,
+        // 데스크톱은 종전 면적비 스케일 그대로). 종전엔 느린 입자 수명 연장에서 rate×수명×1.35로
+        // 재계산돼 대형 맵 눈이 이론상 1.6만 입자까지 갔다. 에디터에선 활성 빌드 타깃 기준으로 걸린다(QA 가능).
+        private const int kMaxParticlesMobile = 1000;
+        private static readonly bool kCapParticles =   // const면 비모바일 타깃에서 CS0162(도달 불가) 경고
+#if UNITY_IOS || UNITY_ANDROID
+            true;
+#else
+            false;
+#endif
+        private readonly System.Collections.Generic.Dictionary<ParticleSystem, (float rate, int max)> m_Base = new();
         private Bounds m_CoveredArea; private bool m_Covered;
 
         /// <summary>맵 전체에 내리게: 이미터를 area 위에 두고 박스를 area 크기로. 한 번만 적용(면적 바뀌면 재적용).</summary>
@@ -91,7 +96,7 @@ namespace GridSystem
                 if (ps == null) continue;
                 if (!m_Base.TryGetValue(ps, out var b))
                 {
-                    b = (ps.emission.rateOverTime.constant, ps.main.maxParticles, ps.main.startSizeMultiplier);
+                    b = (ps.emission.rateOverTime.constant, ps.main.maxParticles);
                     m_Base[ps] = b;
                 }
                 float rateMul = mul * ((ps == m_AutumnLeaves || ps == m_CherryBlossom) ? kLeafRateMul : 1f);
@@ -114,16 +119,13 @@ namespace GridSystem
                     }
                 }
 
-                // 절대 캡: 넘치는 비율만큼 방출도 줄이고(정상상태 = rate×수명이라 함께 줄여야 함),
-                // 잘린 밀도는 입자 크기 √보상으로 화면 점유 체감을 유지한다.
-                if (wantMax > kMaxParticlesAbs)
+                // 모바일 절대 캡: 넘치는 비율만큼 방출도 함께 줄인다(정상상태 = rate×수명 — 안 줄이면 캡이 실효 없음).
+                // 입자 크기 보상은 기획 확정으로 하지 않음(커진 입자가 이질적) — 밀도만 낮아진다.
+                if (kCapParticles && wantMax > kMaxParticlesMobile)
                 {
-                    float f = (float)wantMax / kMaxParticlesAbs;
-                    rate /= f;
-                    wantMax = kMaxParticlesAbs;
-                    main.startSizeMultiplier = b.sizeMul * Mathf.Min(Mathf.Sqrt(f), kMaxSizeComp);
+                    rate *= (float)kMaxParticlesMobile / wantMax;
+                    wantMax = kMaxParticlesMobile;
                 }
-                else main.startSizeMultiplier = b.sizeMul;   // 작은 맵/재적용 시 원복
 
                 var em = ps.emission; em.rateOverTime = rate;
                 main.maxParticles = wantMax;

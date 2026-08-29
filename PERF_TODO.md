@@ -38,7 +38,7 @@
 
 - [x] **P1** `GameHudDriver.cs` — 1초 버튼 전수 스윕(FindObjectsByType 씬 전체) → 요청 기반 + 10초 안전망. UIManager의 HUD·팝업·시스템 팝업 인스턴스화 시 RequestJuicySweep() 자동 호출(생성처 대부분은 이미 자체 Attach — 스윕은 빠뜨린 경로 자가 치유용). *QA: 새 팝업·주문 카드 버튼 호버 쫀득 확인.*
 - [x] **P2** 미검증 3건 검증·수정: `CameraObstructionFader` SetColor 문자열 → PropertyToID 캐시(페이드 중 매 프레임 경로) / `GridSoundBridge` 호출당 Enum.Parse+object[] 할당 → 값 캐시+인자 버퍼 재사용(효과음 연타 핫패스) / `ItemFx.CannonShot` 발사당 Material 누수 확인 → 공유 재질 1개로. (BuffBar는 2차에 처리됨)
-- [x] **P1** `Weather3DVfxRig.cs` — maxParticles 절대 캡(시스템당 1000). 종전 느린 입자 수명 연장 경로가 rate×수명×1.35 재계산으로 대형 맵 눈을 이론상 1.6만 입자까지 키우던 것. 캡 초과분은 방출도 함께 줄이고 입자 크기 √보상(상한 1.8×)으로 체감 밀도 유지. **날씨 기획서(07/24) 확인** — 밀도 요구는 정성적(거세게/조금씩)이라 개수 스펙 없음. *QA: 겨울 눈·여름 태풍 맵 체감 밀도.*
+- [x] **P1** `Weather3DVfxRig.cs` — maxParticles 절대 캡(시스템당 1000)을 **모바일 타깃(iOS/Android)에서만** 적용, 캡 초과분은 방출도 함께 감소. **기획 확정**: 입자 크기 보상은 이질감 있어 금지(밀도만 낮아짐), 데스크톱은 종전 그대로. 에디터는 활성 빌드 타깃 기준으로 걸림(iOS 타깃이면 QA 가능). *QA: iOS 타깃 에디터에서 겨울 눈·여름 태풍 체감 밀도.*
 - [x] **P2** `ZoneFogFx.cs` — 안개 구름 다이어트(정상상태 ~113→~56, 크기·알파 보상). 이 연출은 '남이 보는 걸림 표시' 전용(당한 팀 시야 차단은 TeamWeatherFx 카메라 포그 담당)이라 **아이템 게임플레이 효과 불변**. *QA: 2vs2 안개 아이템 시전 — 상대 구역 덮임 체감.*
 
 ## 남은 항목 — 코드
