@@ -14,10 +14,12 @@ namespace GridSystem.Tests
     {
         const float kTol = 0.05f;
 
-        /// <summary>경복궁 파츠는 이음새를 가리려고 '일부러' 1.05~1.18배 오버필로 래핑한다 —
-        /// 칸맞춤 검사 면제(MaterialPrefabFitTool.IsExempt와 같은 규칙. 툴에 면제가 생겼는데 테스트가 몰라 CI에서 오탐).</summary>
+        /// <summary>'일부러' 칸보다 크게 래핑한 재료는 칸맞춤 검사 면제
+        /// (MaterialPrefabFitTool.IsExempt와 같은 규칙. 툴에 면제가 생겼는데 테스트가 몰라 CI에서 오탐).
+        /// · 경복궁 파츠: 이음새를 가리려고 1.05~1.18배 오버필(폴더 단위).
+        /// · MaterialDef.IntentionalOverfill: 재료 단위 면제(롯데 중앙첨탑의 밑동 연장 등).</summary>
         internal static bool IsOverfillExempt(MaterialDef def)
-            => AssetDatabase.GetAssetPath(def).Contains("3_Gyeongbokgung");
+            => def.IntentionalOverfill || AssetDatabase.GetAssetPath(def).Contains("3_Gyeongbokgung");
 
         static System.Collections.Generic.IEnumerable<MaterialDef> AllDefs()
         {

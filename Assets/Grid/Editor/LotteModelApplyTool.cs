@@ -10,6 +10,9 @@ namespace GridSystem.EditorTools
     ///
     /// 사용법: VARCO에서 뽑은 GLB를 Assets/Prefabs/Map/3_LotteWorld/Models/&lt;이름&gt;.glb 로 넣고 실행.
     /// · 파츠 8종: &lt;이름&gt;_Fit.prefab 생성(footprint 크기로 스케일, 피벗 min-corner) → def.Prefab 교체
+    ///   예외 2종(QA "에셋 크기/위치조정 필요"):
+    ///   - 중앙첨탑: 밑동을 칸 아래로 0.5칸 연장(아래 성상단의 파인 상단을 메운다) — def.IntentionalOverfill
+    ///   - 깃발: 축별 스케일 대신 균등 스케일 + 깃대 축을 칸 중심에 정렬 — def.FreeformVisual
     /// · 롯데_퍼레이드카.glb: Resources/LotteWorld/ParadeCar.prefab (퍼레이드 카 비주얼 — ParadeNetwork가 로드)
     /// · 배경 소품(롯데월드타워·자이로드롭·회전목마·대관람차·어드벤처돔): _Fit.prefab 생성
     ///   (적용 후 Tools ▸ Map ▸ ★ 롯데월드 맵 생성을 다시 실행하면 배경에 반영됨)
@@ -21,20 +24,31 @@ namespace GridSystem.EditorTools
         private const string kModelDir = kDir + "/Models";
         private const string kParadeCarPrefabPath = "Assets/Resources/LotteWorld/ParadeCar.prefab";
 
-        // 파츠 이름 → footprint (LotteWorldMapTool.kParts와 동일해야 한다)
+        // 파츠 이름 → footprint, 밑동 연장(skirt) (footprint는 LotteWorldMapTool.kParts와 동일해야 한다)
         // ⚠ 규약(MaterialPrefabContractTests): 비주얼 크기 = footprint와 정확히(오차 0.05) —
         //   비율 보정(visXZ)·0.97 여백은 테스트를 깨뜨려서 쓰지 않는다.
-        private static readonly (string name, Vector3Int fp)[] kParts =
+        //
+        // skirt > 0 = 비주얼만 칸 아래로 그만큼 더 내린다(점유 칸은 footprint 그대로).
+        //   중앙첨탑: 바로 아래 성상단의 상단이 움푹 파여 있어, 밑동이 칸 바닥(y5)에서 끊기면
+        //   첨탑이 파인 자리 위에 붕 뜬 것처럼 보인다(QA). 밑동을 반 칸 늘려 파인 곳에 꽂는다.
+        //   ⚠ 이 파츠의 def는 IntentionalOverfill이 켜져 있어야 한다 —
+        //     안 켜면 에디터 로드 때 MaterialPrefabFitTool.FitAll이 도로 칸 크기로 쪼그라뜨린다.
+        private const float kSpireSkirt = 0.5f;
+
+        private static readonly (string name, Vector3Int fp, float skirt)[] kParts =
         {
-            ("롯데_성기반",     new Vector3Int(5, 1, 5)),
-            ("롯데_성본체",     new Vector3Int(3, 3, 3)),
-            ("롯데_성상단",     new Vector3Int(3, 1, 3)),
-            ("롯데_중앙첨탑",   new Vector3Int(1, 3, 1)),
-            ("롯데_코너타워",   new Vector3Int(1, 4, 1)),
-            ("롯데_타워지붕",   new Vector3Int(1, 2, 1)),
-            ("롯데_정문게이트", new Vector3Int(1, 2, 1)),
-            ("롯데_깃발",       new Vector3Int(1, 1, 1)),
+            ("롯데_성기반",     new Vector3Int(5, 1, 5), 0f),
+            ("롯데_성본체",     new Vector3Int(3, 3, 3), 0f),
+            ("롯데_성상단",     new Vector3Int(3, 1, 3), 0f),
+            ("롯데_중앙첨탑",   new Vector3Int(1, 3, 1), kSpireSkirt),
+            ("롯데_코너타워",   new Vector3Int(1, 4, 1), 0f),
+            ("롯데_타워지붕",   new Vector3Int(1, 2, 1), 0f),
+            ("롯데_정문게이트", new Vector3Int(1, 2, 1), 0f),
+            ("롯데_깃발",       new Vector3Int(1, 1, 1), 0f),   // 깃대 정렬 전용 경로(BuildFlagFitPrefab)
         };
+
+        // 깃발은 '깃대 축을 칸 중심에' 맞추는 전용 래핑을 쓴다(아래 BuildFlagFitPrefab 주석 참고).
+        private const string kFlagPart = "롯데_깃발";
 
         [MenuItem("Tools/Map/★ 롯데월드 VARCO 모델 적용")]
         public static void Apply()
@@ -42,15 +56,25 @@ namespace GridSystem.EditorTools
             int applied = 0, skipped = 0;
 
             // ① 파츠 8종 → _Fit 래핑 + def.Prefab 교체
-            foreach (var (name, fp) in kParts)
+            foreach (var (name, fp, skirt) in kParts)
             {
                 var model = LoadModel(name);
                 if (model == null) { skipped++; continue; }
 
-                // 칸을 정확히 채운다(규약) — 여백을 주면 MaterialPrefabContractTests가 깨진다.
-                var target = new Vector3(fp.x, fp.y, fp.z);
-                var fit = BuildFitPrefab(model, $"{kDir}/{name}_Fit.prefab",
-                    target, minCornerPivot: true, cellSize: new Vector3(fp.x, fp.y, fp.z));
+                GameObject fit;
+                if (name == kFlagPart)
+                {
+                    fit = BuildFlagFitPrefab(model, $"{kDir}/{name}_Fit.prefab", fp);
+                }
+                else
+                {
+                    // 칸을 정확히 채운다(규약) — 여백을 주면 MaterialPrefabContractTests가 깨진다.
+                    // skirt가 있는 파츠만 '밑동'을 칸 아래로 연장한다(의도적 오버필 — def 플래그로 면제).
+                    var target = new Vector3(fp.x, fp.y + skirt, fp.z);
+                    fit = BuildFitPrefab(model, $"{kDir}/{name}_Fit.prefab",
+                        target, minCornerPivot: true, cellSize: target,
+                        extraOffset: new Vector3(0f, -skirt, 0f));
+                }
                 if (fit == null) { skipped++; continue; }
 
                 var def = AssetDatabase.LoadAssetAtPath<MaterialDef>($"{kDir}/{name}_Def.asset");
@@ -60,7 +84,9 @@ namespace GridSystem.EditorTools
                 so.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(def);
                 applied++;
-                Debug.Log($"[롯데모델] 적용: {name} → {name}_Fit.prefab (footprint {fp.x}×{fp.y}×{fp.z})");
+                string extra = name == kFlagPart ? " · 깃대를 칸 중심에 정렬"
+                             : skirt > 0f ? $" · 밑동 {skirt:0.##}칸 연장" : "";
+                Debug.Log($"[롯데모델] 적용: {name} → {name}_Fit.prefab (footprint {fp.x}×{fp.y}×{fp.z}{extra})");
             }
 
             // ② 퍼레이드 카(런타임 로드용 — 바닥 피벗, 카 몸통 크기) — ParadeNetwork가 Resources에서 로드
@@ -146,9 +172,88 @@ namespace GridSystem.EditorTools
             return null;
         }
 
+        /// <summary>
+        /// 깃발 전용 래핑 — GLB 피벗이 '메시 바운즈 중앙'이라 칸에 그냥 맞추면 깃대가
+        /// 칸 중심(=바로 아래 중앙첨탑의 축)에서 밀린다(QA: "맨 위 깃발을 왼쪽으로 옮겨야").
+        /// 그래서 바운즈가 아니라 <b>깃대 축</b>을 칸 중심에 맞춘다.
+        /// · 깃대 축 = 바닥에 닿는 정점들(아래 8% 밴드)의 XZ 중심 — 바닥까지 내려오는 건 깃대뿐이다.
+        /// · 스케일은 축별이 아니라 균등 — 축별로 늘리면(깃발 GLB는 x1.48/z6.90) 깃대가 납작한 판이 된다.
+        /// · 천이 옆 칸까지 새지 않게, 깃대를 중심에 놓았을 때의 좌우 뻗음으로 스케일을 한 번 더 조인다.
+        /// ⚠ 이 프리팹은 칸을 꽉 채우지 않는다 — def의 FreeformVisual이 켜져 있어야
+        ///   MaterialPrefabFitTool.FitAll이 도로 칸 크기로 늘려 깃대를 다시 밀어내지 않는다.
+        /// (근본 해결은 GLB를 깃대 중심 피벗으로 다시 뽑는 것 — 그때는 이 경로가 그대로 no-op에 가깝다.)
+        /// </summary>
+        private static GameObject BuildFlagFitPrefab(GameObject model, string prefabPath, Vector3Int fp)
+        {
+            const float kSlack = 0.10f;   // 칸 밖 허용치(자유 형상 규약은 0.15까지 — 여유를 남긴다)
+
+            var root = new GameObject(Path.GetFileNameWithoutExtension(prefabPath));
+            var inst = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
+
+            if (!MeasureFlag(root, inst, out var b, out var axis))
+            {
+                Debug.LogWarning($"[롯데모델] 메시를 못 읽음: {model.name} — 일반 규격으로 래핑");
+                Object.DestroyImmediate(root);
+                var box = new Vector3(fp.x, fp.y, fp.z);
+                return BuildFitPrefab(model, prefabPath, box, minCornerPivot: true, cellSize: box);
+            }
+
+            // 칸 높이에 균등하게 맞추고, 깃대 기준 좌우 뻗음이 칸(+여유)을 넘지 않게 더 조인다
+            float s = fp.y / b.size.y;
+            float reachX = Mathf.Max(axis.x - b.min.x, b.max.x - axis.x);
+            float reachZ = Mathf.Max(axis.y - b.min.z, b.max.z - axis.y);
+            if (reachX > 1e-4f) s = Mathf.Min(s, (0.5f * fp.x + kSlack) / reachX);
+            if (reachZ > 1e-4f) s = Mathf.Min(s, (0.5f * fp.z + kSlack) / reachZ);
+            inst.transform.localScale *= s;
+
+            // 스케일 반영 후 다시 재서(부모 스케일·임포터 보정 포함) 깃대 축을 칸 중심에, 바닥을 칸 바닥에
+            if (!MeasureFlag(root, inst, out b, out axis)) { Object.DestroyImmediate(root); return null; }
+            inst.transform.localPosition += new Vector3(0.5f * fp.x - axis.x, -b.min.y, 0.5f * fp.z - axis.y);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        // 깃발 메시의 바운즈와 '깃대 축'(바닥 밴드 정점들의 XZ 중심)을 래퍼 루트 기준으로 잰다.
+        private static bool MeasureFlag(GameObject root, GameObject inst, out Bounds bounds, out Vector2 poleAxis)
+        {
+            bounds = default;
+            poleAxis = Vector2.zero;
+
+            var verts = new System.Collections.Generic.List<Vector3>();
+            foreach (var mf in inst.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null) continue;
+                var toRoot = root.transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                foreach (var v in mf.sharedMesh.vertices) verts.Add(toRoot.MultiplyPoint3x4(v));
+            }
+            if (verts.Count == 0) return false;
+
+            var b = new Bounds(verts[0], Vector3.zero);
+            foreach (var v in verts) b.Encapsulate(v);
+            if (b.size.x < 1e-4f || b.size.y < 1e-4f || b.size.z < 1e-4f) return false;
+
+            // 바닥에 닿는 부분 = 깃대. 밴드가 비면(있을 수 없지만) 바운즈 중심으로 폴백.
+            float bandTop = b.min.y + 0.08f * b.size.y;
+            bool any = false;
+            var pole = new Bounds();
+            foreach (var v in verts)
+            {
+                if (v.y > bandTop) continue;
+                if (!any) { pole = new Bounds(v, Vector3.zero); any = true; }
+                else pole.Encapsulate(v);
+            }
+            bounds = b;
+            poleAxis = any ? new Vector2(pole.center.x, pole.center.z) : new Vector2(b.center.x, b.center.z);
+            return true;
+        }
+
         // 모델을 목표 크기 상자에 맞춰(축별 스케일) 래핑한 프리팹 생성. (NamsanModelApplyTool과 동일 규칙)
+        // extraOffset: 피벗 정렬이 끝난 뒤 더할 오프셋 — 밑동을 칸 아래로 내리는 skirt에 쓴다.
         private static GameObject BuildFitPrefab(GameObject model, string prefabPath, Vector3 targetSize,
-                                                 bool minCornerPivot, bool groundPivot = false, Vector3 cellSize = default)
+                                                 bool minCornerPivot, bool groundPivot = false, Vector3 cellSize = default,
+                                                 Vector3 extraOffset = default)
         {
             var root = new GameObject(Path.GetFileNameWithoutExtension(prefabPath));
             var inst = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
@@ -191,6 +296,7 @@ namespace GridSystem.EditorTools
             {
                 inst.transform.localPosition -= b.center;
             }
+            inst.transform.localPosition += extraOffset;
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);

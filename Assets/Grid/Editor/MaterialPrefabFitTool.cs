@@ -17,11 +17,12 @@ namespace GridSystem.EditorTools
     {
         const float kTol = 0.05f;   // 피벗·크기 허용 오차(유닛)
 
-        // 의도적으로 칸보다 크게(오버필) 래핑하는 맵 — 칸맞춤이 건드리면 안 된다.
-        // 경복궁 파츠는 GyeongbokgungModelApplyTool이 이음새를 가리려고 일부러 1.05~1.18배로 키운다.
+        // 의도적으로 칸보다 크게(오버필) 래핑하는 재료 — 칸맞춤이 건드리면 안 된다.
+        // · 경복궁 파츠는 GyeongbokgungModelApplyTool이 이음새를 가리려고 일부러 1.05~1.18배로 키운다(폴더 단위 면제).
+        // · 개별 재료는 MaterialDef.IntentionalOverfill로 면제한다(롯데 중앙첨탑의 밑동 연장 등).
         // (LotteWorldAutoSetup이 에디터 로드마다 FitAll을 자동 실행하므로, 여기서 제외하지 않으면 매번 도로 쪼그라든다)
         static bool IsExempt(MaterialDef def)
-            => AssetDatabase.GetAssetPath(def).Contains("3_Gyeongbokgung");
+            => def.IntentionalOverfill || AssetDatabase.GetAssetPath(def).Contains("3_Gyeongbokgung");
 
         [MenuItem("Tools/Grid/재료 프리팹 칸 맞춤(전체)")]
         public static void FitAll()
