@@ -88,7 +88,11 @@ namespace SeoulZikimi.UI.New
             panel.CompleteCreation();
         }
 
-        private static void OnCreateFailed(string message) =>
+        private void OnCreateFailed(string message)
+        {
             Debug.LogError($"[UI_NEW] 방 생성 실패: {message}");
+            if (panel != null)
+                panel.FailCreation();   // 스피너 제거 + 만들기 버튼 재활성
+        }
     }
 }
