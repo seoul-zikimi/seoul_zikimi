@@ -64,6 +64,7 @@ namespace SeoulZikimi.UI.New
             catch (Exception ex)
             {
                 Debug.LogError($"[UI_NEW] 방 입장 실패: {ex.Message}");
+                roomList.HideJoinSpinner();   // 실패 시 카드 위 스피너 정리
                 if (room.HasPassword)
                     passwordPopup.ShowError();
             }
