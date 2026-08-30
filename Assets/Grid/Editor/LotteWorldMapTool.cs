@@ -19,7 +19,7 @@ namespace GridSystem.EditorTools
     public static class LotteWorldMapTool
     {
         private const string kDir         = "Assets/Prefabs/Map/3_LotteWorld";
-        private const string kPrefabPath  = "Assets/Map/Prefabs/MapBg_LotteWorld.prefab";
+        private const string kPrefabPath  = "Assets/Resources/MapPrefabs/MapBg_LotteWorld.prefab";
         private const string kMapDefPath  = "Assets/Map/Maps/Map_LotteWorld.asset";
         private const string kAnswerPath  = kDir + "/Ans_LotteWorld.asset";
         private const string kConfigPath  = kDir + "/LotteGimmickConfig_LotteWorld.asset";
