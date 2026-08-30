@@ -104,6 +104,8 @@ namespace GridSystem.EditorTools
             ("DDP_원경",       new Vector3(30f, 9f, 12f),     false),   // 원경은 실루엣만 보이면 되니 상자 채우기
             ("DDP_장미한송이", new Vector3(0.30f, 0.85f, 0.30f), true), // 광장 화단에 한 송이씩 심는다
             ("DDP_발굴표식",   new Vector3(0.95f, 1.15f, 0.95f), true), // 발굴터 표지 말뚝(배경용 사본)
+            ("DDP_가로등",     new Vector3(0.9f, 3.2f, 0.9f),  true),  // 야경 가로등(있으면 그레이박스 기둥 대체)
+            ("DDP_나무",       new Vector3(3.0f, 3.6f, 3.0f),  true),  // 광장 나무(있으면 원기둥+구 그레이박스 대체)
         };
 
         // ── Resources/Ddp 런타임 프리팹 ────────────────────────────────────
