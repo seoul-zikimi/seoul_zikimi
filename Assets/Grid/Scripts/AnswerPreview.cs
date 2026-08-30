@@ -42,7 +42,7 @@ namespace GridSystem
         private readonly List<(GameObject go, int baseY, List<Vector3Int> cells, int materialId, int reqMask, int matStart, int matCount)> m_GhostFloors = new();   // 인월드 고스트 + 기준층 + 정답 셀(완료 판정) + 고스트 머티리얼 구간(강조용)
         private readonly List<bool> m_GhostDone = new();   // 블록별 '알맞게 완료' 캐시(스로틀 갱신)
         private readonly List<Color> m_GhostMatCols = new();   // m_GhostMats와 1:1 — 원본 색(강조 초록에서 복귀용)
-        private static readonly Color kGhostHighlight = new Color(0.35f, 1f, 0.55f);   // 호버/선택 강조: 초록(원색은 실블록과 헷갈림)
+        private static readonly Color kGhostHighlight = new Color(1f, 1f, 1f);   // 강조: 흰색. 초록은 커서 프리뷰의 '정답' 색과 겹쳐 헷갈렸다
         private float m_NextDoneCheck;
         private GridNetwork m_Net;
         private bool m_Visible = true;
@@ -122,9 +122,15 @@ namespace GridSystem
             {
                 RefreshGhostDone();   // 이미 알맞게 지은 블록은 고스트 숨김(시선 정리) — 0.25s 스로틀
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
-                // 미니 프리뷰에서 호버/선택한 재료는 실제 배치 위치의 고스트를 강조 — UI의 블록과 맵 위치를 이어준다.
-                var hlDef = m_HoverDef != null ? m_HoverDef : m_SelectedDef;
-                int hlId = hlDef != null ? hlDef.Id : int.MinValue;
+                // 강조 기준 우선순위: 손에 든 재료 → 미니 프리뷰 호버 → 선택.
+                // 재료를 들면 '그 재료를 어디에 놓아야 하는지'가 유일한 관심사라 손이 이긴다.
+                // 빈손(또는 도구)일 때만 기존대로 호버/선택 재료를 강조한다.
+                int hlId = LocalPlayerHands.HeldMaterialId;
+                if (hlId == int.MinValue)
+                {
+                    var hlDef = m_HoverDef != null ? m_HoverDef : m_SelectedDef;
+                    hlId = hlDef != null ? hlDef.Id : int.MinValue;
+                }
 
                 float ga = m_GhostAlphaBase + kGhostAlphaPulse * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 은은하게(커서 프리뷰가 주인공) + 숨쉬기
                 float ha = 0.45f + 0.15f * Mathf.Abs(Mathf.Sin(Time.time * 5f));     // 강조: 밝고 빠른 펄스
@@ -141,7 +147,7 @@ namespace GridSystem
                         if (m_GhostMats[i] != null)
                         {
                             var c = i < m_GhostMatCols.Count ? m_GhostMatCols[i] : m_GhostMats[i].GetColor(s_BaseColor);
-                            c.a = a;   // 원본 색으로 복귀(강조 초록이 남지 않게) + 숨쉬기 알파
+                            c.a = a;   // 원본 색으로 복귀(강조 흰색이 남지 않게) + 숨쉬기 알파
                             m_GhostMats[i].SetColor(s_BaseColor, c);
                             m_GhostMats[i].SetColor(s_Color, c);
                         }
@@ -156,7 +162,7 @@ namespace GridSystem
                     if (i >= m_GhostActive.Count) { m_GhostActive.Add(!want); }        // 첫 프레임 강제 적용
                     if (m_GhostActive[i] != want) { m_GhostActive[i] = want; it.go.SetActive(want); }
                     // 통짜 맵(DDP류)은 Build에서 조각 렌더러를 전부 껐다. 강조 대상만 예외로 다시 켜야
-                    // 초록 강조가 보인다(강조가 풀리면 도로 꺼서 통짜 한 덩어리 그림을 유지).
+                    // 강조가 보인다(강조가 풀리면 도로 꺼서 통짜 한 덩어리 그림을 유지).
                     if (m_UseWholeGhost)
                     {
                         if (i >= m_GhostShown.Count) m_GhostShown.Add(!hl);   // 첫 프레임 강제 적용
@@ -166,7 +172,7 @@ namespace GridSystem
                         for (int k = it.matStart; k < it.matStart + it.matCount && k < m_GhostMats.Count; k++)
                             if (m_GhostMats[k] != null)
                             {
-                                var c = kGhostHighlight; c.a = ha;   // 원색 대신 초록 — 실제 배치 프리뷰(원색)와 구분
+                                var c = kGhostHighlight; c.a = ha;   // 원색 대신 흰색 — 커서 프리뷰의 초록/빨강과 역할 구분
                                 m_GhostMats[k].SetColor(s_BaseColor, c);
                                 m_GhostMats[k].SetColor(s_Color, c);
                             }
@@ -220,7 +226,7 @@ namespace GridSystem
                 m_GhostDone[i] = done;
             }
 
-            // 편의성: 선택한 재료의 모든 블록이 알맞게 완료되면 선택(초록 강조)을 자동 해제 — 다 지었는데 계속 반짝이는 것 방지.
+            // 편의성: 선택한 재료의 모든 블록이 알맞게 완료되면 선택(흰색 강조)을 자동 해제 — 다 지었는데 계속 반짝이는 것 방지.
             if (m_SelectedDef != null)
             {
                 bool any = false, all = true;
