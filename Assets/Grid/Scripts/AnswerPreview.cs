@@ -53,6 +53,7 @@ namespace GridSystem
         private int m_LastGaQ = -1;
         private int m_LastHlId = int.MinValue;
         private readonly List<bool> m_GhostActive = new();   // 블록별 SetActive 직전 상태 캐시
+        private readonly List<bool> m_GhostShown = new();    // 통짜 맵 전용 — 블록별 Renderer.enabled 직전 상태 캐시
         private bool m_UseWholeGhost;        // 완성체 통짜 고스트 맵(DDP류) — 조각 머티리얼은 렌더러가 꺼져 있음
         private int m_GhostPieceMatCount;    // m_GhostMats에서 조각(비통짜) 구간의 끝
 
@@ -90,6 +91,7 @@ namespace GridSystem
             m_GhostFloors.Clear();
             m_GhostDone.Clear();
             m_GhostActive.Clear();
+            m_GhostShown.Clear();
             m_LastGaQ = -1; m_LastHlId = int.MinValue;   // 재구성 후 첫 프레임 강제 재도색
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
@@ -130,8 +132,9 @@ namespace GridSystem
                 {
                     m_LastGaQ = gaQ; m_LastHlId = hlId;
                     float a = gaQ / 200f;
-                    // 통짜 고스트 맵은 조각 렌더러가 꺼져 있어 조각 구간 재도색이 순수 낭비 — 통짜 구간만 칠한다.
-                    int start = m_UseWholeGhost ? m_GhostPieceMatCount : 0;
+                    // 통짜 고스트 맵은 평소 조각 렌더러가 꺼져 있어 조각 구간 재도색이 순수 낭비 — 통짜 구간만 칠한다.
+                    // 단 강조 대상이 바뀐 프레임엔 조각도 칠해야 직전 강조 블록에 남은 초록이 원색으로 돌아간다.
+                    int start = (m_UseWholeGhost && !hlChanged) ? m_GhostPieceMatCount : 0;
                     for (int i = start; i < m_GhostMats.Count; i++)
                         if (m_GhostMats[i] != null)
                         {
@@ -150,7 +153,14 @@ namespace GridSystem
                     bool want = hl || (it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i]));
                     if (i >= m_GhostActive.Count) { m_GhostActive.Add(!want); }        // 첫 프레임 강제 적용
                     if (m_GhostActive[i] != want) { m_GhostActive[i] = want; it.go.SetActive(want); }
-                    if (hl && !m_UseWholeGhost)   // 통짜 맵은 조각 렌더러가 꺼져 있어 초록 강조가 안 보임 — 스킵
+                    // 통짜 맵(DDP류)은 Build에서 조각 렌더러를 전부 껐다. 강조 대상만 예외로 다시 켜야
+                    // 초록 강조가 보인다(강조가 풀리면 도로 꺼서 통짜 한 덩어리 그림을 유지).
+                    if (m_UseWholeGhost)
+                    {
+                        if (i >= m_GhostShown.Count) m_GhostShown.Add(!hl);   // 첫 프레임 강제 적용
+                        if (m_GhostShown[i] != hl) { m_GhostShown[i] = hl; SetRenderersEnabled(it.go, hl); }
+                    }
+                    if (hl)
                         for (int k = it.matStart; k < it.matStart + it.matCount && k < m_GhostMats.Count; k++)
                             if (m_GhostMats[k] != null)
                             {
@@ -627,10 +637,13 @@ namespace GridSystem
         }
 
         /// <summary>완성체를 쓰는 맵에서 조각 비주얼의 렌더러만 끈다(픽킹 AABB·테두리는 그대로 살려 둔다).</summary>
-        private static void HideRenderers(GameObject go)
+        private static void HideRenderers(GameObject go) => SetRenderersEnabled(go, false);
+
+        /// <summary>조각 비주얼의 렌더러 on/off. 통짜 고스트 맵에서 강조 블록만 잠깐 되살릴 때 쓴다.</summary>
+        private static void SetRenderersEnabled(GameObject go, bool on)
         {
             if (go == null) return;
-            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.enabled = false;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true)) r.enabled = on;
         }
 
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
