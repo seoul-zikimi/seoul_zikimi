@@ -56,6 +56,13 @@ public class SoundManager : Singleton<SoundManager>
         base.Awake();                   // Singleton + DontDestroyOnLoad
         if (Instance != this) return;   // 중복 인스턴스 → Destroy 예약됨, 초기화 건너뜀
         DontDestroyOnLoad(this.gameObject);
+#if UNITY_EDITOR
+        // MPPM(Multiplayer Play Mode) 가상 플레이어는 Library/VP/ 밑에서 실행된다.
+        // 클론들도 각자 BGM을 틀면 같은 곡이 반 박자 어긋나게 겹쳐 "2배속"처럼 들리므로,
+        // 클론은 통째로 음소거하고 메인 에디터만 소리 낸다(빌드에는 포함되지 않는 코드).
+        if (Application.dataPath.Contains("/Library/VP/"))
+            AudioListener.volume = 0f;
+#endif
         BuildMaps();
         BuildAudioSources();
         // 볼륨 적용은 Start(한 프레임 뒤)로 — AudioMixer.SetFloat는 Awake 프레임엔 안 먹는 Unity 버그.
