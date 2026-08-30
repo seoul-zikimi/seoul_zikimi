@@ -39,6 +39,14 @@ namespace GridSystem
                  "피벗을 '칸의 min-corner'에 정확히 맞출 책임을 진다.")]
         [SerializeField] private bool m_FreeformVisual;
 
+        [Tooltip("칸 규격을 '일부러' 벗어나는 비주얼인가(점유 칸은 그대로).\n\n" +
+                 "예) 롯데월드 중앙 첨탑 — 바로 아래 성상단의 상단이 움푹 파여 있어서\n" +
+                 "밑동을 칸 아래로 연장해야 첨탑이 파인 곳에 꽂힌 것처럼 자연스럽다.\n" +
+                 "켜면 칸맞춤 툴(MaterialPrefabFitTool)이 건드리지 않고 규약 테스트도 건너뛴다\n" +
+                 "— 대신 _Fit을 굽는 툴이 크기·피벗을 책임진다.\n" +
+                 "경복궁 파츠(이음새 가리기용 1.05~1.18배 오버필)는 폴더 경로로 이미 면제된다.")]
+        [SerializeField] private bool m_IntentionalOverfill;
+
         public int Id => m_Id;
         public Vector3Int Footprint => m_Footprint;
         public GameObject Prefab => m_Prefab;
@@ -51,6 +59,10 @@ namespace GridSystem
         /// <summary>비주얼이 칸을 꽉 채우지 않는 자유 형상(큰 모델을 잘라 만든 조각 등).
         /// 켜져 있으면 MaterialPrefabContractTests의 피벗·크기 검사를 건너뛴다.</summary>
         public bool FreeformVisual => m_FreeformVisual;
+
+        /// <summary>칸 규격을 일부러 벗어나는 비주얼(밑동 연장 등). 켜져 있으면 칸맞춤 툴과
+        /// 규약 테스트(피벗·크기·회전 안착)가 이 정의를 건드리지 않는다. 점유 칸은 footprint 그대로.</summary>
+        public bool IntentionalOverfill => m_IntentionalOverfill;
 
         /// <summary>요구 공정들을 합친 비트마스크. 채점 시 "완료 ⊇ 요구"를 한 번에 비교하려고 쓴다.</summary>
         public int RequiredMask

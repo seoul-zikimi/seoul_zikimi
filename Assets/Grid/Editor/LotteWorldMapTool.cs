@@ -33,10 +33,15 @@ namespace GridSystem.EditorTools
         private const float kTimeLimitSeconds = 480f;   // 8분(91칸 — 남산 71칸 7분보다 조금 여유)
 
         // ── 파츠 정의 : 이름, id(21~ — 광통교 1~8·튜토리얼 10~12·남산 12~20과 충돌 회피), footprint, 공정, 색, 하중부재 ──
+        // Overfill/Freeform = '비주얼 규약 예외'(LotteModelApplyTool이 그 규격으로 _Fit을 굽는다).
+        // 여기서 def에 매번 다시 써 준다 — def를 지웠다 다시 만들어도 예외가 살아 있어야
+        // 에디터 로드 때 MaterialPrefabFitTool.FitAll이 _Fit을 도로 칸 크기로 되돌리지 않는다.
         private struct Part
         {
             public string Name; public int Id; public Vector3Int Fp;
             public ProcessType Proc; public Color Color; public bool MustFix;
+            public bool Overfill;   // 비주얼이 일부러 칸을 벗어남(첨탑 밑동 연장)
+            public bool Freeform;   // 비주얼이 칸을 꽉 채우지 않음(깃발 — 깃대 축 정렬)
         }
 
         private static readonly Part[] kParts =
@@ -45,11 +50,11 @@ namespace GridSystem.EditorTools
             new Part{ Name="롯데_성기반",     Id=21, Fp=new Vector3Int(5,1,5), Proc=ProcessType.Fixed,   Color=new Color(0.90f,0.87f,0.82f), MustFix=true },
             new Part{ Name="롯데_성본체",     Id=22, Fp=new Vector3Int(3,3,3), Proc=ProcessType.Fixed,   Color=new Color(0.98f,0.95f,0.88f), MustFix=true },
             new Part{ Name="롯데_성상단",     Id=23, Fp=new Vector3Int(3,1,3), Proc=ProcessType.None,    Color=new Color(0.99f,0.98f,0.94f), MustFix=false },
-            new Part{ Name="롯데_중앙첨탑",   Id=24, Fp=new Vector3Int(1,3,1), Proc=ProcessType.Painted, Color=new Color(0.25f,0.45f,0.85f), MustFix=false },
+            new Part{ Name="롯데_중앙첨탑",   Id=24, Fp=new Vector3Int(1,3,1), Proc=ProcessType.Painted, Color=new Color(0.25f,0.45f,0.85f), MustFix=false, Overfill=true },
             new Part{ Name="롯데_코너타워",   Id=25, Fp=new Vector3Int(1,4,1), Proc=ProcessType.Fixed,   Color=new Color(0.96f,0.92f,0.80f), MustFix=false },
             new Part{ Name="롯데_타워지붕",   Id=26, Fp=new Vector3Int(1,2,1), Proc=ProcessType.Painted, Color=new Color(0.30f,0.55f,0.90f), MustFix=false },
             new Part{ Name="롯데_정문게이트", Id=27, Fp=new Vector3Int(1,2,1), Proc=ProcessType.Painted, Color=new Color(0.85f,0.65f,0.25f), MustFix=false },
-            new Part{ Name="롯데_깃발",       Id=28, Fp=new Vector3Int(1,1,1), Proc=ProcessType.Painted, Color=new Color(0.95f,0.35f,0.30f), MustFix=false },
+            new Part{ Name="롯데_깃발",       Id=28, Fp=new Vector3Int(1,1,1), Proc=ProcessType.Painted, Color=new Color(0.95f,0.35f,0.30f), MustFix=false, Freeform=true },
         };
 
         // ── 매직캐슬 조립(정답): (파츠 id, 앵커 셀). 총 91칸, 높이 9(y0~8) ──
@@ -211,6 +216,8 @@ namespace GridSystem.EditorTools
             so.FindProperty("m_MustBeFixed").boolValue = p.MustFix;
             so.FindProperty("m_Walkable").boolValue = false;
             so.FindProperty("m_IsBreakable").boolValue = false;
+            so.FindProperty("m_FreeformVisual").boolValue = p.Freeform;
+            so.FindProperty("m_IntentionalOverfill").boolValue = p.Overfill;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(def);
             return def;
