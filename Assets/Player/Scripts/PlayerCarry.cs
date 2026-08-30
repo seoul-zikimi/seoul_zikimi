@@ -465,6 +465,8 @@ namespace Player
             if (!IsOwner) return;
             // 기믹 쪽(GridSystem)은 PlayerCarry를 참조할 수 없다 — 손 상태만 창구에 실어 보낸다.
             GridSystem.LocalPlayerHands.IsHoldingAnything = IsHolding;
+            // 정답 고스트 강조 기준 — 재료를 들면 그 재료가 최우선(도구/빈손이면 없음)
+            GridSystem.LocalPlayerHands.HeldMaterialId = m_HeldMaterial != null ? m_HeldMaterial.Id : int.MinValue;
             UpdateHeavyState();
             OwnerUpdate();
         }
