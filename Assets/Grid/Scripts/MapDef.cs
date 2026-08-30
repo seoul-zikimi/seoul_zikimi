@@ -60,6 +60,14 @@ namespace GridSystem
         [Tooltip("이 맵에서만 쓸 배경음악. 비운 칸은 SoundLibrary의 공용 BGM을 그대로 씁니다.")]
         [SerializeField] private MapBgm m_Bgm;
 
+        [Header("정답 고스트 (맵이 밝아 고스트가 묻힐 때만)")]
+        [Tooltip("인월드 정답 고스트의 기본 투명도. 0이면 공통 기본값(0.16)을 씁니다.\n" +
+                 "롯데월드처럼 바닥이 밝은 맵은 0.3 안팎으로 올려야 고스트가 보입니다.")]
+        [SerializeField, Range(0f, 1f)] private float m_GhostAlpha;
+        [Tooltip("정답 고스트 색에 곱할 감광 계수. 0이면 원색 그대로(=1).\n" +
+                 "밝은 바닥 위에서 고스트가 하얗게 묻히면 0.7 안팎으로 낮춰 대비를 만듭니다.")]
+        [SerializeField, Range(0f, 1f)] private float m_GhostTintMul;
+
         [Header("완성체 (조각으로 짓는 맵 전용)")]
         [Tooltip("정답을 다 맞췄을 때 보여줄 '통짜 완성 모델'. 비워두면 조각 그대로 남습니다.\n\n" +
                  "DDP처럼 큰 곡면 모델을 격자로 잘라 짓는 맵은, 조각 이음매가 아무리 잘 맞아도\n" +
@@ -114,6 +122,12 @@ namespace GridSystem
 
         /// <summary>이 맵 전용 BGM 슬롯(비운 칸은 공용 BGM 폴백).</summary>
         public MapBgm Bgm => m_Bgm;
+
+        /// <summary>인월드 정답 고스트의 기본 알파. 0이면 미설정 — AnswerPreview의 공통 기본값을 쓴다.</summary>
+        public float GhostAlpha => m_GhostAlpha;
+
+        /// <summary>정답 고스트 색 감광 계수. 0이면 미설정 — 원색(1) 그대로 쓴다.</summary>
+        public float GhostTintMul => m_GhostTintMul;
 
         /// <summary>정답을 다 맞췄을 때 조각 대신 보여줄 통짜 완성 모델(null이면 조각 그대로). 빌드는 지연 로드.</summary>
         public GameObject CompletedModel
