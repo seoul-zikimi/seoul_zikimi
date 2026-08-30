@@ -23,7 +23,10 @@ namespace Player
         [SerializeField] private float m_HeavySoloSpeed = 0.7f;
         [Tooltip("바닥 재료 줍기 / 작업장 도구 집기 거리.")]
         [FormerlySerializedAs("m_WorkstationRange")]
-        [SerializeField] private float m_GrabRange = 2.5f;
+        [SerializeField] private float m_GrabRange = 3f;
+        // 집기 판정 완화(QA: "특정 각도로 맞춰야만 집힘") — 조준 레이를 굵게, 그래도 안 맞으면 커서 근처 폴백.
+        private const float kGrabCastRadius = 0.4f;   // 조준 레이 반경(구체 캐스트) — 커서가 살짝 빗나가도 후보로 잡힘
+        private const float kGrabAimSlack   = 1.6f;   // 폴백: 커서 지점에서 이 거리(수평) 안의 픽업만 후보
         private const float kBuildReachCells = 2f;   // [07/26 기획] 배치/회수/공정 사거리(칸) — 완화/폐기 시 여기만
         private bool        m_GrabValid;
         private PickupBody  m_GrabBody;     // 레이캐스트로 가리킨 바닥 픽업(소속·정체 보유)
@@ -222,6 +225,8 @@ namespace Player
         // 빈손 조준 레이(UpdateGrabTarget)용 — RaycastAll이 매 프레임 배열을 할당하던 것을 재사용 버퍼로.
         // 100m 레이가 건축 현장을 관통해도 64개를 넘기 어렵다(넘치는 히트는 버려지지만 후보는 근거리라 무관).
         private static readonly RaycastHit[] s_GrabRayBuf = new RaycastHit[64];
+        // 집기 폴백(커서 근처 픽업 탐색)용 오버랩 버퍼 — 손 닿는 거리 안 콜라이더만 담는다.
+        private static readonly Collider[] s_GrabNearBuf = new Collider[64];
 
         /// <summary>화물 충돌 해소(owner 이동): 벽/배치 블록과 겹치면 그쪽으로 파고드는 속도만 깎고 살짝 밀어낸다.
         /// 빠져나가는 방향은 항상 허용 → 끼어서 못 움직이는 일 없음. 다음 틱 위치도 미리 검사해 벽에 박기 전에 멈춘다.</summary>
@@ -1255,7 +1260,8 @@ namespace Player
                 var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
                 float reach2 = m_GrabRange * m_GrabRange;
                 float best = float.MaxValue;
-                int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~0, QueryTriggerInteraction.Collide);
+                // 한 줄 레이 대신 굵은 구체 캐스트 — 커서가 콜라이더를 살짝 빗나가도 집힌다(판정 완화).
+                int hitCount = Physics.SphereCastNonAlloc(ray, kGrabCastRadius, s_GrabRayBuf, 100f, ~0, QueryTriggerInteraction.Collide);
                 for (int hi = 0; hi < hitCount; hi++)
                 {
                     var h = s_GrabRayBuf[hi];
@@ -1287,6 +1293,18 @@ namespace Player
                     }
                 }
             }
+
+            // 레이가 아무것도 못 잡았을 때의 폴백 — 커서 지점에 제일 가까운 바닥 픽업 하나를 집기 대상으로.
+            // 각도를 정확히 맞추지 않아도 손 닿는 거리 안이면 집힌다.
+            // 단, 커서가 이미 '회수 가능한 배치 블록'을 가리키면 그쪽이 우선(빈손 클릭 = 회수)이라 폴백을 쓰지 않는다.
+            if (m_GrabBody == null && m_GrabStation == null && m_GrabCargoOf == null
+                && !HasMaterial && !HasTool && m_Cam != null && m_Input != null
+                && !(m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target)))
+            {
+                var near = FindPickupNearCursor();
+                if (near != null) { m_GrabBody = near; hitGo = near.gameObject; }
+            }
+
             m_GrabValid = m_GrabBody != null || m_GrabStation != null || m_GrabCargoOf != null;
 
             // 바닥 픽업·도구함이 아니면: ① 도구 들고 공정 가능한 블록 ② 빈손으로 회수 가능한(미고정) 배치 블록에
@@ -1305,6 +1323,37 @@ namespace Player
             }
 
             SetGrabHighlight(hitGo);   // 가리킨 대상에 테두리(대상 바뀌면 이전 건 끔)
+        }
+
+        // 조준 레이가 빗나갔을 때 쓰는 완화 판정: 손 닿는 거리(수평) 안의 바닥 픽업 중
+        // 커서가 가리키는 바닥 지점에 제일 가까운 것 하나. 커서에서 너무 먼 건 제외해 '엉뚱한 게 집히는' 일은 막는다.
+        private PickupBody FindPickupNearCursor()
+        {
+            var aim = AimWorldPoint();
+            float reach2 = m_GrabRange * m_GrabRange;
+            float slack2 = kGrabAimSlack * kGrabAimSlack;
+            PickupBody best = null;
+            float bestD2 = float.MaxValue;
+
+            int n = Physics.OverlapSphereNonAlloc(transform.position, m_GrabRange + kGrabAimSlack,
+                                                  s_GrabNearBuf, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < n; i++)
+            {
+                var col = s_GrabNearBuf[i];
+                if (col == null) continue;
+                var pb = col.GetComponentInParent<PickupBody>();
+                if (pb == null || pb.Owner == null) continue;
+
+                // 레이 경로와 같은 규칙: 손 닿는 거리는 수평(XZ)만 판정(층 차이로 범위를 까먹지 않게).
+                var dp = pb.transform.position - transform.position; dp.y = 0f;
+                if (dp.sqrMagnitude > reach2) continue;
+
+                var da = pb.transform.position - aim; da.y = 0f;
+                float d2 = da.sqrMagnitude;
+                if (d2 > slack2) continue;
+                if (d2 < bestD2) { bestD2 = d2; best = pb; }
+            }
+            return best;
         }
 
         // 집기 대상 오브젝트에 인버티드 헐 테두리를 켜고, 직전 대상은 끈다.
