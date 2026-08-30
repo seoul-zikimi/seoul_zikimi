@@ -146,6 +146,9 @@ namespace GridSystem.EditorTools
             so.FindProperty("m_BackgroundPrefab").objectReferenceValue = prefab;
             so.FindProperty("m_GridSize").vector3IntValue = kGridSize;
             so.FindProperty("m_LotteGimmicks").objectReferenceValue = cfg;
+            // 바닥·모델이 둘 다 밝아 기본 고스트(알파 0.16 원색)가 묻힌다 — 알파를 올리고 색을 어둡게 깎는다.
+            so.FindProperty("m_GhostAlpha").floatValue = 0.32f;
+            so.FindProperty("m_GhostTintMul").floatValue = 0.75f;
             var answers = so.FindProperty("m_Answers");
             answers.arraySize = 1;
             answers.GetArrayElementAtIndex(0).objectReferenceValue = answer;
