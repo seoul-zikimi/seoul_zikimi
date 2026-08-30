@@ -345,7 +345,7 @@ MonoBehaviour:
   m_FrontHoldDist: 0.35
   m_FrontHoldHeight: 0.55
   m_HeavySoloSpeed: 0.7
-  m_GrabRange: 2
+  m_GrabRange: 3
   m_ProcessSeconds: 1.2
   m_ThrowRange: 12
   m_HammerModel: {fileID: 3939406923825996935, guid: 43caca03382ec364ea6d9321d50d92a3, type: 3}

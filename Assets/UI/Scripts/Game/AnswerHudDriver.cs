@@ -150,7 +150,7 @@ public class AnswerHudDriver : MonoBehaviour
     private void ClickSelect(RectTransform rect, Vector2 screenPos)
     {
         var uv = ToViewportUV(rect, screenPos);
-        if (m_Preview.TrySelectAt(uv, out var def)) m_Hud.Select(def.Id);
+        if (m_Preview.TrySelectAt(uv, out var def)) m_Hud.SelectOrOrder(def.Id);   // 같은 블럭 더블클릭 = 즉시 주문
         else { m_Preview.ClearSelection(); m_Hud.ClearSelection(); }
     }
 
