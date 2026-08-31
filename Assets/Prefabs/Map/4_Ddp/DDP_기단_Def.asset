@@ -22,3 +22,4 @@ MonoBehaviour:
   m_MaxSpawnCount: -1
   m_IsHeavy: 0
   m_FreeformVisual: 0
+  m_IntentionalOverfill: 0
