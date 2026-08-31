@@ -18,7 +18,7 @@ namespace GridSystem.EditorTools
     public static class NamsanTowerMapTool
     {
         private const string kDir         = "Assets/Prefabs/Map/2_NamsanTower";
-        private const string kPrefabPath  = "Assets/Map/Prefabs/MapBg_NamsanTower.prefab";
+        private const string kPrefabPath  = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab";
         private const string kMapDefPath  = "Assets/Map/Maps/Map_NamsanTower.asset";
         private const string kAnswerPath  = kDir + "/Ans_NamsanTower.asset";
         private const string kConfigPath  = kDir + "/NamsanGimmickConfig_Namsan.asset";

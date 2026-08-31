@@ -12,7 +12,7 @@ namespace GridSystem.EditorTools
     /// </summary>
     public static class MapExtractTool
     {
-        private const string kPrefabDir = "Assets/Map/Prefabs";
+        private const string kPrefabDir = "Assets/Resources/MapPrefabs";
         private const string kMapDefDir = "Assets/Map/Maps";
         private const string kCatalogPath = "Assets/Resources/MapCatalog.asset";
 

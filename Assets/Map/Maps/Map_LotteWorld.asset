@@ -31,6 +31,7 @@ MonoBehaviour:
   m_NamsanGimmicks: {fileID: 0}
   m_LotteGimmicks: {fileID: 11400000, guid: 81bc8c0b9048050418f634efa2af3282, type: 2}
   m_DdpGimmicks: {fileID: 0}
+  m_GyeongbokgungGimmicks: {fileID: 0}
   m_Bgm:
     Building: {fileID: 8300000, guid: 5f66377dfd69b454c88c333dbd65c21b, type: 3}
     Urgent: {fileID: 0}
@@ -38,4 +39,5 @@ MonoBehaviour:
   m_GhostAlpha: 0.32
   m_GhostTintMul: 0.75
   m_CompletedModel: {fileID: 0}
+  m_CompletedModelPath: 
   m_CompletedModelAnchor: {x: 0, y: 0, z: 0}
