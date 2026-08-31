@@ -25,7 +25,10 @@ namespace Player
         private float              m_NextFallRecoveryTime;
         private bool               m_DbgMoving;   // 진단용(원격 먼지 복제 로그 throttle)
         private PlayerStun         m_Stun;        // 남산 돌풍 추락 스턴
-        
+
+        // 스폰 시 플레이어끼리 벌릴 최소 간격(m). 협동 맵에서 PlayerSpawnPoint 마커가 있으면 그 값이 우선.
+        private const float kDefaultSpawnSpacing = 1.8f;
+
 
         [Header("비계 (더블탭 Space)")]
         [SerializeField] private GameObject m_ScaffoldPrefab;    // 비계 외형(없으면 큐브). 피벗=min-corner 권장.
@@ -233,6 +236,11 @@ namespace Player
                 yield return null;
             }
 
+            // 상한까지 조건이 안 갖춰져도 위치는 잡아준다(스폰 분산 정확도만 포기) — 미배치로 남는 것보다 낫다.
+            var late = FindFirstObjectByType<GridSystem.GridManager>();
+            if (late != null)
+                PlaceOnGrid(late);
+
             FinishSpawn();
         }
 
@@ -249,13 +257,26 @@ namespace Player
         }
 
         // 2vs2에서만: 내 팀 배정이 복제됐는지(협동 모드는 항상 true). 300프레임 상한은 기존 루프가 보장.
+        // 더해서 접속자 목록이 서버 인원수만큼 채워졌는지도 본다 — 목록이 덜 찬 상태로 스폰 순번을 세면
+        // 두 사람이 같은 자리를 잡을 수 있다.
         private bool TeamReady(GridSystem.GridManager gm)
         {
             var loop = gm.GetComponent<GridSystem.GameLoopManager>();
             if (loop == null) return true;          // 루프 없는 씬(테스트 등)
             if (!loop.IsSpawned) return false;      // 모드 확정 전 — 잠시 대기(300프레임 상한)
+            if (!RosterReady(loop)) return false;
             if (!loop.IsVersus) return true;
             return loop.GetTeam(OwnerClientId) >= 0;
+        }
+
+        // 로컬 접속자 목록이 서버가 복제한 인원수(PlayerCount)를 따라잡았는가.
+        private bool RosterReady(GridSystem.GameLoopManager loop)
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null) return true;
+            int expected = loop.PlayerCount;
+            if (expected <= 0) return false;        // 서버 첫 Update 전 — 잠시 대기(300프레임 상한)
+            return nm.ConnectedClientsIds.Count >= expected;
         }
 
         private void PlaceOnGrid(GridSystem.GridManager gm)
@@ -280,21 +301,25 @@ namespace Player
             if (versus && loop.GetTeam(OwnerClientId) == 1)
                 gridCenter += new Vector3(size.x * u, 0f, 0f);
 
+            // 스폰 분산: 전원이 한 점에 겹쳐 서로 밀어내던 문제 — 순번별 링 오프셋으로 벌려 놓는다.
+            // 오프셋 자리는 지형 높이가 다르므로 바닥 레이캐스트를 오프셋 좌표 기준으로 다시 태운다.
+            float spacing = (!versus && sp != null) ? sp.SpawnSpacing : kDefaultSpawnSpacing;
+            GetSpawnSlot(loop, versus, out int slot, out int slotCount);
+            Vector3 baseCenter = gridCenter;
+            gridCenter += SpawnRingOffset(slot, slotCount, spacing);
+
             Vector3 spawn = gridCenter + Vector3.up * 2f;
 
-            Vector3 rayOrigin = gridCenter + Vector3.up * 20f;
-            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 80f, ~0, QueryTriggerInteraction.Ignore);
-            float bestY = float.NegativeInfinity;
-            foreach (var hit in hits)
+            if (TryGetGroundY(gridCenter, out float bestY))
             {
-                if (hit.collider.transform == transform || hit.collider.transform.IsChildOf(transform))
-                    continue;
-                if (hit.point.y > bestY)
-                    bestY = hit.point.y;
-            }
-
-            if (!float.IsNegativeInfinity(bestY))
                 spawn.y = bestY - GetColliderLocalBottomY() + 0.05f;
+            }
+            else if (TryGetGroundY(baseCenter, out bestY))
+            {
+                // 오프셋 자리가 허공(맵 가장자리 등)이면 분산을 포기하고 원래 중앙으로 복귀 — 추락 방지 우선
+                spawn = baseCenter + Vector3.up * 2f;
+                spawn.y = bestY - GetColliderLocalBottomY() + 0.05f;
+            }
 
             if (m_Rb == null)
                 m_Rb = GetComponent<Rigidbody>();
@@ -303,6 +328,54 @@ namespace Player
                 m_Rb.position = spawn;   // 대기 중엔 kinematic → position으로 이동(velocity는 FinishSpawn에서 0)
             transform.position = spawn;
             Physics.SyncTransforms();
+        }
+
+        // 스폰 지점에서 위 20m → 아래로 쏴 가장 높은 바닥 y를 찾는다(자기 콜라이더는 제외).
+        private bool TryGetGroundY(Vector3 center, out float groundY)
+        {
+            groundY = float.NegativeInfinity;
+            Vector3 rayOrigin = center + Vector3.up * 20f;
+            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 80f, ~0, QueryTriggerInteraction.Ignore);
+            foreach (var hit in hits)
+            {
+                if (hit.collider.transform == transform || hit.collider.transform.IsChildOf(transform))
+                    continue;
+                if (hit.point.y > groundY)
+                    groundY = hit.point.y;
+            }
+            return !float.IsNegativeInfinity(groundY);
+        }
+
+        // 스폰 순번/인원. 협동은 접속자 전체, 2vs2는 같은 팀 안에서만 센다.
+        // clientId 오름차순 순번이라 각자 로컬에서 계산해도 서로 다른 자리를 잡는다.
+        private void GetSpawnSlot(GridSystem.GameLoopManager loop, bool versus, out int slot, out int slotCount)
+        {
+            slot = 0;
+            slotCount = 1;
+
+            var nm = NetworkManager.Singleton;
+            if (nm == null) return;
+
+            int myTeam = versus ? loop.GetTeam(OwnerClientId) : -1;
+            int index = 0, total = 0;
+            foreach (ulong id in nm.ConnectedClientsIds)
+            {
+                if (versus && loop.GetTeam(id) != myTeam) continue;   // 팀 배정 전인 클라는 제외(내 팀은 TeamReady가 보장)
+                total++;
+                if (id < OwnerClientId) index++;
+            }
+
+            slot = index;
+            slotCount = Mathf.Max(total, index + 1);   // 내가 목록에 없어도(복제 지연) 자리 하나는 확보
+        }
+
+        // 이웃 간 거리가 spacing 이상이 되는 반지름의 링 위 slot번째 자리.
+        private static Vector3 SpawnRingOffset(int slot, int slotCount, float spacing)
+        {
+            if (slotCount <= 1 || spacing <= 0f) return Vector3.zero;
+            float radius = spacing / (2f * Mathf.Sin(Mathf.PI / slotCount));
+            float angle = Mathf.PI * 2f * slot / slotCount;
+            return new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
         }
 
         private float GetColliderLocalBottomY()
