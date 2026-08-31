@@ -28,3 +28,16 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8768761caa061914c88811def6d1f361, type: 2}
   - {fileID: 11400000, guid: e5f9a035aa89bc94aaf47c04065fedaf, type: 2}
   - {fileID: 11400000, guid: d3efc3979c47a1542b6e09394c4385ae, type: 2}
+  m_NamsanGimmicks: {fileID: 0}
+  m_LotteGimmicks: {fileID: 0}
+  m_DdpGimmicks: {fileID: 0}
+  m_GyeongbokgungGimmicks: {fileID: 0}
+  m_Bgm:
+    Building: {fileID: 0}
+    Urgent: {fileID: 0}
+    Result: {fileID: 0}
+  m_GhostAlpha: 0
+  m_GhostTintMul: 0
+  m_CompletedModel: {fileID: 0}
+  m_CompletedModelPath: 
+  m_CompletedModelAnchor: {x: 0, y: 0, z: 0}

@@ -633,7 +633,7 @@ namespace GridSystem.EditorTools
         /// <summary>기본 기둥 배치(시계 방향 8점) — 순회로·둑길·스테이션·자이로 패드를 전부 피해 검증한 좌표.</summary>
         private static readonly Vector3[] kDefaultMonoPillars =   // [09/01] 사용자 설계 10기둥 — 섬을 돌고 둑길 따라 본관 앞까지 다녀온다
         {
-            new Vector3(-3.12f, 0f, 0f),   new Vector3(1f, 0f, -9.04f),   new Vector3(11f, 0f, -9.64f),  new Vector3(17f, 0f, -0.8f),
+            new Vector3(-3.12f, 0f, 0f),   new Vector3(2.94f, 0f, -9.04f),   new Vector3(11f, 0f, -9.64f),  new Vector3(17f, 0f, -0.8f),
             new Vector3(17.41f, 0f, 6.29f), new Vector3(13.81f, 0f, 16.69f), new Vector3(10.04f, 0f, 34.66f), new Vector3(1.42f, 0f, 35.61f),
             new Vector3(0.83f, 0f, 16.15f), new Vector3(-3.27f, 0f, 7.82f),
         };
