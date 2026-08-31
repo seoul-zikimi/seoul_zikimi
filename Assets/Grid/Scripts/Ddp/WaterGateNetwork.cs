@@ -210,69 +210,124 @@ namespace GridSystem
             return Vector3.zero;
         }
 
-        // ── 연출(전 클라 로컬): 예고 토스트 + 수면 + 흐름 표시 ──────────────
+        // ── 연출(전 클라 로컬): 예고 토스트 + 수면 + 수문 물보라 ──────────────
         private readonly List<GameObject> m_WaterQuads = new();
-        private static readonly Color kWaterColor = new Color(0.28f, 0.60f, 0.85f, 1f);
-        private static readonly Color kWarnColor  = new Color(0.35f, 0.75f, 0.95f, 1f);
+        private static readonly Color kWaterColor = new Color(0.25f, 0.68f, 0.95f, 1f);
+        private static readonly Color kWarnColor  = new Color(0.35f, 0.78f, 1.00f, 1f);
 
-        private void OnStateChanged(FloodState _, FloodState next)
+        private float m_DrainStart = -999f;   // 방류 종료 시각(로컬) — 물이 '스르륵 빠지는' 연출 기준
+
+        private void OnStateChanged(FloodState prev, FloodState next)
         {
-            if ((FloodPhase)next.phase != FloodPhase.Warning) return;
+            var phase = (FloodPhase)next.phase;
 
-            var nm = NetworkManager.Singleton;
-            var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
-            if (po != null)
-                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🌊 수문이 열립니다!", kWarnColor);
-            // TODO(사운드팀): 수문 개방 경보 + 물소리 SFX — GridSoundBridge에 전용 이름 추가 후 여기서 호출
+            if (phase == FloodPhase.Warning)
+            {
+                var nm = NetworkManager.Singleton;
+                var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
+                if (po != null)
+                    GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🌊 수문이 열립니다!", kWarnColor);
+                // TODO(사운드팀): 수문 개방 경보 + 물소리 SFX — GridSoundBridge에 전용 이름 추가 후 여기서 호출
+            }
+            else if (phase == FloodPhase.Flowing && m_Splash != null)
+            {
+                m_Splash.Emit(90);   // 수문이 터지는 첫 물보라 — "콸콸"의 순간
+            }
+            else if (phase == FloodPhase.Idle && (FloodPhase)prev.phase == FloodPhase.Flowing)
+            {
+                m_DrainStart = Time.time;   // 뿅 사라지지 않게 — 상류부터 빠져나가는 연출 시작
+            }
         }
 
-        // 수로를 따라 얇은 물판을 깐다. 예고 중엔 반투명하게 미리 보이고, 흐르는 중엔 차오르며 물결친다.
+        // 물살 전선(front) 연출 상수 — 물이 '뿅' 나타나지 않고 상류에서 하류로 뿜어져 퍼지고,
+        // 끝나면 상류부터 스르륵 빠진다(09/01 피드백).
+        private const float kFrontSpeed = 16f;    // 전선이 하류로 퍼지는 속도(m/s) — 플레이어보다 빠르게
+        private const float kDrainSeconds = 1.4f; // 방류 종료 후 물이 다 빠질 때까지
+
+        // 수로를 따라 물판을 깐다. 방류 중엔 전선이 하류로 퍼지고, 끝나면 상류부터 빠진다.
+        // ⚠ 예고(Warning) 중엔 물판을 아예 안 깐다 — 얕게 깔았더니 "차기도 전에 하늘색으로 꽉 찬" 것처럼
+        //   보였다(09/01). 예고 신호는 토스트 + 수문 잔뿌림 파티클이 담당한다.
         private void UpdateVisuals()
         {
             var phase = Phase;
-            bool show = phase != FloodPhase.Idle && m_Path.Count >= 2;
+            bool flowing = phase == FloodPhase.Flowing;
+            bool draining = phase == FloodPhase.Idle && Time.time - m_DrainStart < kDrainSeconds;
+            bool show = (flowing || draining) && m_Path.Count >= 2;
 
+            // 예고 잔뿌림은 물판과 별개로 돌린다(물판이 꺼져 있어도 수문 앞은 칙칙 튄다)
+            if (phase == FloodPhase.Warning && m_Splash == null && m_Path.Count >= 2) BuildSplash();
             if (!show)
             {
                 foreach (var q in m_WaterQuads) if (q != null) q.SetActive(false);
+                if (m_Splash != null)
+                {
+                    var em0 = m_Splash.emission;
+                    em0.rateOverTime = phase == FloodPhase.Warning ? 7f : 0f;
+                }
                 return;
             }
 
             if (m_WaterQuads.Count == 0) BuildWaterQuads();
 
-            // 차오름: 예고 중엔 얕게(바닥에 물이 비침), 흐르는 중엔 0.15초 만에 가득.
             float elapsed = Now - m_State.Value.phaseStart;
-            float fill = phase == FloodPhase.Flowing
-                ? Mathf.Clamp01(elapsed / 0.6f)
-                : 0.18f;
 
-            var c = Color.Lerp(kWarnColor, kWaterColor, fill);
-            c.a = 0.35f + fill * 0.45f;
+            var c = kWaterColor;
+            c.a = 0.8f;
+            UpdateWaterMaterial(c, flowing);
+
+            // 전선 위치(경로 시작점 기준 거리)
+            float floodFront = flowing ? elapsed * kFrontSpeed : float.MaxValue;      // 물이 도달한 지점
+            float drainFront = draining ? (Time.time - m_DrainStart) * kFrontSpeed * 1.1f : 0f;   // 물이 빠진 지점
 
             for (int i = 0; i < m_WaterQuads.Count; i++)
             {
                 var q = m_WaterQuads[i];
                 if (q == null) continue;
+
+                float segStart = m_QuadStart[i];
+                float segLen = m_QuadLen[i];
+
+                // 이 세그먼트에서 물이 차 있는 구간 [from..to] (0~1, 상류→하류)
+                float from = 0f, to = 1f;
+                if (flowing)      to   = Mathf.Clamp01((floodFront - segStart) / segLen);   // 전선이 지나간 만큼만
+                else if (draining) from = Mathf.Clamp01((drainFront - segStart) / segLen);  // 상류부터 빈다
+                float vis = to - from;
+
+                if (vis <= 0.001f) { q.SetActive(false); continue; }
                 if (!q.activeSelf) q.SetActive(true);
 
-                // 흐르는 물결(비주얼만): 세그먼트마다 위상을 어긋나게 해 물이 흘러가는 것처럼 보이게.
-                float wave = phase == FloodPhase.Flowing
-                    ? Mathf.Sin((Time.time * 3.2f) - i * 0.8f) * 0.05f
-                    : 0f;
-                var s = q.transform.localScale;
-                q.transform.localScale = new Vector3(s.x, Mathf.Max(0.02f, 0.28f * fill), s.z);
-                var p = q.transform.position;
-                q.transform.position = new Vector3(p.x, m_QuadBaseY[i] + wave, p.z);
+                // 보이는 구간만큼 길이를 줄이고, 그 구간의 중앙에 앉힌다(상류/하류 끝에서 자라거나 줄어들게)
+                float mid01 = (from + to) * 0.5f;
+                var pos = m_QuadA[i] + m_QuadDir[i] * (segLen * mid01);
 
-                Tint(q, c);
+                float height = 0.3f;
+                float wave = flowing ? Mathf.Sin((Time.time * 4.5f) - (segStart + segLen * mid01) * 0.35f) * 0.07f : 0f;
+                // 전선 바로 뒤는 살짝 부풀어 '밀려오는 물머리'처럼
+                if (flowing && to < 1f) height *= 1.35f;
+
+                q.transform.position = new Vector3(pos.x, m_QuadBaseY[i] + wave, pos.z);
+                q.transform.localScale = new Vector3(Config.ChannelRadius * 2f, Mathf.Max(0.02f, height), Mathf.Max(0.05f, segLen * vis));
+            }
+
+            // 수문 물보라: 흐르는 동안 세게 뿜는다(예고 잔뿌림은 위 분기에서 처리).
+            if (m_Splash == null) BuildSplash();
+            if (m_Splash != null)
+            {
+                var em = m_Splash.emission;
+                em.rateOverTime = flowing ? 45f : 0f;
             }
         }
 
         private readonly List<float> m_QuadBaseY = new();
+        private readonly List<float> m_QuadStart = new();   // 경로 시작점부터 이 세그먼트 시작까지 거리
+        private readonly List<float> m_QuadLen = new();
+        private readonly List<Vector3> m_QuadA = new();     // 세그먼트 상류 끝
+        private readonly List<Vector3> m_QuadDir = new();   // 상류→하류 단위 방향
 
         private void BuildWaterQuads()
         {
-            m_QuadBaseY.Clear();
+            m_QuadBaseY.Clear(); m_QuadStart.Clear(); m_QuadLen.Clear(); m_QuadA.Clear(); m_QuadDir.Clear();
+            float dist = 0f;
             for (int i = 1; i < m_Path.Count; i++)
             {
                 var a = m_Path[i - 1];
@@ -285,6 +340,8 @@ namespace GridSystem
                 box.name = "~DdpWater";
                 var col = box.GetComponent<Collider>();
                 if (col != null) Destroy(col);   // 물은 통과 — 밀림은 CurrentPushAt이 담당
+                EnsureWaterMaterial();
+                if (s_Mat != null) box.GetComponent<Renderer>().sharedMaterial = s_Mat;
 
                 var mid = (a + b) * 0.5f;
                 box.transform.position = mid;
@@ -292,6 +349,11 @@ namespace GridSystem
                 box.transform.localScale = new Vector3(Config.ChannelRadius * 2f, 0.2f, len);
                 m_WaterQuads.Add(box);
                 m_QuadBaseY.Add(mid.y);
+                m_QuadStart.Add(dist);
+                m_QuadLen.Add(len);
+                m_QuadA.Add(a);
+                m_QuadDir.Add(seg.normalized);
+                dist += len;
             }
         }
 
@@ -299,25 +361,122 @@ namespace GridSystem
         {
             foreach (var q in m_WaterQuads) if (q != null) Destroy(q);
             m_WaterQuads.Clear();
-            m_QuadBaseY.Clear();
+            m_QuadBaseY.Clear(); m_QuadStart.Clear(); m_QuadLen.Clear(); m_QuadA.Clear(); m_QuadDir.Clear();
+            if (m_Splash != null) { Destroy(m_Splash.gameObject); m_Splash = null; }
         }
 
+        // ── 물 머티리얼(공유 1장) ──────────────────────────────────────────
+        // 예전엔 불투명 Lit + MaterialPropertyBlock 틴트였는데, SRP Batcher가 MPB를 무시해
+        // '회색 민짜 박스'로 보였다(프로젝트 관례 주석 참고). 반투명 + 에미션(야경 대응)으로 교체하고
+        // 색은 공유 머티리얼에 직접 쓴다 — 물판 전부가 같은 색이라 이걸로 충분하다.
         private static Material s_Mat;
-        private static void Tint(GameObject go, Color c)
+
+        private static void EnsureWaterMaterial()
         {
-            var r = go.GetComponent<Renderer>();
-            if (r == null) return;
-            if (s_Mat == null)
-            {
-                var sh = Shader.Find("Universal Render Pipeline/Lit");
-                s_Mat = sh != null ? new Material(sh) { hideFlags = HideFlags.HideAndDontSave } : null;
-            }
-            if (s_Mat != null) r.sharedMaterial = s_Mat;
-            var mpb = new MaterialPropertyBlock();
-            r.GetPropertyBlock(mpb);
-            mpb.SetColor(Shader.PropertyToID("_BaseColor"), c);
-            mpb.SetColor(Shader.PropertyToID("_Color"), c);
-            r.SetPropertyBlock(mpb);
+            if (s_Mat != null) return;
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh == null) return;
+            s_Mat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            s_Mat.SetFloat("_Surface", 1f);   // Transparent
+            s_Mat.SetFloat("_Blend", 0f);     // Alpha
+            s_Mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            s_Mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            s_Mat.SetFloat("_ZWrite", 0f);
+            s_Mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            s_Mat.SetOverrideTag("RenderType", "Transparent");
+            s_Mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            s_Mat.EnableKeyword("_EMISSION");   // 밤 맵에서 물이 은은히 빛난다(변형은 가로등 에셋이 실어 나름)
+            s_Mat.SetFloat("_Smoothness", 0.85f);
+        }
+
+        private void UpdateWaterMaterial(Color c, bool flowing)
+        {
+            EnsureWaterMaterial();
+            if (s_Mat == null) return;
+            s_Mat.SetColor("_BaseColor", c);
+            s_Mat.SetColor("_EmissionColor", new Color(c.r, c.g, c.b) * (flowing ? 0.55f : 0.25f));
+        }
+
+        // ── 수문 물보라(파티클) — "물 콸콸" 담당. 상류(경로 0번) 수문 입에서 하류로 뿜는다 ──
+        private ParticleSystem m_Splash;
+
+        private void BuildSplash()
+        {
+            if (m_Path.Count < 2) return;
+            var origin = m_Path[0];
+            var dir = (m_Path[1] - m_Path[0]).normalized;
+
+            var go = new GameObject("~DdpGateSplash");
+            go.transform.position = origin + dir * 0.6f + Vector3.up * 0.9f;   // 수문 물구멍 높이쯤
+            go.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+
+            m_Splash = go.AddComponent<ParticleSystem>();
+            var main = m_Splash.main;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(3.5f, 7f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.55f);
+            main.startColor = new ParticleSystem.MinMaxGradient(
+                new Color(0.85f, 0.97f, 1f, 0.9f), new Color(0.45f, 0.8f, 1f, 0.8f));
+            main.gravityModifier = 1.1f;
+            main.maxParticles = 400;
+
+            var shape = m_Splash.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 22f;
+            shape.radius = 0.45f;
+            // Cone은 로컬 +z로 뿜는다 — go의 회전이 하류를 보고 있으니 그대로.
+
+            var em = m_Splash.emission;
+            em.rateOverTime = 0f;   // 페이즈에 따라 UpdateVisuals가 조절
+
+            var col = m_Splash.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(new Color(0.5f, 0.8f, 1f), 1f) },
+                new[] { new GradientAlphaKey(0.9f, 0f), new GradientAlphaKey(0f, 1f) });
+            col.color = grad;
+
+            var r = m_Splash.GetComponent<ParticleSystemRenderer>();
+            r.material = BuildSplashMaterial();
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+        }
+
+        // 파티클용 부드러운 원형 스프라이트 — 에셋 없이 코드로 굽는다(URP Particles Unlit + 가산).
+        private static Material s_SplashMat;
+        private static Material BuildSplashMaterial()
+        {
+            if (s_SplashMat != null) return s_SplashMat;
+            var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
+            s_SplashMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+
+            const int N = 32;
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x, y), new Vector2(N / 2f, N / 2f)) / (N / 2f);
+                    byte v = (byte)(Mathf.Pow(Mathf.Clamp01(1f - d), 1.6f) * 255f);
+                    px[y * N + x] = new Color32(255, 255, 255, v);
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+
+            s_SplashMat.SetTexture("_BaseMap", tex);
+            s_SplashMat.SetColor("_BaseColor", Color.white);
+            s_SplashMat.SetFloat("_Surface", 1f);
+            s_SplashMat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            s_SplashMat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);   // 가산 섞임 — 물보라 반짝임
+            s_SplashMat.SetFloat("_ZWrite", 0f);
+            s_SplashMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            s_SplashMat.SetOverrideTag("RenderType", "Transparent");
+            s_SplashMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return s_SplashMat;
         }
     }
 }

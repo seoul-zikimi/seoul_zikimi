@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: "DDP_\uC870\uAC01_01_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 41
-  m_Footprint: {x: 4, y: 3, z: 3}
+  m_Footprint: {x: 3, y: 4, z: 3}
   m_Prefab: {fileID: 8211817822463790045, guid: 2fe9e48f0ab69c046a95804706c51c41, type: 3}
   m_RequiredProcesses: 02000000
   m_MustBeFixed: 0
@@ -22,3 +22,4 @@ MonoBehaviour:
   m_MaxSpawnCount: -1
   m_IsHeavy: 0
   m_FreeformVisual: 1
+  m_IntentionalOverfill: 0

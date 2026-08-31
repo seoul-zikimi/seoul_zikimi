@@ -44,11 +44,11 @@ namespace GridSystem.EditorTools
 
         /// <summary>통짜가 들어갈 최대 칸 수. 그리드(14×6×14) 안에서 이 상자에 비율 유지로 맞춘다.
         /// 비율 유지라 셋 중 가장 빡빡한 축이 크기를 결정한다 — DDP는 옆으로 길어서 보통 X가 잡는다.
-        /// 파츠 조립 전환(08/31) 때 13×5×10 → 14×6×12로 키웠다 — 3동을 펼쳐 놓으니 건물이 작아 보여서,
-        /// 그리드를 꽉 채우게 한다(높이 과장은 DdpAssembleTool.kParts가 담당).</summary>
-        private static readonly Vector3Int kSpan = new Vector3Int(14, 6, 12);
+        /// (파츠 조립 실험 때 14×6×12까지 키웠다가, 통짜 롤백(08/31)과 함께 검증된 원래 값으로 복귀 —
+        ///  옛 본관 GLB는 이 스팬 기준으로 균형이 잡혀 있다.)</summary>
+        private static readonly Vector3Int kSpan = new Vector3Int(13, 5, 10);
         /// <summary>통짜의 min-corner가 앉을 셀.</summary>
-        private static readonly Vector3Int kAnchor = new Vector3Int(0, 0, 1);
+        private static readonly Vector3Int kAnchor = new Vector3Int(0, 0, 2);
 
         /// <summary>평면 절단선(칸 단위, kSpan 기준 비율). X는 4구간, Z는 3구간 → 최대 12조각.
         /// 빈 구간(곡면이 안 지나가는 오목한 자리)은 자동으로 버려져서, 정답 평면이 직사각형이 아니게 된다.</summary>

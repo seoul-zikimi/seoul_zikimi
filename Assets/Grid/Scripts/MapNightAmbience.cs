@@ -34,13 +34,13 @@ namespace GridSystem
         public float FogEnd   = 280f;
 
         [Header("앰비언트 (Trilight) — 너무 어두우면 플레이가 안 보인다. 카툰 밤은 '파랗게', 검게 말고")]
-        public Color AmbientSky     = new Color(0.33f, 0.39f, 0.56f);
-        public Color AmbientEquator = new Color(0.25f, 0.27f, 0.38f);
-        public Color AmbientGround  = new Color(0.13f, 0.13f, 0.19f);
+        public Color AmbientSky     = new Color(0.40f, 0.46f, 0.64f);   // 08/31 톤 업 — "빛이 어색·칙칙" 피드백
+        public Color AmbientEquator = new Color(0.30f, 0.33f, 0.46f);
+        public Color AmbientGround  = new Color(0.17f, 0.17f, 0.24f);
 
         [Header("달빛 (씬 Directional 재사용)")]
-        public Color MoonColor     = new Color(0.62f, 0.71f, 0.92f);
-        public float MoonIntensity = 0.45f;
+        public Color MoonColor     = new Color(0.66f, 0.74f, 0.94f);
+        public float MoonIntensity = 0.55f;   // 그림자가 새까맣게 죽지 않게 살짝 올림
         [Tooltip("달 방향(오일러). 고도(x)를 낮게 두면 FastSky가 저녁→밤(별)으로 넘어간다.")]
         public Vector3 MoonEuler = new Vector3(14f, -35f, 0f);
 

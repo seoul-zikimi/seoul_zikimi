@@ -16,8 +16,8 @@ namespace GridSystem
     public class DdpGimmickConfig : ScriptableObject
     {
         [Header("① 이간수문 물길 — 주기")]
-        [Tooltip("다음 방류까지 최소 간격(초)")] public float FloodMinInterval = 24f;
-        [Tooltip("다음 방류까지 최대 간격(초)")] public float FloodMaxInterval = 36f;
+        [Tooltip("다음 방류까지 최소 간격(초)")] public float FloodMinInterval = 14f;   // 24 → 14 (09/01 더 자주)
+        [Tooltip("다음 방류까지 최대 간격(초)")] public float FloodMaxInterval = 22f;   // 36 → 22
         [Tooltip("'수문이 열립니다' 예고 시간(초)")] public float FloodWarnSeconds = 3f;
         [Tooltip("물이 흐르는 시간(초)")] public float FloodDurationSeconds = 9f;
 

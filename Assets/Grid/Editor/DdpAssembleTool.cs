@@ -36,11 +36,11 @@ namespace GridSystem.EditorTools
         private static readonly (string name, Vector3 size, Vector2 pos, float yaw)[] kParts =
         {
             // 북쪽 밴드 — 동쪽 끝이 갈고리처럼 남쪽으로 감긴다. 살짝 기울여(-8°) 동단이 남으로 처지게.
-            ("DDP_윗동",   new Vector3(23f, 11f, 8f), new Vector2(25f, 7.2f),  -8f),
+            ("DDP_윗동",   new Vector3(23f, 11f, 8f), new Vector2(25f, 6.8f),  -8f),
             // 머리+몸통 — 은색 돔 머리가 동쪽(최고 높이). 밴드 남쪽에 물려 이음새를 겹친다.
-            ("DDP_중간동", new Vector3(22f, 15f, 9f), new Vector2(26f, 0.2f),  -10f),
+            ("DDP_중간동", new Vector3(22f, 15f, 9f), new Vector2(26f, 0.8f),  -10f),
             // 꼬리 — 북동에서 남서로 흐르는 대각선(-43°). 넓은 끝이 중간동 서측에 파고든다.
-            ("DDP_꼬리동", new Vector3(24f, 8f, 8f),  new Vector2(10f, -8f),   -43f),
+            ("DDP_꼬리동", new Vector3(24f, 8f, 8f),  new Vector2(11.5f, -7f), -43f),
         };
 
         [MenuItem("Tools/Map/★ DDP 파츠 3종 조립(절단용 통짜)")]
@@ -73,27 +73,43 @@ namespace GridSystem.EditorTools
                 for (int i = 0; i < kParts.Length; i++)
                 {
                     var (name, size, pos, yaw) = kParts[i];
-                    var inst = (GameObject)PrefabUtility.InstantiatePrefab(models[i], root.transform);
-                    inst.name = name;
 
-                    // ① 긴 축을 X로 정규화 — Generate3D 방향 복불복 흡수(180° 뒤집힘은 yaw로 교정)
+                    // 구조: partRoot(배치 yaw·위치) > scaleWrap(비균등 스케일) > inst(방향 교정 회전).
+                    // 회전과 비균등 스케일을 한 트랜스폼에 섞으면 축이 어긋나 파츠가 뒤틀린다 —
+                    // 스케일은 반드시 '회전 없는' 래퍼에서, 월드 정렬 축으로만 건다.
+                    var partRoot = new GameObject(name);
+                    partRoot.transform.SetParent(root.transform, false);
+                    var scaleWrap = new GameObject("scale");
+                    scaleWrap.transform.SetParent(partRoot.transform, false);
+                    var inst = (GameObject)PrefabUtility.InstantiatePrefab(models[i], scaleWrap.transform);
+
+                    // ① 눕히기 — GLB의 '위' 축은 복불복이다. 가장 얇은 축이 Y(높이)가 되게 돌린다.
+                    //    (건물이 옆으로 자빠진 채 조립되던 사고의 원인 — 납작한 건물은 높이가 항상 최소 축)
                     var b = RendererBounds(inst);
-                    if (b.size.z > b.size.x)
-                        inst.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+                    if (b.size.x <= b.size.y && b.size.x <= b.size.z)
+                        inst.transform.localRotation = Quaternion.Euler(0f, 0f, 90f) * inst.transform.localRotation;   // x가 최소 → x↔y
+                    else if (b.size.z <= b.size.y && b.size.z <= b.size.x)
+                        inst.transform.localRotation = Quaternion.Euler(90f, 0f, 0f) * inst.transform.localRotation;   // z가 최소 → z↔y
+                    // (y가 이미 최소면 그대로)
 
-                    // ② XZ는 비율 유지, Y는 size.y로 강제 — 실물 비율(높이/길이 ≈ 0.1)대로 두면
-                    //    절단 후 1~2칸 팬케이크가 된다. 곡면은 세로로 늘어나도 '더 DDP답게' 부풀 뿐 안 깨진다.
+                    // ② 긴 축을 X로 — 평면 방향 정규화(180° 뒤집힘은 kParts.yaw로 교정)
+                    b = RendererBounds(inst);
+                    if (b.size.z > b.size.x)
+                        inst.transform.localRotation = Quaternion.Euler(0f, 90f, 0f) * inst.transform.localRotation;
+
+                    // ③ XZ는 비율 유지, Y는 size.y로 강제 — 실물 비율(높이/길이 ≈ 0.1)대로 두면
+                    //    절단 후 1~2칸 팬케이크가 된다. 곡면은 세로로 부풀어도 '더 DDP답게' 될 뿐 안 깨진다.
                     b = RendererBounds(inst);
                     float k  = Mathf.Min(size.x / b.size.x, size.z / b.size.z);
                     float ky = size.y / b.size.y;
-                    inst.transform.localScale = Vector3.Scale(inst.transform.localScale, new Vector3(k, ky, k));
+                    scaleWrap.transform.localScale = new Vector3(k, ky, k);
 
-                    // ③ 실물 배치 회전
-                    inst.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * inst.transform.localRotation;
+                    // ④ 실물 배치 회전(파츠 통째) — XZ 스케일이 균등이라 y축 회전은 안전
+                    partRoot.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
 
-                    // ④ 바운즈 중심 XZ = pos, 밑면 = y0 (전 파츠가 같은 바닥에 앉는다)
-                    b = RendererBounds(inst);
-                    inst.transform.localPosition += new Vector3(pos.x - b.center.x, -b.min.y, pos.y - b.center.z);
+                    // ⑤ 바운즈 중심 XZ = pos, 밑면 = y0 (전 파츠가 같은 바닥에 앉는다)
+                    b = RendererBounds(partRoot);
+                    partRoot.transform.localPosition += new Vector3(pos.x - b.center.x, -b.min.y, pos.y - b.center.z);
                 }
 
                 Directory.CreateDirectory(kDir);

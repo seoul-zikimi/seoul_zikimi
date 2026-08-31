@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f88a6998b322f604abcef686cb56a785, type: 3}
   m_Name: DdpGimmickConfig_Ddp
   m_EditorClassIdentifier: GridSystem::GridSystem.DdpGimmickConfig
-  FloodMinInterval: 24
-  FloodMaxInterval: 36
+  FloodMinInterval: 14
+  FloodMaxInterval: 22
   FloodWarnSeconds: 3
   FloodDurationSeconds: 9
   ChannelRadius: 2.2

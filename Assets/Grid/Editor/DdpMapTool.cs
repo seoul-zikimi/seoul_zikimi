@@ -335,6 +335,13 @@ namespace GridSystem.EditorTools
             // 데크 남쪽 옹벽(레벨 차 4m) — 광장에서 올려다보이는 면. 은색 패널 외피.
             AddBox(root, "DeckWall", new Vector3(6.5f, kDeckY - 2f, -4.4f), new Vector3(26f, 4f, 0.8f), silver).isStatic = true;
 
+            // 데크 하부 은색 마감(서·동·북) — 예전엔 비주얼정리 툴의 '초록 스커트'(찌부 스피어)가 이 밑을
+            // 메웠는데, 남쪽으로 부풀어 광장의 LED 장미밭까지 초록 언덕으로 덮어버렸다(08/31 발견).
+            // 스커트는 껐고(MapVisualPolishTool의 DDP 프로필), 대신 실물처럼 은색 패널로 옆면을 닫는다.
+            AddBox(root, "DeckSkirt_W", new Vector3(-6.7f, kDeckY - 3f, 8f),  new Vector3(0.5f, 5.2f, 24.4f), silver).isStatic = true;
+            AddBox(root, "DeckSkirt_E", new Vector3(19.7f, kDeckY - 3f, 8f),  new Vector3(0.5f, 5.2f, 24.4f), silver).isStatic = true;
+            AddBox(root, "DeckSkirt_N", new Vector3(6.5f,  kDeckY - 3f, 20.2f), new Vector3(26.9f, 5.2f, 0.5f), silver).isStatic = true;
+
             // ── 하층: 어울림광장 ──
             AddBox(root, "Plaza", new Vector3(6.5f, kPlazaY - 0.5f, -14f), new Vector3(36f, 1f, 21f), plazaMat).isStatic = true;
 
@@ -366,7 +373,7 @@ namespace GridSystem.EditorTools
 
             // ── 나선 램프: 배송존 옆 광장(y=-4)에서 동쪽으로 감아 올라 물길 위를 지나 데크(y=0)로 ──
             // DDP는 '계단 없는 건물'이라 지붕(잔디언덕)까지 외부 경사로로 걸어 올라간다. 그 동선을 그대로.
-            var lampGlow = EnsureEmissiveMaterial("Mat_DdpLampGlow", new Color(1.00f, 0.90f, 0.70f), new Color(1.00f, 0.82f, 0.45f) * 2.4f);
+            var lampGlow = EnsureEmissiveMaterial("Mat_DdpLampGlow", new Color(1.00f, 0.90f, 0.70f), new Color(1.00f, 0.82f, 0.45f) * 3.0f);   // 야경 강화: 2.4 → 3.0
             BuildCurvedRamp(root, silver, lampGlow);
 
             // ── LED 장미정원(광장 북쪽) — 한 송이씩 심는다 ──
@@ -374,6 +381,9 @@ namespace GridSystem.EditorTools
 
             // ── ★ 야경 — 가로등·LED 스트립·포인트 라이트 + 밤 환경/발광 컴포넌트 ──
             BuildNightScape(root, lampGlow, roseGroup);
+
+            // ── 투명 경계벽 — 유저가 맵 밖(광장 가장자리·데크 모서리)으로 떨어져 못 돌아오는 사고 방지 ──
+            BuildBoundaryWalls(root);
 
             // (유구 발굴터 연출·프롭은 기믹 제거(08/31)와 함께 완전히 뺐다)
 
@@ -641,10 +651,52 @@ namespace GridSystem.EditorTools
             BuildTree(root, "Tree0", new Vector3(20f,    kPlazaY, -20f),   trunkMat, leafMat, 20f);
             BuildTree(root, "Tree1", new Vector3(24f,    kPlazaY, -15f),   trunkMat, leafMat, 140f);
             BuildTree(root, "Tree2", new Vector3(-11.3f, kPlazaY, -17.5f), trunkMat, leafMat, 260f);
+            // 데크 북쪽 구석에도 2그루 — 잔디지붕이 휑하다는 피드백(그리드 z<14 밖이라 건축 안 막음)
+            BuildTree(root, "Tree3", new Vector3(17.5f, kDeckY, 18f),   trunkMat, leafMat, 80f);
+            BuildTree(root, "Tree4", new Vector3(-4.5f, kDeckY, 17.5f), trunkMat, leafMat, 200f);
 
-            // ── 꼬리 동(북서쪽) — 실물 DDP의 길게 흐르는 꼬리가 데크 북쪽 너머로 이어지는 배경 매스 ──
-            // 정답(z 2~12)과 안 겹치게 z≥14.4, 낮고 잔디지붕이라 '지을 목표'로는 안 읽힌다(원경 제거 사유 회피).
-            BuildTailWing(root);
+            // ── 미디어폴 6기 — 광장 가장자리의 세로 LED 기둥(EmissionCycler로 색이 물결친다) ──
+            // VARCO 모델(DDP_미디어폴) 있으면 몸체 교체, 발광 슬리브는 그대로 얹는다.
+            var poleGlowMat = EnsureEmissiveMaterial("Mat_DdpMediaPole", new Color(0.55f, 0.95f, 1.00f), new Color(0.25f, 0.85f, 1.00f) * 3.0f);
+            var mediaPoleRenderers = new List<Renderer>();
+            // ⚠ 수로 침수 구간(z -9.8~-14.2, 반경 2.2)은 피한다 — (23.8,-10.5)에 세웠다가 물속에 잠겼었다(09/01)
+            var polePositions = new[]
+            {
+                new Vector3(23.8f,  kPlazaY, -6.5f),
+                new Vector3(23.8f,  kPlazaY, -18.5f), new Vector3(23.8f, kPlazaY, -22.5f),
+                new Vector3(-11.2f, kPlazaY, -5.8f),  new Vector3(-11.2f, kPlazaY, -20.5f),
+            };
+            for (int pi = 0; pi < polePositions.Length; pi++)
+                mediaPoleRenderers.Add(BuildMediaPole(lamps, $"MediaPole{pi}", polePositions[pi], poleMat, poleGlowMat));
+
+            // ── 곡면 벤치 3개 — 광장 쉼터(장식). VARCO 모델(DDP_벤치) 있으면 교체 ──
+            BuildBench(root, "Bench0", new Vector3(12f,   kPlazaY, -22.8f), 0f,   silverLike: poleMat);
+            BuildBench(root, "Bench1", new Vector3(-2.5f, kPlazaY, -22.8f), 0f,   silverLike: poleMat);
+            BuildBench(root, "Bench2", new Vector3(19f,   kPlazaY, -7f),    90f,  silverLike: poleMat);   // 수로 밖으로 이사(09/01 — 물길 위에 놓여 있었다)
+
+            // ── 서치라이트 2기 — 하늘로 뻗어 천천히 도는 빔(개장 축제 느낌). 야경의 스카이라인 포인트 ──
+            BuildSearchlight(root, "Searchlight_W", new Vector3(-5.5f, kDeckY, 18.5f), 40f);
+            BuildSearchlight(root, "Searchlight_E", new Vector3(18.5f, kDeckY, 18.5f), 220f);
+
+            // ── 데크 윤곽 조명 — 건물 외곽선을 따라 도는 따뜻한 라인(야경 건물 단골 연출) ──
+            var edgeMat = EnsureEmissiveMaterial("Mat_DdpEdgeLight", new Color(1.00f, 0.92f, 0.72f), new Color(1.00f, 0.85f, 0.50f) * 2.2f);
+            void EdgeLine(string n, Vector3 c, Vector3 s)
+            {
+                var e = AddBox(root, n, c, s, edgeMat);
+                Object.DestroyImmediate(e.GetComponent<Collider>());
+                e.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                e.isStatic = true;
+            }
+            EdgeLine("DeckEdge_S", new Vector3(6.5f,  kDeckY + 0.03f, -3.95f), new Vector3(26.2f, 0.06f, 0.12f));
+            EdgeLine("DeckEdge_W", new Vector3(-6.45f, kDeckY + 0.03f, 8f),    new Vector3(0.12f, 0.06f, 24.1f));
+            EdgeLine("DeckEdge_E", new Vector3(19.45f, kDeckY + 0.03f, 8f),    new Vector3(0.12f, 0.06f, 24.1f));
+            EdgeLine("DeckEdge_N", new Vector3(6.5f,  kDeckY + 0.03f, 19.95f), new Vector3(26.2f, 0.06f, 0.12f));
+
+            // ── 장미밭 반딧불 — 분홍 불씨가 밭 위를 떠다닌다(트윙클과 세트) ──
+            BuildFireflies(root);
+
+            // ⚠ 꼬리 동 그레이박스(BuildTailWing)는 더 이상 안 깐다 — 통짜 본관 롤백(08/31) 후로는
+            // 원본 모델이 꼬리까지 갖고 있어 중복인 데다, 초록 뚜껑 박스들이 '흉한 블록 줄'로 보였다.
 
             // ── 진짜 포인트 라이트(8) — 플레이어·재료가 실제로 밝아야 하는 요지 + 본관 투광 2 ──
             AddPointLight(lamps, "Light_Delivery",  new Vector3(-5f, kPlazaY + 2.2f, -17f),   new Color(1.00f, 0.85f, 0.60f), 9f, 1.2f);
@@ -661,8 +713,11 @@ namespace GridSystem.EditorTools
             var night = root.AddComponent<MapNightAmbience>();
             night.NightSky = EnsureNightSkyMaterial();
 
-            var cycler = root.AddComponent<EmissionCycler>();      // 미디어 파사드 색 순환
-            cycler.Targets = new[] { stripHigh.GetComponent<Renderer>(), stripLow.GetComponent<Renderer>() };
+            var cycler = root.AddComponent<EmissionCycler>();      // 미디어 파사드 색 순환(스트립 + 미디어폴)
+            var cycleTargets = new List<Renderer> { stripHigh.GetComponent<Renderer>(), stripLow.GetComponent<Renderer>() };
+            foreach (var mp in mediaPoleRenderers) if (mp != null) cycleTargets.Add(mp);
+            cycler.Targets = cycleTargets.ToArray();
+            cycler.Intensity = 3.4f;   // 야경 강화 — 블룸이 확실히 물게
 
             var blockGlow = root.AddComponent<NightBuildGlow>();   // 지은 블록(~GridVisuals) — 라이트업
             blockGlow.Tint = new Color(0.80f, 0.88f, 1.00f);
@@ -672,7 +727,12 @@ namespace GridSystem.EditorTools
             roseGlow.WatchRootName = "";
             roseGlow.ExtraTargets = new[] { roseGroup };
             roseGlow.Tint = new Color(1.00f, 0.45f, 0.75f);
-            roseGlow.Intensity = 2.0f;
+            roseGlow.Intensity = 2.4f;   // 야경 강화: 2.0 → 2.4
+            roseGlow.TwinkleAmount = 0.65f;   // ★ 반짝반짝 — 송이마다 위상이 달라 밭 전체가 별밭처럼
+            roseGlow.TwinkleSpeed = 2.4f;
+            // glTFast 장미가 '에미션 없는 셰이더 변형'으로 구워져 안 빛나던 문제(09/01) —
+            // URP Lit 에미션 인스턴스로 강제 교체해서 발광·반짝임을 보장한다.
+            roseGlow.ForceLitEmissive = true;
 
             root.AddComponent<NightHorizonTint>();   // 언릿 원경 카드(~Horizon)를 밤색으로 — 비주얼 정리 툴이 깔아둔 것
         }
@@ -691,10 +751,31 @@ namespace GridSystem.EditorTools
             {
                 headX = 0f;
                 SlimCollider(lamp, new Vector3(0.3f, 3.0f, 0.3f));   // 바운즈 통짜 콜라이더 → 기둥만(옆을 지나다닐 수 있게)
-                var orb = AddBox(lamp, "headGlow", new Vector3(0f, 3.0f, 0f), Vector3.one * 0.26f, glowMat);   // 모델 두상부 근사
-                Object.DestroyImmediate(orb.GetComponent<Collider>());
-                orb.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                orb.isStatic = true;
+
+                // 발광 헤드: 고정 좌표에 정육면체를 얹었더니 모델 머리 옆에 '묻은 큐브'로 보였다(08/31 피드백).
+                // → 모델 바운즈 꼭대기에 맞춘 가산 헤일로(교차 쿼드 2 + 수평 쿼드 1)로 교체 —
+                //   부드러운 빛망울이라 위치가 반 칸 어긋나도 어색하지 않고, 어느 각도에서도 보인다.
+                var rends = lamp.GetComponentsInChildren<Renderer>();
+                var hb = rends[0].bounds;
+                foreach (var r0 in rends) hb.Encapsulate(r0.bounds);
+                var haloLocal = lamp.transform.InverseTransformPoint(new Vector3(hb.center.x, hb.max.y - 0.18f, hb.center.z));
+                for (int q = 0; q < 3; q++)
+                {
+                    var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    quad.name = $"halo{q}";
+                    quad.transform.SetParent(lamp.transform, false);
+                    quad.transform.localPosition = haloLocal;
+                    quad.transform.localRotation = q < 2
+                        ? Quaternion.Euler(0f, q * 90f, 0f)          // 세로 교차 2장
+                        : Quaternion.Euler(90f, 0f, 0f);             // 수평 1장(위에서 볼 때)
+                    quad.transform.localScale = new Vector3(1.15f, 1.15f, 1f);
+                    Object.DestroyImmediate(quad.GetComponent<Collider>());
+                    var qr = quad.GetComponent<Renderer>();
+                    qr.sharedMaterial = poolMat;   // 가로등 웅덩이와 같은 가산 원형 그라데이션
+                    qr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    qr.receiveShadows = false;
+                    quad.isStatic = true;
+                }
             }
             else
             {
@@ -711,6 +792,86 @@ namespace GridSystem.EditorTools
 
             // 불빛 웅덩이 — 헤드 바로 밑 바닥에 가산 원형 그라데이션(진짜 라이트 아님)
             AddLightPool(lamp, new Vector3(headX, 0.03f, 0f), 5.5f, poolMat);
+
+            // 빛 원뿔 — 헤드와 웅덩이를 잇는 가산 콘. "위·아래에만 빛이 있고 중간이 비었다"(09/01) 교정:
+            // 위 좁고 아래 넓은 교차 시트 메시에, 위가 밝고 아래로 사라지는 그라데이션을 입힌다.
+            float headY = 2.7f;
+            {
+                var rends2 = lamp.GetComponentsInChildren<Renderer>();
+                if (rends2.Length > 0)
+                {
+                    var cb = rends2[0].bounds;
+                    foreach (var r2 in rends2) cb.Encapsulate(r2.bounds);
+                    headY = Mathf.Max(2.2f, cb.max.y - lamp.transform.position.y - 0.25f);
+                }
+                var cone = new GameObject("lightCone");
+                cone.transform.SetParent(lamp.transform, false);
+                cone.transform.localPosition = new Vector3(headX, 0.02f, 0f);
+                cone.transform.localScale = new Vector3(3.4f, headY, 3.4f);
+                cone.AddComponent<MeshFilter>().sharedMesh = EnsureLampConeMesh();
+                var cr = cone.AddComponent<MeshRenderer>();
+                cr.sharedMaterial = EnsureLampConeMaterial();
+                cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                cr.receiveShadows = false;
+                cone.isStatic = true;
+            }
+        }
+
+        // 가로등 빛 원뿔 메시(공유 1개): 위 좁고(반폭 0.15) 아래 넓은(반폭 0.5) 교차 시트 2장, 높이 1.
+        // v=0(텍스처 밝은 끝)이 위. 메모리 메시는 프리팹 저장 시 사라지므로 에셋으로 굽는다(BldgMeshes와 같은 이유).
+        private static Mesh EnsureLampConeMesh()
+        {
+            const string kPath = "Assets/Map/Horizon/LampCone.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(kPath);
+            if (mesh != null) return mesh;
+
+            mesh = new Mesh { name = "LampCone" };
+            var v = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+            void Sheet(Vector3 right)
+            {
+                int i = v.Count;
+                v.Add(-right * 0.15f + Vector3.up); v.Add(right * 0.15f + Vector3.up);   // 위(좁음)
+                v.Add(right * 0.5f);                v.Add(-right * 0.5f);                 // 아래(넓음)
+                uv.Add(new Vector2(0f, 0f)); uv.Add(new Vector2(1f, 0f));   // v0 = 밝은 끝(위)
+                uv.Add(new Vector2(1f, 1f)); uv.Add(new Vector2(0f, 1f));
+                t.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3 });
+            }
+            Sheet(Vector3.right);
+            Sheet(Vector3.forward);
+            mesh.SetVertices(v); mesh.SetUVs(0, uv); mesh.SetTriangles(t, 0);
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            Directory.CreateDirectory("Assets/Map/Horizon");
+            AssetDatabase.CreateAsset(mesh, kPath);
+            return mesh;
+        }
+
+        // 빛 원뿔 머티리얼 — 서치라이트 빔과 같은 레시피(가산·양면·세로 그라데이션), 색만 따뜻하게.
+        private static Material EnsureLampConeMaterial()
+        {
+            string path = $"{kMatDir}/Mat_DdpLampCone.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                if (sh == null) return null;
+                mat = new Material(sh);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.SetTexture("_BaseMap", EnsureBeamTexture());
+            mat.SetColor("_BaseColor", new Color(1.00f, 0.82f, 0.50f, 1f) * 0.55f);   // 가산이라 RGB 크기가 세기 — 은은하게
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 2f);
+            mat.SetFloat("_AlphaClip", 0f);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         // 가산 불빛 웅덩이 쿼드 한 장(위를 보게 눕힘)
@@ -838,6 +999,264 @@ namespace GridSystem.EditorTools
                 cap.isStatic = true;
                 i++;
             }
+        }
+
+        // 장미밭 위를 느리게 떠오르는 분홍 반딧불 파티클 — 에디터에서 구성해 프리팹에 그대로 저장된다.
+        private static void BuildFireflies(GameObject root)
+        {
+            var go = new GameObject("~RoseFireflies");
+            go.transform.SetParent(root.transform, false);
+            float cx = (kGardenX0 + kGardenX1) * 0.5f, cz = (kGardenZ0 + kGardenZ1) * 0.5f;
+            go.transform.localPosition = new Vector3(cx, kPlazaY + 0.5f, cz);
+
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.loop = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(3.5f, 6.5f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f, 0.2f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.16f);
+            main.startColor = new ParticleSystem.MinMaxGradient(
+                new Color(1f, 0.55f, 0.8f, 0.9f), new Color(1f, 0.85f, 0.95f, 0.8f));
+            main.gravityModifier = -0.008f;   // 아주 살짝 떠오른다
+            main.maxParticles = 80;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+
+            var shape = ps.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(kGardenX1 - kGardenX0 - 1f, 0.6f, kGardenZ1 - kGardenZ0 - 0.6f);
+
+            var em = ps.emission;
+            em.rateOverTime = 11f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(new Color(1f, 0.6f, 0.85f), 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.9f, 0.25f), new GradientAlphaKey(0f, 1f) });
+            col.color = grad;
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = EnsureFireflyMaterial();
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+        }
+
+        // 반딧불 머티리얼 — 가로등 웅덩이 텍스처(원형 그라데이션)를 가산으로 재활용. 에셋이라 프리팹에 살아남는다.
+        private static Material EnsureFireflyMaterial()
+        {
+            string path = $"{kMatDir}/Mat_DdpFirefly.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+                if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
+                if (sh == null) return null;
+                mat = new Material(sh);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.SetTexture("_BaseMap", EnsureGlowTexture());
+            mat.SetColor("_BaseColor", Color.white);
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 2f);
+            mat.SetFloat("_AlphaClip", 0f);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);   // 가산 섞임 — 불씨 반짝임
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        // 미디어폴 1기: 어두운 기둥 + 세로 발광 슬리브. 발광 슬리브 렌더러를 돌려줘 EmissionCycler에 물린다.
+        // VARCO 모델(DDP_미디어폴_Fit) 있으면 몸체를 교체하고 슬리브만 얹는다.
+        private static Renderer BuildMediaPole(GameObject parent, string name, Vector3 groundPos,
+                                               Material poleMat, Material glowMat)
+        {
+            var pole = new GameObject(name);
+            pole.transform.SetParent(parent.transform, false);
+            pole.transform.localPosition = groundPos;
+
+            if (TryPlaceProp(pole, "DDP_미디어폴", Vector3.zero))
+                SlimCollider(pole, new Vector3(0.4f, 4.5f, 0.4f));
+            else
+            {
+                var body = AddBox(pole, "body", new Vector3(0f, 2.4f, 0f), new Vector3(0.38f, 4.8f, 0.38f), poleMat);
+                body.isStatic = true;   // 몸체 콜라이더 유지(기둥이니 부딪히는 게 자연스럽다)
+            }
+
+            var sleeve = AddBox(pole, "glow", new Vector3(0f, 2.5f, 0f), new Vector3(0.22f, 4.2f, 0.22f), glowMat);
+            Object.DestroyImmediate(sleeve.GetComponent<Collider>());
+            var r = sleeve.GetComponent<Renderer>();
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sleeve.isStatic = false;   // EmissionCycler가 인스턴스 머티리얼로 색을 돌린다
+            return r;
+        }
+
+        // 곡면 벤치(장식): 낮은 좌판 + 등받이. VARCO 모델(DDP_벤치_Fit) 있으면 교체.
+        private static void BuildBench(GameObject root, string name, Vector3 groundPos, float yaw, Material silverLike)
+        {
+            var bench = new GameObject(name);
+            bench.transform.SetParent(root.transform, false);
+            bench.transform.localPosition = groundPos;
+            bench.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+
+            if (TryPlaceProp(bench, "DDP_벤치", Vector3.zero))
+            {
+                SlimCollider(bench, new Vector3(2.2f, 0.9f, 0.9f));
+                return;
+            }
+            var seat = AddBox(bench, "seat", new Vector3(0f, 0.42f, 0f), new Vector3(2.2f, 0.16f, 0.72f), silverLike);
+            seat.isStatic = true;
+            var back = AddBox(bench, "back", new Vector3(0f, 0.78f, -0.32f), new Vector3(2.2f, 0.6f, 0.1f), silverLike);
+            Object.DestroyImmediate(back.GetComponent<Collider>());
+            back.isStatic = true;
+            foreach (var sx in new[] { -0.9f, 0.9f })
+            {
+                var leg = AddBox(bench, "leg", new Vector3(sx, 0.18f, 0f), new Vector3(0.14f, 0.36f, 0.6f), silverLike);
+                Object.DestroyImmediate(leg.GetComponent<Collider>());
+                leg.isStatic = true;
+            }
+        }
+
+        // 서치라이트: 짧은 받침 + 하늘로 뻗는 가산 빔(교차 쿼드 2장) + SlowSpin.
+        // 진짜 라이트 아님 — 빔은 위로 갈수록 사라지는 그라데이션 쿼드라 어느 각도에서도 싸게 보인다.
+        private static void BuildSearchlight(GameObject root, string name, Vector3 groundPos, float startYaw)
+        {
+            var baseGo = new GameObject(name);
+            baseGo.transform.SetParent(root.transform, false);
+            baseGo.transform.localPosition = groundPos;
+            baseGo.transform.localRotation = Quaternion.Euler(0f, startYaw, 0f);   // 두 기가 다른 위상으로 돌게
+
+            var poleMat = EnsureMaterial("Mat_DdpLampPole", new Color(0.16f, 0.17f, 0.20f));
+            var body = AddBox(baseGo, "body", new Vector3(0f, 0.5f, 0f), new Vector3(0.9f, 1.0f, 0.9f), poleMat);
+            body.isStatic = true;
+
+            var spin = baseGo.AddComponent<SlowSpin>();
+            spin.DegreesPerSecond = new Vector3(0f, 8f, 0f);
+
+            // 빔 피벗 — 살짝 기울여(18°) 하늘을 쓸게 한다. 빔 자체는 교차 쿼드 2장.
+            var pivot = new GameObject("beamPivot");
+            pivot.transform.SetParent(baseGo.transform, false);
+            pivot.transform.localPosition = new Vector3(0f, 1.0f, 0f);
+            pivot.transform.localRotation = Quaternion.Euler(18f, 0f, 0f);
+
+            var beamMat = EnsureBeamMaterial();
+            for (int i = 0; i < 2; i++)
+            {
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.name = $"beam{i}";
+                quad.transform.SetParent(pivot.transform, false);
+                quad.transform.localPosition = new Vector3(0f, 17.5f, 0f);
+                // 쿼드는 -z를 본다 — 세워서(x -90) 위로 뻗게 하고, 두 장을 90° 교차
+                quad.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f) * Quaternion.Euler(0f, 0f, i * 90f);
+                quad.transform.localScale = new Vector3(2.6f, 35f, 1f);
+                Object.DestroyImmediate(quad.GetComponent<Collider>());
+                var qr = quad.GetComponent<Renderer>();
+                qr.sharedMaterial = beamMat;
+                qr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                qr.receiveShadows = false;
+            }
+        }
+
+        // 서치라이트 빔 머티리얼 — 가산 블렌드, 아래(빔 뿌리)가 밝고 위로 사라지는 세로 그라데이션.
+        private static Material EnsureBeamMaterial()
+        {
+            string path = $"{kMatDir}/Mat_DdpBeam.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                if (sh == null) return null;
+                mat = new Material(sh);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.SetTexture("_BaseMap", EnsureBeamTexture());
+            mat.SetColor("_BaseColor", new Color(0.55f, 0.75f, 1.00f, 1f));
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 2f);   // Additive — URP 검증이 리셋하지 않게 명시(가로등 웅덩이와 동일 교훈)
+            mat.SetFloat("_AlphaClip", 0f);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            // 양면 — 빔은 어느 쪽에서 봐도 보여야 한다
+            if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        // 세로 그라데이션(아래 밝음 → 위 소멸) + 가장자리 페이드. 수학 산출물이라 매번 다시 굽는다.
+        private static Texture2D EnsureBeamTexture()
+        {
+            const string kDirTex = "Assets/Map/Horizon";
+            string path = $"{kDirTex}/BeamGlow.png";
+
+            const int W = 64, H = 256;
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+            var px = new Color32[W * H];
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float v = Mathf.Pow(1f - y / (float)(H - 1), 1.7f);                       // 위로 갈수록 소멸
+                    float edge = 1f - Mathf.Abs(x - (W - 1) * 0.5f) / ((W - 1) * 0.5f);       // 가장자리 페이드
+                    byte b = (byte)(v * Mathf.Pow(edge, 0.8f) * 235f);
+                    px[y * W + x] = new Color32(b, b, b, b);
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            Directory.CreateDirectory(kDirTex);
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(path);
+            var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (imp != null && (imp.wrapMode != TextureWrapMode.Clamp || !imp.alphaIsTransparency))
+            {
+                imp.wrapMode = TextureWrapMode.Clamp;
+                imp.alphaIsTransparency = true;
+                imp.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        // ── 투명 경계벽: 광장·데크 바깥 둘레를 보이지 않는 콜라이더로 막는다(맵 이탈 방지) ──
+        // 렌더러 없음 — 밤이라 티도 안 난다. 램프·수로·작업대는 전부 안쪽이라 동선 영향 없음.
+        private static void BuildBoundaryWalls(GameObject root)
+        {
+            var group = new GameObject("~BoundaryWalls");
+            group.transform.SetParent(root.transform, false);
+
+            void Wall(string name, Vector3 center, Vector3 size)
+            {
+                var go = new GameObject(name);
+                go.transform.SetParent(group.transform, false);
+                go.transform.localPosition = center;
+                go.AddComponent<BoxCollider>().size = size;
+            }
+
+            const float h = 9f;   // 점프·낙하로 못 넘는 높이
+            float wy = kPlazaY + h * 0.5f;           // 광장 벽 중심
+            float dy = kDeckY + h * 0.5f;            // 데크 벽 중심
+
+            // 광장 둘레(서·동·남) — x∈[-11.5,24.5], z∈[-24.5,-3.5]
+            Wall("Plaza_W", new Vector3(-11.8f, wy, -14f),   new Vector3(0.6f, h, 22f));
+            Wall("Plaza_E", new Vector3(24.8f,  wy, -14f),   new Vector3(0.6f, h, 22f));
+            Wall("Plaza_S", new Vector3(6.5f,   wy, -24.8f), new Vector3(37.5f, h, 0.6f));
+            // 광장 북쪽 중 데크가 없는 양끝 구간(데크는 x -6.5~19.5만 차지)
+            Wall("Plaza_NW", new Vector3(-9f,   wy, -3.4f),  new Vector3(5.8f, h, 0.6f));
+            Wall("Plaza_NE", new Vector3(22f,   wy, -3.4f),  new Vector3(5.8f, h, 0.6f));
+
+            // 데크 둘레(서·동·북) — x∈[-6.5,19.5], z∈[-4,20]. 남쪽은 광장으로 이어지는 절벽(옹벽)이라 그대로.
+            Wall("Deck_W", new Vector3(-6.8f, dy, 8f),    new Vector3(0.6f, h, 24.6f));
+            Wall("Deck_E", new Vector3(19.8f, dy, 8f),    new Vector3(0.6f, h, 24.6f));
+            Wall("Deck_N", new Vector3(6.5f,  dy, 20.3f), new Vector3(27.2f, h, 0.6f));
         }
 
         // 프롭 아래의 모든 콜라이더(TryPlaceProp이 붙인 바운즈 통짜 포함)를 지우고 슬림 박스 하나로 교체.
