@@ -52,8 +52,10 @@ namespace GridSystem
 
         private int m_Lanes = 1;   // 협동 1, 2vs2 2
 
-        // 마커가 없을 때 폴백(하차장 기준 상대 위치 — 산 아래 방향)
-        private static readonly Vector3 kFallbackBaseOffset = new Vector3(-10f, -5f, -8f);
+        // 마커가 없을 때 폴백(하차장 기준 상대 위치 — 울타리 밖 출발점).
+        // 남산타워 배경은 두 마커를 다 갖고 있어 이 값을 안 쓴다 — 쓰이는 곳은 2vs2 공터 경기장뿐이라
+        // 평지 기준으로 높이차를 0으로 둔다(예전 -5는 곤돌라 출발점이 땅에 파묻혀 보였다).
+        private static readonly Vector3 kFallbackBaseOffset = new Vector3(-10f, 0f, -8f);
         private const float kWireHeight = 4.5f;   // 양 끝(마커) 와이어 높이 — 중간은 철탑 꼭대기를 자동 경유
         private const float kHangDepth = 1.9f;    // 와이어 아래 곤돌라 '중심'까지 깊이(몸통 3.4 기준)
         private const float kWaitT = 0.85f;       // 대기 지점(하차장 직전)의 경로 비율
@@ -303,10 +305,15 @@ namespace GridSystem
             return new Vector3(2f * pivot.x - p.x, p.y, 2f * pivot.z - p.z);
         }
 
+        // 마커가 없을 때 하차장 폴백. 2vs2 공터 경기장 기준으로 정한 자리 —
+        // 예전 값 (-4, 0, 4)는 망치 작업대 마커(-4, 0, 5)와 한 칸 차이라 곤돌라와 작업대가 겹쳐 보였다
+        // (팀B는 둘 다 같은 점대칭이라 똑같이 겹침). 작업대·페인트대·배송 지점 전부에서 8칸 이상 떨어뜨린다.
+        private static readonly Vector3 kFallbackStationOffset = new Vector3(-4f, 0f, -4f);
+
         private Vector3 StationPosA()
         {
             var t = FindSpot(NamsanSpots.CableCarStation);
-            return t != null ? t.position : GridContract.Origin + new Vector3(-4f, 0f, 4f);
+            return t != null ? t.position : GridContract.Origin + kFallbackStationOffset;
         }
 
         private Vector3 BasePosA()
