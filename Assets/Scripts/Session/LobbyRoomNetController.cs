@@ -201,12 +201,21 @@ public class LobbyRoomNet : NetworkBehaviour
     }
 
     /// <summary>방장 전용: 맵 선택(카탈로그 인덱스, 순환). 클라가 부르면 무시.
-    /// 공터(2vs2 경기장)는 선택지가 아니므로 건너뛴다 — ◀▶로 순환 시 방향 유지.</summary>
+    /// 공터(2vs2 경기장)·튜토리얼은 선택지가 아니므로 건너뛴다 — ◀▶로 순환 시 방향 유지.
+    /// MapCatalog.RandomMapIndex('랜덤')는 실제 맵이 아니라 그대로 통과시킨다.</summary>
     public void HostSelectMap(int index)
     {
         if (!IsServer) return;
         int dir = index >= m_MapIndex.Value ? 1 : -1;
-        m_MapIndex.Value = SkipVersusArena(WrapMapIndex(index), dir);
+        m_MapIndex.Value = SkipUnselectable(WrapMapIndex(index), dir);
+    }
+
+    /// <summary>서버 전용: 선택지 필터를 거치지 않고 맵을 그대로 지정한다.
+    /// 튜토리얼처럼 목록에서 뺀 맵을 코드가 직접 지정해야 할 때만 쓴다(HostSelectMap은 그런 맵을 건너뛴다).</summary>
+    public void HostSetMapExact(int index)
+    {
+        if (!IsServer) return;
+        m_MapIndex.Value = index;
     }
 
     public void SelectLocalTeam(int team)
@@ -242,11 +251,45 @@ public class LobbyRoomNet : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void SendChatRpc(FixedString128Bytes message, RpcParams rpc = default)
     {
-        int slot = FindSlotByClient(rpc.Receive.SenderClientId);
+        ulong sender = rpc.Receive.SenderClientId;
+        int slot = FindSlotByClient(sender);
         if (slot < 0 || !m_Slots[slot].Occupied)
             return;
+        if (!AllowChatFrom(sender))
+            return;   // 도배 차단 — 방 전체로 중계하지 않는다
         FixedString32Bytes nickname = m_Slots[slot].Nickname;
         BroadcastChatRpc(nickname, message);
+    }
+
+    // ── 채팅 도배 방지(서버 최종 판정) ──
+    // 클라(LobbyPanel)에도 같은 규칙이 있지만 그쪽은 변조될 수 있으므로 서버가 한 번 더 막는다.
+    // 연속 ChatBurstLimit개까지 통과, 그 뒤엔 ChatCooldownSeconds 대기. 대기가 지나면 카운터 초기화.
+    private const int ChatBurstLimit = 3;
+    private const float ChatCooldownSeconds = 3f;
+
+    private struct ChatQuota
+    {
+        public int BurstCount;
+        public float LastSentAt;
+    }
+
+    // 슬롯 인덱스가 아니라 clientId로 기록한다. 슬롯은 비었다가 다른 사람이 앉을 수 있어
+    // 새로 들어온 플레이어가 앞사람의 쿨타임을 물려받는 문제를 피한다.
+    private readonly Dictionary<ulong, ChatQuota> m_ChatQuotas = new();
+
+    private bool AllowChatFrom(ulong clientId)
+    {
+        m_ChatQuotas.TryGetValue(clientId, out ChatQuota quota);
+        float now = Time.unscaledTime;
+        if (now - quota.LastSentAt >= ChatCooldownSeconds)
+            quota.BurstCount = 0;
+        else if (quota.BurstCount >= ChatBurstLimit)
+            return false;   // 막힌 전송은 LastSentAt을 갱신하지 않는다 — 마지막 '성공' 기준으로 3초를 센다
+
+        quota.BurstCount++;
+        quota.LastSentAt = now;
+        m_ChatQuotas[clientId] = quota;
+        return true;
     }
 
     [Rpc(SendTo.Everyone)]
@@ -255,23 +298,25 @@ public class LobbyRoomNet : NetworkBehaviour
         ChatMessageReceived?.Invoke(nickname.ToString(), message.ToString());
     }
 
-    /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다.</summary>
+    /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다. '랜덤' 센티널은 실제 맵이 아니므로 보정하지 않고 그대로 둔다.</summary>
     private static int WrapMapIndex(int index)
     {
+        if (index == GridSystem.MapCatalog.RandomMapIndex) return index;
         int n = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Count : 1;
         if (n <= 0) n = 1;
         return ((index % n) + n) % n;
     }
 
-    /// <summary>index가 공터(경기장) 맵이면 dir 방향으로 다음 일반 맵까지 넘긴다(전부 공터면 그대로).</summary>
-    private static int SkipVersusArena(int index, int dir)
+    /// <summary>index가 고를 수 없는 맵(공터·튜토리얼)이면 dir 방향으로 다음 일반 맵까지 넘긴다(전부 그렇다면 그대로).
+    /// '랜덤' 센티널은 언제나 유효한 선택이므로 그대로 통과.</summary>
+    private static int SkipUnselectable(int index, int dir)
     {
+        if (index == GridSystem.MapCatalog.RandomMapIndex) return index;
         var catalog = GridSystem.MapCatalog.Instance;
         if (catalog == null || catalog.Count == 0) return index;
         for (int step = 0; step < catalog.Count; step++)
         {
-            var def = catalog.Get(index);
-            if (def == null || !def.IsVersusArena) return index;
+            if (catalog.IsSelectable(index)) return index;
             index = WrapMapIndex(index + dir);
         }
         return index;
@@ -287,6 +332,7 @@ public class LobbyRoomNet : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         m_ReadyClients.Clear();
+        m_ChatQuotas.Clear();
         m_IsLocallyReady = false;
 
         if (IsServer)
@@ -624,6 +670,7 @@ public class LobbyRoomNet : NetworkBehaviour
         {
             m_ReadyClients.Remove(clientId);
         }
+        m_ChatQuotas.Remove(clientId);   // 나간 클라의 도배 기록은 남기지 않는다
         ClearSlotForClient(clientId);   // 슬롯을 비워 구멍을 남긴다(재정렬 없음)
         CheckAllPlayersReady();
     }

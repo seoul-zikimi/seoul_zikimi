@@ -50,12 +50,20 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private Button[] modeOptionButtons;
         [SerializeField] private GameObject[] settingLockOverlays;
 
+        // 채팅 도배 방지: 연속 ChatBurstLimit개까지 바로 보내고, 그 뒤엔 ChatCooldownSeconds 대기.
+        // 대기가 지나면 카운터를 0으로 되돌린다. 서버(LobbyRoomNet)에도 같은 규칙이 있다.
+        private const int ChatBurstLimit = 3;
+        private const float ChatCooldownSeconds = 3f;
+
         private readonly List<string> chatLines = new();
         private readonly string[] avatarKeys = new string[LobbyRoomNet.RoomCapacity];
         private readonly Sprite[] avatarSprites = new Sprite[LobbyRoomNet.RoomCapacity];
         private JobsnailLobbyCharacterStage avatarStage;
         private Button closeWindowButton;   // 배경 헤더의 × 자리(런타임 생성)
         private bool localIsHost;
+        private int chatBurstCount;
+        private float lastChatSentAt = -ChatCooldownSeconds;
+        private float lastChatNoticeAt = -1f;
 
         public event Action LeaveRequested;
         public event Action ReadyRequested;
@@ -79,16 +87,6 @@ namespace SeoulZikimi.UI.New
                 else ReadyRequested?.Invoke();
             });
             chatSendButton?.onClick.AddListener(SendChat);
-            chatInput?.onEndEdit.AddListener(_ =>
-            {
-                // 프로젝트가 신형 Input System 전용(activeInputHandler=1)이라 UnityEngine.Input은 예외를 던진다.
-                var keyboard = UnityEngine.InputSystem.Keyboard.current;
-                if (keyboard == null ||
-                    (!keyboard.enterKey.wasPressedThisFrame && !keyboard.numpadEnterKey.wasPressedThisFrame))
-                    return;
-                SendChat();
-                chatInput.ActivateInputField();   // 엔터 전송 후 포커스 유지 — 연속 입력
-            });
             for (int i = 0; quickChatButtons != null && i < quickChatButtons.Length; i++)
             {
                 int index = i;
@@ -111,9 +109,82 @@ namespace SeoulZikimi.UI.New
             UiNewButtonVisualPolicy.Apply(transform);
             UiNewWindowCloseButton.KeepInvisible(closeWindowButton);   // Apply가 되돌린 ColorTint를 다시 끈다
             ClearChat();
+            chatBurstCount = 0;
+            lastChatSentAt = -ChatCooldownSeconds;   // 방에 새로 들어올 때 쿨타임을 물려받지 않는다
             mapOptionsRoot?.SetActive(false);
             modeOptionsRoot?.SetActive(false);
             ConfigureChatScroll();
+        }
+
+        private void Update()
+        {
+            HandleChatEnterKey();
+            SetChatButtonsInteractable(!IsChatOnCooldown(out _));
+        }
+
+        // 엔터 전송. onEndEdit 콜백은 입력이 갱신된 '다음' 프레임에 UI 이벤트로 오기 때문에
+        // 그 안에서 wasPressedThisFrame을 보면 이미 false다. 그래서 Update에서 직접 키를 본다.
+        private void HandleChatEnterKey()
+        {
+            if (chatInput == null || !chatInput.isFocused) return;
+            // 프로젝트가 신형 Input System 전용(activeInputHandler=1)이라 UnityEngine.Input은 예외를 던진다.
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            if (keyboard == null ||
+                (!keyboard.enterKey.wasPressedThisFrame && !keyboard.numpadEnterKey.wasPressedThisFrame))
+                return;
+            SendChat();
+            StartCoroutine(RefocusChatInput());
+        }
+
+        // InputField는 LateUpdate에서 엔터를 처리하며 포커스를 놓는다. 그 뒤인 다음 프레임에 되돌려야
+        // 연속 입력이 끊기지 않는다.
+        private IEnumerator RefocusChatInput()
+        {
+            yield return null;
+            if (chatInput != null && chatInput.isActiveAndEnabled)
+                chatInput.ActivateInputField();
+        }
+
+        /// <summary>쿨타임 중이면 true. 쿨타임이 지났으면 연속 카운터를 초기화한다.</summary>
+        private bool IsChatOnCooldown(out float remainingSeconds)
+        {
+            float elapsed = Time.unscaledTime - lastChatSentAt;
+            if (elapsed >= ChatCooldownSeconds)
+            {
+                chatBurstCount = 0;
+                remainingSeconds = 0f;
+                return false;
+            }
+            remainingSeconds = ChatCooldownSeconds - elapsed;
+            return chatBurstCount >= ChatBurstLimit;
+        }
+
+        /// <summary>도배 제한을 통과하면 채팅을 내보내고 true. 막히면 안내만 남기고 false.</summary>
+        private bool TryEmitChat(string message)
+        {
+            if (IsChatOnCooldown(out float remaining))
+            {
+                AppendSystemNotice($"도배 방지 — {Mathf.CeilToInt(remaining)}초 뒤에 다시 보낼 수 있어요.");
+                return false;
+            }
+            chatBurstCount++;
+            lastChatSentAt = Time.unscaledTime;
+            TextChatRequested?.Invoke(message);
+            return true;
+        }
+
+        private void AppendSystemNotice(string message)
+        {
+            if (Time.unscaledTime - lastChatNoticeAt < 1f) return;   // 연타해도 안내가 도배되지 않도록
+            lastChatNoticeAt = Time.unscaledTime;
+            AppendNetworkChat("안내", message);
+        }
+
+        private void SetChatButtonsInteractable(bool interactable)
+        {
+            if (chatSendButton != null) chatSendButton.interactable = interactable;
+            for (int i = 0; quickChatButtons != null && i < quickChatButtons.Length; i++)
+                if (quickChatButtons[i] != null) quickChatButtons[i].interactable = interactable;
         }
 
         public void SetRoomName(string value)
@@ -302,8 +373,8 @@ namespace SeoulZikimi.UI.New
         private void SendQuickChat(int index)
         {
             if (index < 0 || index >= QuickMessages.Length) return;
+            if (!TryEmitChat(QuickMessages[index])) return;   // 빠른채팅도 같은 도배 제한을 받는다
             QuickChatRequested?.Invoke(index);
-            TextChatRequested?.Invoke(QuickMessages[index]);
         }
 
         private void SendChat()
@@ -311,7 +382,7 @@ namespace SeoulZikimi.UI.New
             if (chatInput == null) return;
             string message = chatInput.text.Trim();
             if (message.Length == 0) return;
-            TextChatRequested?.Invoke(message.Length > 50 ? message.Substring(0, 50) : message);
+            if (!TryEmitChat(message.Length > 50 ? message.Substring(0, 50) : message)) return;
             chatInput.text = string.Empty;
         }
 

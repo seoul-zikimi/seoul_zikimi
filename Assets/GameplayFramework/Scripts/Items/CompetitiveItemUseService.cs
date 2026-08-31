@@ -26,7 +26,6 @@ namespace SeoulZikimi.Gameplay
 
         /// <summary>
         /// E키 사용 요청이 서버에서 유효하다고 확인된 뒤 호출한다.
-        /// 대포는 enum과 Catalog에 없으므로 이 서비스로 사용할 수 없다.
         /// 대포도 다른 아이템과 같은 경로를 타며, 조준·발사 연출은 호출 전 클라이언트가 담당한다.
         /// </summary>
         public CompetitiveItemUseRequest Use(

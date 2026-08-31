@@ -96,13 +96,15 @@ namespace GridSystem
         private Vector3Int ServerGridSize()
         {
             var catalog = MapCatalog.Instance;
+            // '랜덤' 선택이면 ResolvedHostMap이 실제 맵을 확정해 준다(GameLoopManager와 같은 값 보장).
+            int mapIndex = GameLoopManager.ResolvedHostMap;
             if (GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus && catalog != null)
             {
-                var size = catalog.VersusZoneGridSize(GameLoopManager.HostSelectedMap);
+                var size = catalog.VersusZoneGridSize(mapIndex);
                 if (size != default) return size;
             }
 
-            var def = catalog != null ? catalog.Get(GameLoopManager.HostSelectedMap) : null;
+            var def = catalog != null ? catalog.Get(mapIndex) : null;
             return def != null && def.HasGridSize ? def.GridSize : m_Manager.GridSize;
         }
 
@@ -456,8 +458,10 @@ namespace GridSystem
             return collapsed;
         }
 
-        /// <summary>[아이템: 대포] 해당 팀 구역에서 '배치+공정이 모두 끝난' 파츠 하나를 무작위로 파괴한다.
-        /// 위에 얹혀 있던 것들은 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 파괴 성공 여부 반환.</summary>
+        /// <summary>[아이템: 대포] 해당 팀 구역에 배치된 블록 하나를 무작위로 파괴한다.
+        /// 위에 얹혀 있던 것들은 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 파괴 성공 여부 반환.
+        /// 예전에는 '공정까지 모두 끝난 완성 파츠'만 노렸는데, 경기 중엔 그런 블록이 거의 없어
+        /// 쏴도 아무 일이 없다는 QA 피드백이 있었다. 지금은 배치된 블록이면 전부 후보다.</summary>
         public bool ServerCannonDestroy(int team)
         {
             if (!IsServer || m_ServerGrid == null) return false;
@@ -469,7 +473,6 @@ namespace GridSystem
                 if (!InZone(team, e.cell)) continue;
                 var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
                 if (def == null) continue;
-                if (!IsFullyProcessed(def, e.completedProcessMask)) continue;   // 완성된 파츠만
                 targets.Add(e.cell);
             }
             if (targets.Count == 0) return false;
@@ -488,15 +491,9 @@ namespace GridSystem
         {
             yield return new WaitForSeconds(ItemFx.kCannonFlightSeconds);
             if (m_ServerGrid == null) yield break;
+            if (!m_ServerGrid.GetCell(hit).occupied) yield break;   // 비행 중 다른 붕괴로 이미 사라짐
             foreach (var co in m_ServerGrid.Collapse(hit)) RemoveCollapsed(co);
             foreach (var co in m_ServerGrid.SettleUnsupported()) RemoveCollapsed(co);
-        }
-
-        // 그 재료가 요구하는 공정이 전부 끝났는가(채점과 같은 기준인 RequiredMask 사용).
-        private static bool IsFullyProcessed(MaterialDef def, int completedMask)
-        {
-            int need = def.RequiredMask;
-            return need != 0 && (completedMask & need) == need;
         }
 
         // 발사 → 포탄이 포물선으로 날아가고, 착탄 순간 폭발 연출(모든 클라).

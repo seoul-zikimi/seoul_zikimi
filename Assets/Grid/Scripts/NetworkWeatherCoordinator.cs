@@ -20,6 +20,10 @@ namespace GridSystem
         private readonly NetworkVariable<int> m_Weather = new(
             (int)WeatherKind.Sunny, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+        // 미끄러짐 체감 조정(QA): 1초마다 10% → 2초마다 5%. 이동 중이면 사실상 매초 걸리던 빈도를 낮춘다.
+        private const float kSlipCheckInterval = 2f;
+        private const float kSlipChance = 0.05f;
+
         private GridNetwork m_GridNetwork;
         private GameLoopManager m_GameLoop;
         private float m_NextSlipCheck;
@@ -68,7 +72,7 @@ namespace GridSystem
             m_WeatherEnabled.Value = selection.IsEnabled;
             m_Season.Value = (int)selection.Season;
             m_Weather.Value = selection.IsEnabled ? (int)selection.Weather : (int)WeatherKind.Sunny;
-            m_NextSlipCheck = Time.time + 1f;
+            m_NextSlipCheck = Time.time + kSlipCheckInterval;
             m_NextWindDrop = Time.time + 15f;
 
             Debug.Log(selection.IsEnabled
@@ -91,14 +95,14 @@ namespace GridSystem
         private void TickSlip(WeatherKind weather)
         {
             if (Time.time < m_NextSlipCheck) return;
-            m_NextSlipCheck = Time.time + 1f;
+            m_NextSlipCheck = Time.time + kSlipCheckInterval;
             if (NetworkManager.Singleton == null) return;
 
             foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
             {
                 var player = client.PlayerObject;
                 var body = player != null ? player.GetComponent<Rigidbody>() : null;
-                if (body == null || body.linearVelocity.sqrMagnitude < 0.25f || UnityEngine.Random.value >= 0.1f)
+                if (body == null || body.linearVelocity.sqrMagnitude < 0.25f || UnityEngine.Random.value >= kSlipChance)
                     continue;
 
                 Vector2 random = UnityEngine.Random.insideUnitCircle.normalized;

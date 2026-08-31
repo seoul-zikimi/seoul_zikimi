@@ -7,10 +7,10 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// 튜토리얼 인트로 → 11개 퀘스트 → 아웃트로 진행 상태 머신.
+/// 튜토리얼 인트로 → 12개 퀘스트 → 아웃트로 진행 상태 머신.
 /// GameScene 로드 시 TutorialFlowController가 남긴 1회성 플래그를 소비했을 때만 활성화되므로,
-/// 일반 게임에는 전혀 관여하지 않는다. 완료 판정은 전부 기존 스크립트의 공개 상태를 읽기만 한다
-/// (PlayerCarry/GridNetwork/AnswerPanelFocus/GridContract 등) — 이벤트 추가나 수정 없음.
+/// 일반 게임에는 전혀 관여하지 않는다. 완료 판정은 전부 기존 스크립트의 공개 상태/이벤트를 읽기만 한다
+/// (PlayerCarry/GridNetwork/AnswerPanelFocus/GridContract 등) — 게임플레이 코드 수정 없음.
 /// </summary>
 public class TutorialQuestSequence : MonoBehaviour
 {
@@ -40,14 +40,16 @@ public class TutorialQuestSequence : MonoBehaviour
 
     private static readonly string[] kIntroLines =
     {
-        "반갑습니다.\n당신은 건축업을 하는 민달팽이입니다.\n당신의 목표는 열심히 일해 달팽이집을 마련하는 것입니다.",
-        "건축은 혼자 진행할 수도 있지만,\n다른 민달팽이들과 협동한다면 더욱 수월할 것입니다.",
+        "반갑습니다.\n당신은 서울의 무너진 명소들을 복구하는 건축 일을 맡게 되었습니다.",
+        "일명 '건축 레인저'가 되어 명소도 복구하고,\n짭짤한 일당을 모아 이것저것 구매해 봅시다!",
+        "건축은 혼자 진행할 수도 있지만,\n다른 레인저들과 협동하여 진행하면 더욱 수월할 것입니다.",
     };
 
     private static readonly string[] kOutroLines =
     {
-        "튜토리얼을 마쳤습니다.\n이후 튜토리얼을 다시 진행할 수 있고,\n게임 내에서 툴팁 UI를 통해 조작키를 확인할 수 있습니다.",
-        "등껍질을 장만하는 그날까지 열심히 건축합시다!",
+        "건축을 얼마나 완벽하게 했는지에 따라,\n완성도가 매겨집니다.",
+        "재료를 올바른 곳에 배치하고,\n모든 공정을 완료해야 좋은 점수를 받습니다.\n이 완성도 등급에 따라 건축 후 받는 보수가 달라집니다.",
+        "튜토리얼을 마쳤습니다.\n이후 튜토리얼을 다시 진행할 수 있고,\n게임 내에서도 툴팁 안내를 통해 조작키를 확인할 수 있습니다.",
     };
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -89,6 +91,7 @@ public class TutorialQuestSequence : MonoBehaviour
     private float m_MoveHeldTime;
     private float m_CamRotAccum;
     private float m_AnswerRotAccum;
+    private bool m_ThrewHeldObject;
     private bool m_ReachedFloor3;
 
     private void Start()
@@ -126,6 +129,8 @@ public class TutorialQuestSequence : MonoBehaviour
         yield return null;
         yield return null;
 
+        m_LocalCarry.OnThrow += OnLocalThrow;
+
         ResolveMaterialIds();
         m_LeftCells = LeftWallCells();
         m_RightCells = RightWallCells();
@@ -139,6 +144,13 @@ public class TutorialQuestSequence : MonoBehaviour
         dlg.OnSkipRequested += OnSkipRequested;
 
         dlg.ShowLines(kIntroLines, () => EnterStep(0));
+    }
+
+    private void OnLocalThrow() => m_ThrewHeldObject = true;
+
+    private void OnDestroy()
+    {
+        if (m_LocalCarry != null) m_LocalCarry.OnThrow -= OnLocalThrow;
     }
 
     private void FindLocalPlayer()
@@ -235,8 +247,8 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "좌측 하단엔,\n오늘 지어야 하는 건물의 완성된 모습이 표시됩니다.",
-                "정답 UI에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다.\n주변을 둘러보세요!",
+                "우측 하단 휴대폰엔,\n오늘 지어야 하는 건물의 완공 계획도가 표시됩니다.",
+                "계획도에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다.\n주변을 둘러보세요!",
             }, () =>
             {
                 if (m_LocalInput != null && AnswerPanelFocus.Active)
@@ -246,20 +258,26 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "건축에 필요한 재료들은 우측 드로어 UI에서 주문할 수 있습니다.",
-                "드로어 UI는 화살표 버튼을 눌러 접거나 열 수 있습니다.\n'벽' 재료를 주문해보세요!",
+                "건축에 필요한 재료들은 휴대폰에서 주문할 수 있습니다.",
+                "완공 계획도에서 원하는 재료를 바로 클릭할 수 있고,\n하단 카탈로그에서 지정해 주문할 수도 있습니다.\n'벽' 재료를 주문해보세요!",
             }, AnyWallPickupExists),
 
             new(new[]
             {
                 "주문한 재료는 주문 배송지에 도착합니다.",
-                "도착한 왼쪽 벽을 클릭해 들어봅시다!",
+                "도착한 벽을 클릭해 들어봅시다!",
             }, () => m_LocalCarry.IsHolding),
 
             new(new[]
             {
-                "이제 벽을 건축할 곳으로 운반해 배치해봅시다.",
-                "투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.",
+                "G 키를 눌러 손에 든 물건을 던질 수 있습니다.\n팀원과 협동할 때 무척 유용한 기술입니다.",
+                "마우스 커서가 향하는 방향으로,\nG 키를 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!",
+            }, () => m_ThrewHeldObject, () => m_ThrewHeldObject = false),
+
+            new(new[]
+            {
+                "이제 벽을 건축할 곳으로 이동해 배치해봅시다.",
+                "벽을 다시 집고,\n투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.",
                 "오브젝트를 든 채로 R버튼을 누르면 회전시킬 수 있습니다.",
             }, () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
 
@@ -273,7 +291,7 @@ public class TutorialQuestSequence : MonoBehaviour
             new(new[]
             {
                 "망치를 든 채로,\n왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.",
-                "이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 개의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.",
+                "이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 종류의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.",
                 "공정을 잘못 진행했을 경우,\nz키를 꾹 누르면 공정 취소가 가능합니다.",
             }, () => CellsFixed(m_LeftCells, m_WallMaterialId)),
 
@@ -285,9 +303,9 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "마지막으로, 이제 지붕이 남았습니다.",
-                "민달팽이는 원하는 벽 앞에서 w키를 누르면 벽을 기어오를 수 있습니다.\n하지만 벽을 기어올라가 건축하기에 공간이 부족할 때가 있습니다.",
-                "그럴 때를 대비해 '비계' 오브젝트를 제공합니다.\n비계 오브젝트는 무제한으로 제공되며, 스페이스바를 2번 연타하면 자동으로 바닥에 깔립니다.",
+                "이제 지붕이 남았습니다.\n지붕은 '벽 위'에 배치해야 합니다.",
+                "하지만 재료를 배치하려면 배치할 곳과 같은 '층'에 위치해야 합니다.\n그럴 때를 대비해 '비계' 오브젝트를 제공합니다.",
+                "비계 오브젝트는 무제한으로 제공되며,\n스페이스바를 2번 연타하면 발밑에 깔립니다.",
                 "비계 깔기를 통해 3층까지 올라가보세요!",
             }, () =>
             {
@@ -311,7 +329,7 @@ public class TutorialQuestSequence : MonoBehaviour
             EnterStep(m_Index + 1);
     }
 
-    // 퀘스트 전환이 너무 매끄럽게 느껴지지 않도록, 이전 퀘스트 완료 표시 줄 + 현재 진행도([퀘스트 N/11])를
+    // 퀘스트 전환이 너무 매끄럽게 느껴지지 않도록, 이전 퀘스트 완료 표시 줄 + 현재 진행도([퀘스트 N/12])를
     // 대사 맨 앞에 붙여 넣는다 — 플레이어가 "완료됐다"는 걸 명확히 보고 한 번 더 클릭해야 다음으로 넘어간다.
     private void EnterStep(int index)
     {

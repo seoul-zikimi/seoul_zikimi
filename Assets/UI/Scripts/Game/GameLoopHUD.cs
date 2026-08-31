@@ -34,7 +34,7 @@ public sealed class GameLoopHUD : UIHUD
     private Image[] m_PeopleIcons;
     private RawImage m_ResultImage;
     private GameObject m_TopBar, m_ConsentBar, m_ResultPanel, m_SettingsPopup, m_StartBanner;
-    private Button m_SettingsButton, m_EndRequestButton;
+    private Button m_SettingsButton, m_EndRequestButton, m_RoomButton;
     private bool m_ResultDismissed, m_ResultWasShown, m_ResultIntroPlaying, m_UrgentBgmStarted;
     // 정산 내용 게이트 — 지난 프레임에 그린 값들(같으면 재조립 스킵)
     private int m_RpPct = int.MinValue, m_RpEnemyPct, m_RpElapsed, m_RpArtifacts, m_RpBonus, m_RpNames, m_RpWinner;
@@ -119,6 +119,7 @@ public sealed class GameLoopHUD : UIHUD
         m_ResultImage = Get<RawImage>((int)Raws.ResultImage);
 
         m_EndRequestButton = Get<Button>((int)Btns.EndRequestButton);
+        m_RoomButton = Get<Button>((int)Btns.RoomButton);
         m_SettingsButton = Get<Button>((int)Btns.SettingsIconButton);
         m_CraneToggleBtn = Get<Button>((int)Btns.CraneToggleButton);
         m_ToastText = Get<TextMeshProUGUI>((int)Texts.EventToast);
@@ -139,7 +140,7 @@ public sealed class GameLoopHUD : UIHUD
             if (keyBtn != null) keyBtn.gameObject.SetActive(false);
         }
         Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
-        Wire(Btns.RoomButton, () => { if (m_Loop != null) m_Loop.RequestReturnToRoom(); });
+        Wire(Btns.RoomButton, OnReturnToRoom);
         Wire(Btns.LeaveButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
         Wire(Btns.CraneToggleButton, () => m_CraneViewing = !m_CraneViewing);
 
@@ -216,6 +217,21 @@ public sealed class GameLoopHUD : UIHUD
         var jt = txt.GetComponent<JuicyText>();
         if (jt == null) jt = txt.gameObject.AddComponent<JuicyText>();
         jt.Configure(amp, freq, phase, rot);
+    }
+
+    // 방으로 돌아가기 = 각자 눌러야 이동한다. 내 클릭만 서버에 등록되고, 남은 사람은 끌려가지 않는다.
+    private void OnReturnToRoom()
+    {
+        if (m_Loop == null) return;
+
+        m_Loop.RequestReturnToRoom();
+
+        // 호스트는 RPC가 즉시 처리돼 표가 이미 반영돼 있고, 클라이언트는 다음 복제까지 한 박자 늦다.
+        int need = Mathf.Max(1, m_Loop.PlayerCount);
+        int done = m_Loop.RoomReturnVoteCount + (m_Loop.HasLocalRoomReturnVote ? 0 : 1);
+        done = Mathf.Clamp(done, 1, need);
+        if (done < need)
+            ShowToast($"다른 사람도 눌러야 방으로 돌아가요 ({done}/{need})", 2.5f);
     }
 
     private void Wire(Btns which, UnityEngine.Events.UnityAction action)
@@ -480,6 +496,10 @@ public sealed class GameLoopHUD : UIHUD
         }
         if (!show)
             return;
+
+        // 이미 누른 사람은 다시 못 누르게 — 나머지가 누를 때까지 대기 중이라는 표시.
+        if (m_RoomButton != null)
+            m_RoomButton.interactable = !m_Loop.HasLocalRoomReturnVote;
 
         // 2vs2: 점수는 '내 팀' 기준으로 표시
         if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();

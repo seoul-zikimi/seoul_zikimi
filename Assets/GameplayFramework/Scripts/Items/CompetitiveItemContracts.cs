@@ -48,8 +48,9 @@ namespace SeoulZikimi.Gameplay
     }
 
     /// <summary>
-    /// 대포: 지정 팀 영역에서 '배치와 공정이 모두 끝난' 파츠 하나를 무작위로 파괴하고,
+    /// 대포: 지정 팀 영역에 배치된 블록 하나를 무작위로 파괴하고,
     /// 그 위에 얹혀 있던 재료는 기존 붕괴 규칙대로 연쇄로 무너뜨려야 한다.
+    /// 공정 완료 여부는 따지지 않는다(경기 중엔 완성 파츠가 거의 없어 대포가 헛방이 됐다).
     /// </summary>
     public interface ICompletedConstructionTarget
     {

@@ -22,9 +22,9 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 8c97882b9244ed3489a1a0a8c77abaa5, type: 2}
   - {fileID: 2100000, guid: 9efef57bfa511c94f92dd6fd514b94e2, type: 2}
   Petal: {fileID: 2100000, guid: f42bdc1ee3b977941835ffffee0d26be, type: 2}
-  PuddleCount: 14
-  TyphoonPuddleCount: 22
-  SnowPatchCount: 22
+  PuddleCount: 9
+  TyphoonPuddleCount: 14
+  SnowPatchCount: 14
   LeafCount: 70
   PetalCount: 80
   PuddleSize: {x: 0.9, y: 1.8}

@@ -54,6 +54,7 @@ public class GameHudDriver : MonoBehaviour
     private void Update()
     {
         UpdateCompletion();
+        UpdateOrderBlock();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (GameplayInputBlocker.Blocked) return;
         // [개발자 치트] 0 = 10배속 토글(타이머 빨리감기 등 테스트용). 릴리즈 빌드엔 미포함.
@@ -111,6 +112,13 @@ public class GameHudDriver : MonoBehaviour
         if (m_Net == null) return;
         float pct = (m_Loop != null && m_Loop.IsVersus) ? m_Net.ScoreFor(Mathf.Max(0, m_Loop.LocalTeam)).Percent : m_Net.ScorePercent;
         m_OrderHud.SetCompletion(Mathf.RoundToInt(pct));
+    }
+
+    // 상대의 '주문 해킹' — 서버가 주문을 막는 동안 폰에 이유와 남은 초를 띄우고 [주문!]을 잠근다.
+    private void UpdateOrderBlock()
+    {
+        if (m_OrderHud == null) return;
+        m_OrderHud.SetOrderBlocked(ItemNetwork.LocalOrderBlockedRemaining());
     }
 
     private AnswerPanelHUD m_OrderHud;   // '시공도면 폰'(정답+주문 통합). 잔량 배지 갱신용 참조 유지

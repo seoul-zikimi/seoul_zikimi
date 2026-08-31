@@ -1,6 +1,4 @@
 using System;
-using System.Security.Cryptography;
-using System.Text;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Unity.Netcode;
@@ -197,26 +195,16 @@ public class CreateSessionVM : IDisposable
         if (IsPrivate)
         {
             sessionOptions.SessionProperties ??= new System.Collections.Generic.Dictionary<string, SessionProperty>();
-        
-            string hashedPassword = Sha256Hash(Password);
-            sessionOptions.SessionProperties["PasswordHash"] = new SessionProperty(hashedPassword);
+
+            // UGS의 sessionOptions.Password는 쓰지 않는다(길이 제약이 있어 4자리 방 비번을 못 담는다).
+            // 대신 해시만 공개 프로퍼티로 올리고, 입장 측이 해시를 비교해 검증한다.
+            sessionOptions.SessionProperties["PasswordHash"] = new SessionProperty(SessionPasswordHash.Of(Password));
         }
     
         IHostSession session = await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
         SessionCode = session.Code;
     
         return session;
-    }
-
-    private static string Sha256Hash(string value)
-    {
-        value ??= "";
-        using var sha = SHA256.Create();
-        byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(value));
-        var builder = new StringBuilder(bytes.Length * 2);
-        foreach (byte b in bytes)
-            builder.Append(b.ToString("x2"));
-        return builder.ToString();
     }
 
     public void Dispose()

@@ -12,10 +12,23 @@ namespace SeoulZikimi.Gameplay.Tests
             var catalog = CompetitiveItemDefinitionCatalog.CreateDefault();
 
             Assert.That(catalog.GetAll().Count, Is.EqualTo(13));
-            Assert.That(catalog.Get(CompetitiveItemKind.Cannon).Weight, Is.EqualTo(10f));
+            Assert.That(catalog.Get(CompetitiveItemKind.Cannon).Weight, Is.EqualTo(28f));
             Assert.That(catalog.Get(CompetitiveItemKind.Rain).EffectDurationSeconds, Is.EqualTo(60f));
             Assert.That(catalog.Get(CompetitiveItemKind.MovementSlow).Magnitude, Is.EqualTo(0.7f));
             Assert.That(catalog.Get(CompetitiveItemKind.MovementBoost).Magnitude, Is.EqualTo(1.3f));
+        }
+
+        [Test]
+        public void Cannon_IsTheMostLikelyItemToSpawn()
+        {
+            var catalog = CompetitiveItemDefinitionCatalog.CreateDefault();
+            float cannonWeight = catalog.Get(CompetitiveItemKind.Cannon).Weight;
+
+            foreach (CompetitiveItemDefinition definition in catalog.GetAll())
+            {
+                if (definition.Kind == CompetitiveItemKind.Cannon) continue;
+                Assert.That(definition.Weight, Is.LessThan(cannonWeight));
+            }
         }
 
         [Test]

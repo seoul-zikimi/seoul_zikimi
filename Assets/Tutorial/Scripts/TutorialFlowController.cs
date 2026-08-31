@@ -182,7 +182,8 @@ public class TutorialFlowController : MonoBehaviour
         // 덮어쓴다(늦참자 초기 반영 로직) — 그래서 위에서 설정한 값이 스폰 직후 조용히 사라진다.
         // LobbyRoomNet에도 우리 맵을 반영하고, GameLoopManager.HostSelectedMap을 씬 로드 직전에 다시 한번 확정한다.
         var readyNet = FindFirstObjectByType<LobbyRoomNet>(FindObjectsInactive.Include);
-        if (readyNet != null) readyNet.HostSelectMap(mapIndex);
+        // 튜토리얼 맵은 로비 선택지에서 빠져 있어 HostSelectMap이 다음 맵으로 건너뛴다 — 필터 없는 경로로 지정한다.
+        if (readyNet != null) readyNet.HostSetMapExact(mapIndex);
         GameLoopManager.HostSelectedMap = mapIndex;
 
         Debug.Log($"[TutorialFlowController] GameScene 로드 시도 (mapIndex={mapIndex}, readyNet 찾음={readyNet != null})");
