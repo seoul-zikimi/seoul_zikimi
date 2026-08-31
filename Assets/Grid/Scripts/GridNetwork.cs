@@ -10,7 +10,7 @@ namespace GridSystem
     /// 입력은 GridDebugController가 RequestXxx()로 보냄(클라 → 서버 RPC). 늦참은 NetworkList가 자동 복제.
     /// </summary>
     [RequireComponent(typeof(GridManager))]
-    public class GridNetwork : NetworkBehaviour
+    public class GridNetwork : NetworkBehaviour, IGridState, IGridRequests, IGridServerOps
     {
         private readonly NetworkList<CellEntry> m_Cells = new();
         private readonly NetworkVariable<ScoreSnapshot> m_Score =

@@ -106,9 +106,47 @@ public sealed class MobileControlsHUD : MonoBehaviour
         if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
         if (m_ControlLayer != null) m_ControlLayer.SetActive(false);
 
+        // 버튼 배치 커스터마이즈(배틀그라운드식): 저장된 배치 적용 + 감정표현 아래 진입 버튼
+        m_Customizer = gameObject.AddComponent<MobileLayoutCustomizer>();
+        var safeArea = Find("SafeArea");
+        if (safeArea != null)
+        {
+            m_Customizer.ApplySaved(safeArea.transform);
+            BuildLayoutEditEntry(safeArea.transform);
+        }
+
         // 모바일은 폰(TAB)과 별개로 인월드 정답 고스트를 눈 버튼으로 켜고 끈다 — 기본 켜짐.
         if (ShouldUseMobileUI) AnswerPreview.GhostPinned = true;
         UpdateAnswerToggleVisual();
+    }
+
+    private MobileLayoutCustomizer m_Customizer;
+
+    // '버튼 배치 ✎' 진입 필 — 감정표현 드롭다운 아래(우상단). 프리팹 재생성 없이 런타임 생성.
+    private void BuildLayoutEditEntry(Transform safeArea)
+    {
+        var go = new GameObject("LayoutEditButton", typeof(RectTransform)) { layer = 5 };
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(safeArea, false);
+        rt.anchorMin = rt.anchorMax = Vector2.one;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(-130f, -260f);
+        rt.sizeDelta = new Vector2(200f, 56f);
+        var img = go.AddComponent<UnityEngine.UI.Image>();
+        img.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        img.type = UnityEngine.UI.Image.Type.Sliced;
+        img.color = new Color(0.94f, 0.94f, 0.93f, 0.55f);   // 옅게 — 보조 기능
+        var btn = go.AddComponent<UnityEngine.UI.Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(() => m_Customizer.BeginEdit());
+        var label = new GameObject("Label", typeof(RectTransform)) { layer = 5 };
+        var lrt = (RectTransform)label.transform;
+        lrt.SetParent(rt, false);
+        lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.sizeDelta = Vector2.zero;
+        var l = label.AddComponent<TMPro.TextMeshProUGUI>();
+        l.text = "버튼 배치 ✎"; l.font = JobsnailUiKit.TmpFont; l.fontSize = 24;
+        l.fontStyle = TMPro.FontStyles.Bold; l.color = new Color(0.2f, 0.2f, 0.19f, 0.85f);
+        l.alignment = TMPro.TextAlignmentOptions.Center; l.raycastTarget = false;
     }
 
     // 감정표현 드롭다운을 실제 발동 대사(EmoteDefs) 기준으로 재구성 — 프리팹에 구워진 옛 이모지 이름(미소·붐업 등)과
@@ -223,9 +261,10 @@ public sealed class MobileControlsHUD : MonoBehaviour
 #else
         bool preview = false;
 #endif
-        SetActionVisible(m_ProcessButton, preview || MobileGameplayInput.ProcessActionAvailable);
-        SetActionVisible(m_RevertButton, preview || MobileGameplayInput.ProcessCancelAvailable);
-        SetActionVisible(m_ThrowButton, preview || MobileGameplayInput.ThrowAvailable);
+        bool force = preview || MobileLayoutCustomizer.Editing;   // 배치 편집 중엔 전부 선명·터치 가능(드래그용)
+        SetActionVisible(m_ProcessButton, force || MobileGameplayInput.ProcessActionAvailable);
+        SetActionVisible(m_RevertButton, force || MobileGameplayInput.ProcessCancelAvailable);
+        SetActionVisible(m_ThrowButton, force || MobileGameplayInput.ThrowAvailable);
     }
 
     private void OnPhoneVisibility(bool visible)
@@ -254,10 +293,21 @@ public sealed class MobileControlsHUD : MonoBehaviour
             m_EmotePanel.SetActive(!m_EmotePanel.activeSelf);
     }
 
-    private static void SetActionVisible(GameObject target, bool visible)
+    // 사용 불가 버튼을 숨기는 대신 반투명으로 — 버튼이 '까꿍' 나타나지 않고 항상 제자리에 있다(기획 피드백 2026-08-30).
+    // 비활성 동안엔 터치도 통과시켜(blocksRaycasts=false) 그 자리의 카메라 드래그·월드 탭을 막지 않는다.
+    private const float kDisabledAlpha = 0.35f;
+
+    private static void SetActionVisible(GameObject target, bool available)
     {
-        if (target != null && target.activeSelf != visible)
-            target.SetActive(visible);
+        if (target == null) return;
+        if (!target.activeSelf) target.SetActive(true);   // 프리팹에 숨김으로 저장돼 있던 상태 복구
+        var cg = target.GetComponent<CanvasGroup>();
+        if (cg == null) cg = target.AddComponent<CanvasGroup>();
+        float a = available ? 1f : kDisabledAlpha;
+        if (cg.alpha == a) return;
+        cg.alpha = a;
+        cg.interactable = available;
+        cg.blocksRaycasts = available;
     }
 
     private void WireClick(string objectName, UnityEngine.Events.UnityAction action)

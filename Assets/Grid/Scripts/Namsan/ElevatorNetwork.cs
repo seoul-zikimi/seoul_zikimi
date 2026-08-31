@@ -15,7 +15,7 @@ namespace GridSystem
         private readonly NetworkVariable<bool> m_Open =
             new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-        private GridNetwork m_Net;
+        private IGridState m_Net;   // 읽기 계약만 필요(TryGetCell·CellsChanged) — GridInterfaces.cs 채택 규약
         private float m_NextCheck;
         private bool m_CellsDirty = true;   // 그리드 셀이 변한 뒤에만 판정(스폰 직후 1회는 무조건 — 늦참·치트 완성 대비)
         private bool m_WarnedNoBand;   // 판정 영역에 정답 셀이 하나도 없으면 1회 경고

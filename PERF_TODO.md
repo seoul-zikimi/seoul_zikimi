@@ -34,15 +34,18 @@
 - [x] **P1** `WaterGateNetwork.cs`→`MaterialDropField.cs` — 물길 급송(0.2초 픽업당 Value 이벤트)마다 전체 Reconcile 돌던 것을 이벤트 기반으로: Value=해당 픽업만 SetTarget, Add/Insert=해당 비주얼 생성, Remove/RemoveAt=Value 페이로드로 해당 비주얼 파괴(GameObject째), Clear=전부 제거(Value 비어 있음), 미지 타입=풀 Reconcile 폴백. Reconcile 스크래치(HashSet/List) 멤버 승격. kTick 0.2→0.5는 Value 경로가 싸져 불필요해짐. *QA: DDP 물길 재료 급송·킥·줍기·늦참.*
 - [x] **P2** `ElevatorNetwork.cs` — GridNetwork에 `CellsChanged` 이벤트 추가(LateUpdate 더티 flush 프레임에 1회 발화) 후 0.5초 폴링에 더티 게이트(스폰 직후 1회는 무조건 판정). *QA: 남산 전망대 완성→개통.*
 
+## 완료 — 4차 (2026-08-29 밤)
+
+- [x] **P1** `GameHudDriver.cs` — 1초 버튼 전수 스윕(FindObjectsByType 씬 전체) → 요청 기반 + 10초 안전망. UIManager의 HUD·팝업·시스템 팝업 인스턴스화 시 RequestJuicySweep() 자동 호출(생성처 대부분은 이미 자체 Attach — 스윕은 빠뜨린 경로 자가 치유용). *QA: 새 팝업·주문 카드 버튼 호버 쫀득 확인.*
+- [x] **P2** 미검증 3건 검증·수정: `CameraObstructionFader` SetColor 문자열 → PropertyToID 캐시(페이드 중 매 프레임 경로) / `GridSoundBridge` 호출당 Enum.Parse+object[] 할당 → 값 캐시+인자 버퍼 재사용(효과음 연타 핫패스) / `ItemFx.CannonShot` 발사당 Material 누수 확인 → 공유 재질 1개로. (BuffBar는 2차에 처리됨)
+- [x] **P1** `Weather3DVfxRig.cs` — maxParticles 절대 캡(시스템당 1000)을 **모바일 타깃(iOS/Android)에서만** 적용, 캡 초과분은 방출도 함께 감소. **기획 확정**: 입자 크기 보상은 이질감 있어 금지(밀도만 낮아짐), 데스크톱은 종전 그대로. 에디터는 활성 빌드 타깃 기준으로 걸림(iOS 타깃이면 QA 가능). *QA: iOS 타깃 에디터에서 겨울 눈·여름 태풍 체감 밀도.*
+- [x] **P2** `ZoneFogFx.cs` — 안개 구름 다이어트(정상상태 ~113→~56, 크기·알파 보상). 이 연출은 '남이 보는 걸림 표시' 전용(당한 팀 시야 차단은 TeamWeatherFx 카메라 포그 담당)이라 **아이템 게임플레이 효과 불변**. *QA: 2vs2 안개 아이템 시전 — 상대 구역 덮임 체감.*
+
 ## 남은 항목 — 코드
 
 - `Assets/UI/Scripts/UIManager.cs:32` (P1·설계) 인게임 HUD 전부 단일 Canvas — 동적 서브트리(타이머·버프바·로딩바)에 중첩 Canvas로 더티 격리. 레이아웃 검증 필요.
-- `Assets/UI/Scripts/Game/GameHudDriver.cs:87` (P1) 1초 버튼 전수 스윕 — 인스턴스화 시 1회 부착으로 이동(동적 생성 경로 전수 확인 필요).
-- `Assets/Grid/Scripts/Weather3DVfxRig.cs:96` (P1·비주얼) maxParticles 절대 캡(모바일 800~1000) — 대형 맵 밀도는 startSize로 보전. 비주얼 영향 확인 필요.
-- `Assets/Grid/Scripts/ZoneFogFx.cs:59` (P2·비주얼/게임플레이) 안개 다이어트 — 시야 차단 아이템이라 기획 확인 후.
 - `Assets/Grid/Scripts/PickupBody.cs` (P3) 숨쉬기 스케일을 '~Vis' 자식 래퍼로 옮겨 콜라이더 루트 불변화(스케일 리베이크 제거).
 - `Assets/Resources/Voices/Emotes` (P3) 보이스 mp3 33종 loadType DecompressOnLoad→CompressedInMemory 검토 — 전부 로드돼도 ~수 MB라 급하지 않음(지연 로드+캐시 설계는 이미 양호). 신규 브금 4종은 Streaming+프리로드 끔으로 이미 최적.
-- 미검증 4건: CameraObstructionFader SetColor 문자열 / GridSoundBridge 리플렉션 / ItemFx.CannonShot Material 누수 의심 / (BuffBar는 처리됨).
 
 ## 남은 항목 — 프로젝트 설정 (에디터에서 변경 권장)
 

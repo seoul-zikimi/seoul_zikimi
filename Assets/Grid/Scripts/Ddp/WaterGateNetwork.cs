@@ -137,7 +137,7 @@ namespace GridSystem
 
         // ── 재료 급송(서버): 수로에 놓인 바닥 재료를 하류로 흘려보낸다 ─────────
         // 위험을 감수하고 재료를 물에 넣으면 걸어 옮기는 것보다 빨리 건축장 쪽에 도착한다.
-        private MaterialDropField m_Drop;
+        private IPickupField m_Drop;   // 급송에 필요한 계약만(CollectWithin·ServerFloat) — GridInterfaces.cs 채택 규약
         private readonly List<ulong> m_FloatIds = new();
         private readonly List<Vector3> m_FloatPos = new();
         private float m_NextFloatTick;

@@ -42,7 +42,7 @@ namespace GridSystem
         private readonly List<(GameObject go, int baseY, List<Vector3Int> cells, int materialId, int reqMask, int matStart, int matCount)> m_GhostFloors = new();   // 인월드 고스트 + 기준층 + 정답 셀(완료 판정) + 고스트 머티리얼 구간(강조용)
         private readonly List<bool> m_GhostDone = new();   // 블록별 '알맞게 완료' 캐시(스로틀 갱신)
         private readonly List<Color> m_GhostMatCols = new();   // m_GhostMats와 1:1 — 원본 색(강조 초록에서 복귀용)
-        private static readonly Color kGhostHighlight = new Color(0.35f, 1f, 0.55f);   // 호버/선택 강조: 초록(원색은 실블록과 헷갈림)
+        private static readonly Color kGhostHighlight = new Color(1f, 1f, 1f);   // 강조: 흰색. 초록은 커서 프리뷰의 '정답' 색과 겹쳐 헷갈렸다
         private float m_NextDoneCheck;
         private GridNetwork m_Net;
         private bool m_Visible = true;
@@ -53,8 +53,11 @@ namespace GridSystem
         private int m_LastGaQ = -1;
         private int m_LastHlId = int.MinValue;
         private readonly List<bool> m_GhostActive = new();   // 블록별 SetActive 직전 상태 캐시
+        private readonly List<bool> m_GhostShown = new();    // 통짜 맵 전용 — 블록별 Renderer.enabled 직전 상태 캐시
         private bool m_UseWholeGhost;        // 완성체 통짜 고스트 맵(DDP류) — 조각 머티리얼은 렌더러가 꺼져 있음
         private int m_GhostPieceMatCount;    // m_GhostMats에서 조각(비통짜) 구간의 끝
+        private float m_GhostAlphaBase = kGhostAlphaBase;   // 이 맵의 고스트 기본 알파(MapDef.GhostAlpha가 있으면 그 값)
+        private float m_GhostTintMul = 1f;                  // 이 맵의 고스트 감광 계수(MapDef.GhostTintMul, 1이면 원색)
 
         /// <summary>모바일 눈 버튼: 폰(TAB)이 닫혀 있어도 인월드 고스트를 계속 보여줄지. 데스크톱은 건드리지 않는다(false).</summary>
         public static bool GhostPinned;
@@ -90,6 +93,7 @@ namespace GridSystem
             m_GhostFloors.Clear();
             m_GhostDone.Clear();
             m_GhostActive.Clear();
+            m_GhostShown.Clear();
             m_LastGaQ = -1; m_LastHlId = int.MinValue;   // 재구성 후 첫 프레임 강제 재도색
             foreach (var m in m_GhostMats) if (m != null) Destroy(m);
             m_GhostMats.Clear();
@@ -118,11 +122,17 @@ namespace GridSystem
             {
                 RefreshGhostDone();   // 이미 알맞게 지은 블록은 고스트 숨김(시선 정리) — 0.25s 스로틀
                 int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
-                // 미니 프리뷰에서 호버/선택한 재료는 실제 배치 위치의 고스트를 강조 — UI의 블록과 맵 위치를 이어준다.
-                var hlDef = m_HoverDef != null ? m_HoverDef : m_SelectedDef;
-                int hlId = hlDef != null ? hlDef.Id : int.MinValue;
+                // 강조 기준 우선순위: 손에 든 재료 → 미니 프리뷰 호버 → 선택.
+                // 재료를 들면 '그 재료를 어디에 놓아야 하는지'가 유일한 관심사라 손이 이긴다.
+                // 빈손(또는 도구)일 때만 기존대로 호버/선택 재료를 강조한다.
+                int hlId = LocalPlayerHands.HeldMaterialId;
+                if (hlId == int.MinValue)
+                {
+                    var hlDef = m_HoverDef != null ? m_HoverDef : m_SelectedDef;
+                    hlId = hlDef != null ? hlDef.Id : int.MinValue;
+                }
 
-                float ga = 0.16f + 0.05f * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 더 은은하게(커서 프리뷰가 주인공) + 숨쉬기
+                float ga = m_GhostAlphaBase + kGhostAlphaPulse * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 은은하게(커서 프리뷰가 주인공) + 숨쉬기
                 float ha = 0.45f + 0.15f * Mathf.Abs(Mathf.Sin(Time.time * 5f));     // 강조: 밝고 빠른 펄스
                 int gaQ = Mathf.RoundToInt(ga * 200f);                                // 0.005 스텝 — 시각 차 없음
                 bool hlChanged = hlId != m_LastHlId;
@@ -130,13 +140,14 @@ namespace GridSystem
                 {
                     m_LastGaQ = gaQ; m_LastHlId = hlId;
                     float a = gaQ / 200f;
-                    // 통짜 고스트 맵은 조각 렌더러가 꺼져 있어 조각 구간 재도색이 순수 낭비 — 통짜 구간만 칠한다.
-                    int start = m_UseWholeGhost ? m_GhostPieceMatCount : 0;
+                    // 통짜 고스트 맵은 평소 조각 렌더러가 꺼져 있어 조각 구간 재도색이 순수 낭비 — 통짜 구간만 칠한다.
+                    // 단 강조 대상이 바뀐 프레임엔 조각도 칠해야 직전 강조 블록에 남은 초록이 원색으로 돌아간다.
+                    int start = (m_UseWholeGhost && !hlChanged) ? m_GhostPieceMatCount : 0;
                     for (int i = start; i < m_GhostMats.Count; i++)
                         if (m_GhostMats[i] != null)
                         {
                             var c = i < m_GhostMatCols.Count ? m_GhostMatCols[i] : m_GhostMats[i].GetColor(s_BaseColor);
-                            c.a = a;   // 원본 색으로 복귀(강조 초록이 남지 않게) + 숨쉬기 알파
+                            c.a = a;   // 원본 색으로 복귀(강조 흰색이 남지 않게) + 숨쉬기 알파
                             m_GhostMats[i].SetColor(s_BaseColor, c);
                             m_GhostMats[i].SetColor(s_Color, c);
                         }
@@ -150,11 +161,18 @@ namespace GridSystem
                     bool want = hl || (it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i]));
                     if (i >= m_GhostActive.Count) { m_GhostActive.Add(!want); }        // 첫 프레임 강제 적용
                     if (m_GhostActive[i] != want) { m_GhostActive[i] = want; it.go.SetActive(want); }
-                    if (hl && !m_UseWholeGhost)   // 통짜 맵은 조각 렌더러가 꺼져 있어 초록 강조가 안 보임 — 스킵
+                    // 통짜 맵(DDP류)은 Build에서 조각 렌더러를 전부 껐다. 강조 대상만 예외로 다시 켜야
+                    // 강조가 보인다(강조가 풀리면 도로 꺼서 통짜 한 덩어리 그림을 유지).
+                    if (m_UseWholeGhost)
+                    {
+                        if (i >= m_GhostShown.Count) m_GhostShown.Add(!hl);   // 첫 프레임 강제 적용
+                        if (m_GhostShown[i] != hl) { m_GhostShown[i] = hl; SetRenderersEnabled(it.go, hl); }
+                    }
+                    if (hl)
                         for (int k = it.matStart; k < it.matStart + it.matCount && k < m_GhostMats.Count; k++)
                             if (m_GhostMats[k] != null)
                             {
-                                var c = kGhostHighlight; c.a = ha;   // 원색 대신 초록 — 실제 배치 프리뷰(원색)와 구분
+                                var c = kGhostHighlight; c.a = ha;   // 원색 대신 흰색 — 커서 프리뷰의 초록/빨강과 역할 구분
                                 m_GhostMats[k].SetColor(s_BaseColor, c);
                                 m_GhostMats[k].SetColor(s_Color, c);
                             }
@@ -208,7 +226,7 @@ namespace GridSystem
                 m_GhostDone[i] = done;
             }
 
-            // 편의성: 선택한 재료의 모든 블록이 알맞게 완료되면 선택(초록 강조)을 자동 해제 — 다 지었는데 계속 반짝이는 것 방지.
+            // 편의성: 선택한 재료의 모든 블록이 알맞게 완료되면 선택(흰색 강조)을 자동 해제 — 다 지었는데 계속 반짝이는 것 방지.
             if (m_SelectedDef != null)
             {
                 bool any = false, all = true;
@@ -238,10 +256,15 @@ namespace GridSystem
             float u = GridContract.Unit;
             var objects = GroupAnswer(answer, catalog);   // 펼쳐 저장된 칸 → 오브젝트(프리팹) 단위 재구성
 
+            // 맵별 고스트 가시성 설정(미설정 = 0이면 공통 기본값). 바닥이 밝은 맵만 여기서 올린다.
+            var mapDef = MapDefOrNull();
+            m_GhostAlphaBase = (mapDef != null && mapDef.GhostAlpha > 0f) ? mapDef.GhostAlpha : kGhostAlphaBase;
+            m_GhostTintMul   = (mapDef != null && mapDef.GhostTintMul > 0f) ? mapDef.GhostTintMul : 1f;
+
             // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨
             m_GhostRoot = new GameObject("~AnswerGhost");
             m_GhostFloors.Clear();
-            bool useWhole = MapDefOrNull()?.CompletedModel != null;
+            bool useWhole = mapDef != null && mapDef.CompletedModel != null;
             foreach (var o in objects)
             {
                 Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
@@ -548,7 +571,10 @@ namespace GridSystem
         }
 
         // ── 정답 오브젝트(진짜 블록 프리팹) ──
-        private const float kGhostAlpha = 0.4f;                                                // 프리팹 고스트 투명도
+        // 인월드 고스트 알파는 Update()의 숨쉬기(m_GhostAlphaBase + 진폭)가 매 프레임 덮어쓴다.
+        // 여기 값들은 그 기준선 — 맵이 밝아 고스트가 묻히면 MapDef.GhostAlpha/GhostTintMul로 맵별로 올린다.
+        private const float kGhostAlphaBase = 0.16f;                                           // 고스트 기본 알파(맵 미설정 시)
+        private const float kGhostAlphaPulse = 0.05f;                                          // 숨쉬기 진폭
         private static readonly Color kNoPrefabSolid = new Color(0.85f, 0.83f, 0.75f);          // 프리팹 없는 블록(패널)
         private static readonly Color kNoPrefabGhost = new Color(0.85f, 0.83f, 0.75f, 0.30f);   // 프리팹 없는 블록(고스트)
 
@@ -622,15 +648,18 @@ namespace GridSystem
             whole.transform.SetPositionAndRotation(
                 ghost ? anchor : m_Offset + anchor, Quaternion.identity);
             foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);
-            if (ghost) MakeTransparent(whole, kGhostAlpha);
+            if (ghost) MakeTransparent(whole, m_GhostAlphaBase);
             return whole;
         }
 
         /// <summary>완성체를 쓰는 맵에서 조각 비주얼의 렌더러만 끈다(픽킹 AABB·테두리는 그대로 살려 둔다).</summary>
-        private static void HideRenderers(GameObject go)
+        private static void HideRenderers(GameObject go) => SetRenderersEnabled(go, false);
+
+        /// <summary>조각 비주얼의 렌더러 on/off. 통짜 고스트 맵에서 강조 블록만 잠깐 되살릴 때 쓴다.</summary>
+        private static void SetRenderersEnabled(GameObject go, bool on)
         {
             if (go == null) return;
-            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.enabled = false;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true)) r.enabled = on;
         }
 
         // 오브젝트 1개 비주얼. 프리팹 있으면 진짜 블록(고스트=반투명), 없으면 footprint 박스(중립색).
@@ -646,7 +675,7 @@ namespace GridSystem
                 // 조각마다 제멋대로 90° 돌아가면 완공 계획도에서 곡면이 산산조각 나 보인다.
                 GridFootprint.PlaceRotatedPrefab(go, pos, o.def.Footprint, o.rot, u, autoYaw: !o.def.FreeformVisual);
                 foreach (var col in go.GetComponentsInChildren<Collider>()) Destroy(col);
-                if (ghost) MakeTransparent(go, kGhostAlpha);
+                if (ghost) MakeTransparent(go, m_GhostAlphaBase);
             }
             else   // 프리팹 없는 재료(Floor/Pillar/Wall 등) → footprint 모양 박스, 공정색 대신 중립색
             {
@@ -658,8 +687,9 @@ namespace GridSystem
                 var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
                 if (ghost)
                 {
+                    var gc = GhostTint(kNoPrefabGhost, m_GhostAlphaBase);
                     var m = MakeTransparentMaterial();
-                    if (m != null) { m.SetColor(s_BaseColor, kNoPrefabGhost); m.SetColor(s_Color, kNoPrefabGhost); m_GhostMats.Add(m); m_GhostMatCols.Add(kNoPrefabGhost); }
+                    if (m != null) { m.SetColor(s_BaseColor, gc); m.SetColor(s_Color, gc); m_GhostMats.Add(m); m_GhostMatCols.Add(gc); }
                     go.GetComponent<Renderer>().sharedMaterial = m;
                 }
                 else SetColor(go, kNoPrefabSolid);
@@ -669,6 +699,11 @@ namespace GridSystem
 
         // 고스트 전용. 원본 셰이더가 투명을 지원 안 해도 항상 반투명이 되도록,
         // '확실히 반투명한' URP Lit 머티리얼을 새로 만들고 원본 텍스처(_BaseMap)+색만 옮긴다. 사본은 m_GhostMats로 정리.
+        // 고스트 색: 맵 감광 계수(m_GhostTintMul)를 곱해 어둡게 + 알파 지정.
+        // 롯데월드처럼 바닥·모델이 둘 다 밝은 맵은 원색 그대로면 배경에 묻혀 고스트가 안 보인다.
+        private Color GhostTint(Color tint, float alpha)
+            => new Color(tint.r * m_GhostTintMul, tint.g * m_GhostTintMul, tint.b * m_GhostTintMul, alpha);
+
         private void MakeTransparent(GameObject go, float alpha)
         {
             foreach (var r in go.GetComponentsInChildren<Renderer>())
@@ -689,7 +724,7 @@ namespace GridSystem
                         else if (src[i].HasProperty(s_Color))     tint = src[i].GetColor(s_Color);
                         else if (src[i].HasProperty(s_GltfCol))   tint = src[i].GetColor(s_GltfCol);
                     }
-                    tint.a = alpha;
+                    tint = GhostTint(tint, alpha);
                     m.SetColor(s_BaseColor, tint);
                     m.SetColor(s_Color, tint);
                     m_GhostMats.Add(m); m_GhostMatCols.Add(tint);

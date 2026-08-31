@@ -22,6 +22,7 @@ namespace GridSystem.Tests
         static readonly string[] kOptionalSpots =
         {
             "CableCarStation", "CableCarOrigin", "ElevatorLower", "ElevatorUpper",
+            "BucketStation",   // 경복궁 양동이함(Resources/SystemObjects/BucketStation.prefab — 화마 진화 도구함, 맵당 여러 개는 #2 접미사)
         };
 
         // 인식되는 전체 마커 이름 — 여기 없는 이름은 오타로 간주(조용히 무시되면 못 찾음)
@@ -212,7 +213,10 @@ namespace GridSystem.Tests
                     if (!t.name.StartsWith("Spot_")) continue;
                     if (LotteSpots.IsMarkerOnly(t.name)) continue;   // 퍼레이드 웨이포인트(Spot_ParadePoint0…N) — 번호가 붙어 접두사로 판정
                     if (DdpSpots.IsMarkerOnly(t.name)) continue;    // DDP 물길·발굴터·장미 발판(Spot_WaterChannel0…N 등) — 〃
+                    if (NamsanSpots.IsMarkerOnly(t.name)) continue; // 남산 케이블카·엘리베이터 + 수동 와이어 경유점(Spot_CableWire1…N) — 〃
                     string target = t.name.Substring("Spot_".Length);
+                    int hash = target.IndexOf('#');                 // "Spot_이름#2" = 같은 시스템 오브젝트 복제 배치(MapLoader 규약 — 경복궁 양동이함 2개 등)
+                    if (hash >= 0) target = target.Substring(0, hash);
                     Assert.Contains(target, kKnownSpots,
                         $"[{m.name}] 마커 '{t.name}' 은(는) 인식되지 않는 이름 — 오타면 아무 일도 안 일어납니다. " +
                         $"가능한 이름: {string.Join(", ", kKnownSpots.Select(s => "Spot_" + s))}");

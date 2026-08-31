@@ -10,7 +10,7 @@ namespace GridSystem
     /// 플레이어(PlayerCarry)가 F로 주워 재배치. GridManager(=Catalog) 와 같은 오브젝트에 둔다.
     /// </summary>
     [RequireComponent(typeof(GridManager))]
-    public class MaterialDropField : NetworkBehaviour
+    public class MaterialDropField : NetworkBehaviour, IPickupField
     {
         [Tooltip("던져진/버려진 '망치'(고정 도구)의 바닥 외형 모델(Hammer.glb). 비우면 파란 구로 폴백.")]
         [SerializeField] private GameObject m_HammerModel;

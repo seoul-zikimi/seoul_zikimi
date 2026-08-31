@@ -163,7 +163,8 @@ VARCO AI로 만든 3D 메시를 Unity로 가져와 프리팹으로 만들 때, �
 | 닿으면 차이는 거리(노답중력) | `PlayerCarry.kKickRadius` | 0.8 |
 | 차이는 거리 | `MaterialDropField.kKickDistance` | 1.6 |
 | 굴러가는 속도 / 낙하 중력 | `PickupBody.kHorizSpeed` / `kGravity` | 7 / 22 |
-| 줍기 거리 | `PlayerCarry.m_GrabRange` | 2.5 |
+| 줍기 거리 | `PlayerCarry.m_GrabRange` | 3 |
+| 집기 조준 레이 굵기 / 커서 폴백 반경 | `PlayerCarry.kGrabCastRadius` / `kGrabAimSlack` | 0.4 / 1.6 |
 | 공정 로딩바 속도 (E 꾹 누름 시간) | `PlayerCarry.m_ProcessSeconds` | 1.2초 |
 | 던지기 사거리 (G) | `PlayerCarry.m_ThrowRange` | 6칸 |
 | 던지기 포물선 (중력 / 정점높이계수) | `PickupBody.kArcGravity` / `0.35` | 20 / 거리×0.35 |

@@ -41,5 +41,5 @@ MonoBehaviour:
     Urgent: {fileID: 0}
     Result: {fileID: 8300000, guid: 987b350c7df2fec44888ce3171fd1364, type: 3}
   m_CompletedModel: {fileID: 973138566241899520, guid: a98a36a56e38a4e249e9236b7f196b2c, type: 3}
-  m_CompletedModelPath: MapPrefabs/DDP_본관_완성
+  m_CompletedModelPath: "MapPrefabs/DDP_\uBCF8\uAD00_\uC644\uC131"
   m_CompletedModelAnchor: {x: 0, y: 0, z: 2}

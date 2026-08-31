@@ -53,6 +53,7 @@ namespace SeoulZikimi.UI.New
         private int modeIndex;
         private bool weatherEnabled = true;
         private bool passwordVisible;
+        private UiLoadingSpinner creatingSpinner;   // 방 생성 요청 중 표시(응답 오면 제거)
 
         public event Action<CreateRoomRequest> CreateRequested;
 
@@ -186,20 +187,44 @@ namespace SeoulZikimi.UI.New
 
         private void RefreshValidation()
         {
-            // 방 이름은 비워도 됨(기본 이름 사용) — 비밀방만 비밀번호 필수
-            submitButton.interactable = visibility == RoomVisibility.Public || !string.IsNullOrWhiteSpace(passwordInput.text);
+            // 방 이름은 비워도 됨(기본 이름 사용) — 비밀방만 비밀번호 필수. 생성 요청 중엔 잠금 유지.
+            submitButton.interactable = creatingSpinner == null
+                && (visibility == RoomVisibility.Public || !string.IsNullOrWhiteSpace(passwordInput.text));
         }
 
         private void Submit()
         {
-            if (!submitButton.interactable)
+            if (!submitButton.interactable || creatingSpinner != null)
                 return;
+
+            // 응답이 올 때까지 버튼 가운데 스피너 표시 + 버튼 잠금(중복 생성 방지)
+            creatingSpinner = UiLoadingSpinner.AttachBeside((RectTransform)submitButton.transform, Vector2.zero);
+            RefreshValidation();
 
             string roomName = string.IsNullOrWhiteSpace(roomNameInput.text) ? defaultRoomName : roomNameInput.text.Trim();
             CreateRequested?.Invoke(new CreateRoomRequest(roomName, visibility, passwordInput.text, mapIndex, modeIndex, weatherEnabled));
         }
 
-        public void CompleteCreation() => router.Show(UiNewScreen.Lobby);
+        public void CompleteCreation()
+        {
+            ClearCreationPending();
+            router.Show(UiNewScreen.Lobby);
+        }
+
+        /// <summary>방 생성 실패 시 컨트롤러가 호출 — 스피너 제거 + 버튼 재활성.</summary>
+        public void FailCreation() => ClearCreationPending();
+
+        private void ClearCreationPending()
+        {
+            if (creatingSpinner != null)
+            {
+                creatingSpinner.Detach();
+                creatingSpinner = null;
+            }
+            RefreshValidation();
+        }
+
+        private void OnDisable() => ClearCreationPending();
 
         private static string GetMapLabel(int index)
         {

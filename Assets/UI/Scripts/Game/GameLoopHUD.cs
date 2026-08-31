@@ -271,7 +271,9 @@ public sealed class GameLoopHUD : UIHUD
             if (m_Loop.TimeLeft > 60f)
                 m_UrgentBgmStarted = false;
 
-            if (!m_UrgentBgmStarted && m_Loop.TimeLeft <= 60f)
+            // 씬 가드: 로비로 복귀한 뒤 이 갱신이 한 프레임 늦게 돌면 로비 BGM을 긴박 BGM으로 덮어쓴다.
+            if (!m_UrgentBgmStarted && m_Loop.TimeLeft <= 60f
+                && SceneManager.GetActiveScene().name == SceneNames.GameScene)
             {
                 m_UrgentBgmStarted = true;
                 if (SoundManager.Instance != null)
@@ -467,6 +469,7 @@ public sealed class GameLoopHUD : UIHUD
         bool resultPhase = !m_Loop.IsBuilding && !m_ResultDismissed;
         UpdateCraneToggle(resultPhase);                     // 정산 중에만 "크레인샷 보기" 버튼 표시
         bool show = resultPhase && !m_CraneViewing;         // 크레인샷 보는 중엔 정산서 숨김
+        UpdateResultTapZone(show);                          // 모바일: 정산서 밖 터치 = 둘러보기
         m_ResultPanel.SetActive(show);
         if (!resultPhase)
         {
@@ -1001,13 +1004,52 @@ public sealed class GameLoopHUD : UIHUD
     }
 
     // ── 정산서 ↔ 크레인샷 토글 버튼(프리팹 바인딩, 정산 중에만 표시) ──
+    // 모바일: 정산서가 떠 있는 동안엔 버튼 대신 '정산서 밖 터치'가 둘러보기 진입을 담당(아래 UpdateResultTapZone)
+    // → [건축물 둘러보기] 버튼은 숨기고, 둘러보기 중의 [정산서 보기]만 남긴다(+아이폰 홈 제스처 회피로 y 72).
     private void UpdateCraneToggle(bool resultPhase)
     {
         if (m_CraneToggleBtn == null) return;
-        m_CraneToggleBtn.gameObject.SetActive(resultPhase);
+        bool mobile = MobileControlsHUD.ShouldUseMobileUI;
+        m_CraneToggleBtn.gameObject.SetActive(resultPhase && (!mobile || m_CraneViewing));
         if (!resultPhase) return;
         var lbl = m_CraneToggleBtn.GetComponentInChildren<TextMeshProUGUI>();
         if (lbl != null) lbl.text = m_CraneViewing ? "정산서 보기" : "건축물 둘러보기";
+        if (mobile)
+        {
+            var rt = (RectTransform)m_CraneToggleBtn.transform;
+            if (rt.anchoredPosition.y != 72f) rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, 72f);
+        }
+    }
+
+    // ── 모바일 전용: 정산서 밖 화면 터치 = 건축물 둘러보기 진입(투명 전면 오버레이, 정산서 뒤에 깔림) ──
+    private GameObject m_ResultTapZone;
+
+    private void UpdateResultTapZone(bool receiptShown)
+    {
+        bool want = receiptShown && MobileControlsHUD.ShouldUseMobileUI;
+        if (!want)
+        {
+            if (m_ResultTapZone != null && m_ResultTapZone.activeSelf) m_ResultTapZone.SetActive(false);
+            return;
+        }
+        if (m_ResultTapZone == null)
+        {
+            var go = new GameObject("~ResultTapToCrane", typeof(RectTransform)) { layer = 5 };
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(m_ResultPanel.transform.parent, false);
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.sizeDelta = Vector2.zero;
+            var img = go.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(0f, 0f, 0f, 0f);   // 완전 투명 — 터치만 받는다
+            go.AddComponent<NoJuicyButtonMotion>();
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.transition = Selectable.Transition.None;
+            btn.onClick.AddListener(() => m_CraneViewing = true);
+            m_ResultTapZone = go;
+        }
+        // 정산서 바로 뒤(아래)에 유지 — 정산서 종이 위 터치는 정산서가 먹고, 바깥만 이 오버레이에 닿는다
+        m_ResultTapZone.transform.SetSiblingIndex(m_ResultPanel.transform.GetSiblingIndex());
+        if (!m_ResultTapZone.activeSelf) m_ResultTapZone.SetActive(true);
     }
 
     // ── 이벤트 토스트(좌측 슬쩍): 완성도 돌파 알림 + 100% 완성 축하 ──

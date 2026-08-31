@@ -56,6 +56,9 @@ public class AnswerPanelHUD : UIHUD
     }
     private readonly Dictionary<int, Card> m_Cards = new();
     private int m_SelectedId = -1;
+    private const float kDoubleClickSec = 0.3f;   // 이 안에 같은 재료를 다시 클릭 = 즉시 주문
+    private int m_LastClickId = -1;
+    private float m_LastClickTime;
     private Action<int> m_OnOrder;
     private bool m_MobileLayout;        // 가로(랜드스케이프) 레이아웃 사용 중 — 모바일 기기 또는 확대 보기
     private bool m_IsMobileDevice;      // 모바일 포팅 여부(항상 가로)
@@ -128,7 +131,7 @@ public class AnswerPanelHUD : UIHUD
         m_SelName = m_SelSub = m_CompletionText = null;
         m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
         m_ShownPct = -1;   // 텍스트를 새로 지었으니 다음 SetCompletion이 반드시 다시 채우게
-        m_Cards.Clear(); m_SelectedId = -1; ChromeHovered = false;
+        m_Cards.Clear(); m_SelectedId = -1; m_LastClickId = -1; ChromeHovered = false;
         foreach (var other in FindObjectsByType<AnswerPanelHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             if (other != this) Destroy(other.gameObject);   // 루트/캐시 꼬임으로 남은 중복 HUD 정리
 
@@ -433,26 +436,58 @@ public class AnswerPanelHUD : UIHUD
         orderLabel.fontStyle = FontStyle.Bold;
         UpdateOrderButton();
 
-        // 폰 내리기 — 화면 하단 중앙(폰 프레임과 살짝 겹침, 기획서의 '이거 누르면 폰 내려짐')
-        var closeGo = NewRect("ClosePhone", transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 10f), new Vector2(320f, 62f));
-        closeGo.AddComponent<NoJuicyButtonMotion>();   // GameHudDriver의 JuicyButton 스윕에서 제외(모바일 무모션 정책)
-        var closeImg = closeGo.AddComponent<Image>();
-        closeImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
-        closeImg.type = Image.Type.Sliced;
-        closeImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
-        var close = closeGo.AddComponent<Button>();
-        close.targetGraphic = closeImg;
-        if (m_ExpandedView) close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
-        else                close.onClick.AddListener(ToggleCollapsed);   // 모바일 → 폰 내리기
+        GameObject closeGo;
+        if (m_ExpandedView)
+        {
+            // PC 확대 보기: 기존 하단 [작게 보기 ▾] 버튼 유지
+            closeGo = NewRect("ClosePhone", transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 10f), new Vector2(320f, 62f));
+            closeGo.AddComponent<NoJuicyButtonMotion>();   // GameHudDriver의 JuicyButton 스윕에서 제외(모바일 무모션 정책)
+            var closeImg = closeGo.AddComponent<Image>();
+            closeImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            closeImg.type = Image.Type.Sliced;
+            closeImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
+            var close = closeGo.AddComponent<Button>();
+            close.targetGraphic = closeImg;
+            close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
+            var closeLabel = MakeTextPx(closeGo.transform, "작게 보기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
+            closeLabel.color = ink;
+            closeLabel.fontStyle = FontStyle.Bold;
+        }
+        else
+        {
+            // 모바일: 하단 [폰 내리기] 버튼 대신 ① 폰 밖 아무데나 터치 = 내리기(투명 전면 오버레이, 폰 뒤에 깔림)
+            // ② 폰 우상단 X 버튼. (하단 버튼이 아이폰 홈 제스처 영역과 겹치고, 밖-터치가 더 직관적이라는 피드백)
+            closeGo = NewRect("PhoneDismissOverlay", transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            closeGo.AddComponent<NoJuicyButtonMotion>();
+            var overlayImg = closeGo.AddComponent<Image>();
+            overlayImg.color = new Color(0f, 0f, 0f, 0f);   // 완전 투명 — 터치만 받는다
+            var overlayBtn = closeGo.AddComponent<Button>();
+            overlayBtn.targetGraphic = overlayImg;
+            overlayBtn.transition = Selectable.Transition.None;
+            overlayBtn.onClick.AddListener(ToggleCollapsed);
+            closeGo.transform.SetSiblingIndex(m_Phone.transform.GetSiblingIndex());   // 폰보다 뒤(아래) — 폰 위 터치는 폰이 먹는다
+
+            // X 버튼 — 폰(베젤)의 자식이라 폰 표시/숨김에 자동 동행
+            var xGo = NewRect("CloseX", m_Phone.transform, Vector2.one, Vector2.one,
+                new Vector2(-22f, -22f), new Vector2(64f, 64f));
+            xGo.AddComponent<NoJuicyButtonMotion>();
+            var xImg = xGo.AddComponent<Image>();
+            xImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            xImg.type = Image.Type.Sliced;
+            xImg.color = new Color(0.94f, 0.94f, 0.93f, 0.97f);
+            var xBtn = xGo.AddComponent<Button>();
+            xBtn.targetGraphic = xImg;
+            xBtn.onClick.AddListener(ToggleCollapsed);
+            var xLabel = MakeTextPx(xGo.transform, "✕", Vector2.zero, new Vector2(64f, 64f), 30, TextAnchor.MiddleCenter);
+            xLabel.color = ink;
+            xLabel.fontStyle = FontStyle.Bold;
+        }
         m_Collapsed = false;
         if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
         PhoneVisibilityChanged?.Invoke(!m_Collapsed);
         closeGo.SetActive(!m_Collapsed);
-        m_LandscapeClose = closeGo;
-        var closeLabel = MakeTextPx(closeGo.transform, m_ExpandedView ? "작게 보기 ▾" : "폰 내리기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
-        closeLabel.color = ink;
-        closeLabel.fontStyle = FontStyle.Bold;
+        m_LandscapeClose = closeGo;   // 기존 표시/숨김 동기화 그대로 재사용(모바일에선 오버레이가 그 역할)
     }
 
     // 폰(1800x940 고정 저작 크기)을 화면 크기에 맞춰 축소. 16:9에선 1배(여백 유지), 세로 태블릿 등에선 알아서 줄어든다.
@@ -575,7 +610,7 @@ public class AnswerPanelHUD : UIHUD
         frame.effectColor = kSelGreen; frame.effectDistance = new Vector2(3f, 3f); frame.enabled = false;
         var btn = card.AddComponent<Button>(); btn.targetGraphic = img;
         int id = e.Id;
-        btn.onClick.AddListener(() => Select(id));
+        btn.onClick.AddListener(() => SelectOrOrder(id));   // 탭 = 선택 · 더블탭 = 즉시 주문
 
         var th = NewRect("Thumb", card.transform, new Vector2(0, 1), new Vector2(0, 1),
             new Vector2(14f, -14f), new Vector2(122f, 122f));
@@ -619,7 +654,7 @@ public class AnswerPanelHUD : UIHUD
         var btn = img.gameObject.AddComponent<Button>(); btn.targetGraphic = img;
         btn.transition = Selectable.Transition.None;
         int id = e.Id;
-        btn.onClick.AddListener(() => Select(id));   // 카드 클릭 = 선택(주문은 [주문!] 버튼)
+        btn.onClick.AddListener(() => SelectOrOrder(id));   // 카드 클릭 = 선택 · 더블클릭 = 즉시 주문
         JuicyButton.Attach(btn);
 
         var th = NewRect("Thumb", img.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
@@ -648,6 +683,21 @@ public class AnswerPanelHUD : UIHUD
     }
 
     // ── 선택 (카드 클릭 / 3D 뷰 클릭 → 드라이버 경유) ─────────────────
+    /// <summary>
+    /// 클릭 = 선택, 같은 재료를 kDoubleClickSec 안에 다시 클릭 = [주문!]을 거치지 않고 즉시 주문.
+    /// 카드(PC·모바일)와 정답 3D 뷰 클릭이 모두 이 경로를 타므로 어디서 더블클릭하든 동작이 같다.
+    /// </summary>
+    public void SelectOrOrder(int id)
+    {
+        if (!m_Cards.TryGetValue(id, out var c)) return;
+        float now = Time.unscaledTime;
+        bool again = id == m_LastClickId && now - m_LastClickTime <= kDoubleClickSec;
+        m_LastClickId = again ? -1 : id;   // 3연타가 곧바로 두 번째 주문이 되지 않게 초기화
+        m_LastClickTime = now;
+        Select(id);
+        if (again && c.Remaining != 0) m_OnOrder?.Invoke(id);   // 품절이면 선택만
+    }
+
     public void Select(int id)
     {
         if (!m_Cards.TryGetValue(id, out var c)) return;
@@ -665,6 +715,7 @@ public class AnswerPanelHUD : UIHUD
 
     public void ClearSelection()
     {
+        m_LastClickId = -1;   // 해제 뒤 첫 클릭이 더블클릭으로 잡히지 않게
         if (m_SelectedId < 0) return;
         DeselectCardVisual();
         m_SelectedId = -1;

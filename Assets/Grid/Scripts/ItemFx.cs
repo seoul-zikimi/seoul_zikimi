@@ -143,15 +143,22 @@ namespace GridSystem
             if (col != null) Object.Destroy(col);
             go.name = "~Cannonball";
             go.transform.localScale = Vector3.one * 0.3f;
-            var sh = Shader.Find("Universal Render Pipeline/Lit");
-            if (sh != null) go.GetComponent<Renderer>().material =
-                new Material(sh) { color = new Color(0.12f, 0.12f, 0.14f) };
+            // 발사마다 new Material은 GameObject 파괴로 안 죽고 누적된다(런타임 생성 에셋) — 색 고정이라 공유 1개면 충분.
+            if (s_CannonballMat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Lit");
+                if (sh != null) s_CannonballMat =
+                    new Material(sh) { color = new Color(0.12f, 0.12f, 0.14f), hideFlags = HideFlags.HideAndDontSave };
+            }
+            if (s_CannonballMat != null) go.GetComponent<Renderer>().sharedMaterial = s_CannonballMat;
             var f = go.AddComponent<CannonballFlight>();
             f.From = from + Vector3.up * 0.8f;
             f.To = to;
             f.OnLand = onLand;
             Play(CannonFireClip(), from, 0.9f);
         }
+
+        static Material s_CannonballMat;   // 포탄 공유 재질(색 고정) — 발사당 Material 누수 방지
 
         // 포성: 낮은 '펑' — 노이즈 버스트 + 90Hz 저음 감쇠
         static AudioClip s_CannonFire;

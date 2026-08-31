@@ -34,8 +34,9 @@ namespace GridSystem.Tests
             var c = DefaultConfig();
             Assert.AreEqual(10, c.WeakWindMinHeight);
             Assert.AreEqual(15, c.StrongWindMinHeight);
-            Assert.AreEqual(2f, c.WeakPushCells);
-            Assert.AreEqual(4f, c.StrongPushCells);
+            // 8/12 남산 복구 커밋(56d8426a)에서 밀림 세기를 2/4 → 3/6칸으로 튜닝 — 확정치를 그 값으로 갱신(옛 초안값이 남아 있었음)
+            Assert.AreEqual(3f, c.WeakPushCells);
+            Assert.AreEqual(6f, c.StrongPushCells);
             Assert.AreEqual(3f, c.GustWarnSeconds);
             Assert.AreEqual(2f, c.StunSeconds);
             Assert.LessOrEqual(c.GustMinInterval, c.GustMaxInterval, "돌풍 주기 min ≤ max");
