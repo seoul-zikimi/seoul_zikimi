@@ -20,9 +20,10 @@ namespace GridSystem
         public Material Petal;
 
         [Header("Counts (base, 2vs2는 자동 2배)")]
-        public int PuddleCount = 14;
-        public int TyphoonPuddleCount = 22;
-        public int SnowPatchCount = 22;
+        // QA: 바닥 데칼이 너무 많아 웅덩이·눈 쌓임을 약 65%로 줄임(14→9, 22→14, 22→14).
+        public int PuddleCount = 9;
+        public int TyphoonPuddleCount = 14;
+        public int SnowPatchCount = 14;
         public int LeafCount = 70;
         public int PetalCount = 80;
 
