@@ -201,8 +201,9 @@ public class JobsnailSessionManager
             m_CachedHostId = null;
             m_IsHost = false;
             m_IsLeaving = false;
-            JobsnailRoomClosedNotice.ShowOnMainMenu();   // 방폭파로 튕긴 팀원에게 안내 팝업 예약
-            ShowMainMenuScene();
+            // 방이 터진 팀원은 메인 메뉴가 아니라 세션 목록으로 돌아가야 한다(QA 요구).
+            SeoulZikimi.UI.New.UiNewRoomClosedNotice.ShowOnRoomList();   // 목록 화면 위 안내 팝업 예약
+            ShowRoomListScene();
         }
     }
 
@@ -218,6 +219,13 @@ public class JobsnailSessionManager
         // 클라이언트에서 서버 연결이 끊긴 것은 방장 이탈/세션 종료로 처리한다.
         if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
             _ = EndSessionBecauseHostLeftAsync($"넷코드 서버 연결 끊김(clientId={clientId})");
+    }
+
+    /// <summary>세션(방) 목록 화면이 있는 Lobby 씬으로 이동한다. 이미 그 씬이면 다시 로드하지 않는다.</summary>
+    private static void ShowRoomListScene()
+    {
+        if (SceneManager.GetActiveScene().name != SceneNames.Lobby)
+            SceneManager.LoadScene(SceneNames.Lobby);
     }
 
     private static void ShowMainMenuScene()

@@ -38,12 +38,24 @@ namespace SeoulZikimi.UI.New
             if (room.HasPassword)
                 router.Show(UiNewScreen.Password);
             else
-                _ = JoinAsync(room, null);
+                _ = JoinAsync(room);
         }
 
-        private void OnPasswordSubmitted(string password) => _ = JoinAsync(pendingRoom, password);
+        // 비밀방은 UGS 세션에 비밀번호가 걸려 있는 게 아니라 "PasswordHash" 프로퍼티만 붙어 있다.
+        // 평문을 JoinSessionOptions.Password로 보내면 UGS가 항상 거부하므로, 여기서 해시를 맞춰보고
+        // 통과한 경우에만 비밀번호 없이 입장한다.
+        private void OnPasswordSubmitted(string password)
+        {
+            if (!SessionPasswordHash.Matches(pendingRoom.PasswordHash, password))
+            {
+                passwordPopup.ShowError();
+                return;
+            }
 
-        private async Task JoinAsync(UiNewSessionRoom room, string password)
+            _ = JoinAsync(pendingRoom);
+        }
+
+        private async Task JoinAsync(UiNewSessionRoom room)
         {
             if (joining || string.IsNullOrEmpty(room.SessionId))
                 return;
@@ -52,7 +64,6 @@ namespace SeoulZikimi.UI.New
             {
                 await UiNewSessionService.EnsureReadyAsync();
                 JoinSessionOptions options = sessionSettings.ToJoinSessionOptions();
-                options.Password = string.IsNullOrEmpty(password) ? null : password;
                 ISession session = await MultiplayerService.Instance.JoinSessionByIdAsync(room.SessionId, options);
                 sessionState.Set(session);
                 lobby.SetRoomName(session.Name);

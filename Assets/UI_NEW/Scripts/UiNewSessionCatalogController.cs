@@ -50,7 +50,7 @@ namespace SeoulZikimi.UI.New
                 rooms.Add(new UiNewSessionRoom(
                     session.Id,
                     session.Name,
-                    session.Properties != null && session.Properties.ContainsKey("PasswordHash"),
+                    UiNewSessionService.ReadProperty(session, "PasswordHash"),
                     Mathf.Max(0, session.MaxPlayers - session.AvailableSlots),
                     session.MaxPlayers,
                     mapName));

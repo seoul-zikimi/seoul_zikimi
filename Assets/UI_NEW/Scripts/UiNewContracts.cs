@@ -46,11 +46,11 @@ namespace SeoulZikimi.UI.New
 
     public readonly struct UiNewSessionRoom
     {
-        public UiNewSessionRoom(string sessionId, string name, bool hasPassword, int joined, int maxPlayers, string mapName)
+        public UiNewSessionRoom(string sessionId, string name, string passwordHash, int joined, int maxPlayers, string mapName)
         {
             SessionId = sessionId;
             Name = name;
-            HasPassword = hasPassword;
+            PasswordHash = passwordHash;
             Joined = joined;
             MaxPlayers = maxPlayers;
             MapName = mapName;
@@ -58,7 +58,10 @@ namespace SeoulZikimi.UI.New
 
         public string SessionId { get; }
         public string Name { get; }
-        public bool HasPassword { get; }
+
+        /// <summary>방 생성 때 세션 프로퍼티에 올려둔 비밀번호 해시. 입장 검증은 이 값과 비교한다.</summary>
+        public string PasswordHash { get; }
+        public bool HasPassword => !string.IsNullOrEmpty(PasswordHash);
         public int Joined { get; }
         public int MaxPlayers { get; }
         public string MapName { get; }

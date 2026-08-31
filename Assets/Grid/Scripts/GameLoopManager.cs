@@ -30,6 +30,7 @@ namespace GridSystem
         private readonly NetworkVariable<int> m_MapIndex =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 배경 맵(MapCatalog 인덱스)
         private readonly NetworkList<ulong> m_Consents = new();   // 동의한 clientId (건축중=종료동의 / 종료중=재시작동의, 서버 관리)
+        private readonly NetworkList<ulong> m_RoomVotes = new();   // '방으로 돌아가기'를 직접 누른 clientId (서버 관리)
         private readonly NetworkList<NameEntry> m_Names = new();   // 접속 플레이어 표시 이름(서버 관리, 정산서 명단용)
 
         // ── 게임 모드(GameplayFramework 통합 1단계) ──
@@ -282,6 +283,7 @@ namespace GridSystem
             m_TimeLeft.Value = m_ServerTimeLeft;
             m_Phase.Value = (int)GamePhase.Building;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);
+            for (int i = m_RoomVotes.Count - 1; i >= 0; i--) m_RoomVotes.RemoveAt(i);   // 새 라운드 → 방 복귀 표도 초기화
 
             // 라운드(재)시작마다 카운트다운을 다시 잡는다 — 첫 판은 전원 로딩 후,
             // 재시작은 전원이 이미 로딩돼 있으므로 다음 서버 틱에 바로 3-2-1이 걸린다.
@@ -327,6 +329,17 @@ namespace GridSystem
             m_PlayerCount.Value = ids.Count;
             for (int i = m_Consents.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Consents[i])) m_Consents.RemoveAt(i);
+            for (int i = m_RoomVotes.Count - 1; i >= 0; i--)
+                if (!Contains(ids, m_RoomVotes[i])) m_RoomVotes.RemoveAt(i);
+
+            // 방으로 돌아가기: 각자 눌러야 이동한다. 한 명이 눌러도 나머지는 끌려가지 않고,
+            // 접속 전원이 누른 순간 세션·연결을 유지한 채 함께 대기방으로 복귀한다.
+            if (ids.Count > 0 && m_RoomVotes.Count >= ids.Count)
+            {
+                ServerLoadRoom();
+                return;
+            }
+
             for (int i = m_Names.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Names[i].Id)) m_Names.RemoveAt(i);
             for (int i = m_Teams.Count - 1; i >= 0; i--)
@@ -531,19 +544,46 @@ namespace GridSystem
             SceneManager.LoadScene(SceneNames.Lobby);
         }
 
-        // 방으로 돌아가기: 세션·연결 유지한 채 전원이 대기방(Lobby 씬)으로 복귀(게임 시작의 역방향, 서버 권위).
+        /// <summary>내가 '방으로 돌아가기'를 이미 눌렀는지.</summary>
+        public bool HasLocalRoomReturnVote
+        {
+            get
+            {
+                if (!IsSpawned || NetworkManager.Singleton == null) return false;
+                ulong me = NetworkManager.Singleton.LocalClientId;
+                for (int i = 0; i < m_RoomVotes.Count; i++) if (m_RoomVotes[i] == me) return true;
+                return false;
+            }
+        }
+
+        /// <summary>'방으로 돌아가기'를 누른 인원 수(대기 안내용).</summary>
+        public int RoomReturnVoteCount => m_RoomVotes.Count;
+
+        // 방으로 돌아가기: 각자 눌러야 이동한다(누른 사람만 표가 등록되고, 전원이 누르면 함께 복귀).
+        // Netcode의 씬 관리가 서버 권위라 누른 사람만 다른 씬으로 갈라설 수는 없다 —
+        // 대신 한 명의 클릭이 나머지를 끌고 가지 않도록 서버가 표를 모아 전원 클릭 시에만 전환한다.
         public void RequestReturnToRoom()
         {
             if (!IsSpawned) return;
-            if (IsServer) ServerLoadRoom();
-            else          ReturnToRoomRpc();
+            ReturnToRoomVoteRpc();
         }
 
         [Rpc(SendTo.Server)]
-        private void ReturnToRoomRpc() => ServerLoadRoom();
+        private void ReturnToRoomVoteRpc(RpcParams rpc = default)
+        {
+            ulong sender = rpc.Receive.SenderClientId;
+            for (int i = 0; i < m_RoomVotes.Count; i++)
+                if (m_RoomVotes[i] == sender) return;   // 이미 누름(취소는 없다)
+            m_RoomVotes.Add(sender);
+        }
+
+        private bool m_RoomLoadStarted;   // 씬 전환 요청은 한 번만(다음 프레임 중복 요청 방지)
 
         private void ServerLoadRoom()
         {
+            if (m_RoomLoadStarted) return;
+            m_RoomLoadStarted = true;
+
             var nm = NetworkManager.Singleton;
             if (nm != null && nm.SceneManager != null && nm.NetworkConfig.EnableSceneManagement)
                 nm.SceneManager.LoadScene(SceneNames.Lobby, LoadSceneMode.Single);   // 전원 함께 방으로
