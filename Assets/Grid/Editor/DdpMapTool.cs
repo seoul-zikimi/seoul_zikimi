@@ -15,9 +15,9 @@ namespace GridSystem.EditorTools
     ///     상층 '잔디지붕 데크'(y=0)  : 건축 그리드가 올라간다
     ///     하층 '어울림광장'(y=-4)    : 배송존·작업대·스폰
     ///     둘을 잇는 것은 곡면 나선램프(배송존 옆에서 시작해 물길 위를 다리로 감아 오른다)
-    /// · 기믹 2종(DdpGimmickConfig) + 마커:
+    /// · 기믹 1종(DdpGimmickConfig) + 마커:
     ///     Spot_WaterChannel0~3 (이간수문 물길, 서→동)
-    ///     Spot_DigSite0~3      (유구 발굴터 후보)
+    ///     (유구 발굴터·LED 장미 발판 기믹은 뺐다 — 08/31 기획 결정, 물길 하나로 충분)
     /// · ★ 야경 컨셉 — 실제 DDP는 밤이 본체다(은색 패널 라이트업 + LED 장미 25,550송이가 밤 명물):
     ///     MapNightAmbience(밤 하늘·안개·앰비언트·달빛 — 씬은 낮 그대로, 이 맵 로드 때만 오버라이드)
     ///     가로등(광장·데크 둘레) + 불빛 웅덩이(가산 쿼드 — 진짜 라이트 예산 0)
@@ -259,7 +259,7 @@ namespace GridSystem.EditorTools
             Selection.activeObject = def2;
             Debug.Log($"[DDP] 완료 ✔ 로비에서 'DDP 동대문디자인플라자'를 고르세요.\n" +
                       $"파츠 def 8종(id 31~38) {kDir} — VARCO 모델 나오면 {{파츠이름}}_Fit.prefab만 두고 재실행\n" +
-                      $"정답 {cells.Count}칸(낮고 넓은 DDP 본관) · 기믹 2종(물길·발굴터) · 제한시간 {kTimeLimitSeconds / 60f:0.#}분\n" +
+                      $"정답 {cells.Count}칸(낮고 넓은 DDP 본관) · 기믹 1종(이간수문 물길) · 제한시간 {kTimeLimitSeconds / 60f:0.#}분\n" +
                       $"★ 야경 컨셉 — 밤 톤은 프리팹의 MapNightAmbience, 밤하늘은 {kNightSkyPath}, 블록 발광은 NightBuildGlow에서 조절");
         }
 
@@ -375,9 +375,7 @@ namespace GridSystem.EditorTools
             // ── ★ 야경 — 가로등·LED 스트립·포인트 라이트 + 밤 환경/발광 컴포넌트 ──
             BuildNightScape(root, lampGlow, roseGroup);
 
-            // 발굴터는 배경에 아무것도 두지 않는다 — 평소엔 '묻혀 있어야' 하니까.
-            // 런타임에 ExcavationNetwork가 Spot_DigSite* 중 한 곳에 표지 말뚝을 솟게 한다.
-            // (예전엔 유구터 흙구덩이 프롭 4개가 상시로 깔려 있어 광장이 어수선했다)
+            // (유구 발굴터 연출·프롭은 기믹 제거(08/31)와 함께 완전히 뺐다)
 
             // ⚠ 원경(DDP_원경 실루엣)은 두지 않는다 — 완성된 DDP 원본이 공중에 떠 보이는 데다,
             // '지어야 할 정답'(인월드 고스트·완공 계획도)과 겹쳐 어느 쪽이 목표인지 헷갈렸다.
@@ -397,9 +395,9 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_WaterChannel2", new Vector3(12f, kPlazaY, -12f));
             AddSpot(root, "Spot_WaterChannel3", new Vector3(24f, kPlazaY, -12f));
 
-            // 유구 발굴터 후보(수로 양옆 — 물이 차면 잠긴다)
-            for (int i = 0; i < kDigSites.Length; i++)
-                AddSpot(root, $"Spot_DigSite{i}", kDigSites[i].pos);
+            // ⚠ Spot_DigSite* 는 더 이상 만들지 않는다 — '유구 발굴터' 기믹을 뺐다(08/31).
+            // 물길 하나로 충분하고, 발굴은 손이 많이 가는데 재미 대비 효과가 작았다.
+            // 마커가 없어도 ExcavationNetwork는 어차피 GameLoopManager가 부착을 끊어 잠잔다.
 
             // ⚠ Spot_RosePad* 는 더 이상 만들지 않는다 — 'LED 장미 발판' 기믹을 뺐다.
             // 광장 위에 분홍 원판이 둥둥 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
@@ -496,16 +494,7 @@ namespace GridSystem.EditorTools
             go.isStatic = true;
         }
 
-        // 발굴터 후보 4곳 — 수로(z=-12) 양옆에 흩어놓는다. 물이 차면 전부 잠긴다.
-        // 장미밭(x -10.5~10, z -8.8~-4.8)·작업대·나선램프(중심 (2,-4), 반지름 11.2~16.8의
-        // 남동 사분원) 발자국과 겹치지 않게 배치했다 — 램프 밑에 말뚝이 솟으면 안 되니까.
-        private static readonly (string name, Vector3 pos)[] kDigSites =
-        {
-            ("A", new Vector3(-6f, kPlazaY + 0.05f, -21.5f)),   // 남서(광장 안쪽 깊이)
-            ("B", new Vector3(1f,  kPlazaY + 0.05f, -15.0f)),   // 남중 — 수로 바로 아래, 램프 입구 서쪽
-            ("C", new Vector3(20f, kPlazaY + 0.05f, -9.0f)),    // 북동 — 수로 하류 쪽, 램프 원호 바깥
-            ("D", new Vector3(-2f, kPlazaY + 0.05f, -15.0f)),   // 남중서
-        };
+        // (kDigSites — 발굴터 후보 좌표 — 는 기믹 제거(08/31)와 함께 삭제. 필요하면 git 히스토리에.)
 
         // 곡면 나선램프: 광장 y=-4 → 데크 y=0 을 원호로 잇는다(DDP다운 나선 동선).
         //
@@ -610,7 +599,7 @@ namespace GridSystem.EditorTools
             }
 
             // ── 가로등: 광장(y=-4) 5주 + 데크(y=0) 둘레 6주 ──
-            // 장미밭·수로·나선램프 원호(중심 (2,-4), r 11.2~16.8 남동 사분원)·작업대·발굴터를 피해 배치.
+            // 장미밭·수로·나선램프 원호(중심 (2,-4), r 11.2~16.8 남동 사분원)·작업대를 피해 배치.
             var lamps = new GameObject("~StreetLamps");
             lamps.transform.SetParent(root.transform, false);
             var plazaLamps = new Vector3[]
@@ -646,7 +635,7 @@ namespace GridSystem.EditorTools
             BuildStringLights(lamps, bulbMat, deckLamps[0], deckLamps[1]);
             BuildStringLights(lamps, bulbMat, deckLamps[1], deckLamps[2]);
 
-            // ── 나무 3그루 — 광장 빈 구석(발굴터·수로·램프 원호를 피해서). VARCO 모델(DDP_나무) 있으면 교체 ──
+            // ── 나무 3그루 — 광장 빈 구석(수로·램프 원호를 피해서). VARCO 모델(DDP_나무) 있으면 교체 ──
             var trunkMat = EnsureMaterial("Mat_DdpTrunk", new Color(0.36f, 0.27f, 0.20f));
             var leafMat  = EnsureMaterial("Mat_DdpLeaf",  new Color(0.20f, 0.32f, 0.22f));
             BuildTree(root, "Tree0", new Vector3(20f,    kPlazaY, -20f),   trunkMat, leafMat, 20f);
@@ -742,7 +731,7 @@ namespace GridSystem.EditorTools
         }
 
         // 수로 볼라드: 양 둔치 바깥 라인에 낮은 발광 말뚝. 콜라이더 없음(재료 던지기·물살 동선에 안 걸리게).
-        // 남쪽은 램프 입구(x 0~5)·발굴터 B/D(x -2·1, z -15)를, 북쪽은 장미밭(z ≥ -8.8)·발굴터 C(20,-9)를 피한다.
+        // 남쪽은 램프 입구(x 0~5)를, 북쪽은 장미밭(z ≥ -8.8)을 피한다.
         private static void BuildBollards(GameObject parent, Material poleMat, Material glowMat)
         {
             var south = new float[] { -9f, 15f, 23f };          // z = -15.0

@@ -69,8 +69,18 @@ namespace GridSystem.EditorTools
         ///     ② 장미 48 → ~100송이(간격 0.85, 밭 동쪽 x10까지) + 수로 볼라드 7 + 전구 줄 4스팬 + 나무 3그루,
         ///     ③ 북서쪽 '꼬리 동' 배경 매스(실물의 길게 흐르는 꼬리 — 정답·그리드와 안 겹치는 z≥14.4),
         ///     ④ 본관 투광 라이트 2 + 블록 발광 0.9 → 1.6(블룸 문턱을 넘겨 또렷하게),
-        ///     LED 스트립 색 순환(EmissionCycler), VARCO 소품 슬롯 추가(DDP_가로등·DDP_나무).</summary>
-        private const int kSetupVersion = 16;
+        ///     LED 스트립 색 순환(EmissionCycler), VARCO 소품 슬롯 추가(DDP_가로등·DDP_나무).
+        /// 17: 본관을 '파츠 3종 조립'으로 전환(DdpAssembleTool) — 한 방 생성 통짜는 전체 실루엣을
+        ///     자꾸 틀리게 뽑아서(지붕 언덕이 웅덩이·배치 어긋남), 항공사진 3분할(윗동·중간동·꼬리동)대로
+        ///     따로 뽑아 실물 배치로 이어 붙인 조립본을 절단 원본으로 쓴다. 파츠가 덜 모이면 통짜 폴백.
+        ///     ⚠ 파츠 방향이 뒤집혀 보이면 DdpAssembleTool.kParts의 yaw ±180 후 재생성.
+        /// 18: 유구 발굴터 기믹 제거(08/31 기획 결정 — 물길 하나만 남긴다) —
+        ///     GameLoopManager가 ExcavationNetwork를 더 이상 부착하지 않고, Spot_DigSite* 마커와
+        ///     DigStake·Artifact0~2 Resources 프리팹 생성을 뺐다. 코드 파일은 남긴다(장미 발판과 동일 처리).
+        /// 19: 파츠 3종을 사용자 제작 GLB로 교체(윗동=workflow-result·중간동=Modern Organic·꼬리동=Modern Green)
+        ///     + '맵이 엄청 작아진' 문제 수정: 실물 비율(높이/길이 ≈ 0.1)이 절단 후 팬케이크가 되던 것을
+        ///     조립 시 XZ 비율 유지·Y만 강제(머리 ~6칸)로 부풀리고, 절단 스팬 13×5×10 → 14×6×12로 확대.</summary>
+        private const int kSetupVersion = 19;
 
         private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
 

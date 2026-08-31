@@ -163,12 +163,11 @@ namespace GridSystem
             // 롯데월드 기믹 호스트 — 맵 카드에 LotteGimmickConfig가 없으면 스스로 잠잔다
             if (!TryGetComponent<ParadeNetwork>(out _))
                 gameObject.AddComponent<ParadeNetwork>();
-            // DDP 기믹 호스트들 — 맵 카드에 DdpGimmickConfig가 없으면 스스로 잠잔다
-            // (WaterGate가 발굴터에 '물이 빠졌다'를 통지하므로 WaterGate를 먼저 부착한다)
+            // DDP 기믹 호스트 — 맵 카드에 DdpGimmickConfig가 없으면 스스로 잠잔다
             if (!TryGetComponent<WaterGateNetwork>(out _))
                 gameObject.AddComponent<WaterGateNetwork>();
-            if (!TryGetComponent<ExcavationNetwork>(out _))
-                gameObject.AddComponent<ExcavationNetwork>();
+            // ExcavationNetwork(유구 발굴터)는 더 이상 붙이지 않는다 — DDP 맵에서 뺀 기믹(08/31 기획 결정).
+            // 물길 하나로 충분하고, 발굴은 손이 많이 가는데 재미 대비 효과가 작았다. LedRoseNetwork와 같은 처리.
             // 경복궁 기믹 호스트들 — 맵 카드에 GyeongbokgungGimmickConfig가 없으면 스스로 잠잔다
             // (사방신이 화재 면역/봉인을 제공하므로 Guardian을 Fire보다 먼저 부착)
             if (!TryGetComponent<GuardianNetwork>(out _))
@@ -480,7 +479,6 @@ namespace GridSystem
             if (TryGetComponent<GustNetwork>(out var gust)) gust.ServerReset();         // 남산: 돌풍 주기 리셋
             if (TryGetComponent<ParadeNetwork>(out var parade)) parade.ServerReset();   // 롯데월드: 퍼레이드 주기 리셋
             if (TryGetComponent<WaterGateNetwork>(out var water)) water.ServerReset();  // DDP: 물길 주기 리셋
-            if (TryGetComponent<ExcavationNetwork>(out var dig)) dig.ServerReset();     // DDP: 발굴터·누적 출토 리셋
             if (TryGetComponent<GuardianNetwork>(out var guard)) guard.ServerReset();   // 경복궁: 사방신 리셋
             if (TryGetComponent<FireNetwork>(out var fire)) fire.ServerReset();         // 경복궁: 화마 리셋
             if (TryGetComponent<MaterialDepot>(out var depot)) depot.ServerResetOrders();   // 주문 한도(MaxSpawnCount) 누적 리셋

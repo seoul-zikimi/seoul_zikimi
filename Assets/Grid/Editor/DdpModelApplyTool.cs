@@ -10,11 +10,9 @@ namespace GridSystem.EditorTools
     ///
     /// 사용법: VARCO에서 뽑은 GLB를 Assets/Prefabs/Map/4_Ddp/Models/&lt;이름&gt;.glb 로 넣고 실행.
     /// · 파츠 8종: &lt;이름&gt;_Fit.prefab 생성(footprint 크기로 스케일, 피벗 min-corner) → def.Prefab 교체
-    /// · 배경 소품(이간수문·원경·장미 한 송이·발굴 표식): _Fit.prefab 생성
+    /// · 배경 소품(이간수문·원경·장미 한 송이·가로등·나무): _Fit.prefab 생성
     ///   (적용 후 Tools ▸ Map ▸ ★ DDP 맵 생성을 다시 실행하면 배경에 반영됨)
-    /// · 런타임 로드용 Resources/Ddp 프리팹:
-    ///     DigStake    — 발굴 표지 말뚝(ExcavationNetwork가 솟아오르게 한다)
-    ///     Artifact0~2 — 출토 유물(백자 조각·엽전·수막새) 팝 연출용
+    /// (유구 발굴터 기믹 제거(08/31)로 DigStake·Artifact0~2 런타임 프리팹은 더 이상 만들지 않는다)
     /// 없는 GLB는 건너뛴다(부분 적용 가능). 몇 번을 다시 실행해도 같은 결과.
     /// </summary>
     public static class DdpModelApplyTool
@@ -22,9 +20,6 @@ namespace GridSystem.EditorTools
         private const string kDir      = "Assets/Prefabs/Map/4_Ddp";
         private const string kModelDir = kDir + "/Models";
         private const string kResDir   = "Assets/Resources/Ddp";
-
-        /// <summary>출토 유물 3종 — ExcavationNetwork.kArtifactNames와 순서가 같아야 한다.</summary>
-        private static readonly string[] kArtifacts = { "DDP_유물_백자", "DDP_유물_엽전", "DDP_유물_수막새" };
 
         // 파츠 이름 → footprint (DdpMapTool.kParts와 동일해야 한다)
         // ⚠ 규약(MaterialPrefabContractTests): 비주얼 크기 = footprint와 정확히(오차 0.05) —
@@ -79,10 +74,7 @@ namespace GridSystem.EditorTools
                     applied++;
             }
 
-            // ③ 런타임 로드용 Resources 프리팹
-            Directory.CreateDirectory(kResDir);
-            if (BuildDigStake()) applied++; else skipped++;
-            applied += BuildArtifacts();
+            // (③ 런타임 Resources 프리팹(DigStake·Artifact0~2)은 발굴 기믹 제거(08/31)로 더 이상 만들지 않는다)
 
             // ④ 지형 텍스처(Models 폴더에 png가 있으면)
             ApplyTexture("텍스처_잔디지붕", "Assets/Map/Materials/Mat_DdpDeck.mat", new Vector2(6f, 5f));
@@ -103,38 +95,14 @@ namespace GridSystem.EditorTools
             ("DDP_이간수문",   new Vector3(7.0f, 3.5f, 1.7f), true),
             ("DDP_원경",       new Vector3(30f, 9f, 12f),     false),   // 원경은 실루엣만 보이면 되니 상자 채우기
             ("DDP_장미한송이", new Vector3(0.30f, 0.85f, 0.30f), true), // 광장 화단에 한 송이씩 심는다
-            ("DDP_발굴표식",   new Vector3(0.95f, 1.15f, 0.95f), true), // 발굴터 표지 말뚝(배경용 사본)
             ("DDP_가로등",     new Vector3(0.9f, 3.2f, 0.9f),  true),  // 야경 가로등(있으면 그레이박스 기둥 대체)
             ("DDP_나무",       new Vector3(3.0f, 3.6f, 3.0f),  true),  // 광장 나무(있으면 원기둥+구 그레이박스 대체)
         };
 
         // ── Resources/Ddp 런타임 프리팹 ────────────────────────────────────
-
-        // RosePad(LED 장미 발판) 프리팹은 더 이상 만들지 않는다 — 기믹 자체를 뺐다.
+        // RosePad(장미 발판)·DigStake(발굴 말뚝)·Artifact0~2(유물)는 더 이상 만들지 않는다 —
+        // 장미 발판 기믹과 유구 발굴터 기믹(08/31)을 뺐다.
         // 지면의 LED 장미정원(DDP_장미한송이를 한 송이씩 심는 것)은 그대로 남아 있다.
-
-        /// <summary>발굴 표지 말뚝: 바닥 피벗, 높이 약 1.1m. ExcavationNetwork가 땅에서 솟게 한다.</summary>
-        private static bool BuildDigStake()
-        {
-            var model = LoadModel("DDP_발굴표식");
-            if (model == null) return false;
-            return BuildFitPrefab(model, $"{kResDir}/DigStake.prefab", new Vector3(0.95f, 1.15f, 0.95f),
-                                  minCornerPivot: false, groundPivot: true, uniform: true) != null;
-        }
-
-        /// <summary>출토 유물 3종 — 중심 피벗(공중에서 돌며 뜬다), 최대 변 0.42m.</summary>
-        private static int BuildArtifacts()
-        {
-            int n = 0;
-            for (int i = 0; i < kArtifacts.Length; i++)
-            {
-                var model = LoadModel(kArtifacts[i]);
-                if (model == null) continue;
-                if (BuildFitPrefab(model, $"{kResDir}/Artifact{i}.prefab", Vector3.one * 0.42f,
-                                   minCornerPivot: false, uniform: true) != null) n++;
-            }
-            return n;
-        }
 
         // 타일 텍스처를 머티리얼에 입힌다(색은 흰색으로 — 텍스처 원색 유지). 파일 없으면 조용히 통과.
         private static void ApplyTexture(string texName, string matPath, Vector2 tiling)
