@@ -81,20 +81,19 @@ public sealed class MatchStartHUD : MonoBehaviour
         if (text == null)
             return;
 
+        // null = 아직 못 정함(랜덤 맵 서버 미확정 등) — 캐시하지 않고 다음 ApplyTip에서 재시도.
+        // "" = 확정됐지만 팁 없는 조합 — 재시도 종료, 박스 숨김 유지.
         if (s_TipText == null)
-            s_TipText = ResolveTip() ?? "";
+            s_TipText = ResolveTip();
 
-        if (s_TipText.Length > 0)
-        {
+        bool show = !string.IsNullOrEmpty(s_TipText);
+        if (show)
             text.text = s_TipText;
-        }
-        else
-        {
-            // 팁 없는 조합(예: 튜토리얼) — 빈 팁 박스가 어색하니 통째로 숨긴다.
-            var box = FindDeep(loadingRoot.transform, "Tip_Box");
-            if (box != null) box.gameObject.SetActive(false);
-            info.gameObject.SetActive(false);
-        }
+
+        // early 단계(미확정)에 숨겼다가 게임씬에서 확정되면 다시 켜야 하므로 양방향 토글.
+        var box = FindDeep(loadingRoot.transform, "Tip_Box");
+        if (box != null) box.gameObject.SetActive(show);
+        info.gameObject.SetActive(show);
     }
 
     /// <summary>현재 맵/모드를 알아내 팁을 뽑는다. 로비(씬 전환 전)에선 LobbyRoomNet 복제값,
@@ -128,9 +127,12 @@ public sealed class MatchStartHUD : MonoBehaviour
             mode = (SeoulZikimi.Gameplay.GameModeKind)Mathf.Clamp(GameLoopManager.HostSelectedMode, 0, 2);
         }
 
-        // 맵이 아직 '랜덤'(서버 미확정)이면 맵 전용 팁 없이 공통 팁만 뽑는다.
         var def = (mapIndex >= 0 && MapCatalog.Instance != null) ? MapCatalog.Instance.Get(mapIndex) : null;
-        return LoadingTips.Pick(def != null ? def.name : null, mode);
+        if (def == null)
+            return null;   // 맵 미확정('랜덤' 등) — GameLoopManager 스폰 후(TickLoading) 실제 맵으로 재시도
+        if (def.IsTutorial)
+            return "서울에 오신 것을 환영합니다!";
+        return LoadingTips.Pick(def.name, mode) ?? "";   // 확정됐는데 팁이 없으면 ""로 캐시(박스 숨김 확정)
     }
 
     /// <summary>씬 전환 구간(early 로딩창) 전용 달팽이 드라이버 — 서버 진행도를 모르는 구간이라
@@ -215,6 +217,7 @@ public sealed class MatchStartHUD : MonoBehaviour
         }
         else
         {
+            s_TipText = null;   // early 없이 직행한 매치(튜토리얼·재시작 등) — 지난 매치 문구가 남지 않게 새로 뽑는다
             var prefab = Resources.Load<GameObject>("UI/HUD/LoadingHUD");
             if (prefab != null)
                 m_Loading = Instantiate(prefab);
@@ -274,6 +277,10 @@ public sealed class MatchStartHUD : MonoBehaviour
 
     private void TickLoading()
     {
+        // '랜덤 맵'은 early 시점엔 실제 맵을 몰라 팁을 못 뽑는다 — 서버가 맵을 확정한 뒤(IsSpawned) 재시도.
+        if (s_TipText == null && m_Loading != null)
+            ApplyTip(m_Loading);
+
         // 렌더된 시간만 누적(씬 로드 스톨로 delta가 수 초씩 튀는 프레임은 잘라서 계산 —
         // 멈춘 화면을 '보여준 시간'으로 치지 않기 위함).
         float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);

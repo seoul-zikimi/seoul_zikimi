@@ -344,9 +344,11 @@ public class TutorialQuestSequence : MonoBehaviour
 
         var displayLines = new List<string>();
         if (index > 0)
-            displayLines.Add($"✅ 퀘스트 {index} 완료!");
+            displayLines.Add($"<color=#7FE07F><b>✅ 퀘스트 {index} 완료!</b></color>");
         for (int i = 0; i < step.Lines.Length; i++)
-            displayLines.Add(i == 0 ? $"[퀘스트 {index + 1}/{m_Steps.Count}]\n{step.Lines[i]}" : step.Lines[i]);
+            displayLines.Add(i == 0
+                ? $"<color=#FFD24D><b>[퀘스트 {index + 1}/{m_Steps.Count}]</b></color>\n{step.Lines[i]}"
+                : step.Lines[i]);
 
         UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, null);
     }
@@ -354,7 +356,7 @@ public class TutorialQuestSequence : MonoBehaviour
     private void ShowOutro()
     {
         m_Index = -2;
-        var displayLines = new List<string> { $"✅ 퀘스트 {m_Steps.Count} 완료!" };
+        var displayLines = new List<string> { $"<color=#7FE07F><b>✅ 퀘스트 {m_Steps.Count} 완료!</b></color>" };
         displayLines.AddRange(kOutroLines);
         UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, FinishTutorial);
     }
