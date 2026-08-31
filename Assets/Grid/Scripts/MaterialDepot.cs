@@ -250,6 +250,9 @@ namespace GridSystem
                 if (items.IsOrderBlocked(team))
                 {
                     Debug.Log($"[Depot] 주문 차단됨(해킹) — 팀{(team == 1 ? "B" : "A")}");
+                    // 조용히 무시하면 "왜인지 모르겠는데 주문이 안 됨"이 된다(QA) — 주문자에게 이유와 남은 시간을 알린다.
+                    OrderBlockedRpc(Mathf.CeilToInt(items.OrderBlockRemaining(team)),
+                                    RpcTarget.Single(rpc.Receive.SenderClientId, RpcTargetUse.Temp));
                     return;
                 }
             }
@@ -314,6 +317,17 @@ namespace GridSystem
             Vector3 pos = po != null ? po.transform.position + Vector3.up * 1.6f
                                      : ZonePos + Vector3.up * 1f;
             GridJuice.WorldToast(pos, "품절! 더는 주문할 수 없어요", new Color(0.95f, 0.45f, 0.15f));
+        }
+
+        /// <summary>상대의 '주문 해킹'으로 거절 — 주문자에게만 이유 + 남은 시간 토스트.</summary>
+        [Rpc(SendTo.SpecifiedInParams)]
+        private void OrderBlockedRpc(int seconds, RpcParams rpc = default)
+        {
+            var po = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClient?.PlayerObject : null;
+            Vector3 pos = po != null ? po.transform.position + Vector3.up * 1.6f
+                                     : ZonePos + Vector3.up * 1f;
+            string msg = seconds > 0 ? $"주문 해킹! {seconds}초 뒤 주문 가능" : "주문 해킹! 잠시 뒤 주문 가능";
+            GridJuice.WorldToast(pos, msg, new Color(0.72f, 0.35f, 0.95f));
         }
 
         private static Material s_RuntimeMat;   // 런타임 프리미티브용 공유 URP Lit (빌드서 기본 머티리얼이 깨져 안 보이는 것 방지)
