@@ -7,16 +7,17 @@ using UnityEngine.SceneManagement;
 ///
 /// 비주얼은 Resources/UI/HUD/LoadingHUD·CountdownHUD 프리팹(기획자 제작)을 그대로 쓰고,
 /// 이 컴포넌트는 이름으로 요소를 찾아 값만 채운다:
-/// · LoadingHUD/Snail_Icon — 로딩바: 입장 인원 비율에 따라 x −190 → 150 으로 이동(부드럽게 보간)
-/// · LoadingHUD/Information — 추후 엑셀 파싱 정보글 자리(지금은 프리팹 내용 유지)
-/// · CountdownHUD/Information — 3, 2, 1, START!
+/// · LoadingHUD/Snail_Icon — 로딩바(거북이): 입장 인원 비율에 따라 풀숲 → 집 앞으로 이동(부드럽게 보간)
+/// · LoadingHUD/Information — 맵/모드별 랜덤 팁(LoadingTips, 기획 엑셀 소스). 팁이 없는 조합이면 Tip_Box째 숨김
+/// · CountdownHUD/Information — 카운트다운 스프라이트(Countdown_3/2/1/Start). 이미지가 없으면 텍스트 폴백
 ///
 /// 진행/게이트 판정은 전부 GameLoopManager(서버 권위: m_CountdownStart·m_LoadedCount)를 읽기만 한다.
 /// 입력 잠금은 GameLoopManager가 GameplayInputBlocker.MatchGateBlocked로 처리.</summary>
 public sealed class MatchStartHUD : MonoBehaviour
 {
-    private const float kSnailStartX = -190f;
-    private const float kSnailEndX = 150f;
+    // 로딩 배경(Loading_Bg) 기준 거북이 이동 구간: 왼쪽 풀숲 앞 → 오른쪽 집 문 앞.
+    private const float kSnailStartX = -550f;
+    private const float kSnailEndX = 330f;
     private const float kStartBannerSeconds = 0.8f;   // "START!" 표시 후 사라지기까지
     private const float kIntroHoldSeconds = 0.5f;     // 로딩창 등장 직후 달팽이가 시작 위치에서 대기하는 시간
 
@@ -25,7 +26,9 @@ public sealed class MatchStartHUD : MonoBehaviour
     private RectTransform m_SnailIcon;
     private static GameObject s_EarlyLoading;   // 로비에서 미리 띄운 로딩 화면(씬 전환 생존)
     private GameObject m_Countdown;
-    private TMP_Text m_CountdownText;
+    private TMP_Text m_CountdownText;                  // 구버전 프리팹(텍스트) 폴백
+    private UnityEngine.UI.Image m_CountdownImage;
+    private static string s_TipText;   // 이번 매치에 보여줄 팁(early → 게임씬 인계 시에도 동일 문구 유지)
     private float m_ShownProgress;     // 로딩바 표시값(목표로 서서히 보간)
     private float m_LoadingVisibleSeconds;   // 게임씬에서 로딩 화면이 실제 렌더된 시간(최소 노출 보장용)
     private int m_LastShownNumber = -1;
@@ -62,9 +65,71 @@ public sealed class MatchStartHUD : MonoBehaviour
         s_EarlyLoading.name = "@LoadingHUD(early)";
         DontDestroyOnLoad(s_EarlyLoading);
         ElevateCanvas(s_EarlyLoading, 5000);   // 게임 HUD들보다 항상 위
-        s_EarlyLoading.AddComponent<EarlyLoadingDriver>();   // 씬 전환 중에도 달팽이 연출(시작 위치 고정 + 슬금슬금)
+        s_EarlyLoading.AddComponent<EarlyLoadingDriver>();   // 씬 전환 중에도 거북이 연출(시작 위치 고정 + 슬금슬금)
+        s_TipText = null;                      // 새 매치 — 팁 새로 뽑기
+        ApplyTip(s_EarlyLoading);
         LowerLoadPriority();
         Debug.Log("[MatchStartHUD] 로딩 화면 선표시(씬 전환 전).");
+    }
+
+    /// <summary>로딩 프리팹의 Information에 맵/모드별 랜덤 팁을 채운다. 팁이 없으면 Tip_Box째 숨김.
+    /// 문구는 매치당 1회만 뽑아(s_TipText) early → 게임씬 인계 시에도 바뀌지 않는다.</summary>
+    private static void ApplyTip(GameObject loadingRoot)
+    {
+        var info = FindDeep(loadingRoot.transform, "Information");
+        var text = info != null ? info.GetComponent<TMP_Text>() : null;
+        if (text == null)
+            return;
+
+        if (s_TipText == null)
+            s_TipText = ResolveTip() ?? "";
+
+        if (s_TipText.Length > 0)
+        {
+            text.text = s_TipText;
+        }
+        else
+        {
+            // 팁 없는 조합(예: 튜토리얼) — 빈 팁 박스가 어색하니 통째로 숨긴다.
+            var box = FindDeep(loadingRoot.transform, "Tip_Box");
+            if (box != null) box.gameObject.SetActive(false);
+            info.gameObject.SetActive(false);
+        }
+    }
+
+    /// <summary>현재 맵/모드를 알아내 팁을 뽑는다. 로비(씬 전환 전)에선 LobbyRoomNet 복제값,
+    /// 게임씬에선 GameLoopManager 복제값, 둘 다 없으면(튜토리얼 등) 호스트 정적값 폴백.</summary>
+    private static string ResolveTip()
+    {
+        int mapIndex;
+        SeoulZikimi.Gameplay.GameModeKind mode;
+
+        var loop = FindFirstObjectByType<GameLoopManager>();
+        var lobby = loop == null ? FindFirstObjectByType<LobbyRoomNet>() : null;
+        if (loop != null && loop.IsSpawned)
+        {
+            mapIndex = loop.MapIndex;
+            mode = loop.Mode;
+        }
+        else if (lobby != null && lobby.IsSpawned)
+        {
+            mapIndex = lobby.SelectedMap;
+            // 로비 모드 4종(0 타임어택/1 아이템전/2 팀 타임어택/3 자유) → GameModeKind
+            mode = lobby.SelectedLobbyMode switch
+            {
+                1 or 2 => SeoulZikimi.Gameplay.GameModeKind.TeamVersus,
+                3 => SeoulZikimi.Gameplay.GameModeKind.FreeBuild,
+                _ => SeoulZikimi.Gameplay.GameModeKind.TimeAttack,
+            };
+        }
+        else
+        {
+            mapIndex = GameLoopManager.HostSelectedMap;
+            mode = (SeoulZikimi.Gameplay.GameModeKind)Mathf.Clamp(GameLoopManager.HostSelectedMode, 0, 2);
+        }
+
+        var def = MapCatalog.Instance != null ? MapCatalog.Instance.Get(mapIndex) : null;
+        return LoadingTips.Pick(def != null ? def.name : null, mode);
     }
 
     /// <summary>씬 전환 구간(early 로딩창) 전용 달팽이 드라이버 — 서버 진행도를 모르는 구간이라
@@ -158,6 +223,7 @@ public sealed class MatchStartHUD : MonoBehaviour
         {
             ElevateCanvas(m_Loading, 5000);
             LowerLoadPriority();
+            ApplyTip(m_Loading);   // early 없이 바로 뜬 경우 대비(이미 채워져 있으면 같은 문구 재적용)
             var snail = FindDeep(m_Loading.transform, "Snail_Icon");
             m_SnailIcon = snail as RectTransform;
             SetSnailX(m_ShownProgress);
@@ -182,9 +248,13 @@ public sealed class MatchStartHUD : MonoBehaviour
             return;
         }
 
-        // 늦게 로딩 끝난 클라(씬 로드 중 프레임이 안 그려짐)도 로딩 화면을 잠깐은 보게 한다.
-        // 단 카운트다운을 깎아먹지 않는 범위(남은 시간 1초 초과)에서만 붙잡는다.
-        if (m_Loading != null && m_LoadingVisibleSeconds < 0.5f && m_Loop.CountdownRemaining > 1f)
+        // 카운트다운이 잡혀도 실제 3-2-1 시작 시각 전(예약 여유 + 서버 최소 노출 구간)에는
+        // 로딩 화면을 유지한다 — 이 구간에 거북이가 집까지 도착하는 연출이 나온다.
+        // 늦게 로딩 끝난 클라(씬 로드 중 프레임이 안 그려짐)도 잠깐은 보게 하되,
+        // 카운트다운을 깎아먹지 않는 범위(남은 시간 1초 초과)에서만 붙잡는다.
+        if (m_Loading != null
+            && (m_Loop.CountdownRemaining > 3f
+                || (m_LoadingVisibleSeconds < 0.5f && m_Loop.CountdownRemaining > 1f)))
         {
             TickLoading();
             return;
@@ -198,6 +268,7 @@ public sealed class MatchStartHUD : MonoBehaviour
         }
 
         TickCountdown();
+        AnimateCountdownCut(Mathf.Min(Time.unscaledDeltaTime, 0.1f));
     }
 
     private void TickLoading()
@@ -237,25 +308,26 @@ public sealed class MatchStartHUD : MonoBehaviour
             m_Countdown = Instantiate(prefab);
             ElevateCanvas(m_Countdown, 5001);
             var info = FindDeep(m_Countdown.transform, "Information");
+            m_CountdownImage = info != null ? info.GetComponent<UnityEngine.UI.Image>() : null;
             m_CountdownText = info != null ? info.GetComponent<TMP_Text>() : null;
         }
 
         if (remain > 0f)
         {
             int number = Mathf.CeilToInt(remain);   // 3 → 2 → 1
-            if (number != m_LastShownNumber && m_CountdownText != null)
+            if (number != m_LastShownNumber)
             {
                 m_LastShownNumber = number;
-                m_CountdownText.text = number.ToString();
+                ShowCountdown(number.ToString());
             }
             return;
         }
 
         // START! 표시 후 정리(게임은 이미 시작 — 입력 잠금은 GameLoopManager가 해제).
-        if (m_CountdownText != null && m_LastShownNumber != 0)
+        if (m_LastShownNumber != 0)
         {
             m_LastShownNumber = 0;
-            m_CountdownText.text = "START!";
+            ShowCountdown("Start");
         }
 
         if (remain <= -kStartBannerSeconds)
@@ -264,6 +336,79 @@ public sealed class MatchStartHUD : MonoBehaviour
             Destroy(m_Countdown);
             Destroy(gameObject);
         }
+    }
+
+    // 숫자(3/2/1) 원본(633x580)이 화면에서 과하게 커서 줄여 표시. START는 원본 크기 그대로.
+    private const float kCountdownNumberScale = 0.6f;
+    // 컷 등장 팝 연출: 크게 나타나서 탄성 있게 제자리(오버슈트) + 짧은 페이드인.
+    private const float kCutPopSeconds = 0.35f;
+    private const float kStartFadeOutSeconds = 0.3f;   // START가 사라지기 직전 페이드아웃 구간
+
+    private float m_CutAnimTime = -1f;   // 현재 컷 표시 후 경과(연출용). <0이면 연출 없음
+    private bool m_CutIsStart;
+
+    /// <summary>카운트다운 한 컷 표시. key = "3"/"2"/"1"/"Start" — Remaster 스프라이트 우선, 없으면 텍스트.</summary>
+    private void ShowCountdown(string key)
+    {
+        if (m_CountdownImage != null)
+        {
+            var sprite = Resources.Load<Sprite>("UI_pngs/3.inGame/Remaster/Countdown_" + key);
+            if (sprite != null)
+            {
+                m_CountdownImage.sprite = sprite;
+                m_CountdownImage.SetNativeSize();   // 숫자와 START(940x345) 크기가 달라 컷마다 맞춘다
+                if (key != "Start")
+                    m_CountdownImage.rectTransform.sizeDelta *= kCountdownNumberScale;
+                m_CountdownImage.enabled = true;
+                m_CutIsStart = key == "Start";
+                m_CutAnimTime = 0f;
+                AnimateCountdownCut(0f);   // 첫 프레임부터 팝 시작 상태로(원본 크기로 한 프레임 번쩍이는 것 방지)
+                return;
+            }
+        }
+        if (m_CountdownText != null)
+            m_CountdownText.text = key == "Start" ? "START!" : key;
+    }
+
+    /// <summary>컷 팝 연출 한 프레임 진행 — 스케일 1.6→1(오버슈트로 살짝 눌렸다 복귀), 기울기 −8°→0°,
+    /// 빠른 페이드인. START는 표시 종료 직전 확대+페이드아웃까지.</summary>
+    private void AnimateCountdownCut(float dt)
+    {
+        if (m_CountdownImage == null || m_CutAnimTime < 0f)
+            return;
+        m_CutAnimTime += dt;
+
+        var rt = m_CountdownImage.rectTransform;
+        float t = Mathf.Clamp01(m_CutAnimTime / kCutPopSeconds);
+        float e = EaseOutBack(t);
+
+        float startScale = m_CutIsStart ? 0.4f : 1.6f;   // START는 작게서 튀어나오고, 숫자는 쾅 내려앉는 느낌
+        float scale = Mathf.LerpUnclamped(startScale, 1f, e);
+        float tilt = Mathf.LerpUnclamped(m_CutIsStart ? 0f : -8f, 0f, e);
+        float alpha = Mathf.Clamp01(t / 0.4f);   // 처음 40% 구간에 빠르게 페이드인
+
+        // START 마무리: 사라지기 직전 살짝 커지며 페이드아웃(kStartBannerSeconds 뒤 파괴됨)
+        if (m_CutIsStart && m_CutAnimTime > kStartBannerSeconds - kStartFadeOutSeconds)
+        {
+            float f = Mathf.Clamp01((m_CutAnimTime - (kStartBannerSeconds - kStartFadeOutSeconds)) / kStartFadeOutSeconds);
+            scale = Mathf.Lerp(1f, 1.15f, f);
+            alpha = 1f - f;
+        }
+
+        rt.localScale = new Vector3(scale, scale, 1f);
+        rt.localEulerAngles = new Vector3(0f, 0f, tilt);
+        var c = m_CountdownImage.color;
+        c.a = alpha;
+        m_CountdownImage.color = c;
+    }
+
+    // 오버슈트 이징(back-out): 목표를 지나쳤다가 탄력 있게 돌아온다.
+    private static float EaseOutBack(float t)
+    {
+        const float c1 = 2.3f;         // 오버슈트 강도
+        const float c3 = c1 + 1f;
+        float u = t - 1f;
+        return 1f + c3 * u * u * u + c1 * u * u;
     }
 
     private void SetSnailX(float progress01)
@@ -279,6 +424,7 @@ public sealed class MatchStartHUD : MonoBehaviour
     {
         if (m_Loading != null) Destroy(m_Loading);
         if (m_Countdown != null) Destroy(m_Countdown);
+        s_TipText = null;   // 다음 매치에선 새 팁
         RestoreLoadPriority();
     }
 

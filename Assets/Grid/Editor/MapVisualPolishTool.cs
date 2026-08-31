@@ -20,7 +20,7 @@ namespace GridSystem.EditorTools
     ///  · 태양광: 약간 따뜻한 색, 1.15
     ///  · 포스트프로세싱: 카메라 켜고 @GlobalVolume에 GameVisualProfile(톤매핑·블룸·비네트·채도)
     ///
-    /// [맵 프리팹] MapBg_* 4종 — "~Horizon" 그룹 추가/갱신(멱등)
+    /// [맵 프리팹] MapBg_* 7종(튜토리얼·광통교·남산·연습장·롯데월드·DDP·경복궁) — "~Horizon" 그룹 추가/갱신(멱등)
     ///  · 1km 바닥 원판(맵 최저점 높이) + 맵 밑 스커트(산 몸통 — 뚝 끊김 제거)
     ///  · 원경 실루엣 카드 링 2겹(도심·산 능선) — 텍스처는 코드로 그려 Assets/Map/Horizon/에 PNG로 저장
     ///    → 마음에 안 들면 같은 이름 PNG를 그림(VARCO 등)으로 덮어쓰면 그대로 쓰인다(가로 타일링·투명 배경)
@@ -53,17 +53,30 @@ namespace GridSystem.EditorTools
             public float? FloorY;            // 지평선 바닥 높이 강제(없으면 자동 탐지). 바닥 오브젝트를 치운 맵은 필수
             public string[] StretchZ;        // z축으로 1km 늘릴 오브젝트(물길·둔치) — '뚝 끊김' 제거, 강이 지평선까지 도시를 관통
             public float? ChannelXMin, ChannelXMax;   // 바닥 평면에서 비워둘 x 구간(물길). 있으면 바닥을 좌·우 두 장으로 깐다
+            public string[] KeepClear;       // 빌딩 금지 구역 오브젝트 이름 — 2500㎡ 초과 바닥류 예외를 뚫고 occupied에 넣는다(롯데 석촌호수)
+            public string CityTex, MountainTex;       // 맵 전용 실루엣 PNG 이름(없으면 공용 Skyline_City/Mountain). PNG가 없으면 같은 이름으로 폴백을 그려 둔다
+            public bool GrassGround;         // City 맵인데 바닥만 풀밭(빌딩 격자는 유지) — 공원 도시(롯데월드: 회색 아스팔트가 인조적이라는 피드백)
+            public float CityCardH;          // 도심 실루엣 카드 높이(m). 0이면 기본 16 — 카메라가 높은 맵은 빌딩 뒤가 허옇게 비어 보여 키운다
         }
         private static readonly MapProfile[] kMaps =
         {
-            new MapProfile { Path = "Assets/Map/Prefabs/MapBg_Tutorial.prefab",    Ground = GroundKind.Grass, Trees = true,  Skirt = true },
-            new MapProfile { Path = "Assets/Map/Prefabs/MapBg_GwangTongGyo.prefab", Ground = GroundKind.City,  Trees = false, Skirt = false,   // 청계천 = 완전 시티뷰
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Tutorial.prefab",    Ground = GroundKind.Grass, Trees = true,  Skirt = true },
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_GwangTongGyo.prefab", Ground = GroundKind.City,  Trees = false, Skirt = false,   // 청계천 = 완전 시티뷰
                              FloorY = 5.52f,                                       // 둔치 윗면(5.4)보다 살짝 위에 도시 옥상 텍스처를 덮음(바닥 평면 y = FloorY-0.1 = 5.42). 콜라이더는 그대로
                              StretchZ = new[] { "Cube", "Cube (1)", "Cube (2)" },   // 물길+둔치 40×200 → 1km (08/22 "알아서 커트" 승인)
                              ChannelXMin = -12.6f, ChannelXMax = 13f },            // 물길 구간은 덮지 않음
-            new MapProfile { Path = "Assets/Map/Prefabs/MapBg_NamsanTower.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = true,
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = true,
                              RemoveObjects = new[] { "CityPlain" }, FloorY = -27.4f },                                                                          // 산 위에서 내려다본 도시. 회색 판은 치움(08/22 승인)
-            new MapProfile { Path = "Assets/Map/Prefabs/MapBg_VersusField.prefab",  Ground = GroundKind.Grass, Trees = true,  Skirt = true },
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_VersusField.prefab",  Ground = GroundKind.Grass, Trees = true,  Skirt = true },
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_LotteWorld.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = false,   // 잠실 도심 — 호수 둘레 육지에만 빌딩
+                             KeepClear = new[] { "Lake" },              // 석촌호수 — 크기 예외를 뚫고 빌딩 금지(안 하면 물 위에 빌딩이 선다)
+                             GrassGround = true,                        // 호수공원 도시 — 아스팔트 회색판이 인조적이라 바닥만 풀밭(빌딩 격자는 유지)
+                             CityCardH = 26f,                           // 카메라가 높아 빌딩 뒤가 허옇게 비어 보임 — 잠실 실루엣을 키워 배경을 채운다
+                             CityTex = "Skyline_Jamsil" },              // 잠실 스카이라인(롯데월드타워 실루엣) — VARCO PNG로 교체 가능, 없으면 폴백
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Ddp.prefab",         Ground = GroundKind.City,  Trees = false, Skirt = true },   // 동대문 도심 — 스커트가 상층 데크(y0) 밑을 메움
+                             // 물길(이간수문)은 동서(x축)라 ChannelX 카브 불가 — 바닥이 광장 밑(-5.05)에 깔려 물길을 안 덮으니 카브 불필요
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Gyeongbokgung.prefab", Ground = GroundKind.Grass, Trees = true, Skirt = false,   // 궁궐 — 빌딩 격자 없음, 스커트도 없음(석조 월대 밑 초록 봉분 방지)
+                             MountainTex = "Skyline_Bugaksan" },        // 북악산 능선 — VARCO PNG로 교체 가능, 없으면 폴백
         };
 
         // ── 팔레트(모두 같은 '맑은 오후' 톤으로 묶음 — 안개색 = 지평선 하늘색) ──
@@ -95,7 +108,7 @@ namespace GridSystem.EditorTools
                 AssetDatabase.DeleteAsset($"{kMatDir}/{leftover}.mat");
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[비주얼정리] 완료 ✔ 하늘(FastSky)·Linear 안개·Trilight 앰비언트·포프 + 맵 4종 ~Horizon. " +
+            Debug.Log("[비주얼정리] 완료 ✔ 하늘(FastSky)·Linear 안개·Trilight 앰비언트·포프 + 맵 7종 ~Horizon. " +
                       "GameScene 플레이해서 확인 — 톤은 Assets/Settings/GameVisualProfile, 하늘은 Assets/Map/Materials/Sky_SeoulStylised에서 조절.");
         }
 
@@ -104,7 +117,7 @@ namespace GridSystem.EditorTools
         {
             foreach (var m in kMaps) ApplyHorizonToPrefab(m);
             AssetDatabase.SaveAssets();
-            Debug.Log("[비주얼정리] ~Horizon 4종 갱신 ✔");
+            Debug.Log("[비주얼정리] ~Horizon 7종 갱신 ✔");
         }
 
         // ───────────────────────────── 하늘 ─────────────────────────────
@@ -271,14 +284,16 @@ namespace GridSystem.EditorTools
             if (!File.Exists(prefabPath)) { Debug.LogWarning($"[비주얼정리] 프리팹 없음: {prefabPath}"); return; }
 
             // 도시 맵 바닥은 탑뷰 도시 그림(=놀이매트처럼 보임) 대신 차분한 아스팔트 + 입체 빌딩 격자로.
-            var groundMat   = profile.Ground == GroundKind.City
+            // 단 GrassGround 맵(공원 도시)은 빌딩 격자만 유지하고 바닥은 풀밭.
+            var groundMat   = profile.Ground == GroundKind.City && !profile.GrassGround
                 ? EnsureGroundMaterial("Mat_HorizonGroundCity", "Ground_Asphalt", new Color(0.78f, 0.78f, 0.80f))
                 : EnsureGroundMaterial("Mat_HorizonGround", "Ground_Grass", new Color(0.66f, 0.74f, 0.58f));
             var skirtMat    = EnsureLitMaterial("Mat_HorizonSkirt", kSkirtColor);
-            var cityTex     = EnsureSkylineTexture("Skyline_City", SkylineKind.City);
-            var mountainTex = EnsureSkylineTexture("Skyline_Mountain", SkylineKind.Mountain);
-            var cityMats     = CardVariants("Mat_HorizonCity",     cityTex,     kCityTint,     2985);
-            var mountainMats = CardVariants("Mat_HorizonMountain", mountainTex, kMountainTint, 2980);   // 먼 것부터 그림
+            // 실루엣: 맵 전용 PNG 이름이 있으면 그걸(없으면 같은 이름으로 폴백을 그려 둔다 → VARCO 그림으로 덮어쓰기 가능), 아니면 공용
+            var cityTex     = EnsureSkylineTexture(profile.CityTex     ?? "Skyline_City",     SkylineKind.City);
+            var mountainTex = EnsureSkylineTexture(profile.MountainTex ?? "Skyline_Mountain", SkylineKind.Mountain);
+            var cityMats     = CardVariants(profile.CityTex     == null ? "Mat_HorizonCity"     : "Mat_Horizon_" + profile.CityTex,     cityTex,     kCityTint,     2985);
+            var mountainMats = CardVariants(profile.MountainTex == null ? "Mat_HorizonMountain" : "Mat_Horizon_" + profile.MountainTex, mountainTex, kMountainTint, 2980);   // 먼 것부터 그림
             var treeMats    = LoadTreeMaterials();   // Assets/Map/Horizon/Trees/*.png → 알파컷 빌보드(없으면 나무 산포 생략)
 
             var root = PrefabUtility.LoadPrefabContents(prefabPath);
@@ -348,7 +363,7 @@ namespace GridSystem.EditorTools
                 // 3) 원경 실루엣 카드 링 — 가까운 도심(청회색) + 먼 산 능선(하늘색). 코드로 그린 PNG, 빌보드 아님(겹쳐 세움).
                 //    카드 높이는 텍스처 비율에서 자동(카드 1장 = 텍스처 가로 1/3) → 이미지가 안 늘어난다.
                 //    카드 높이를 m로 고정(도심 16m·산 28m) — 너비는 이미지 비율대로, 장수는 둘레에 맞춰 자동.
-                MakeCardRing(group.transform, cityMats,     "City",  center, cityR,  16f, CardAspect(cityTex), 0);
+                MakeCardRing(group.transform, cityMats,     "City",  center, cityR,  profile.CityCardH > 0f ? profile.CityCardH : 16f, CardAspect(cityTex), 0);
                 MakeCardRing(group.transform, mountainMats, "Mount", center, mountR, 28f, CardAspect(mountainTex), 1);
                 // 4) 나무 산포 — 맵 가장자리 바깥 ~ 도심 링 사이에 X자 빌보드 나무를 랜덤으로. (근경 '링'은 벽지처럼 보여 폐기)
                 //    남산처럼 떠 있는 맵(스커트 있음)은 아랫동네와 충돌하니 생략.
@@ -595,7 +610,8 @@ namespace GridSystem.EditorTools
             foreach (var r in MeshRenderers(root))
             {
                 var b = r.bounds;
-                if (b.size.x * b.size.z > 2500f) continue;
+                bool keepClear = profile.KeepClear != null && System.Array.IndexOf(profile.KeepClear, r.gameObject.name) >= 0;
+                if (!keepClear && b.size.x * b.size.z > 2500f) continue;   // 거대 바닥류는 회피 대상이 아님 — 단 KeepClear(석촌호수 등)는 크기와 무관하게 금지 구역
                 occupied.Add(Rect.MinMaxRect(b.min.x - 2f, b.min.z - 2f, b.max.x + 2f, b.max.z + 2f));
             }
 

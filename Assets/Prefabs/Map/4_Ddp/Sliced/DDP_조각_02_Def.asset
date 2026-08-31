@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: "DDP_\uC870\uAC01_02_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 42
-  m_Footprint: {x: 3, y: 4, z: 3}
+  m_Footprint: {x: 3, y: 2, z: 3}
   m_Prefab: {fileID: 5322021305617184370, guid: 7fe5ff7b00371c449b661a7bb60f6cf1, type: 3}
   m_RequiredProcesses: 01000000
   m_MustBeFixed: 0

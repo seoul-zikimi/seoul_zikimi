@@ -1,0 +1,29 @@
+﻿TipID	Category	TargetKey	Text	Weight	Enabled
+TIP_GWANGTONG_001	MAP	Map_GwangTongGyo	광통교는 1410년 태종 이방원이 계모 신덕왕후의 무덤 병풍석을 가져다 만든 다리예요. 계모를 향한 복수심에 사람들이 밟고 다니게 했다고 해요.	1	TRUE
+TIP_GWANGTONG_002	MAP	Map_GwangTongGyo	광통교는 조선시대 청계천에서 가장 큰 다리였어요. 정월 대보름이면 다리밟기(답교놀이)를 하러 온 사람들로 북적였답니다.	1	TRUE
+TIP_NAMSAN_001	MAP	Map_NamsanTower	남산타워는 1969년 방송 전파를 쏘기 위해 세워졌어요. 타워 높이는 236.7m지만 남산 위에 있어 해발 480m에 달한답니다.	1	TRUE
+TIP_NAMSAN_002	MAP	Map_NamsanTower	조선시대 남산 꼭대기에는 봉수대가 있어서, 전국의 소식이 봉화 연기로 한양에 전해졌어요.	1	TRUE
+TIP_NAMSAN_101	MAP	Map_NamsanTower	높이 올라갈수록 강한 돌풍이 불어요! 예고가 뜨면 구조물 뒤에 숨어 추락을 피하세요.	1	TRUE
+TIP_NAMSAN_102	MAP	Map_NamsanTower	재료는 케이블카로 배송돼요. 승강장에 도착한 재료를 제때 안 받으면 사라지니 주의!	1	TRUE
+TIP_NAMSAN_103	MAP	Map_NamsanTower	전망대를 완성하면 엘리베이터가 개통돼요. E키로 탑승하면 꼭대기까지 한 번에!	1	TRUE
+TIP_LOTTE_001	MAP	Map_LotteWorld	1989년 문을 연 롯데월드 어드벤처는 세계 최대 실내 테마파크로 기네스북에 올랐어요.	1	TRUE
+TIP_LOTTE_002	MAP	Map_LotteWorld	석촌호수는 원래 한강 물줄기였어요. 강을 매립하면서 남은 부분이 호수가 됐고, 그 위에 롯데월드 매직아일랜드가 세워졌답니다.	1	TRUE
+TIP_LOTTE_101	MAP	Map_LotteWorld	퍼레이드 예고가 뜨면 길을 비켜주세요! 행렬에 치이면 밀려나고 들고 있던 재료를 떨어뜨려요.	1	TRUE
+TIP_LOTTE_102	MAP	Map_LotteWorld	퍼레이드는 광장과 매직아일랜드 사이를 가로질러요. 재료 운반은 행렬이 지나간 직후가 안전!	1	TRUE
+TIP_DDP_001	MAP	Map_Ddp	DDP는 세계 최대 규모의 3차원 비정형 건축물이에요. 외벽 알루미늄 패널 45,133장이 전부 다른 모양이랍니다.	1	TRUE
+TIP_DDP_002	MAP	Map_Ddp	DDP 공사 중 땅속에서 조선시대 유적이 쏟아져 나왔어요. 이간수문은 한양도성 성벽 아래로 물을 흘려보내던 수문이에요.	1	TRUE
+TIP_DDP_101	MAP	Map_Ddp	수문이 열리면 수로에 물이 콸콸! 휩쓸리면 하류로 떠내려가고 재료도 떨어뜨려요.	1	TRUE
+TIP_GYEONGBOK_001	MAP	Map_Gyeongbokgung	경복궁은 1395년 태조 이성계가 세운 조선 제일의 궁궐이에요. '경복'은 큰 복을 누리라는 뜻이랍니다.	1	TRUE
+TIP_GYEONGBOK_002	MAP	Map_Gyeongbokgung	궁궐 앞 '드므'라는 큰 물항아리는 불을 끄는 방화수예요. 화마가 물에 비친 제 모습에 놀라 도망간다는 이야기도 전해져요.	1	TRUE
+TIP_GYEONGBOK_101	MAP	Map_Gyeongbokgung	시간이 지나면 화마가 나타나 건물에 불을 붙여요! 양동이로 제때 끄지 않으면 블록이 타버려요.	1	TRUE
+TIP_GYEONGBOK_102	MAP	Map_Gyeongbokgung	양동이의 물은 드므(청동 항아리) 근처에서 자동으로 채워져요. 드므 위치를 미리 봐두세요!	1	TRUE
+TIP_GYEONGBOK_103	MAP	Map_Gyeongbokgung	하늘에서 떨어진 사방신 석상은 무거워서 둘이 함께 옮겨야 해요. 받침대 색에 맞춰 배치하세요!	1	TRUE
+TIP_GYEONGBOK_104	MAP	Map_Gyeongbokgung	사방신 석상을 올바르게 모시면 정령이 깨어나 그 방향의 화재를 막아줘요.	1	TRUE
+TIP_VERSUS_001	MODE	TeamVersus	아이템은 필드에 주기적으로 나타나요. 파츠를 완성해도 보상으로 받을 수 있답니다!	2	TRUE
+TIP_VERSUS_002	MODE	TeamVersus	지진 아이템은 상대 팀의 아직 고정되지 않은 블록을 흔들어 떨어뜨려요. 타이밍이 생명!	1	TRUE
+TIP_VERSUS_003	MODE	TeamVersus	비·눈·강풍·태풍 아이템은 상대 진영에만 악천후를 내려요. 우리 쪽은 쾌청!	1	TRUE
+TIP_VERSUS_004	MODE	TeamVersus	우산 아이템을 쓰면 우리 팀은 잠시 어떤 악천후도 무섭지 않아요.	1	TRUE
+TIP_VERSUS_005	MODE	TeamVersus	안개 아이템은 상대 팀의 화면을 잠시 뿌옇게 가려요. 결정적인 순간에 사용해 보세요!	1	TRUE
+TIP_VERSUS_006	MODE	TeamVersus	감속 아이템은 상대의 이동이나 작업 속도를, 부스트 아이템은 우리 팀 속도를 올려줘요.	1	TRUE
+TIP_VERSUS_007	MODE	TeamVersus	주문 해킹 아이템은 상대 팀이 잠시 새 주문을 받지 못하게 막아요.	1	TRUE
+TIP_VERSUS_008	MODE	TeamVersus	대포 아이템은 조준해서 쏘면 상대의 완성된 파츠 하나를 부숴버려요!	1	True

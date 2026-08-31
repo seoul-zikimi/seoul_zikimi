@@ -12,7 +12,7 @@ namespace GridSystem.EditorTools
     /// </summary>
     public static class VersusFieldMapTool
     {
-        private const string kPrefabPath = "Assets/Map/Prefabs/MapBg_VersusField.prefab";
+        private const string kPrefabPath = "Assets/Resources/MapPrefabs/MapBg_VersusField.prefab";
         private const string kMapDefPath = "Assets/Map/Maps/Map_VersusField.asset";
         private const string kThumbPath  = "Assets/Map/Maps/Thumb_VersusField.png";
         private const string kMatDir     = "Assets/Map/Materials";

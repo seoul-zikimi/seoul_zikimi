@@ -12,7 +12,7 @@ namespace GridSystem.EditorTools
     /// </summary>
     public static class NamsanColliderFixTool
     {
-        private const string kBgPath = "Assets/Map/Prefabs/MapBg_NamsanTower.prefab";
+        private const string kBgPath = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab";
 
         [MenuItem("Tools/Map/★ 남산 소품 콜라이더 교정")]
         public static void Fix()
