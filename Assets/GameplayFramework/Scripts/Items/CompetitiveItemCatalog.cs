@@ -48,10 +48,10 @@ namespace SeoulZikimi.Gameplay
         public IReadOnlyList<CompetitiveItemDefinition> GetAll() => _all;
 
         /// <summary>
-        /// 대포의 10%를 제외한 나머지 기획 확률을 가중치로 사용한다.
-        /// 합계가 100일 필요는 없으며 선택기가 남은 아이템 사이에서 자동 정규화한다.
         /// 기획 확률표를 그대로 가중치로 사용한다(합계 100).
         /// 합계가 100일 필요는 없으며 선택기가 자동 정규화한다.
+        /// 대포는 뽑히는 빈도가 낮아 존재감이 없다는 QA 피드백으로 10 → 28로 올렸고,
+        /// 그만큼 체감이 약한 날씨 계열(비/눈/강풍/태풍 5 → 4)과 안개·주문방해·아군 버프를 덜어냈다.
         /// </summary>
         public static CompetitiveItemDefinitionCatalog CreateDefault()
         {
@@ -59,31 +59,31 @@ namespace SeoulZikimi.Gameplay
                 new[]
                 {
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Cannon, 10f, ItemTargetSide.Enemy, 0f),
+                        CompetitiveItemKind.Cannon, 28f, ItemTargetSide.Enemy, 0f),
                     new CompetitiveItemDefinition(
                         CompetitiveItemKind.Earthquake, 8f, ItemTargetSide.Enemy, 0f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Rain, 5f, ItemTargetSide.Enemy, 60f),
+                        CompetitiveItemKind.Rain, 4f, ItemTargetSide.Enemy, 60f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Snow, 5f, ItemTargetSide.Enemy, 60f),
+                        CompetitiveItemKind.Snow, 4f, ItemTargetSide.Enemy, 60f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.StrongWind, 5f, ItemTargetSide.Enemy, 60f),
+                        CompetitiveItemKind.StrongWind, 4f, ItemTargetSide.Enemy, 60f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Typhoon, 5f, ItemTargetSide.Enemy, 60f),
+                        CompetitiveItemKind.Typhoon, 4f, ItemTargetSide.Enemy, 60f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Fog, 10f, ItemTargetSide.Enemy, 5f),
+                        CompetitiveItemKind.Fog, 8f, ItemTargetSide.Enemy, 5f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.MovementSlow, 10f, ItemTargetSide.Enemy, 15f, 0.7f),
+                        CompetitiveItemKind.MovementSlow, 8f, ItemTargetSide.Enemy, 15f, 0.7f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.ProcessSlow, 10f, ItemTargetSide.Enemy, 15f, 0.7f),
+                        CompetitiveItemKind.ProcessSlow, 8f, ItemTargetSide.Enemy, 15f, 0.7f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.OrderHack, 8f, ItemTargetSide.Enemy, 5f),
+                        CompetitiveItemKind.OrderHack, 6f, ItemTargetSide.Enemy, 5f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Umbrella, 8f, ItemTargetSide.Ally, 30f),
+                        CompetitiveItemKind.Umbrella, 6f, ItemTargetSide.Ally, 30f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.MovementBoost, 8f, ItemTargetSide.Ally, 15f, 1.3f),
+                        CompetitiveItemKind.MovementBoost, 6f, ItemTargetSide.Ally, 15f, 1.3f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.ProcessBoost, 8f, ItemTargetSide.Ally, 15f, 1.3f)
+                        CompetitiveItemKind.ProcessBoost, 6f, ItemTargetSide.Ally, 15f, 1.3f)
                 });
         }
     }

@@ -644,8 +644,8 @@ namespace GridSystem
             int team = TeamIndex(teamId);
             if (team < 0 || m_Net == null) return;
             bool hit = m_Net.ServerCannonDestroy(team);
-            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 완성 파츠 1개 파괴"
-                          : $"[Item] 대포 → 팀{teamId}: 부술 완성 파츠가 없음");
+            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 배치 블록 1개 파괴(위에 얹힌 것은 연쇄 붕괴)"
+                          : $"[Item] 대포 → 팀{teamId}: 구역에 부술 블록이 없음");
         }
 
         void ITeamMovementModifierTarget.ApplyMovementSpeedMultiplier(string teamId, float multiplier, float durationSeconds)
