@@ -43,7 +43,9 @@ namespace GridSystem.EditorTools
         private const int kIdBase = 40;
 
         /// <summary>통짜가 들어갈 최대 칸 수. 그리드(14×6×14) 안에서 이 상자에 비율 유지로 맞춘다.
-        /// 비율 유지라 셋 중 가장 빡빡한 축이 크기를 결정한다 — DDP는 옆으로 길어서 보통 X가 잡는다.</summary>
+        /// 비율 유지라 셋 중 가장 빡빡한 축이 크기를 결정한다 — DDP는 옆으로 길어서 보통 X가 잡는다.
+        /// (파츠 조립 실험 때 14×6×12까지 키웠다가, 통짜 롤백(08/31)과 함께 검증된 원래 값으로 복귀 —
+        ///  옛 본관 GLB는 이 스팬 기준으로 균형이 잡혀 있다.)</summary>
         private static readonly Vector3Int kSpan = new Vector3Int(13, 5, 10);
         /// <summary>통짜의 min-corner가 앉을 셀.</summary>
         private static readonly Vector3Int kAnchor = new Vector3Int(0, 0, 2);
@@ -470,6 +472,17 @@ namespace GridSystem.EditorTools
 
         private static GameObject LoadSource()
         {
+            // ① 파츠 3종(윗동·중간동·꼬리동)이 있으면 실물 배치대로 조립한 통짜가 우선 —
+            //    한 방 생성 통짜는 전체 실루엣을 자꾸 틀려서 파츠 분할로 전환(08/31 기획 결정).
+            //    매번 재조립한다(멱등 — DdpAssembleTool.kParts 배치 수정이 바로 반영되게).
+            var assembled = DdpAssembleTool.BuildAssembly();
+            if (assembled != null)
+            {
+                Debug.Log("[DDP절단] 파츠 조립본(DDP_본관_조립)을 절단 원본으로 사용");
+                return assembled;
+            }
+
+            // ② 폴백: 예전 한 방 생성 통짜 GLB
             foreach (var ext in new[] { "glb", "fbx", "obj" })
             {
                 var go = AssetDatabase.LoadAssetAtPath<GameObject>($"{kModelDir}/{kSourceName}.{ext}");

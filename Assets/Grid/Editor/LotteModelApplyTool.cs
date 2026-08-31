@@ -95,57 +95,97 @@ namespace GridSystem.EditorTools
                 if (model != null)
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(kParadeCarPrefabPath));
-                    var fit = BuildFitPrefab(model, kParadeCarPrefabPath, new Vector3(2.0f, 2.6f, 3.2f), minCornerPivot: false, groundPivot: true);
+                    var fit = BuildFitPrefab(model, kParadeCarPrefabPath, new Vector3(2.0f, 2.6f, 3.2f), minCornerPivot: false, groundPivot: true, uniform: true);
                     if (fit != null) { applied++; Debug.Log("[롯데모델] 퍼레이드 카 적용 — 다음 플레이부터 퍼레이드가 이 모델로 보입니다."); }
                 }
                 else skipped++;
+                // 변형 카(롯데_퍼레이드카2, 3…) — ParadeNetwork가 ParadeCar2, 3…을 순서대로 돌려 쓴다(행렬에 다양성).
+                // yawFix: 3/4뷰 이미지→3D라 정면이 +z가 아닌 모델 교정(카2 백조가 옆으로 감. 반대로 돌면 부호만 뒤집어라).
+                foreach (var (v, yawFix) in new[] { (2, 90f), (3, 0f), (4, 0f) })   // VARCO 정면 축이 모델마다 달라 개별 실측값 — 돌아가 보이면 해당 숫자에 ±90
+                {
+                    var vm = LoadModel($"롯데_퍼레이드카{v}");
+                    if (vm == null) continue;
+                    var vfit = BuildFitPrefab(vm, $"Assets/Resources/LotteWorld/ParadeCar{v}.prefab",
+                        new Vector3(2.0f, 2.6f, 3.2f), minCornerPivot: false, groundPivot: true, uniform: true, yawFix: yawFix);
+                    if (vfit != null) { applied++; Debug.Log($"[롯데모델] 퍼레이드 카 변형 {v} 적용(yaw {yawFix}°)"); }
+                }
             }
 
             // ③ 배경 소품 — _Fit만 만들어두면 맵 생성 툴이 그레이박스 대신 쓴다
-            foreach (var (name, size) in BackgroundProps())
+            foreach (var (name, size, uniform) in BackgroundProps())
             {
                 var model = LoadModel(name);
                 if (model == null) { skipped++; continue; }
-                if (BuildFitPrefab(model, $"{kDir}/{name}_Fit.prefab", size, minCornerPivot: false, groundPivot: true) != null)
+                if (BuildFitPrefab(model, $"{kDir}/{name}_Fit.prefab", size, minCornerPivot: false, groundPivot: true, uniform: uniform) != null)
                     applied++;
             }
 
-            // ④ 지형 텍스처(Models 폴더에 png가 있으면)
-            ApplyTexture("텍스처_잔디섬", "Assets/Map/Materials/Mat_LotteIsland.mat", new Vector2(6f, 5f));
-            ApplyTexture("텍스처_광장바닥", "Assets/Map/Materials/Mat_LottePlaza.mat", new Vector2(6f, 3f));
-            ApplyTexture("텍스처_퍼레이드길", "Assets/Map/Materials/Mat_LotteParade.mat", new Vector2(10f, 1f));
+            // ④ [08/31·4차] AI 타일 텍스처 전면 롤백 — "바닥 텍스처 구리다, 기존이 낫다"(사용자 확정).
+            //  민무늬 원색으로 강제 복원(멱등). Models/텍스처_*.png는 남아 있어도 더 이상 쓰지 않는다.
+            ResetMat("Mat_LotteIsland",   null);                                  // 섬 잔디(원색 유지, 텍스처만 제거)
+            ResetMat("Mat_LottePlaza",    new Color(0.86f, 0.83f, 0.80f));
+            ResetMat("Mat_LotteParade",   new Color(0.93f, 0.90f, 0.84f));   // 아이보리(6차)
+            ResetMat("Mat_LotteShore",    new Color(0.55f, 0.72f, 0.42f));
+            ResetMat("Mat_LotteBoardwalk",     new Color(0.58f, 0.42f, 0.27f));
+            ResetMat("Mat_LotteBoardwalkDark", new Color(0.50f, 0.36f, 0.23f));
+            ResetMat("Mat_LotteRevetment",     new Color(0.62f, 0.62f, 0.64f));
+            // [08/31·5차] 벽돌 포석 부활(광장) + [6차] 성벽·둑길·퍼레이드길 전용 타일(전부 VARCO, 파일 없으면 민무늬 유지)
+            ApplyTexture("텍스처_광장바닥",   "Assets/Map/Materials/Mat_LottePlaza.mat", new Vector2(6f, 3f));
+            ApplyTexture("텍스처_성벽",       "Assets/Map/Materials/Mat_LotteWall.mat", new Vector2(3f, 1f));
+            ApplyTexture("텍스처_둑길포석",   "Assets/Map/Materials/Mat_LotteCauseway.mat", new Vector2(2f, 8f));
+            ApplyTexture("텍스처_퍼레이드길", "Assets/Map/Materials/Mat_LotteParade.mat", new Vector2(6f, 1f));
 
             AssetDatabase.SaveAssets();
             Debug.Log($"[롯데모델] 완료 ✔ 적용 {applied}건 / 건너뜀 {skipped}건 (GLB 없음 등)\n" +
                       $"배경 소품을 적용했다면 Tools ▸ Map ▸ ★ 롯데월드 맵 생성 을 다시 실행해 배경에 반영하세요.");
         }
 
-        /// <summary>맵 생성 툴이 참조하는 배경 소품 정의: (이름, 목표 크기).</summary>
-        public static (string name, Vector3 size)[] BackgroundProps() => new[]
+        /// <summary>맵 생성 툴이 참조하는 배경 소품 정의: (이름, 목표 크기, 비율 유지 여부).
+        /// uniform=true면 가장 긴 축만 목표에 맞추고 나머지는 비율 그대로 — 나무·카 같은 유기물이 납작해지지 않는다(DDP와 동일 규칙).
+        /// 건축물·링·지형은 배치 치수가 우선이라 축별 채움(false) 유지.</summary>
+        public static (string name, Vector3 size, bool uniform)[] BackgroundProps() => new[]
         {
-            ("롯데_롯데월드타워", new Vector3(9f, 33f, 9f)),    // 북동 원경 랜드마크
-            ("롯데_자이로드롭",   new Vector3(5f, 11f, 5f)),    // 섬 동쪽(구형 통짜 — 기둥/원반 분리형이 있으면 그쪽 우선)
-            ("롯데_자이로기둥",   new Vector3(3.6f, 14f, 3.6f)),    // 자이로드롭 기둥(원반과 분리 — 원반이 승강)
-            ("롯데_자이로원반",   new Vector3(4.8f, 1.5f, 4.8f)),   // 자이로드롭 원반(노랑 곤돌라 링)
-            ("롯데_회전목마",     new Vector3(8f, 5f, 8f)),     // 섬 서쪽
-            ("롯데_대관람차",     new Vector3(14f, 15f, 4f)),   // 섬 북서쪽(회전목마 옆)
-            ("롯데_풍선",         new Vector3(2.4f, 3.4f, 2.4f)),   // 호수 상공 열기구(장식)
-            ("롯데_섬지형",       new Vector3(32f, 3f, 22f)),   // 매직아일랜드 지형(잔디 상판+석재 호안) — 윗면 평평, 박스는 투명 충돌체로
-            ("롯데_나무",         new Vector3(2.4f, 3.2f, 2.4f)),   // 정원수(섬·광장 곳곳)
-            ("롯데_다리",         new Vector3(12.5f, 2.2f, 6.2f)),  // 입구 다리(장축 x로 뽑아 90° 돌려 남북 배치, 12칸 스팬)
-            ("롯데_가로등",       new Vector3(0.45f, 1.7f, 0.45f)), // 다리 난간 가로등(사진의 검정 주철 램프)
-            ("롯데_다리탑",       new Vector3(1.7f, 5f, 1.7f)),     // 다리 중간 쌍둥이 성탑(파랑 고깔 지붕)
-            ("롯데_모노레일",     new Vector3(37f, 4.2f, 27f)),     // 섬을 한 바퀴 두르는 링 궤도(하늘색 빔 + 흰 기둥)
-            ("롯데_모노레일열차", new Vector3(3.2f, 1.4f, 1.3f)),   // 궤도 위를 도는 열차(장축 x)
-            ("롯데_어드벤처돔",   new Vector3(26f, 12f, 12f)),      // 북쪽 원경 — 어드벤처 본관(유리 돔)
-            ("롯데_돔요새",       new Vector3(12f, 10f, 12f)),      // 동쪽 원경 — 청록 돔 석조 요새
-            ("롯데_벚나무",       new Vector3(3.2f, 3.6f, 3.2f)),   // 호안 벚꽃(석촌호수 봄)
-            ("롯데_원경아파트",   new Vector3(14f, 22f, 9f)),       // 원경 아파트 단지
-            ("롯데_원경빌딩",     new Vector3(9f, 24f, 9f)),        // 원경 적갈색 타워
+            ("롯데_롯데월드타워", new Vector3(9f, 33f, 9f), false),    // 북동 원경 랜드마크
+            ("롯데_자이로드롭",   new Vector3(5f, 11f, 5f), false),    // 섬 동쪽(구형 통짜 — 기둥/원반 분리형이 있으면 그쪽 우선)
+            ("롯데_자이로기둥",   new Vector3(3.6f, 14f, 3.6f), false),    // 자이로드롭 기둥(원반과 분리 — 원반이 승강)
+            ("롯데_자이로원반",   new Vector3(4.8f, 1.5f, 4.8f), false),   // 자이로드롭 원반(노랑 곤돌라 링)
+            ("롯데_회전목마",     new Vector3(8f, 5f, 8f), false),     // 섬 서쪽
+            ("롯데_대관람차",     new Vector3(14f, 15f, 4f), false),   // 섬 북서쪽(회전목마 옆)
+            ("롯데_풍선",         new Vector3(2.4f, 3.4f, 2.4f), true),    // 호수 상공 열기구(장식)
+            ("롯데_섬지형",       new Vector3(32f, 3f, 22f), false),   // 매직아일랜드 지형(잔디 상판+석재 호안) — 윗면 평평, 박스는 투명 충돌체로
+            ("롯데_나무",         new Vector3(2.4f, 3.2f, 2.4f), true),    // 정원수(섬·광장 곳곳)
+            ("롯데_다리",         new Vector3(12.5f, 2.2f, 6.2f), false),  // 입구 다리(장축 x로 뽑아 90° 돌려 남북 배치, 12칸 스팬)
+            ("롯데_가로등",       new Vector3(0.45f, 1.7f, 0.45f), true),  // 다리 난간 가로등(사진의 검정 주철 램프)
+            ("롯데_다리탑",       new Vector3(1.7f, 5f, 1.7f), true),      // 다리 중간 쌍둥이 성탑(파랑 고깔 지붕)
+            // (롯데_모노레일 통짜 링 폐기 — 기둥 마커 방식으로 대체. _Fit이 남아 있어도 맵 생성 툴이 더 이상 안 쓴다)
+            ("롯데_모노기둥",     new Vector3(0.9f, 6f, 0.9f), false),     // 마커 기둥 — 높이 = 빔 중심(kBeamY)과 동기(레일 상향 시 같이)
+            ("롯데_모노레일열차", new Vector3(3.2f, 1.4f, 1.3f), false),   // 궤도 위를 도는 열차(장축 x)
+            ("롯데_어드벤처돔",   new Vector3(26f, 12f, 12f), false),      // 북쪽 원경 — 어드벤처 본관(유리 돔)
+            ("롯데_돔요새",       new Vector3(12f, 10f, 12f), false),      // 동쪽 원경 — 청록 돔 석조 요새
+            ("롯데_벚나무",       new Vector3(3.2f, 3.6f, 3.2f), true),    // 호안 벚꽃(석촌호수 봄)
+            ("롯데_벚나무2",      new Vector3(3.4f, 3.8f, 3.4f), true),    // 벚나무 변형(둘레길 2열이 빽빽해져 반복 티 방지용)
+            ("롯데_덤불",         new Vector3(1.8f, 1.1f, 1.8f), true),    // 물가 잔디 띠(데크 안쪽) 꽃덤불
+            ("롯데_분수대",       new Vector3(5f, 3.5f, 5f), true),        // 호수 분수(다리 좌우 수면 위)
+            ("롯데_스낵바",       new Vector3(3.5f, 3f, 3.5f), true),      // 광장 스낵 키오스크
+            ("롯데_풍선노점",     new Vector3(2.2f, 3.2f, 2.2f), true),    // 풍선 수레(섬 동측)
+            ("롯데_마스코트석상", new Vector3(3.2f, 7f, 3.2f), true),      // 마스코트 지구본 모뉴먼트(남쪽 반도 입구 로터리)
+            ("롯데_백조보트",     new Vector3(2.4f, 2.4f, 3.2f), true),    // 호수 백조 보트
+            ("롯데_원경아파트",   new Vector3(14f, 22f, 9f), false),       // 원경 아파트 단지
+            ("롯데_원경빌딩",     new Vector3(9f, 24f, 9f), false),        // 원경 적갈색 타워
         };
 
-        // 타일 텍스처를 머티리얼에 입힌다(색은 흰색으로 — 텍스처 원색 유지). 파일 없으면 조용히 통과.
-        private static void ApplyTexture(string texName, string matPath, Vector2 tiling)
+        /// <summary>머티리얼을 민무늬 원색으로 되돌린다(텍스처 제거 + 색 복원). color가 null이면 색은 그대로 둔다.</summary>
+        private static void ResetMat(string matName, Color? color)
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>($"Assets/Map/Materials/{matName}.mat");
+            if (mat == null) return;
+            mat.SetTexture("_BaseMap", null);
+            if (color.HasValue) mat.SetColor("_BaseColor", color.Value);
+            EditorUtility.SetDirty(mat);
+        }
+
+        // 타일 텍스처를 머티리얼에 입힌다(기본: 색은 흰색으로 — 텍스처 원색 유지. keepColor면 기존 틴트 유지). 파일 없으면 조용히 통과.
+        private static void ApplyTexture(string texName, string matPath, Vector2 tiling, bool keepColor = false)
         {
             Texture2D tex = null;
             foreach (var ext in new[] { "png", "jpg" })
@@ -157,7 +197,7 @@ namespace GridSystem.EditorTools
             if (tex == null || mat == null) return;
             mat.SetTexture("_BaseMap", tex);
             mat.SetTextureScale("_BaseMap", tiling);
-            mat.SetColor("_BaseColor", Color.white);
+            if (!keepColor) mat.SetColor("_BaseColor", Color.white);
             EditorUtility.SetDirty(mat);
             Debug.Log($"[롯데모델] 텍스처 적용: {texName} → {Path.GetFileName(matPath)}");
         }
@@ -253,10 +293,11 @@ namespace GridSystem.EditorTools
         // extraOffset: 피벗 정렬이 끝난 뒤 더할 오프셋 — 밑동을 칸 아래로 내리는 skirt에 쓴다.
         private static GameObject BuildFitPrefab(GameObject model, string prefabPath, Vector3 targetSize,
                                                  bool minCornerPivot, bool groundPivot = false, Vector3 cellSize = default,
-                                                 Vector3 extraOffset = default)
+                                                 bool uniform = false, float yawFix = 0f, Vector3 extraOffset = default)
         {
             var root = new GameObject(Path.GetFileNameWithoutExtension(prefabPath));
             var inst = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
+            if (yawFix != 0f) inst.transform.localRotation = Quaternion.Euler(0f, yawFix, 0f);   // 정면 교정(바운즈 계산 전에)
 
             var rends = inst.GetComponentsInChildren<Renderer>();
             if (rends.Length == 0)
@@ -273,8 +314,11 @@ namespace GridSystem.EditorTools
                 return null;
             }
 
-            // 축별 스케일로 목표 상자에 꽉 채움(파츠 실루엣이 칸을 채우는 게 우선)
-            var s = new Vector3(targetSize.x / b.size.x, targetSize.y / b.size.y, targetSize.z / b.size.z);
+            // 파츠는 축별 스케일로 칸을 꽉 채우고(실루엣 우선), 유기물 소품(uniform)은 비율 유지 —
+            // 축별로 누르면 나무가 납작해지고 카가 삐뚤어진다(DDP 이간수문에서 배운 교훈).
+            var s = uniform
+                ? Vector3.one * Mathf.Min(targetSize.x / b.size.x, Mathf.Min(targetSize.y / b.size.y, targetSize.z / b.size.z))
+                : new Vector3(targetSize.x / b.size.x, targetSize.y / b.size.y, targetSize.z / b.size.z);
             inst.transform.localScale = Vector3.Scale(inst.transform.localScale, s);
 
             // 스케일 반영된 바운즈로 피벗 정렬

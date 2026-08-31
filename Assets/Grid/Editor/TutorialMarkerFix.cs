@@ -9,7 +9,7 @@ namespace GridSystem.EditorTools
         [MenuItem("Tools/Map/튜토리얼 Spot_PaintStation 보강")]
         public static void Run()
         {
-            const string path = "Assets/Map/Prefabs/MapBg_Tutorial.prefab";
+            const string path = "Assets/Resources/MapPrefabs/MapBg_Tutorial.prefab";
             var root = PrefabUtility.LoadPrefabContents(path);
             try
             {

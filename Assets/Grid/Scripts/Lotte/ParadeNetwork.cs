@@ -13,8 +13,12 @@ namespace GridSystem
         /// <summary>퍼레이드 경로 웨이포인트 접두사 — Spot_ParadePoint0, 1, 2… 순서대로 폴리라인.</summary>
         public const string ParadePointPrefix = "Spot_ParadePoint";
 
+        /// <summary>모노레일 기둥 마커 접두사 — 맵 생성 툴이 이 위치에 기둥·빔을 짓고, 재생성 때 사용자 조정을 유지한다.</summary>
+        public const string MonoPillarPrefix = "Spot_MonoPillar";
+
         /// <summary>MapLoader가 씬 오브젝트 배치를 건너뛰어야 하는 마커인가(전체 이름 "Spot_..." 기준).</summary>
-        public static bool IsMarkerOnly(string fullName) => fullName.StartsWith(ParadePointPrefix);
+        public static bool IsMarkerOnly(string fullName) =>
+            fullName.StartsWith(ParadePointPrefix) || fullName.StartsWith(MonoPillarPrefix);
     }
 
     /// <summary>
@@ -195,6 +199,8 @@ namespace GridSystem
         // ── 플레이어 밀림 + 스턴(오너 로컬에서 폴링 — GustNetwork.CurrentPushAt과 동일 계약) ──
         private bool m_LocalWasHit;    // 로컬 플레이어가 카에 접촉 중(벗어나는 순간 스턴)
         private float m_PendingStun;   // 접촉 종료 시 걸어야 할 스턴(초) — PlayerUnit이 Consume해서 적용
+        private float m_ImmuneUntil;   // 치인 직후 무적 만료 시각 — 행렬에 연쇄로 갈려 못 빠져나오는 문제 방지
+        private const float kHitImmuneSeconds = 2f;
 
         /// <summary>지금 이 위치의 플레이어가 받아야 할 수평 밀림 속도(m/s). 퍼레이드 밖이면 zero.</summary>
         public static Vector3 CurrentPushAt(Transform player)
@@ -221,6 +227,11 @@ namespace GridSystem
                 m_LocalWasHit = false;
                 return Vector3.zero;
             }
+            if (Time.time < m_ImmuneUntil)   // 무적 중 — 다음 카가 연달아 밀지 않는다
+            {
+                m_LocalWasHit = false;
+                return Vector3.zero;
+            }
 
             for (int i = 0; i < m_Config.CarCount; i++)
             {
@@ -242,6 +253,7 @@ namespace GridSystem
             {
                 m_LocalWasHit = false;
                 m_PendingStun = m_Config.HitStunSeconds;
+                m_ImmuneUntil = Time.time + kHitImmuneSeconds;   // 한 번 치였으면 2초 무적 — "영원히 치임" 방지
             }
             return Vector3.zero;
         }
@@ -337,14 +349,28 @@ namespace GridSystem
             }
         }
 
-        // 퍼레이드 카 1대 — Resources/LotteWorld/ParadeCar 프리팹(VARCO 모델 자리)이 있으면 그걸,
-        // 없으면 알록달록 그레이박스(몸체+2층+깃대). 콜라이더 없음 — 충돌은 CurrentPushAt이 거리로 판정.
+        // 퍼레이드 카 1대 — Resources/LotteWorld/ParadeCar(+ParadeCar2, 3…) 프리팹(VARCO 모델 자리)이 있으면
+        // 변형을 순서대로 돌려 쓰고, 없으면 알록달록 그레이박스(몸체+2층+깃대). 콜라이더 없음 — 충돌은 CurrentPushAt이 거리로 판정.
+        private static GameObject[] s_CarPrefabs;
+
         private GameObject BuildCar(int index)
         {
-            var prefab = Resources.Load<GameObject>("LotteWorld/ParadeCar");
-            if (prefab != null)
+            if (s_CarPrefabs == null)
             {
-                var inst = Instantiate(prefab);
+                var found = new List<GameObject>();
+                var first = Resources.Load<GameObject>("LotteWorld/ParadeCar");
+                if (first != null) found.Add(first);
+                for (int v = 2; ; v++)
+                {
+                    var p = Resources.Load<GameObject>($"LotteWorld/ParadeCar{v}");
+                    if (p == null) break;
+                    found.Add(p);
+                }
+                s_CarPrefabs = found.ToArray();
+            }
+            if (s_CarPrefabs.Length > 0)
+            {
+                var inst = Instantiate(s_CarPrefabs[index % s_CarPrefabs.Length]);
                 inst.name = $"~ParadeCar{index}";
                 foreach (var c in inst.GetComponentsInChildren<Collider>()) Destroy(c);
                 inst.SetActive(false);
