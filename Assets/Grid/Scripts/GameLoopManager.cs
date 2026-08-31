@@ -231,17 +231,23 @@ namespace GridSystem
         /// <summary>페이즈 변경 통지(전 클라 로컬 호출) — 맵 기믹·HUD 등이 폴링 없이 반응할 수 있게.</summary>
         public static event System.Action<GamePhase> PhaseChanged;
 
+        /// <summary>로비로 복귀한 뒤 늦게 도착한 콜백이 로비 BGM을 게임 BGM으로 덮는 것을 막는 가드.
+        /// 씬 전환은 전부 Single 모드라 활성 씬 이름만 보면 충분하다.</summary>
+        private static bool InGameScene => SceneManager.GetActiveScene().name == SceneNames.GameScene;
+
         private void OnPhaseChanged(int _, int next)
         {
             PhaseChanged?.Invoke((GamePhase)next);
             if ((GamePhase)next == GamePhase.Building)
             {
                 m_UrgentBgmStarted = false;
-                GridSoundBridge.SetPhaseForMap("Building", m_MapIndex.Value);
+                if (InGameScene)
+                    GridSoundBridge.SetPhaseForMap("Building", m_MapIndex.Value);
             }
             else if ((GamePhase)next == GamePhase.Finished)
             {
-                GridSoundBridge.SetPhaseForMap("Result", m_MapIndex.Value);
+                if (InGameScene)
+                    GridSoundBridge.SetPhaseForMap("Result", m_MapIndex.Value);
                 GridSoundBridge.PlaySFX("GameOver");
             }
         }
@@ -306,7 +312,7 @@ namespace GridSystem
             if (!GameplayInputBlocker.Blocked && kb != null && kb.enterKey.wasPressedThisFrame)
                 ToggleConsentRpc();
 
-            if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f)
+            if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f && InGameScene)
             {
                 m_UrgentBgmStarted = true;
                 GridSoundBridge.SetPhaseForMap("BuildingUrgent", m_MapIndex.Value);

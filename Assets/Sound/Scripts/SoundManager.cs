@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
 using DG.Tweening;
 
 /// <summary>
@@ -65,7 +66,26 @@ public class SoundManager : Singleton<SoundManager>
 #endif
         BuildMaps();
         BuildAudioSources();
+        SceneManager.sceneLoaded += OnSceneLoaded;
         // 볼륨 적용은 Start(한 프레임 뒤)로 — AudioMixer.SetFloat는 Awake 프레임엔 안 먹는 Unity 버그.
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    /// <summary>
+    /// 로비 계열 씬에 들어오면 BGM을 무조건 Lobby로 되돌린다.
+    /// 특정 씬의 Start() 한 곳에만 걸어두면, 게임에서 늦게 도착한 SetPhase(BuildingUrgent 등)가
+    /// 그 뒤에 덮어써서 로비인데 긴박 BGM이 계속 도는 경우가 생긴다 — 씬 로드 자체를 기준으로 삼아
+    /// '방으로 돌아가기'·'로비로 나가기'·강제 복귀 등 모든 경로를 한 곳에서 커버한다.
+    /// </summary>
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (Instance != this) return;
+        if (scene.name == SceneNames.Lobby || scene.name == SceneNames.BootstrapScene)
+            SetPhase(GamePhase.Lobby);
     }
 
     // AudioMixer는 Awake/첫 프레임엔 SetFloat가 적용되지 않는다(Unity 버그) → 한 프레임 뒤 저장 볼륨 적용.

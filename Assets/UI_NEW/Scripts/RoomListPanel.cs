@@ -37,6 +37,7 @@ namespace SeoulZikimi.UI.New
         public event Action<UiNewSessionRoom> RoomJoinRequested;
 
         private Text emptyLabel;   // 조건에 맞는 방 0개 안내(카드 영역 가운데 · 런타임 생성)
+        private UiLoadingSpinner joinSpinner;   // 방 입장 요청 중 카드 위에 표시
 
         private void Awake()
         {
@@ -111,8 +112,30 @@ namespace SeoulZikimi.UI.New
         {
             if (index < 0 || index >= visibleRooms.Count)
                 return;
-            RoomJoinRequested?.Invoke(visibleRooms[index]);
+
+            UiNewSessionRoom room = visibleRooms[index];
+            // 비밀방은 비밀번호 팝업이 먼저 떠서 대기 없음 — 즉시 입장 시도하는 공개방만 스피너.
+            // 위치는 누른 방 카드의 정가운데.
+            if (!room.HasPassword && joinSpinner == null && roomCards[index]?.Button != null)
+            {
+                var card = (RectTransform)roomCards[index].Button.transform;
+                joinSpinner = UiLoadingSpinner.AttachBeside(card, Vector2.zero);
+            }
+
+            RoomJoinRequested?.Invoke(room);
         }
+
+        /// <summary>입장 실패 시 컨트롤러가 호출 — 카드 위 스피너 제거. 성공 시엔 패널 비활성(OnDisable)로 정리.</summary>
+        public void HideJoinSpinner()
+        {
+            if (joinSpinner != null)
+            {
+                joinSpinner.Detach();
+                joinSpinner = null;
+            }
+        }
+
+        private void OnDisable() => HideJoinSpinner();
 
         private void SelectFilter(RoomListFilter filter, bool notify = true)
         {

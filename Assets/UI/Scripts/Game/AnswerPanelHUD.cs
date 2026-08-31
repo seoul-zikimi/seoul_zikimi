@@ -56,6 +56,9 @@ public class AnswerPanelHUD : UIHUD
     }
     private readonly Dictionary<int, Card> m_Cards = new();
     private int m_SelectedId = -1;
+    private const float kDoubleClickSec = 0.3f;   // 이 안에 같은 재료를 다시 클릭 = 즉시 주문
+    private int m_LastClickId = -1;
+    private float m_LastClickTime;
     private Action<int> m_OnOrder;
     private bool m_MobileLayout;        // 가로(랜드스케이프) 레이아웃 사용 중 — 모바일 기기 또는 확대 보기
     private bool m_IsMobileDevice;      // 모바일 포팅 여부(항상 가로)
@@ -128,7 +131,7 @@ public class AnswerPanelHUD : UIHUD
         m_SelName = m_SelSub = m_CompletionText = null;
         m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
         m_ShownPct = -1;   // 텍스트를 새로 지었으니 다음 SetCompletion이 반드시 다시 채우게
-        m_Cards.Clear(); m_SelectedId = -1; ChromeHovered = false;
+        m_Cards.Clear(); m_SelectedId = -1; m_LastClickId = -1; ChromeHovered = false;
         foreach (var other in FindObjectsByType<AnswerPanelHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             if (other != this) Destroy(other.gameObject);   // 루트/캐시 꼬임으로 남은 중복 HUD 정리
 
@@ -607,7 +610,7 @@ public class AnswerPanelHUD : UIHUD
         frame.effectColor = kSelGreen; frame.effectDistance = new Vector2(3f, 3f); frame.enabled = false;
         var btn = card.AddComponent<Button>(); btn.targetGraphic = img;
         int id = e.Id;
-        btn.onClick.AddListener(() => Select(id));
+        btn.onClick.AddListener(() => SelectOrOrder(id));   // 탭 = 선택 · 더블탭 = 즉시 주문
 
         var th = NewRect("Thumb", card.transform, new Vector2(0, 1), new Vector2(0, 1),
             new Vector2(14f, -14f), new Vector2(122f, 122f));
@@ -651,7 +654,7 @@ public class AnswerPanelHUD : UIHUD
         var btn = img.gameObject.AddComponent<Button>(); btn.targetGraphic = img;
         btn.transition = Selectable.Transition.None;
         int id = e.Id;
-        btn.onClick.AddListener(() => Select(id));   // 카드 클릭 = 선택(주문은 [주문!] 버튼)
+        btn.onClick.AddListener(() => SelectOrOrder(id));   // 카드 클릭 = 선택 · 더블클릭 = 즉시 주문
         JuicyButton.Attach(btn);
 
         var th = NewRect("Thumb", img.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
@@ -680,6 +683,21 @@ public class AnswerPanelHUD : UIHUD
     }
 
     // ── 선택 (카드 클릭 / 3D 뷰 클릭 → 드라이버 경유) ─────────────────
+    /// <summary>
+    /// 클릭 = 선택, 같은 재료를 kDoubleClickSec 안에 다시 클릭 = [주문!]을 거치지 않고 즉시 주문.
+    /// 카드(PC·모바일)와 정답 3D 뷰 클릭이 모두 이 경로를 타므로 어디서 더블클릭하든 동작이 같다.
+    /// </summary>
+    public void SelectOrOrder(int id)
+    {
+        if (!m_Cards.TryGetValue(id, out var c)) return;
+        float now = Time.unscaledTime;
+        bool again = id == m_LastClickId && now - m_LastClickTime <= kDoubleClickSec;
+        m_LastClickId = again ? -1 : id;   // 3연타가 곧바로 두 번째 주문이 되지 않게 초기화
+        m_LastClickTime = now;
+        Select(id);
+        if (again && c.Remaining != 0) m_OnOrder?.Invoke(id);   // 품절이면 선택만
+    }
+
     public void Select(int id)
     {
         if (!m_Cards.TryGetValue(id, out var c)) return;
@@ -697,6 +715,7 @@ public class AnswerPanelHUD : UIHUD
 
     public void ClearSelection()
     {
+        m_LastClickId = -1;   // 해제 뒤 첫 클릭이 더블클릭으로 잡히지 않게
         if (m_SelectedId < 0) return;
         DeselectCardVisual();
         m_SelectedId = -1;

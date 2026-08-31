@@ -17,6 +17,12 @@ namespace GridSystem.EditorTools
         private const string kDir = "Assets/Prefabs/Map/3_LotteWorld";
         private const string kModelDir = kDir + "/Models";
 
+        // _Fit 래핑 '규격'이 바뀌면 이미 구워둔 _Fit은 옛 규격 그대로다(파일은 멀쩡히 있으니
+        // HasUnappliedModels가 못 잡는다). 규격을 고칠 때 이 번호를 올리면 각 에디터에서 딱 한 번 다시 굽는다.
+        //   2 = 중앙첨탑 밑동 0.5칸 연장 + 깃발 깃대 축을 칸 중심에 정렬 (QA: 롯데월드 에셋 크기/위치조정)
+        private const int kFitSpecVersion = 2;
+        private const string kFitSpecKey = "LotteWorld.FitSpecVersion";
+
         static LotteWorldAutoSetup()
         {
             EditorApplication.delayCall += () =>
@@ -30,11 +36,15 @@ namespace GridSystem.EditorTools
                     LotteWorldMapTool.Generate();
                 }
 
-                if (HasUnappliedModels())
+                bool specStale = EditorPrefs.GetInt(kFitSpecKey, 0) < kFitSpecVersion;
+                if (HasUnappliedModels() || specStale)
                 {
-                    Debug.Log("[롯데월드] 적용 안 된 VARCO 모델 발견 — 자동 적용 실행 (Tools ▸ Map ▸ ★ 롯데월드 VARCO 모델 적용)");
+                    Debug.Log(specStale
+                        ? "[롯데월드] _Fit 래핑 규격이 바뀜 — 파츠 다시 굽기 (Tools ▸ Map ▸ ★ 롯데월드 VARCO 모델 적용)"
+                        : "[롯데월드] 적용 안 된 VARCO 모델 발견 — 자동 적용 실행 (Tools ▸ Map ▸ ★ 롯데월드 VARCO 모델 적용)");
                     LotteModelApplyTool.Apply();
                     LotteWorldMapTool.Generate();   // 배경 소품 _Fit 반영(멱등 — 재실행 안전)
+                    EditorPrefs.SetInt(kFitSpecKey, kFitSpecVersion);
                 }
 
                 // 프리팹 규약(피벗 min-corner + footprint 크기) 어긋난 def가 있으면 공식 칸맞춤 실행
