@@ -60,6 +60,8 @@ namespace SeoulZikimi.UI.New
             if (joining || string.IsNullOrEmpty(room.SessionId))
                 return;
             joining = true;
+            if (room.HasPassword)
+                passwordPopup.BeginJoining();   // 비밀방: 팝업에도 대기 스피너(공개방은 카드 위 스피너)
             try
             {
                 await UiNewSessionService.EnsureReadyAsync();
