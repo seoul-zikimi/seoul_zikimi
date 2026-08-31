@@ -242,11 +242,45 @@ public class LobbyRoomNet : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void SendChatRpc(FixedString128Bytes message, RpcParams rpc = default)
     {
-        int slot = FindSlotByClient(rpc.Receive.SenderClientId);
+        ulong sender = rpc.Receive.SenderClientId;
+        int slot = FindSlotByClient(sender);
         if (slot < 0 || !m_Slots[slot].Occupied)
             return;
+        if (!AllowChatFrom(sender))
+            return;   // 도배 차단 — 방 전체로 중계하지 않는다
         FixedString32Bytes nickname = m_Slots[slot].Nickname;
         BroadcastChatRpc(nickname, message);
+    }
+
+    // ── 채팅 도배 방지(서버 최종 판정) ──
+    // 클라(LobbyPanel)에도 같은 규칙이 있지만 그쪽은 변조될 수 있으므로 서버가 한 번 더 막는다.
+    // 연속 ChatBurstLimit개까지 통과, 그 뒤엔 ChatCooldownSeconds 대기. 대기가 지나면 카운터 초기화.
+    private const int ChatBurstLimit = 3;
+    private const float ChatCooldownSeconds = 3f;
+
+    private struct ChatQuota
+    {
+        public int BurstCount;
+        public float LastSentAt;
+    }
+
+    // 슬롯 인덱스가 아니라 clientId로 기록한다. 슬롯은 비었다가 다른 사람이 앉을 수 있어
+    // 새로 들어온 플레이어가 앞사람의 쿨타임을 물려받는 문제를 피한다.
+    private readonly Dictionary<ulong, ChatQuota> m_ChatQuotas = new();
+
+    private bool AllowChatFrom(ulong clientId)
+    {
+        m_ChatQuotas.TryGetValue(clientId, out ChatQuota quota);
+        float now = Time.unscaledTime;
+        if (now - quota.LastSentAt >= ChatCooldownSeconds)
+            quota.BurstCount = 0;
+        else if (quota.BurstCount >= ChatBurstLimit)
+            return false;   // 막힌 전송은 LastSentAt을 갱신하지 않는다 — 마지막 '성공' 기준으로 3초를 센다
+
+        quota.BurstCount++;
+        quota.LastSentAt = now;
+        m_ChatQuotas[clientId] = quota;
+        return true;
     }
 
     [Rpc(SendTo.Everyone)]
@@ -287,6 +321,7 @@ public class LobbyRoomNet : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         m_ReadyClients.Clear();
+        m_ChatQuotas.Clear();
         m_IsLocallyReady = false;
 
         if (IsServer)
@@ -624,6 +659,7 @@ public class LobbyRoomNet : NetworkBehaviour
         {
             m_ReadyClients.Remove(clientId);
         }
+        m_ChatQuotas.Remove(clientId);   // 나간 클라의 도배 기록은 남기지 않는다
         ClearSlotForClient(clientId);   // 슬롯을 비워 구멍을 남긴다(재정렬 없음)
         CheckAllPlayersReady();
     }
