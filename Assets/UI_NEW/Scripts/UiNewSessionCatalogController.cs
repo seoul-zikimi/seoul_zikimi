@@ -64,6 +64,8 @@ namespace SeoulZikimi.UI.New
         {
             if (!int.TryParse(UiNewSessionService.ReadProperty(session, "MapIndex"), out int index))
                 return string.Empty;
+            // '랜덤' 방은 실제 맵이 정해지지 않았다 — Get()이 0번으로 폴백해 엉뚱한 맵 이름이 뜨는 걸 막는다.
+            if (index == GridSystem.MapCatalog.RandomMapIndex) return UiNewMapOptions.RandomLabel;
             GridSystem.MapCatalog catalog = GridSystem.MapCatalog.Instance;
             var definition = catalog != null ? catalog.Get(index) : null;
             return definition != null ? definition.DisplayName : string.Empty;

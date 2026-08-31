@@ -12,11 +12,33 @@ namespace GridSystem
     {
         [SerializeField] private List<MapDef> m_Maps = new();
 
+        /// <summary>맵 선택에서 "랜덤"을 뜻하는 센티널 인덱스(실제 맵이 아니다).
+        /// 로비/방 생성에서는 이 값이 그대로 돌아다니고, 실제 맵은 게임 시작 시 서버가
+        /// PickRandomPlayable()로 한 번 뽑아 확정한다(GameLoopManager.ResolvedHostMap).</summary>
+        public const int RandomMapIndex = -1;
+
         public IReadOnlyList<MapDef> Maps => m_Maps;
         public int Count => m_Maps.Count;
 
         public MapDef Get(int index) =>
             (index >= 0 && index < m_Maps.Count) ? m_Maps[index] : (m_Maps.Count > 0 ? m_Maps[0] : null);
+
+        /// <summary>플레이어가 직접 고를 수 있는 맵인지 — 2vs2 공터(대전 모드가 자동으로 씀)와
+        /// 튜토리얼(설정창의 "튜토리얼 다시보기" 전용)은 목록에서 뺀다.</summary>
+        public bool IsSelectable(int index)
+        {
+            var def = (index >= 0 && index < m_Maps.Count) ? m_Maps[index] : null;
+            return def != null && !def.IsVersusArena && !def.IsTutorial;
+        }
+
+        /// <summary>'랜덤' 선택 시 실제로 플레이할 맵을 뽑는다(공터·튜토리얼 제외). 후보가 없으면 0.</summary>
+        public int PickRandomPlayable()
+        {
+            var candidates = new List<int>();
+            for (int i = 0; i < m_Maps.Count; i++)
+                if (IsSelectable(i)) candidates.Add(i);
+            return candidates.Count > 0 ? candidates[Random.Range(0, candidates.Count)] : 0;
+        }
 
         /// <summary>2vs2 전용 공터(경기장) 맵. 없으면 null — 호출부는 기존 동작(선택 맵 배경 대칭 복제)으로 폴백.</summary>
         public MapDef FindVersusArena()

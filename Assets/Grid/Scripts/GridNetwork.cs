@@ -96,13 +96,15 @@ namespace GridSystem
         private Vector3Int ServerGridSize()
         {
             var catalog = MapCatalog.Instance;
+            // '랜덤' 선택이면 ResolvedHostMap이 실제 맵을 확정해 준다(GameLoopManager와 같은 값 보장).
+            int mapIndex = GameLoopManager.ResolvedHostMap;
             if (GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus && catalog != null)
             {
-                var size = catalog.VersusZoneGridSize(GameLoopManager.HostSelectedMap);
+                var size = catalog.VersusZoneGridSize(mapIndex);
                 if (size != default) return size;
             }
 
-            var def = catalog != null ? catalog.Get(GameLoopManager.HostSelectedMap) : null;
+            var def = catalog != null ? catalog.Get(mapIndex) : null;
             return def != null && def.HasGridSize ? def.GridSize : m_Manager.GridSize;
         }
 
