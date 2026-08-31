@@ -124,8 +124,31 @@ namespace GridSystem
 
         /// <summary>현재 맵(MapCatalog 인덱스). 서버가 정하고 전 클라 동기화 — MapLoader가 이걸 보고 배경 스폰.</summary>
         public int MapIndex => m_MapIndex.Value;
-        /// <summary>로비에서 호스트가 고른 맵(게임 시작 전 세팅). 서버 스폰 시 m_MapIndex로 복제됨.</summary>
-        public static int HostSelectedMap = 0;
+        private static int s_HostSelectedMap = 0;
+        private static int s_RandomMapPick = -1;   // '랜덤'일 때 이번 판에 뽑힌 실제 맵(선택이 바뀌면 무효)
+
+        /// <summary>로비에서 호스트가 고른 맵(게임 시작 전 세팅). 서버 스폰 시 m_MapIndex로 복제됨.
+        /// MapCatalog.RandomMapIndex(-1)면 '랜덤' — 실제 맵은 ResolvedHostMap이 게임 씬에서 한 번만 뽑는다.</summary>
+        public static int HostSelectedMap
+        {
+            get => s_HostSelectedMap;
+            // 값을 다시 넣는 건 곧 "다음 판 세팅"(로비 복귀·맵 재선택)이므로 지난 판의 랜덤 확정값을 버린다.
+            // 이게 없으면 '랜덤'으로 계속 돌릴 때 첫 판에 뽑힌 맵이 그대로 굳는다.
+            set { s_HostSelectedMap = value; s_RandomMapPick = -1; }
+        }
+
+        /// <summary>서버가 이번 판에 실제로 쓸 맵 인덱스. '랜덤'이면 처음 물어볼 때 한 번 뽑고 그 판 내내 같은 값을 준다 —
+        /// GridNetwork(그리드 크기)와 GameLoopManager(배경 확정)의 스폰 순서가 보장되지 않아 둘이 같은 맵을 봐야 한다.</summary>
+        public static int ResolvedHostMap
+        {
+            get
+            {
+                if (s_HostSelectedMap != MapCatalog.RandomMapIndex) return s_HostSelectedMap;
+                if (s_RandomMapPick < 0)
+                    s_RandomMapPick = MapCatalog.Instance != null ? MapCatalog.Instance.PickRandomPlayable() : 0;
+                return s_RandomMapPick;
+            }
+        }
 
         /// <summary>방 생성 시 호스트가 고른 날씨 ON/OFF. 현재는 선택값만 보관하며(세션 프로퍼티에도 저장),
         /// 실제 인게임 날씨 적용은 날씨 시스템을 게임 루프에 연결하는 별도 작업에서 사용한다.</summary>
@@ -183,7 +206,7 @@ namespace GridSystem
         {
             m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
-            if (IsServer) m_MapIndex.Value = HostSelectedMap;   // 배경 맵 확정(전원 동기화)
+            if (IsServer) m_MapIndex.Value = ResolvedHostMap;   // 배경 맵 확정('랜덤'이면 여기서 실제 맵으로, 전원 동기화)
             if (IsServer) m_Mode.Value = Mathf.Clamp(HostSelectedMode, 0, 2);   // 모드 확정(전원 동기화)
             ApplyMapAnswers();                         // 맵 전용 정답 세트가 있으면 교체(서버 랜덤픽 전에!)
             m_Grid.ConfigureVersus(IsVersus);          // 2vs2: 그리드 X 2배 + 분할벽(전 피어, 블록 배치 전)

@@ -201,12 +201,21 @@ public class LobbyRoomNet : NetworkBehaviour
     }
 
     /// <summary>방장 전용: 맵 선택(카탈로그 인덱스, 순환). 클라가 부르면 무시.
-    /// 공터(2vs2 경기장)는 선택지가 아니므로 건너뛴다 — ◀▶로 순환 시 방향 유지.</summary>
+    /// 공터(2vs2 경기장)·튜토리얼은 선택지가 아니므로 건너뛴다 — ◀▶로 순환 시 방향 유지.
+    /// MapCatalog.RandomMapIndex('랜덤')는 실제 맵이 아니라 그대로 통과시킨다.</summary>
     public void HostSelectMap(int index)
     {
         if (!IsServer) return;
         int dir = index >= m_MapIndex.Value ? 1 : -1;
-        m_MapIndex.Value = SkipVersusArena(WrapMapIndex(index), dir);
+        m_MapIndex.Value = SkipUnselectable(WrapMapIndex(index), dir);
+    }
+
+    /// <summary>서버 전용: 선택지 필터를 거치지 않고 맵을 그대로 지정한다.
+    /// 튜토리얼처럼 목록에서 뺀 맵을 코드가 직접 지정해야 할 때만 쓴다(HostSelectMap은 그런 맵을 건너뛴다).</summary>
+    public void HostSetMapExact(int index)
+    {
+        if (!IsServer) return;
+        m_MapIndex.Value = index;
     }
 
     public void SelectLocalTeam(int team)
@@ -255,23 +264,25 @@ public class LobbyRoomNet : NetworkBehaviour
         ChatMessageReceived?.Invoke(nickname.ToString(), message.ToString());
     }
 
-    /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다.</summary>
+    /// <summary>카탈로그 개수 범위로 인덱스를 순환 보정한다. '랜덤' 센티널은 실제 맵이 아니므로 보정하지 않고 그대로 둔다.</summary>
     private static int WrapMapIndex(int index)
     {
+        if (index == GridSystem.MapCatalog.RandomMapIndex) return index;
         int n = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Count : 1;
         if (n <= 0) n = 1;
         return ((index % n) + n) % n;
     }
 
-    /// <summary>index가 공터(경기장) 맵이면 dir 방향으로 다음 일반 맵까지 넘긴다(전부 공터면 그대로).</summary>
-    private static int SkipVersusArena(int index, int dir)
+    /// <summary>index가 고를 수 없는 맵(공터·튜토리얼)이면 dir 방향으로 다음 일반 맵까지 넘긴다(전부 그렇다면 그대로).
+    /// '랜덤' 센티널은 언제나 유효한 선택이므로 그대로 통과.</summary>
+    private static int SkipUnselectable(int index, int dir)
     {
+        if (index == GridSystem.MapCatalog.RandomMapIndex) return index;
         var catalog = GridSystem.MapCatalog.Instance;
         if (catalog == null || catalog.Count == 0) return index;
         for (int step = 0; step < catalog.Count; step++)
         {
-            var def = catalog.Get(index);
-            if (def == null || !def.IsVersusArena) return index;
+            if (catalog.IsSelectable(index)) return index;
             index = WrapMapIndex(index + dir);
         }
         return index;

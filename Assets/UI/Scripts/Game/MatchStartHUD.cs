@@ -128,7 +128,8 @@ public sealed class MatchStartHUD : MonoBehaviour
             mode = (SeoulZikimi.Gameplay.GameModeKind)Mathf.Clamp(GameLoopManager.HostSelectedMode, 0, 2);
         }
 
-        var def = MapCatalog.Instance != null ? MapCatalog.Instance.Get(mapIndex) : null;
+        // 맵이 아직 '랜덤'(서버 미확정)이면 맵 전용 팁 없이 공통 팁만 뽑는다.
+        var def = (mapIndex >= 0 && MapCatalog.Instance != null) ? MapCatalog.Instance.Get(mapIndex) : null;
         return LoadingTips.Pick(def != null ? def.name : null, mode);
     }
 
