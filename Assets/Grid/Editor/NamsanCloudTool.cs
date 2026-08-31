@@ -12,7 +12,7 @@ namespace GridSystem.EditorTools
     /// </summary>
     public static class NamsanCloudTool
     {
-        private const string kBgPath = "Assets/Map/Prefabs/MapBg_NamsanTower.prefab";
+        private const string kBgPath = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab";
         private const string kMatPath = "Assets/Map/Materials/Mat_NamsanCloud.mat";
 
         [MenuItem("Tools/Map/★ 남산 구름 깔기")]

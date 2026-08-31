@@ -15,9 +15,9 @@ MonoBehaviour:
   ParadeMinInterval: 20
   ParadeMaxInterval: 32
   ParadeWarnSeconds: 3
-  CarCount: 3
+  CarCount: 5
   CarSpeed: 4
-  CarGapSeconds: 1.8
+  CarGapSeconds: 1
   CarHitRadius: 1.4
   HitPushSpeed: 7
   HitStunSeconds: 2

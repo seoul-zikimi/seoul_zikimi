@@ -15,7 +15,7 @@ using UnityEngine;
 /// </summary>
 public static class TutorialSpotMarkerFix
 {
-    private const string kPrefabPath = "Assets/Map/Prefabs/MapBg_Tutorial.prefab";
+    private const string kPrefabPath = "Assets/Resources/MapPrefabs/MapBg_Tutorial.prefab";
 
     // GameScene에 고정된 GridManager의 실제 위치(Assets/Scenes/GameScene.unity에서 직접 확인한 값).
     // 이 좌표를 기준으로 나머지 마커를 배치해야 그리드 원점(GridContract.Origin)과 어긋나지 않는다.

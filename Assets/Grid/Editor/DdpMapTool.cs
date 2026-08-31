@@ -15,9 +15,15 @@ namespace GridSystem.EditorTools
     ///     상층 '잔디지붕 데크'(y=0)  : 건축 그리드가 올라간다
     ///     하층 '어울림광장'(y=-4)    : 배송존·작업대·스폰
     ///     둘을 잇는 것은 곡면 나선램프(배송존 옆에서 시작해 물길 위를 다리로 감아 오른다)
-    /// · 기믹 2종(DdpGimmickConfig) + 마커:
+    /// · 기믹 1종(DdpGimmickConfig) + 마커:
     ///     Spot_WaterChannel0~3 (이간수문 물길, 서→동)
-    ///     Spot_DigSite0~3      (유구 발굴터 후보)
+    ///     (유구 발굴터·LED 장미 발판 기믹은 뺐다 — 08/31 기획 결정, 물길 하나로 충분)
+    /// · ★ 야경 컨셉 — 실제 DDP는 밤이 본체다(은색 패널 라이트업 + LED 장미 25,550송이가 밤 명물):
+    ///     MapNightAmbience(밤 하늘·안개·앰비언트·달빛 — 씬은 낮 그대로, 이 맵 로드 때만 오버라이드)
+    ///     가로등(광장·데크 둘레) + 불빛 웅덩이(가산 쿼드 — 진짜 라이트 예산 0)
+    ///     작업대·배송존·램프 입구엔 진짜 포인트 라이트(소수만 — 모바일 예산)
+    ///     데크 옹벽 LED 미디어 스트립 2줄(시안·마젠타), 나선램프 난간 조명
+    ///     NightBuildGlow — 지은 블록·LED 장미가 밤에 자체 발광(미디어 파사드)
     ///
     /// 몇 번을 다시 실행해도 같은 결과(기존 에셋 덮어쓰기). 협동 전용.
     /// </summary>
@@ -236,8 +242,8 @@ namespace GridSystem.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(def2);
 
-            // ⑦ 썸네일 + 맵 카탈로그
-            var thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
+            // ⑦ 썸네일 + 맵 카탈로그 — 썸네일도 밤으로 찍는다(로비 카드에서 야경 컨셉이 보여야 한다)
+            var thumb = CaptureNightThumbnail(prefab);
             if (thumb != null)
             {
                 so.Update();
@@ -253,7 +259,8 @@ namespace GridSystem.EditorTools
             Selection.activeObject = def2;
             Debug.Log($"[DDP] 완료 ✔ 로비에서 'DDP 동대문디자인플라자'를 고르세요.\n" +
                       $"파츠 def 8종(id 31~38) {kDir} — VARCO 모델 나오면 {{파츠이름}}_Fit.prefab만 두고 재실행\n" +
-                      $"정답 {cells.Count}칸(낮고 넓은 DDP 본관) · 기믹 2종(물길·발굴터) · 제한시간 {kTimeLimitSeconds / 60f:0.#}분");
+                      $"정답 {cells.Count}칸(낮고 넓은 DDP 본관) · 기믹 1종(이간수문 물길) · 제한시간 {kTimeLimitSeconds / 60f:0.#}분\n" +
+                      $"★ 야경 컨셉 — 밤 톤은 프리팹의 MapNightAmbience, 밤하늘은 {kNightSkyPath}, 블록 발광은 NightBuildGlow에서 조절");
         }
 
         // ── 파츠 def + 색큐브 프리팹(피벗 min-corner, 규약 준수) ──
@@ -359,14 +366,16 @@ namespace GridSystem.EditorTools
 
             // ── 나선 램프: 배송존 옆 광장(y=-4)에서 동쪽으로 감아 올라 물길 위를 지나 데크(y=0)로 ──
             // DDP는 '계단 없는 건물'이라 지붕(잔디언덕)까지 외부 경사로로 걸어 올라간다. 그 동선을 그대로.
-            BuildCurvedRamp(root, silver);
+            var lampGlow = EnsureEmissiveMaterial("Mat_DdpLampGlow", new Color(1.00f, 0.90f, 0.70f), new Color(1.00f, 0.82f, 0.45f) * 2.4f);
+            BuildCurvedRamp(root, silver, lampGlow);
 
             // ── LED 장미정원(광장 북쪽) — 한 송이씩 심는다 ──
-            BuildRoseGarden(root, stone, soil, rose);
+            var roseGroup = BuildRoseGarden(root, stone, soil, rose);
 
-            // 발굴터는 배경에 아무것도 두지 않는다 — 평소엔 '묻혀 있어야' 하니까.
-            // 런타임에 ExcavationNetwork가 Spot_DigSite* 중 한 곳에 표지 말뚝을 솟게 한다.
-            // (예전엔 유구터 흙구덩이 프롭 4개가 상시로 깔려 있어 광장이 어수선했다)
+            // ── ★ 야경 — 가로등·LED 스트립·포인트 라이트 + 밤 환경/발광 컴포넌트 ──
+            BuildNightScape(root, lampGlow, roseGroup);
+
+            // (유구 발굴터 연출·프롭은 기믹 제거(08/31)와 함께 완전히 뺐다)
 
             // ⚠ 원경(DDP_원경 실루엣)은 두지 않는다 — 완성된 DDP 원본이 공중에 떠 보이는 데다,
             // '지어야 할 정답'(인월드 고스트·완공 계획도)과 겹쳐 어느 쪽이 목표인지 헷갈렸다.
@@ -386,9 +395,9 @@ namespace GridSystem.EditorTools
             AddSpot(root, "Spot_WaterChannel2", new Vector3(12f, kPlazaY, -12f));
             AddSpot(root, "Spot_WaterChannel3", new Vector3(24f, kPlazaY, -12f));
 
-            // 유구 발굴터 후보(수로 양옆 — 물이 차면 잠긴다)
-            for (int i = 0; i < kDigSites.Length; i++)
-                AddSpot(root, $"Spot_DigSite{i}", kDigSites[i].pos);
+            // ⚠ Spot_DigSite* 는 더 이상 만들지 않는다 — '유구 발굴터' 기믹을 뺐다(08/31).
+            // 물길 하나로 충분하고, 발굴은 손이 많이 가는데 재미 대비 효과가 작았다.
+            // 마커가 없어도 ExcavationNetwork는 어차피 GameLoopManager가 부착을 끊어 잠잔다.
 
             // ⚠ Spot_RosePad* 는 더 이상 만들지 않는다 — 'LED 장미 발판' 기믹을 뺐다.
             // 광장 위에 분홍 원판이 둥둥 떠 있는 그림이 보기 싫고 동선에도 도움이 안 됐다.
@@ -401,11 +410,13 @@ namespace GridSystem.EditorTools
         // 실제 DDP 장미정원은 가느다란 줄기 위 LED 장미 25,550송이가 촘촘히 박힌 밭이다.
         // 예전엔 화단 프롭 4덩이를 띄엄띄엄 놨더니 조잡하고 밭처럼 안 보였다.
         // 밟는 발판(Spot_RosePad*)은 여기와 별개로 LedRoseNetwork가 런타임에 만든다.
-        private const float kRoseSpacing = 1.1f;                        // 송이 간격(m)
-        private const float kGardenX0 = -10.5f, kGardenX1 = 2.5f;       // 밭 범위(광장 북쪽, 램프·발판 동선을 피해서)
+        // 간격 1.1 → 0.85, 동쪽 끝 2.5 → 10.0 (48 → ~100송이) — "꽃 더" 요청.
+        // 동쪽 확장 한계는 나선램프 원호: 밭 동북 모서리 (10,-8.8)의 원호 중심(2,-4) 거리 9.3 < 내반경 11.2 → 램프 밑 아님.
+        private const float kRoseSpacing = 0.85f;                       // 송이 간격(m)
+        private const float kGardenX0 = -10.5f, kGardenX1 = 10.0f;      // 밭 범위(광장 북쪽, 램프 원호 안쪽까지)
         private const float kGardenZ0 = -8.8f,  kGardenZ1 = -4.8f;
 
-        private static void BuildRoseGarden(GameObject root, Material curbMat, Material soilMat, Material roseMat)
+        private static Transform BuildRoseGarden(GameObject root, Material curbMat, Material soilMat, Material roseMat)
         {
             float cx = (kGardenX0 + kGardenX1) * 0.5f, cz = (kGardenZ0 + kGardenZ1) * 0.5f;
             float w = kGardenX1 - kGardenX0, d = kGardenZ1 - kGardenZ0;
@@ -418,6 +429,10 @@ namespace GridSystem.EditorTools
             AddBox(root, "RoseCurb_E", new Vector3(kGardenX1, kPlazaY + 0.09f, cz), new Vector3(0.3f, 0.18f, d), curbMat).isStatic = true;
 
             var rosePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{kDir}/DDP_장미한송이_Fit.prefab");
+
+            // 송이들만 담는 그룹 — NightBuildGlow가 이 그룹만 발광시킨다(흙·연석은 빛나면 안 되니 루트에 남긴다).
+            var roses = new GameObject("~Roses");
+            roses.transform.SetParent(root.transform, false);
 
             // 시드 고정 — 흔들기가 있어도 몇 번을 재실행하든 같은 밭이 나온다(툴의 멱등성 유지).
             var prevRandom = Random.state;
@@ -435,14 +450,15 @@ namespace GridSystem.EditorTools
                 float pz = kGardenZ0 + 0.5f + iz * kRoseSpacing;
 
                 var p = new Vector3(px + Random.Range(-0.13f, 0.13f), kPlazaY + 0.06f, pz + Random.Range(-0.13f, 0.13f));
-                PlantRose(root, rosePrefab, roseMat, p, planted++);
+                PlantRose(roses, rosePrefab, roseMat, p, planted++);
             }
 
             Random.state = prevRandom;
             Debug.Log($"[DDP] LED 장미정원: {planted}송이 식재{(rosePrefab == null ? " (모델 없음 — 그레이박스 폴백)" : "")}");
+            return roses.transform;
         }
 
-        // 장미 한 송이. 콜라이더는 붙이지 않는다 — 밭을 지나갈 때 걸리면 안 되고, 48개나 되니 물리도 아깝다.
+        // 장미 한 송이. 콜라이더는 붙이지 않는다 — 밭을 지나갈 때 걸리면 안 되고, ~100개나 되니 물리도 아깝다.
         private static void PlantRose(GameObject root, GameObject prefab, Material roseMat, Vector3 pos, int index)
         {
             GameObject go;
@@ -478,16 +494,7 @@ namespace GridSystem.EditorTools
             go.isStatic = true;
         }
 
-        // 발굴터 후보 4곳 — 수로(z=-12) 양옆에 흩어놓는다. 물이 차면 전부 잠긴다.
-        // 장미밭(x -10.5~2.5, z -8.8~-4.8)·작업대·나선램프(중심 (2,-4), 반지름 11.2~16.8의
-        // 남동 사분원) 발자국과 겹치지 않게 배치했다 — 램프 밑에 말뚝이 솟으면 안 되니까.
-        private static readonly (string name, Vector3 pos)[] kDigSites =
-        {
-            ("A", new Vector3(-6f, kPlazaY + 0.05f, -21.5f)),   // 남서(광장 안쪽 깊이)
-            ("B", new Vector3(1f,  kPlazaY + 0.05f, -15.0f)),   // 남중 — 수로 바로 아래, 램프 입구 서쪽
-            ("C", new Vector3(20f, kPlazaY + 0.05f, -9.0f)),    // 북동 — 수로 하류 쪽, 램프 원호 바깥
-            ("D", new Vector3(-2f, kPlazaY + 0.05f, -15.0f)),   // 남중서
-        };
+        // (kDigSites — 발굴터 후보 좌표 — 는 기믹 제거(08/31)와 함께 삭제. 필요하면 git 히스토리에.)
 
         // 곡면 나선램프: 광장 y=-4 → 데크 y=0 을 원호로 잇는다(DDP다운 나선 동선).
         //
@@ -509,7 +516,7 @@ namespace GridSystem.EditorTools
         //     연속 경사면일 때 "평면적인 나선"으로 보이던 걸, 층이 지는 계단 실루엣으로.
         //   · 패널 사이 틈 ~0.27m + 단차 0.25m는 점프 없이 걸어서 자연히 넘는 크기
         //     (플레이어 캡슐 반지름·스텝 오프셋보다 작다).
-        private static void BuildCurvedRamp(GameObject root, Material mat)
+        private static void BuildCurvedRamp(GameObject root, Material mat, Material glowMat)
         {
             const int kSteps = 16;
             const float kCx = 2f, kCz = -4f, kRadius = 14f;
@@ -544,6 +551,487 @@ namespace GridSystem.EditorTools
                     rail.transform.localRotation = rot;
                     rail.isStatic = true;
                 }
+
+                // 난간 조명(야경) — 바깥 난간 위, 4단마다 하나. 물길 위 다리 구간이 밤에 점선으로 떠 보인다.
+                if (glowMat != null && i % 4 == 1)
+                {
+                    var orb = AddBox(root, $"RampLamp{i}",
+                                     pos + outward * (kWidth * 0.5f) + Vector3.up * (kThick * 0.5f + 0.9f),
+                                     new Vector3(0.22f, 0.22f, 0.22f), glowMat);
+                    orb.transform.localRotation = rot;
+                    Object.DestroyImmediate(orb.GetComponent<Collider>());   // 장식 — 걸리적거리면 안 됨
+                    orb.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    orb.isStatic = true;
+                }
+            }
+        }
+
+        // ───────────────────────────── ★ 야경 ─────────────────────────────
+        // 컨셉: 실제 DDP는 밤이 본체 — 은색 곡면이 조명으로 빛나고, LED 장미 25,550송이가 밤에만 핀다.
+        // 낮 그레이박스 위에 '조명 레이어'만 얹는 구조라, 이 함수와 컴포넌트 3개를 빼면 그대로 낮 맵이다.
+        //
+        // 라이트 예산(모바일): 진짜 포인트 라이트는 동선 요지 6개뿐.
+        // 나머지 가로등은 에미션 헤드 + 바닥 '불빛 웅덩이'(가산 쿼드)로 그린다 — 라이트 0개짜리 눈속임.
+        private static void BuildNightScape(GameObject root, Material lampGlow, Transform roseGroup)
+        {
+            var poleMat = EnsureMaterial("Mat_DdpLampPole", new Color(0.16f, 0.17f, 0.20f));
+            var poolMat = EnsureLampPoolMaterial();
+            var stripA  = EnsureEmissiveMaterial("Mat_DdpLedStripA", new Color(0.55f, 0.95f, 1.00f), new Color(0.25f, 0.85f, 1.00f) * 3.0f);
+            var stripB  = EnsureEmissiveMaterial("Mat_DdpLedStripB", new Color(1.00f, 0.55f, 0.85f), new Color(1.00f, 0.30f, 0.75f) * 3.0f);
+
+            // 수로 바닥도 은은히 — 이간수문 방류가 밤에 빛나는 물길로 보인다(실물 DDP 수변 조명 느낌).
+            var water = EnsureMaterial("Mat_DdpWater", new Color(0.28f, 0.60f, 0.85f));
+            if (water != null)
+            {
+                water.EnableKeyword("_EMISSION");
+                water.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                water.SetColor("_EmissionColor", new Color(0.04f, 0.14f, 0.26f));
+                EditorUtility.SetDirty(water);
+            }
+            // 폴백 장미(그레이박스 봉오리)도 에셋에서 발광 — 모델 있는 장미는 NightBuildGlow가 런타임에 켠다.
+            var rose = EnsureMaterial("Mat_DdpRose", new Color(0.92f, 0.38f, 0.62f));
+            if (rose != null)
+            {
+                rose.EnableKeyword("_EMISSION");
+                rose.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                rose.SetColor("_EmissionColor", new Color(1.00f, 0.30f, 0.60f) * 1.8f);
+                EditorUtility.SetDirty(rose);
+            }
+
+            // ── 가로등: 광장(y=-4) 5주 + 데크(y=0) 둘레 6주 ──
+            // 장미밭·수로·나선램프 원호(중심 (2,-4), r 11.2~16.8 남동 사분원)·작업대를 피해 배치.
+            var lamps = new GameObject("~StreetLamps");
+            lamps.transform.SetParent(root.transform, false);
+            var plazaLamps = new Vector3[]
+            {
+                new Vector3(-10.8f, kPlazaY, -23.5f),   // 남서 — 작업대 뒤
+                new Vector3(  7.0f, kPlazaY, -23.5f),   // 남중
+                new Vector3( 23.5f, kPlazaY, -23.5f),   // 남동
+                new Vector3( 23.5f, kPlazaY,  -6.5f),   // 북동 — 수로 하류 옆
+                new Vector3( 11.0f, kPlazaY,  -8.8f),   // 램프 원호 안마당(반경 10.2 < 11.2 — 원호 밑이 아님)
+            };
+            var deckLamps = new Vector3[]
+            {
+                new Vector3(-5.5f, kDeckY, -3f), new Vector3(5.5f, kDeckY, -3f), new Vector3(19f, kDeckY, -2.5f),
+                new Vector3(-5.5f, kDeckY, 19f), new Vector3(6.5f, kDeckY, 19.5f), new Vector3(19f, kDeckY, 19f),
+            };
+            int n = 0;
+            foreach (var p in plazaLamps) BuildStreetLamp(lamps, $"Lamp{n++}", p, poleMat, lampGlow, poolMat);
+            foreach (var p in deckLamps)  BuildStreetLamp(lamps, $"Lamp{n++}", p, poleMat, lampGlow, poolMat);
+
+            // ── 데크 옹벽 LED 미디어 스트립 — DDP 미디어 파사드의 상징. 옹벽 전면(z=-4.8)에 2줄 ──
+            // EmissionCycler가 런타임에 색을 순환시킨다(시안→보라→마젠타→파랑 물결).
+            var stripHigh = AddBox(root, "LedStripHigh", new Vector3(6.5f, kDeckY - 0.9f, -4.85f), new Vector3(26f, 0.14f, 0.06f), stripA);
+            var stripLow  = AddBox(root, "LedStripLow",  new Vector3(6.5f, kDeckY - 2.2f, -4.85f), new Vector3(26f, 0.14f, 0.06f), stripB);
+            stripHigh.isStatic = true; stripLow.isStatic = true;
+
+            // ── 수로 볼라드 조명 — 물길 양 둔치를 따라 낮은 발광 말뚝(방류 연출이 밤에 더 잘 읽힌다) ──
+            BuildBollards(lamps, poleMat, lampGlow);
+
+            // ── 전구 줄(스트링 라이트) — 가로등 사이를 잇는 축제 조명. 광장 남쪽 2스팬 + 데크 남쪽 2스팬 ──
+            var bulbMat = EnsureEmissiveMaterial("Mat_DdpBulb", new Color(1.00f, 0.93f, 0.75f), new Color(1.00f, 0.78f, 0.40f) * 2.6f);
+            BuildStringLights(lamps, bulbMat, plazaLamps[0], plazaLamps[1]);
+            BuildStringLights(lamps, bulbMat, plazaLamps[1], plazaLamps[2]);
+            BuildStringLights(lamps, bulbMat, deckLamps[0], deckLamps[1]);
+            BuildStringLights(lamps, bulbMat, deckLamps[1], deckLamps[2]);
+
+            // ── 나무 3그루 — 광장 빈 구석(수로·램프 원호를 피해서). VARCO 모델(DDP_나무) 있으면 교체 ──
+            var trunkMat = EnsureMaterial("Mat_DdpTrunk", new Color(0.36f, 0.27f, 0.20f));
+            var leafMat  = EnsureMaterial("Mat_DdpLeaf",  new Color(0.20f, 0.32f, 0.22f));
+            BuildTree(root, "Tree0", new Vector3(20f,    kPlazaY, -20f),   trunkMat, leafMat, 20f);
+            BuildTree(root, "Tree1", new Vector3(24f,    kPlazaY, -15f),   trunkMat, leafMat, 140f);
+            BuildTree(root, "Tree2", new Vector3(-11.3f, kPlazaY, -17.5f), trunkMat, leafMat, 260f);
+
+            // ── 꼬리 동(북서쪽) — 실물 DDP의 길게 흐르는 꼬리가 데크 북쪽 너머로 이어지는 배경 매스 ──
+            // 정답(z 2~12)과 안 겹치게 z≥14.4, 낮고 잔디지붕이라 '지을 목표'로는 안 읽힌다(원경 제거 사유 회피).
+            BuildTailWing(root);
+
+            // ── 진짜 포인트 라이트(8) — 플레이어·재료가 실제로 밝아야 하는 요지 + 본관 투광 2 ──
+            AddPointLight(lamps, "Light_Delivery",  new Vector3(-5f, kPlazaY + 2.2f, -17f),   new Color(1.00f, 0.85f, 0.60f), 9f, 1.2f);
+            AddPointLight(lamps, "Light_Paint",     new Vector3(-9f, kPlazaY + 2.2f, -20f),   new Color(1.00f, 0.85f, 0.60f), 8f, 1.1f);
+            AddPointLight(lamps, "Light_Hammer",    new Vector3(1f,  kPlazaY + 2.2f, -20f),   new Color(1.00f, 0.85f, 0.60f), 8f, 1.1f);
+            AddPointLight(lamps, "Light_RampEntry", new Vector3(2f,  kPlazaY + 2.2f, -16.5f), new Color(1.00f, 0.88f, 0.66f), 9f, 1.0f);
+            AddPointLight(lamps, "Light_RoseBed",   new Vector3(-4f, kPlazaY + 1.6f, -6.8f),  new Color(1.00f, 0.45f, 0.70f), 8f, 0.9f);
+            AddPointLight(lamps, "Light_Deck",      new Vector3(7f,  kDeckY + 5f,   7f),      new Color(0.75f, 0.83f, 1.00f), 17f, 0.75f);
+            // 본관 전면(z=4 입구 쪽) 투광 — 지어지는 건물이 실물처럼 라이트업된다
+            AddPointLight(lamps, "Light_FacadeW",   new Vector3(4f,  kDeckY + 2.5f, 2.5f),    new Color(0.80f, 0.87f, 1.00f), 9f, 1.1f);
+            AddPointLight(lamps, "Light_FacadeE",   new Vector3(11f, kDeckY + 2.5f, 2.5f),    new Color(0.80f, 0.87f, 1.00f), 9f, 1.1f);
+
+            // ── 밤 환경 + 발광 컴포넌트 ──
+            var night = root.AddComponent<MapNightAmbience>();
+            night.NightSky = EnsureNightSkyMaterial();
+
+            var cycler = root.AddComponent<EmissionCycler>();      // 미디어 파사드 색 순환
+            cycler.Targets = new[] { stripHigh.GetComponent<Renderer>(), stripLow.GetComponent<Renderer>() };
+
+            var blockGlow = root.AddComponent<NightBuildGlow>();   // 지은 블록(~GridVisuals) — 라이트업
+            blockGlow.Tint = new Color(0.80f, 0.88f, 1.00f);
+            blockGlow.Intensity = 1.6f;   // 0.9는 '켜진 티'가 안 났다 — 블룸 문턱(1.1)을 넘겨 또렷하게
+
+            var roseGlow = root.AddComponent<NightBuildGlow>();    // LED 장미 — 분홍으로 쨍하게(밤의 주인공)
+            roseGlow.WatchRootName = "";
+            roseGlow.ExtraTargets = new[] { roseGroup };
+            roseGlow.Tint = new Color(1.00f, 0.45f, 0.75f);
+            roseGlow.Intensity = 2.0f;
+
+            root.AddComponent<NightHorizonTint>();   // 언릿 원경 카드(~Horizon)를 밤색으로 — 비주얼 정리 툴이 깔아둔 것
+        }
+
+        // 가로등 1주: 기둥 + 팔 + 에미션 헤드 + 바닥 불빛 웅덩이. 콜라이더는 기둥에만(가늘어서 안 걸리적거림).
+        // VARCO 모델(DDP_가로등_Fit)이 있으면 그레이박스 대신 세우고 발광 헤드·웅덩이만 얹는다.
+        private static void BuildStreetLamp(GameObject parent, string name, Vector3 groundPos,
+                                            Material poleMat, Material glowMat, Material poolMat)
+        {
+            var lamp = new GameObject(name);
+            lamp.transform.SetParent(parent.transform, false);
+            lamp.transform.localPosition = groundPos;
+
+            float headX = 0.72f;   // 불빛 웅덩이를 헤드 밑에 맞추기 위한 x 오프셋
+            if (TryPlaceProp(lamp, "DDP_가로등", Vector3.zero))
+            {
+                headX = 0f;
+                SlimCollider(lamp, new Vector3(0.3f, 3.0f, 0.3f));   // 바운즈 통짜 콜라이더 → 기둥만(옆을 지나다닐 수 있게)
+                var orb = AddBox(lamp, "headGlow", new Vector3(0f, 3.0f, 0f), Vector3.one * 0.26f, glowMat);   // 모델 두상부 근사
+                Object.DestroyImmediate(orb.GetComponent<Collider>());
+                orb.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                orb.isStatic = true;
+            }
+            else
+            {
+                var pole = AddBox(lamp, "pole", new Vector3(0f, 1.5f, 0f), new Vector3(0.14f, 3.0f, 0.14f), poleMat);
+                pole.isStatic = true;
+                var arm = AddBox(lamp, "arm", new Vector3(0.35f, 2.95f, 0f), new Vector3(0.85f, 0.10f, 0.10f), poleMat);
+                Object.DestroyImmediate(arm.GetComponent<Collider>());
+                arm.isStatic = true;
+                var head = AddBox(lamp, "head", new Vector3(0.72f, 2.83f, 0f), new Vector3(0.34f, 0.16f, 0.26f), glowMat);
+                Object.DestroyImmediate(head.GetComponent<Collider>());
+                head.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                head.isStatic = true;
+            }
+
+            // 불빛 웅덩이 — 헤드 바로 밑 바닥에 가산 원형 그라데이션(진짜 라이트 아님)
+            AddLightPool(lamp, new Vector3(headX, 0.03f, 0f), 5.5f, poolMat);
+        }
+
+        // 가산 불빛 웅덩이 쿼드 한 장(위를 보게 눕힘)
+        private static void AddLightPool(GameObject parent, Vector3 localPos, float size, Material poolMat)
+        {
+            var pool = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            pool.name = "pool";
+            pool.transform.SetParent(parent.transform, false);
+            pool.transform.localPosition = localPos;
+            pool.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            pool.transform.localScale = new Vector3(size, size, 1f);
+            Object.DestroyImmediate(pool.GetComponent<Collider>());
+            var pr = pool.GetComponent<Renderer>();
+            pr.sharedMaterial = poolMat;
+            pr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            pr.receiveShadows = false;
+            pool.isStatic = true;
+        }
+
+        // 수로 볼라드: 양 둔치 바깥 라인에 낮은 발광 말뚝. 콜라이더 없음(재료 던지기·물살 동선에 안 걸리게).
+        // 남쪽은 램프 입구(x 0~5)를, 북쪽은 장미밭(z ≥ -8.8)을 피한다.
+        private static void BuildBollards(GameObject parent, Material poleMat, Material glowMat)
+        {
+            var south = new float[] { -9f, 15f, 23f };          // z = -15.0
+            var north = new float[] { -9f, -1f, 7f, 15f };      // z = -9.3 (장미밭 연석 z=-8.95와 안 붙게)
+            int i = 0;
+            foreach (var x in south) BuildBollard(parent, $"Bollard{i++}", new Vector3(x, kPlazaY, -15.0f), poleMat, glowMat);
+            foreach (var x in north) BuildBollard(parent, $"Bollard{i++}", new Vector3(x, kPlazaY, -9.3f), poleMat, glowMat);
+        }
+
+        private static void BuildBollard(GameObject parent, string name, Vector3 groundPos, Material poleMat, Material glowMat)
+        {
+            var b = new GameObject(name);
+            b.transform.SetParent(parent.transform, false);
+            b.transform.localPosition = groundPos;
+            var pole = AddBox(b, "pole", new Vector3(0f, 0.25f, 0f), new Vector3(0.13f, 0.5f, 0.13f), poleMat);
+            Object.DestroyImmediate(pole.GetComponent<Collider>());
+            pole.isStatic = true;
+            var cap = AddBox(b, "cap", new Vector3(0f, 0.56f, 0f), new Vector3(0.17f, 0.14f, 0.17f), glowMat);
+            Object.DestroyImmediate(cap.GetComponent<Collider>());
+            cap.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            cap.isStatic = true;
+        }
+
+        // 전구 줄: 두 가로등 헤드 높이(~2.85m) 사이를 살짝 늘어지는 곡선으로 잇는 작은 발광 전구들.
+        private static void BuildStringLights(GameObject parent, Material bulbMat, Vector3 lampA, Vector3 lampB)
+        {
+            var a = lampA + Vector3.up * 2.85f;
+            var b = lampB + Vector3.up * 2.85f;
+            int count = Mathf.Max(6, Mathf.RoundToInt(Vector3.Distance(a, b) / 1.3f));
+            var line = new GameObject($"String_{lampA.x:0}_{lampB.x:0}");
+            line.transform.SetParent(parent.transform, false);
+            for (int i = 1; i < count; i++)   // 양끝(헤드 자리)은 비운다
+            {
+                float t = i / (float)count;
+                var p = Vector3.Lerp(a, b, t) + Vector3.down * (0.6f * Mathf.Sin(t * Mathf.PI));   // 늘어짐
+                var bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                bulb.name = $"bulb{i}";
+                bulb.transform.SetParent(line.transform, false);
+                bulb.transform.localPosition = p;
+                bulb.transform.localScale = Vector3.one * 0.13f;
+                Object.DestroyImmediate(bulb.GetComponent<Collider>());
+                var r = bulb.GetComponent<Renderer>();
+                r.sharedMaterial = bulbMat;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                bulb.isStatic = true;
+            }
+        }
+
+        // 광장 나무: VARCO 모델(DDP_나무) 우선, 없으면 원기둥 줄기 + 구 2개 수관 그레이박스.
+        private static void BuildTree(GameObject root, string name, Vector3 groundPos, Material trunkMat, Material leafMat, float yaw)
+        {
+            var tree = new GameObject(name);
+            tree.transform.SetParent(root.transform, false);
+            tree.transform.localPosition = groundPos;
+            if (TryPlaceProp(tree, "DDP_나무", Vector3.zero, yaw))
+            {
+                SlimCollider(tree, new Vector3(0.5f, 2.2f, 0.5f));   // 수관 밑을 지나다닐 수 있게 줄기만 막는다
+                return;
+            }
+
+            var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            trunk.name = "trunk";
+            trunk.transform.SetParent(tree.transform, false);
+            trunk.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+            trunk.transform.localScale = new Vector3(0.22f, 0.8f, 0.22f);   // 원기둥 높이 = 스케일y × 2
+            if (trunkMat != null) trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
+            trunk.isStatic = true;
+            foreach (var (y, s) in new[] { (2.0f, 1.9f), (2.9f, 1.4f) })
+            {
+                var canopy = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                canopy.name = "canopy";
+                canopy.transform.SetParent(tree.transform, false);
+                canopy.transform.localPosition = new Vector3(0f, y, 0f);
+                canopy.transform.localScale = Vector3.one * s;
+                Object.DestroyImmediate(canopy.GetComponent<Collider>());
+                if (leafMat != null) canopy.GetComponent<Renderer>().sharedMaterial = leafMat;
+                canopy.isStatic = true;
+            }
+        }
+
+        // 꼬리 동: 실물 DDP의 북서쪽으로 길게 흐르는 꼬리(아트홀 너머) — 데크 북쪽 구석의 낮은 배경 매스.
+        // 서쪽으로 갈수록 낮아지며 잔디지붕이 덮인다. 정답 셀(z 2~12)·건축 그리드(z<14)와 겹치지 않는다(z ≥ 14.4).
+        private static void BuildTailWing(GameObject root)
+        {
+            var tailMat  = EnsureEmissiveMaterial("Mat_DdpTail", new Color(0.82f, 0.84f, 0.88f), new Color(0.28f, 0.34f, 0.48f) * 0.5f);
+            var grassMat = EnsureMaterial("Mat_DdpDeck", new Color(0.44f, 0.58f, 0.36f));
+
+            var wing = new GameObject("~TailWing");
+            wing.transform.SetParent(root.transform, false);
+            var segs = new (float cx, float cz, float w, float d, float h)[]
+            {
+                (13f,   16.3f, 6.5f, 3.8f, 3.2f),
+                (8f,    17.0f, 6.0f, 3.6f, 2.6f),
+                (3.5f,  17.7f, 5.5f, 3.4f, 2.1f),
+                (-0.5f, 18.3f, 5.0f, 3.2f, 1.6f),
+                (-4.2f, 18.6f, 4.2f, 2.6f, 1.2f),
+            };
+            int i = 0;
+            foreach (var s in segs)
+            {
+                AddBox(wing, $"Tail{i}", new Vector3(s.cx, kDeckY + s.h * 0.5f, s.cz), new Vector3(s.w, s.h, s.d), tailMat).isStatic = true;
+                var cap = AddBox(wing, $"TailGrass{i}", new Vector3(s.cx, kDeckY + s.h + 0.07f, s.cz), new Vector3(s.w * 0.85f, 0.14f, s.d * 0.85f), grassMat);
+                Object.DestroyImmediate(cap.GetComponent<Collider>());
+                cap.isStatic = true;
+                i++;
+            }
+        }
+
+        // 프롭 아래의 모든 콜라이더(TryPlaceProp이 붙인 바운즈 통짜 포함)를 지우고 슬림 박스 하나로 교체.
+        private static void SlimCollider(GameObject go, Vector3 size)
+        {
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+            var bc = go.AddComponent<BoxCollider>();
+            bc.center = new Vector3(0f, size.y * 0.5f, 0f);
+            bc.size = size;
+        }
+
+        private static void AddPointLight(GameObject parent, string name, Vector3 pos, Color color, float range, float intensity)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent.transform, false);
+            go.transform.localPosition = pos;
+            var l = go.AddComponent<Light>();
+            l.type = LightType.Point;
+            l.color = color;
+            l.range = range;
+            l.intensity = intensity;
+            l.shadows = LightShadows.None;   // 모바일 — 포인트 그림자는 사치
+        }
+
+        private static Material EnsureEmissiveMaterial(string name, Color baseColor, Color emission)
+        {
+            var mat = EnsureMaterial(name, baseColor);
+            if (mat == null) return null;
+            mat.EnableKeyword("_EMISSION");   // 에셋에서 켜 둬야 빌드에 _EMISSION 변형이 실린다(NightBuildGlow의 런타임 켜기도 이 덕에 산다)
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            mat.SetColor("_EmissionColor", emission);
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        // 가산 블렌드 언릿 원형 그라데이션 — 라이트 없이 '불빛 웅덩이'만 그린다.
+        private static Material EnsureLampPoolMaterial()
+        {
+            string path = $"{kMatDir}/Mat_DdpLampPool.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                var sh = Shader.Find("Universal Render Pipeline/Unlit");
+                if (sh == null) { Debug.LogWarning("[DDP] URP Unlit 셰이더를 못 찾음"); return null; }
+                mat = new Material(sh);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.SetTexture("_BaseMap", EnsureGlowTexture());
+            mat.SetColor("_BaseColor", new Color(1.00f, 0.80f, 0.48f, 1f));   // 가산이라 알파 대신 RGB 밝기가 세기
+            mat.SetFloat("_Surface", 1f);   // Transparent
+            // ★ _Blend=Additive(2)를 반드시 같이 박는다 — URP 머티리얼 검증이 _Surface/_Blend 값으로
+            //   Src/DstBlend를 '다시 계산'하는데, _Blend를 Alpha(0)로 두면 아래 One/One이 SrcAlpha/OneMinus로
+            //   리셋된다. 그 상태 + 알파 255 통짜 텍스처 = 가로등 밑 '불투명 검은 사각형' 버그의 정체.
+            mat.SetFloat("_Blend", 2f);
+            mat.SetFloat("_AlphaClip", 0f);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);   // 가산
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        // 중심이 밝고 가장자리로 부드럽게 사라지는 원형 그라데이션(128²).
+        // 수학 산출물이라(아트 교체 대상 아님) 매번 다시 굽는다 — 생성 로직을 고치면 기존 파일도 즉시 갱신되게.
+        // 알파에도 같은 폴오프를 넣는다: 머티리얼이 어떤 이유로든 알파 블렌드로 떨어져도 사각형이 안 보인다.
+        private static Texture2D EnsureGlowTexture()
+        {
+            const string kDirTex = "Assets/Map/Horizon";
+            string path = $"{kDirTex}/LampGlow.png";
+
+            const int N = 128;
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x, y), new Vector2(N / 2f, N / 2f)) / (N / 2f);
+                    float v = Mathf.Pow(Mathf.Clamp01(1f - d), 2.2f);   // 가장자리 완전 소멸(사각 티 방지)
+                    byte b = (byte)(v * 255f);
+                    px[y * N + x] = new Color32(b, b, b, b);
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            Directory.CreateDirectory(kDirTex);
+            var bytes = tex.EncodeToPNG();
+            File.WriteAllBytes(path, bytes);
+            Object.DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(path);
+
+            var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (imp != null && (imp.wrapMode != TextureWrapMode.Clamp || !imp.alphaIsTransparency))
+            {
+                imp.wrapMode = TextureWrapMode.Clamp;   // Repeat면 UV 경계에서 반대편 픽셀이 배어 나온다
+                imp.alphaIsTransparency = true;
+                imp.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        private const string kNightSkyPath = kMatDir + "/Sky_SeoulNight.mat";
+
+        // 밤하늘(FastSky 기반) — 이미 있으면 그대로 둔다: 별·구름 수치는 에셋에서 튜닝(재실행이 안 덮음).
+        private static Material EnsureNightSkyMaterial()
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(kNightSkyPath);
+            if (mat != null) return mat;
+
+            var src = AssetDatabase.LoadAssetAtPath<Material>("Assets/Map/Materials/Sky_SeoulStylised.mat");
+            if (src == null) src = AssetDatabase.LoadAssetAtPath<Material>("Assets/ThirdParty/FastSky/Materials/StylisedSky.mat");
+            if (src == null)
+            {
+                Debug.LogWarning("[DDP] FastSky 머티리얼이 없음 — URP Procedural 밤하늘로 대체");
+                mat = new Material(Shader.Find("Skybox/Procedural"));
+                mat.SetFloat("_AtmosphereThickness", 0.35f);
+                mat.SetColor("_SkyTint", new Color(0.10f, 0.14f, 0.30f));
+                mat.SetColor("_GroundColor", new Color(0.06f, 0.08f, 0.14f));
+                mat.SetFloat("_Exposure", 0.6f);
+            }
+            else
+            {
+                mat = new Material(src);
+                // 달빛(MapNightAmbience.MoonEuler)이 고도 14°라 FastSky가 저녁~밤 구간으로 판정한다 —
+                // 거기에 낮/저녁 색 자체를 남색으로 눌러 어느 각도든 밤처럼 보이게 이중 안전장치.
+                SetSkyIf(mat, "_DayBrightness", 0.35f);
+                SetSkyColorIf(mat, "_DayColour", new Color(0.07f, 0.10f, 0.20f));
+                SetSkyColorIf(mat, "_EveningColour", new Color(0.10f, 0.09f, 0.18f));
+                SetSkyIf(mat, "_EveningBrightness", 0.5f);
+                SetSkyIf(mat, "_EveningScatterStrength", 0.5f);
+                SetSkyIf(mat, "_Saturation", 0.55f);
+                SetSkyIf(mat, "_SunSize", 0.08f);   // 태양 대신 조그만 달
+                SetSkyColorIf(mat, "_SunColor", new Color(0.92f, 0.95f, 1.00f));
+                SetSkyIf(mat, "_StarBrightness", 1.8f);
+                SetSkyIf(mat, "_StarThreshold", 0.4f);   // 별이 일찍 뜨게
+                SetSkyColorIf(mat, "_CloudColour", new Color(0.20f, 0.22f, 0.34f));
+                SetSkyIf(mat, "_CloudBrightness", 0.3f);
+                SetSkyIf(mat, "_CloudThickness", 0.3f);
+            }
+            AssetDatabase.CreateAsset(mat, kNightSkyPath);
+            return mat;
+        }
+
+        private static void SetSkyIf(Material m, string prop, float v) { if (m.HasProperty(prop)) m.SetFloat(prop, v); }
+        private static void SetSkyColorIf(Material m, string prop, Color c) { if (m.HasProperty(prop)) m.SetColor(prop, c); }
+
+        // 에디터 씬의 낮 라이팅을 잠깐 밤(MapNightAmbience 기본값)으로 바꿔 찍고 원복한다.
+        // 값을 컴포넌트 기본치에서 읽어 와 런타임 야경과 썸네일이 어긋나지 않는다.
+        private static Sprite CaptureNightThumbnail(GameObject prefab)
+        {
+            var tmp = new GameObject("~NightDefaults");
+            var na = tmp.AddComponent<MapNightAmbience>();
+
+            var sky = RenderSettings.skybox;
+            bool fogOn = RenderSettings.fog; var fogMode = RenderSettings.fogMode;
+            var fogColor = RenderSettings.fogColor;
+            float fogStart = RenderSettings.fogStartDistance, fogEnd = RenderSettings.fogEndDistance;
+            var ambMode = RenderSettings.ambientMode;
+            var ambSky = RenderSettings.ambientSkyColor; var ambEq = RenderSettings.ambientEquatorColor;
+            var ambGround = RenderSettings.ambientGroundColor;
+            var sun = RenderSettings.sun;
+            Color sunColor = default; float sunIntensity = 0f; Quaternion sunRot = default;
+            if (sun != null) { sunColor = sun.color; sunIntensity = sun.intensity; sunRot = sun.transform.rotation; }
+
+            try
+            {
+                RenderSettings.skybox = EnsureNightSkyMaterial();
+                RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogColor = na.FogColor;
+                RenderSettings.fogStartDistance = na.FogStart; RenderSettings.fogEndDistance = na.FogEnd;
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+                RenderSettings.ambientSkyColor = na.AmbientSky;
+                RenderSettings.ambientEquatorColor = na.AmbientEquator;
+                RenderSettings.ambientGroundColor = na.AmbientGround;
+                if (sun != null)
+                {
+                    sun.color = na.MoonColor; sun.intensity = na.MoonIntensity;
+                    sun.transform.rotation = Quaternion.Euler(na.MoonEuler);
+                }
+                return MapThumbnailUtil.Capture(prefab, kThumbPath);
+            }
+            finally
+            {
+                RenderSettings.skybox = sky;
+                RenderSettings.fog = fogOn; RenderSettings.fogMode = fogMode;
+                RenderSettings.fogColor = fogColor;
+                RenderSettings.fogStartDistance = fogStart; RenderSettings.fogEndDistance = fogEnd;
+                RenderSettings.ambientMode = ambMode;
+                RenderSettings.ambientSkyColor = ambSky; RenderSettings.ambientEquatorColor = ambEq;
+                RenderSettings.ambientGroundColor = ambGround;
+                if (sun != null) { sun.color = sunColor; sun.intensity = sunIntensity; sun.transform.rotation = sunRot; }
+                Object.DestroyImmediate(tmp);
             }
         }
 
