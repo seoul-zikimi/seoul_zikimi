@@ -134,12 +134,19 @@ namespace GridSystem.EditorTools
             Blocker("DividerBlocker_Right", new Vector3(16f, 4f, 27.5f),   new Vector3(100f, 100f, 0.3f));
             Blocker("DividerBlocker_Left",  new Vector3(16f, 4f, -11.4f),  new Vector3(100f, 100f, 0.3f));
 
-            // Spot 마커 5종 — 팀A 쪽에만 두면 작업대는 반대편에 자동 생성, 배송은 팀별 점대칭 배송(MaterialDepot).
+            // Spot 마커 7종 — 팀A 쪽에만 두면 작업대는 반대편에 자동 생성, 배송은 팀별 점대칭 배송(MaterialDepot).
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));          // 그리드 시작(팀A 왼쪽 아래)
             AddSpot(root, "Spot_PlayerSpawnPoint", new Vector3(8f, 0f, -4f));    // 협동 모드용(2vs2는 구역 중앙 자동)
             AddSpot(root, "Spot_DeliveryZone", new Vector3(4f, 0f, -5f));        // 재료 배송 자리(그리드 앞)
             AddSpot(root, "Spot_HammerStation", new Vector3(-4f, 0f, 5f));       // 그리드 왼쪽 옆(마커 Y = 접지점)
             AddSpot(root, "Spot_PaintStation", new Vector3(-4f, 0f, 11f));       // 〃
+
+            // 남산 기믹(케이블카) 마커 — 남산타워를 골라 2vs2를 하면 배송이 곤돌라로 바뀐다.
+            // 하차장은 망치대(-4,0,5)에서 9칸 떨어진 남서 코너. 예전 코드 폴백(-4,0,4)은 망치대와
+            // 한 칸 차이라 곤돌라가 작업대에 겹쳤다(팀B도 같은 점대칭이라 똑같이 겹침).
+            // 다른 맵을 고르면 기믹 자체가 꺼져 있어 이 마커들은 아무 일도 하지 않는다.
+            AddSpot(root, "Spot_CableCarStation", new Vector3(-4f, 0f, -4f));    // 하차장(그리드 남서쪽 빈 자리)
+            AddSpot(root, "Spot_CableCarOrigin", new Vector3(-14f, 0f, -12f));   // 울타리 밖 출발점(와이어 반대쪽 끝)
 
             DecorateProps(root);   // 공사장 소품(울타리 밖 앞치마) — 코스메틱, 콜라이더 없음
             AddSunsetHorizon(root);   // 원경(노을 마을 카드 링 + 대형 바닥) + 노을 하늘 전환기
