@@ -73,7 +73,7 @@ namespace GridSystem.EditorTools
                              GrassGround = true,                        // 호수공원 도시 — 아스팔트 회색판이 인조적이라 바닥만 풀밭(빌딩 격자는 유지)
                              CityCardH = 26f,                           // 카메라가 높아 빌딩 뒤가 허옇게 비어 보임 — 잠실 실루엣을 키워 배경을 채운다
                              CityTex = "Skyline_Jamsil" },              // 잠실 스카이라인(롯데월드타워 실루엣) — VARCO PNG로 교체 가능, 없으면 폴백
-            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Ddp.prefab",         Ground = GroundKind.City,  Trees = false, Skirt = true },   // 동대문 도심 — 스커트가 상층 데크(y0) 밑을 메움
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Ddp.prefab",         Ground = GroundKind.City,  Trees = false, Skirt = false },   // 동대문 도심 — 스커트 끔(08/31): 초록 찌부 스피어가 광장 남쪽까지 부풀어 LED 장미밭을 언덕으로 덮었다. 데크 밑은 맵 툴의 은색 DeckSkirt_W/E/N이 닫는다
                              // 물길(이간수문)은 동서(x축)라 ChannelX 카브 불가 — 바닥이 광장 밑(-5.05)에 깔려 물길을 안 덮으니 카브 불필요
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Gyeongbokgung.prefab", Ground = GroundKind.Grass, Trees = true, Skirt = false,   // 궁궐 — 빌딩 격자 없음, 스커트도 없음(석조 월대 밑 초록 봉분 방지)
                              MountainTex = "Skyline_Bugaksan" },        // 북악산 능선 — VARCO PNG로 교체 가능, 없으면 폴백
@@ -110,6 +110,20 @@ namespace GridSystem.EditorTools
             AssetDatabase.SaveAssets();
             Debug.Log("[비주얼정리] 완료 ✔ 하늘(FastSky)·Linear 안개·Trilight 앰비언트·포프 + 맵 7종 ~Horizon. " +
                       "GameScene 플레이해서 확인 — 톤은 Assets/Settings/GameVisualProfile, 하늘은 Assets/Map/Materials/Sky_SeoulStylised에서 조절.");
+        }
+
+        /// <summary>한 맵의 ~Horizon만 다시 깐다 — 맵 생성 툴(BuildGreybox류)이 배경 프리팹을 처음부터
+        /// 새로 구울 때 마지막에 호출해서 원경 누락을 원천 차단한다(롯데월드 재생성 때마다 사라지던 문제).</summary>
+        internal static void ApplyHorizonFor(string prefabPath)
+        {
+            foreach (var m in kMaps)
+                if (m.Path == prefabPath)
+                {
+                    ApplyHorizonToPrefab(m);
+                    AssetDatabase.SaveAssets();
+                    return;
+                }
+            Debug.LogWarning($"[비주얼정리] kMaps에 프로필이 없어 ~Horizon을 못 깖: {prefabPath}");
         }
 
         [MenuItem("Tools/Map/비주얼 정리 — 맵 프리팹 ~Horizon만 다시 깔기")]

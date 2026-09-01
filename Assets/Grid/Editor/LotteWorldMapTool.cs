@@ -140,11 +140,18 @@ namespace GridSystem.EditorTools
             // ⑤ 그레이박스 배경 프리팹(호수·섬·광장·퍼레이드 길·원경)
             // 모노레일 기둥 마커: 기존 프리팹에 사용자가 옮겨 둔 Spot_MonoPillar*가 있으면 그 위치를 그대로 쓴다(재생성에도 유지)
             var monoPillars = LoadExistingMonoPillars();
+            var propTweaks = CaptureUserPropTweaks();   // 재생성 전에 사용자 손조정(타워·첨탑 스케일 등) 실측
             var root = BuildGreybox(monoPillars);
+            ApplyUserPropTweaks(root, propTweaks);      // 재생성 후 같은 이름·근접 소품에 그대로 재적용
             Directory.CreateDirectory(Path.GetDirectoryName(kPrefabPath));
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath, out bool ok);
             Object.DestroyImmediate(root);
             if (!ok) { Debug.LogError($"[롯데월드] 프리팹 저장 실패: {kPrefabPath}"); return; }
+
+            // BuildGreybox가 프리팹을 매번 처음부터 새로 굽기 때문에, 비주얼 정리 툴이 깔아 둔
+            // ~Horizon(원경)이 재생성 때마다 통째로 사라졌다(QA "horizon 존나 계속 누락") —
+            // 여기서 곧바로 다시 깔아 누락 자체를 없앤다.
+            MapVisualPolishTool.ApplyHorizonFor(kPrefabPath);
 
             // ⑥ 맵 카드
             var def2 = LoadOrCreate<MapDef>(kMapDefPath);
@@ -997,6 +1004,49 @@ namespace GridSystem.EditorTools
         // 인스턴스가 필요한 경우(앰비언트 연출 연결 등)용 — 없으면 null.
         // addCollider=false는 '통과 가능해야 하는' 큰 소품(모노레일 링·다리·승강 원반)에 쓴다:
         // 바운즈 박스 콜라이더가 통짜로 잡히면 맵 절반을 막아버린다.
+        // ── 사용자 프리팹 손조정 보존 ──
+        // Generate는 배경을 매번 처음부터 새로 굽기 때문에, 사용자가 프리팹에서 직접 키운
+        // 롯데월드타워·모서리 고깔탑 스케일 같은 조정이 재생성 때마다 사라졌다(QA "자꾸 누락").
+        // 재생성 전에 기존 프리팹의 '롯데_*' 소품 TRS를 실측해 두고, 재생성 후 같은 이름의
+        // 최근접(XZ 6m) 소품에 그대로 재적용한다 — 모노레일 기둥 마커 보존과 같은 어법.
+        private struct PropTweak { public string Name; public Vector3 Pos; public Quaternion Rot; public Vector3 Scale; public bool Used; }
+
+        private static List<PropTweak> CaptureUserPropTweaks()
+        {
+            var list = new List<PropTweak>();
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(kPrefabPath);
+            if (prefab == null) return list;
+            foreach (Transform t in prefab.transform)
+                if (t.name.StartsWith("롯데_"))
+                    list.Add(new PropTweak { Name = t.name, Pos = t.localPosition, Rot = t.localRotation, Scale = t.localScale });
+            return list;
+        }
+
+        private static void ApplyUserPropTweaks(GameObject root, List<PropTweak> tweaks)
+        {
+            if (tweaks.Count == 0) return;
+            int applied = 0;
+            foreach (Transform t in root.transform)
+            {
+                if (!t.name.StartsWith("롯데_")) continue;
+                int best = -1; float bestD = 6f;
+                for (int i = 0; i < tweaks.Count; i++)
+                {
+                    if (tweaks[i].Used || tweaks[i].Name != t.name) continue;
+                    float d = Vector2.Distance(new Vector2(t.localPosition.x, t.localPosition.z),
+                                               new Vector2(tweaks[i].Pos.x, tweaks[i].Pos.z));
+                    if (d < bestD) { bestD = d; best = i; }
+                }
+                if (best < 0) continue;
+                var tw = tweaks[best]; tw.Used = true; tweaks[best] = tw;
+                t.localPosition = tw.Pos;
+                t.localRotation = tw.Rot;
+                t.localScale = tw.Scale;
+                applied++;
+            }
+            if (applied > 0) Debug.Log($"[롯데월드] 사용자 프리팹 손조정 보존 — 소품 {applied}개 TRS 재적용");
+        }
+
         private static GameObject PlaceProp(GameObject root, string name, Vector3 groundPos,
                                             float yRot = 0f, float scale = 1f, bool addCollider = true)
         {
