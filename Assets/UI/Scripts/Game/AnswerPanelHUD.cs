@@ -128,6 +128,7 @@ public class AnswerPanelHUD : UIHUD
         for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
         m_Phone = null; m_GridRoot = null; m_Surface = null; m_Tip = null;
         m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
+        m_BlockBanner = null; m_BlockText = null;
         m_SelName = m_SelSub = m_CompletionText = null;
         m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
         m_ShownPct = -1;   // 텍스트를 새로 지었으니 다음 SetCompletion이 반드시 다시 채우게
@@ -190,6 +191,7 @@ public class AnswerPanelHUD : UIHUD
         });
 
         BuildCollapseTab();
+        BuildBlockBanner();
         BuildTip();   // 마지막에 만들어 항상 위에 그려진다
     }
 
@@ -327,6 +329,7 @@ public class AnswerPanelHUD : UIHUD
         m_Phone = null; m_Surface = null; m_PctText = null; m_CompletionText = null;
         m_SelName = null; m_SelSub = null; m_OrderBtn = null; m_OrderBtnImg = null;
         m_GridRoot = null; m_Tip = null; m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
+        m_BlockBanner = null; m_BlockText = null;
         m_Cards.Clear();
         m_SelectedId = -1;
         ChromeHovered = false;
@@ -341,6 +344,8 @@ public class AnswerPanelHUD : UIHUD
         }
         if (selected >= 0) Select(selected);
         SetCompletion(m_LastPct);
+        ApplyBlockVisual();   // 재구축 중에도 주문 해킹이 걸려 있을 수 있다
+        UpdateOrderButton();
     }
 
     /// <summary>
@@ -435,6 +440,7 @@ public class AnswerPanelHUD : UIHUD
         var orderLabel = MakeTextPx(btnGo.transform, "주문!", Vector2.zero, new Vector2(836f, 76f), 30, TextAnchor.MiddleCenter);
         orderLabel.fontStyle = FontStyle.Bold;
         UpdateOrderButton();
+        BuildBlockBanner();
 
         GameObject closeGo;
         if (m_ExpandedView)
@@ -695,7 +701,7 @@ public class AnswerPanelHUD : UIHUD
         m_LastClickId = again ? -1 : id;   // 3연타가 곧바로 두 번째 주문이 되지 않게 초기화
         m_LastClickTime = now;
         Select(id);
-        if (again && c.Remaining != 0) m_OnOrder?.Invoke(id);   // 품절이면 선택만
+        if (again && c.Remaining != 0 && m_BlockSecs == 0) m_OnOrder?.Invoke(id);   // 품절·주문 차단이면 선택만
     }
 
     public void Select(int id)
@@ -770,7 +776,7 @@ public class AnswerPanelHUD : UIHUD
 
     private void UpdateOrderButton()
     {
-        bool can = m_SelectedId >= 0 && m_Cards.TryGetValue(m_SelectedId, out var c) && c.Remaining != 0;
+        bool can = m_BlockSecs == 0 && m_SelectedId >= 0 && m_Cards.TryGetValue(m_SelectedId, out var c) && c.Remaining != 0;
         if (m_OrderBtn != null) m_OrderBtn.interactable = can;
         if (m_OrderBtnImg != null)
             m_OrderBtnImg.color = m_MobileLayout
@@ -785,6 +791,64 @@ public class AnswerPanelHUD : UIHUD
     private Color PickedCardColor => m_MobileLayout
         ? new Color(0.85f, 0.93f, 0.84f, 1f)
         : kCardPicked;
+
+    // ── 주문 차단(상대의 '주문 해킹') 안내 배너 ──────────────────────
+    // 서버가 차단된 주문을 조용히 버리면 "왜인지 모르겠는데 주문이 안 됨"이 된다(QA).
+    // 카드 그리드 맨 위에 이유 + 남은 초를 띄우고 [주문!]도 함께 잠근다.
+    private GameObject m_BlockBanner;
+    private Text m_BlockText;
+    private int m_BlockSecs;   // 0 = 주문 가능
+    private static readonly Color kBlockPurple = new Color(0.62f, 0.20f, 0.80f, 0.96f);
+
+    /// <summary>주문 차단 남은 초(0 = 정상). GameHudDriver가 매 프레임 넘긴다.</summary>
+    public void SetOrderBlocked(float remainingSeconds)
+    {
+        int secs = remainingSeconds > 0f ? Mathf.CeilToInt(remainingSeconds) : 0;
+        if (secs == m_BlockSecs) return;   // 매 프레임 호출 — 초가 넘어갈 때만 갱신
+        m_BlockSecs = secs;
+        ApplyBlockVisual();
+        UpdateOrderButton();
+    }
+
+    private void BuildBlockBanner()
+    {
+        if (m_Phone == null) return;
+        GameObject go;
+        if (m_MobileLayout)
+        {
+            var size = new Vector2(836f, 64f);
+            go = NewRect("OrderBlockBanner", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
+                new Vector2(916f, -120f), size);
+            m_BlockText = MakeTextPx(go.transform, "", Vector2.zero, size, 26, TextAnchor.MiddleCenter);
+        }
+        else
+        {
+            go = NewRect("OrderBlockBanner", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+            Local((RectTransform)go.transform, kGridX, kGridY, kGridW, 22f);
+            m_BlockText = MakeText(go.transform, "", Vector2.zero, new Vector2(kGridW, 22f), Px(10), TextAnchor.MiddleCenter);
+        }
+        var bg = go.AddComponent<Image>();
+        bg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        bg.type = Image.Type.Sliced;
+        bg.color = kBlockPurple;
+        bg.raycastTarget = false;   // 배너 아래 카드는 계속 고를 수 있게(주문만 잠긴다)
+        m_BlockText.fontStyle = FontStyle.Bold;
+        m_BlockText.transform.SetAsLastSibling();
+        m_BlockBanner = go;
+        ApplyBlockVisual();
+    }
+
+    private void ApplyBlockVisual()
+    {
+        if (m_BlockBanner == null) return;
+        bool on = m_BlockSecs > 0;
+        if (on)
+        {
+            if (m_BlockText != null) m_BlockText.text = $"주문 해킹! {m_BlockSecs}초 뒤 주문 가능";
+            m_BlockBanner.transform.SetAsLastSibling();   // 나중에 지어진 카드 그리드보다 위로
+        }
+        if (m_BlockBanner.activeSelf != on) m_BlockBanner.SetActive(on);
+    }
 
     // ── 커서 옆 말풍선 툴팁(호버 전용 — 선택과 별개) ─────────────────
     private const float kTipW = 168f, kTipH = 188f;

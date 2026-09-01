@@ -19,7 +19,12 @@ namespace SeoulZikimi.UI.New
     /// </summary>
     public static class UiNewMapOptions
     {
-        /// <summary>선택지에 올릴 카탈로그 인덱스를 into에 채운다(공터 제외). 카탈로그가 없으면 빈 목록.</summary>
+        /// <summary>'랜덤' 항목의 로비 표시 이름.</summary>
+        public const string RandomLabel = "랜덤";
+
+        /// <summary>선택지에 올릴 인덱스를 into에 채운다. 맨 앞은 항상 '랜덤'(MapCatalog.RandomMapIndex),
+        /// 그 뒤로 공터(대전 모드가 알아서 씀)와 튜토리얼(설정창의 다시보기 전용)을 뺀 카탈로그 인덱스.
+        /// 카탈로그가 없으면 빈 목록.</summary>
         public static void CollectSelectable(List<int> into)
         {
             if (into == null) return;
@@ -27,17 +32,17 @@ namespace SeoulZikimi.UI.New
 
             var catalog = GridSystem.MapCatalog.Instance;
             int count = catalog != null ? catalog.Count : 0;
+            if (count == 0) return;
+
+            into.Add(GridSystem.MapCatalog.RandomMapIndex);   // 맨 위 '랜덤'
             for (int i = 0; i < count; i++)
-            {
-                var def = catalog.Get(i);
-                if (def != null && def.IsVersusArena) continue;   // 공터는 대전 모드가 알아서 쓴다
-                into.Add(i);
-            }
+                if (catalog.IsSelectable(i)) into.Add(i);
         }
 
-        /// <summary>카탈로그 인덱스의 로비 표시 이름. 못 찾으면 "맵 N".</summary>
+        /// <summary>카탈로그 인덱스의 로비 표시 이름. '랜덤' 센티널이면 "랜덤", 못 찾으면 "맵 N".</summary>
         public static string LabelOf(int catalogIndex)
         {
+            if (catalogIndex == GridSystem.MapCatalog.RandomMapIndex) return RandomLabel;
             var catalog = GridSystem.MapCatalog.Instance;
             var def = catalog != null ? catalog.Get(catalogIndex) : null;
             return def != null ? def.DisplayName : $"맵 {catalogIndex + 1}";

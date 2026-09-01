@@ -94,7 +94,7 @@ namespace SeoulZikimi.UI.New
             defaultRoomName = $"{DefaultNameAdjectives[UnityEngine.Random.Range(0, DefaultNameAdjectives.Length)]} {DefaultNameNouns[UnityEngine.Random.Range(0, DefaultNameNouns.Length)]} 구합니다";
             if (roomNameInput.placeholder is Text placeholder) placeholder.text = defaultRoomName;
             passwordInput.text = string.Empty;
-            mapIndex = mapCatalogIndices.Count > 0 ? mapCatalogIndices[0] : 0;   // 첫 선택 가능 맵(공터 제외)
+            mapIndex = DefaultMapIndex();   // 첫 실제 맵(목록 맨 앞의 '랜덤'은 기본값으로 쓰지 않는다)
             modeIndex = 0;
             weatherEnabled = true;
             passwordVisible = false;
@@ -226,8 +226,17 @@ namespace SeoulZikimi.UI.New
 
         private void OnDisable() => ClearCreationPending();
 
+        /// <summary>방을 새로 만들 때의 기본 맵 — 목록 맨 앞은 '랜덤'이므로 그 다음(첫 실제 맵)을 고른다.</summary>
+        private int DefaultMapIndex()
+        {
+            for (int i = 0; i < mapCatalogIndices.Count; i++)
+                if (mapCatalogIndices[i] != GridSystem.MapCatalog.RandomMapIndex) return mapCatalogIndices[i];
+            return 0;
+        }
+
         private static string GetMapLabel(int index)
         {
+            if (index == GridSystem.MapCatalog.RandomMapIndex) return UiNewMapOptions.RandomLabel;
             if (GridSystem.MapCatalog.Instance != null)
             {
                 GridSystem.MapDef definition = GridSystem.MapCatalog.Instance.Get(index);

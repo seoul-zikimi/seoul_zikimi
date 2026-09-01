@@ -5,6 +5,10 @@ namespace SeoulZikimi.Weather
 {
     public static class DefaultWeatherFactory
     {
+        // 미끄러짐 체감 조정(QA): 런타임 어댑터(NetworkWeatherCoordinator)와 같은 5%로 맞춘다.
+        private const float kSlipChance = 0.05f;
+
+
         /// <summary>
         /// 기획서의 기본 확률과 효과를 조립한다.
         /// 실제 월드, 바람 방향, VFX 구현은 호출하는 쪽에서 주입한다.
@@ -25,11 +29,11 @@ namespace SeoulZikimi.Weather
             random ??= new SystemRandomSource();
 
             IWeatherEffect noGameplayEffect = new NoGameplayWeatherEffect();
-            IWeatherEffect rainEffect = new SlipWeatherEffect(random, 0.1f);
-            IWeatherEffect snowEffect = new SlipWeatherEffect(random, 0.1f);
+            IWeatherEffect rainEffect = new SlipWeatherEffect(random, kSlipChance);
+            IWeatherEffect snowEffect = new SlipWeatherEffect(random, kSlipChance);
             IWeatherEffect windEffect = CreateWindEffect(world, windDirection, random);
             IWeatherEffect typhoonEffect = new CompositeWeatherEffect(
-                new SlipWeatherEffect(random, 0.1f),
+                new SlipWeatherEffect(random, kSlipChance),
                 CreateWindEffect(world, windDirection, random));
 
             var catalog = new WeatherCatalog(

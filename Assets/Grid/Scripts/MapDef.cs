@@ -105,6 +105,10 @@ namespace GridSystem
         /// 에셋 이름 기준(별도 필드 마이그레이션 없이 기존 Map_VersusField.asset 그대로 인식).</summary>
         public bool IsVersusArena => name == "Map_VersusField";
 
+        /// <summary>튜토리얼 전용 맵 여부 — 일반 맵 선택지/랜덤 후보에서 제외된다(TutorialFlowController가 직접 지정해서 들어간다).
+        /// IsVersusArena와 같은 방식(에셋 이름 기준)이되, 표시 이름도 함께 본다 — 튜토리얼 진입점이 표시 이름으로 맵을 찾기 때문.</summary>
+        public bool IsTutorial => name == "Map_Tutorial" || DisplayName == "튜토리얼";
+
         /// <summary>이 맵에서 주문 가능한 재료(비면 카탈로그 전체). 카탈로그 자체는 전역 그대로다.</summary>
         public IReadOnlyList<MaterialDef> AvailableMaterials => m_AvailableMaterials;
 

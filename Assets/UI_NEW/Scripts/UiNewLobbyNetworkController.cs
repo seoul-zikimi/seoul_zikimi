@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.Services.Multiplayer;
@@ -163,9 +164,12 @@ namespace SeoulZikimi.UI.New
             }
 
             bool weather = spawned ? lobbyNet.WeatherOn : GridSystem.GameLoopManager.HostWeatherEnabled;
-            GridSystem.MapDef map = GridSystem.MapCatalog.Instance != null ? GridSystem.MapCatalog.Instance.Get(mapIndex) : null;
+            // '랜덤'은 실제 맵이 아니다 — Get()이 0번 맵으로 폴백하므로 조회 자체를 하지 않는다(엉뚱한 이름·썸네일 방지).
+            bool randomMap = mapIndex == GridSystem.MapCatalog.RandomMapIndex;
+            GridSystem.MapDef map = (!randomMap && GridSystem.MapCatalog.Instance != null)
+                ? GridSystem.MapCatalog.Instance.Get(mapIndex) : null;
             bool isHost = spawned && lobbyNet.IsHost;
-            view.SetSettings(map != null ? map.DisplayName : "맵 없음",
+            view.SetSettings(randomMap ? UiNewMapOptions.RandomLabel : (map != null ? map.DisplayName : "맵 없음"),
                 ModeNames[Mathf.Clamp(modeIndex, 0, ModeNames.Length - 1)], map != null ? map.Thumbnail : null, weather,
                 spawned && lobbyNet.CanHostEditSettings);
             bool canChangeTeam = spawned && (!lobbyNet.IsLocallyReady || isHost);
@@ -181,13 +185,17 @@ namespace SeoulZikimi.UI.New
 
         private void SelectMap(int index) { lobbyNet?.HostSelectMap(index); _ = SaveMetadataAsync(); }
 
-        // 좌우 화살표: 카탈로그 순서로 순환(이전/다음)
+        // 좌우 화살표: 드롭다운과 같은 선택지 순서로 순환(맨 앞 '랜덤' → 공터·튜토리얼 뺀 맵들).
+        // 카탈로그 인덱스로 직접 ±1 하면 목록에서 뺀 맵과 '랜덤' 센티널(-1)을 밟는다.
+        private readonly List<int> mapStepIndices = new();
         private void StepMap(int step)
         {
             if (lobbyNet == null) return;
-            int count = GridSystem.MapCatalog.Instance != null ? Mathf.Max(1, GridSystem.MapCatalog.Instance.Count) : 1;
-            int next = ((lobbyNet.SelectedMap + step) % count + count) % count;
-            SelectMap(next);
+            UiNewMapOptions.CollectSelectable(mapStepIndices);
+            if (mapStepIndices.Count == 0) return;
+            int current = Mathf.Max(0, mapStepIndices.IndexOf(lobbyNet.SelectedMap));
+            int next = ((current + step) % mapStepIndices.Count + mapStepIndices.Count) % mapStepIndices.Count;
+            SelectMap(mapStepIndices[next]);
         }
         private void SelectMode(int index) { lobbyNet?.HostSelectMode(index); _ = SaveMetadataAsync(); }
         private void ToggleWeather() { lobbyNet?.HostToggleWeather(); _ = SaveMetadataAsync(); }

@@ -230,6 +230,13 @@ namespace GridSystem
         /// <summary>내 팀이 주문 해킹당했는가(주문 HUD 안내용).</summary>
         public static bool LocalOrderBlocked() => LocalEffects().OrderBlocked;
 
+        /// <summary>내 팀 주문 차단이 풀릴 때까지 남은 초(안 걸렸으면 0) — 주문 HUD 카운트다운용.</summary>
+        public static float LocalOrderBlockedRemaining()
+        {
+            var fx = LocalEffects();
+            return fx.OrderBlocked ? Mathf.Max(0f, fx.OrderUntil - NetNow()) : 0f;
+        }
+
         /// <summary>대포 조준 연출용 — 상대 진영 중심(월드). 비대전/미배정이면 fallback.</summary>
         public static Vector3 EnemyZoneAimPoint(Vector3 fallback)
         {
@@ -327,6 +334,14 @@ namespace GridSystem
 
         /// <summary>서버 검사용: 해당 팀이 지금 재료를 주문할 수 있는가(MaterialDepot이 호출).</summary>
         public bool IsOrderBlocked(int team) => team >= 0 && Fx(team).OrderBlocked;
+
+        /// <summary>서버 검사용: 해당 팀의 주문 차단 잔여 초(안 걸렸으면 0) — 거절 안내에 남은 시간을 싣는다.</summary>
+        public float OrderBlockRemaining(int team)
+        {
+            if (team < 0) return 0f;
+            var fx = Fx(team);
+            return fx.OrderBlocked ? Mathf.Max(0f, fx.OrderUntil - NetNow()) : 0f;
+        }
 
         // ── 게이트웨이 (SpawnDirector → 월드) — 서버 전용 ─────────
         string ICompetitiveItemSpawnGateway.Spawn(CompetitiveItemSpawnRequest request)
@@ -644,8 +659,8 @@ namespace GridSystem
             int team = TeamIndex(teamId);
             if (team < 0 || m_Net == null) return;
             bool hit = m_Net.ServerCannonDestroy(team);
-            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 완성 파츠 1개 파괴"
-                          : $"[Item] 대포 → 팀{teamId}: 부술 완성 파츠가 없음");
+            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 배치 블록 1개 파괴(위에 얹힌 것은 연쇄 붕괴)"
+                          : $"[Item] 대포 → 팀{teamId}: 구역에 부술 블록이 없음");
         }
 
         void ITeamMovementModifierTarget.ApplyMovementSpeedMultiplier(string teamId, float multiplier, float durationSeconds)

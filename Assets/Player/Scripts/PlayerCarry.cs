@@ -766,7 +766,7 @@ namespace Player
              : m_ProcessSeconds;
 
         // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
-        // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 완성 파츠 중 무작위로 고른다(기획서).
+        // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 배치된 블록 중 무작위로 고른다(기획서).
         private const float kCannonChargeSeconds = 0.8f;
         private float m_CannonCharge;
 
