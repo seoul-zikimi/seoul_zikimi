@@ -56,7 +56,8 @@ namespace GridSystem.EditorTools
                 BuildExtras(root, report);
 
                 PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath);
-                foreach (var leftover in new[] { "Mat_GtgStreamWater", "Mat_GtgLeaf", "Mat_GtgTrunk" })   // 1차 버전(워터·가로수) 잔재 정리
+                foreach (var leftover in new[] { "Mat_GtgStreamWater", "Mat_GtgLeaf", "Mat_GtgTrunk",
+                                                 "Mat_GtgArchStone", "Mat_GtgTunnelMouth", "Mat_GtgWalkway" })   // 지난 버전들(워터·가로수·수문·보도) 잔재 정리
                     AssetDatabase.DeleteAsset($"{kMatDir}/{leftover}.mat");
                 AssetDatabase.SaveAssets();
                 Debug.Log($"[광통교보강] 완료 ✔ Missing 슬롯 {missingFixed}개 채움 · 원경 빌딩 {reskinned}개 파사드 교체. " +
@@ -232,11 +233,12 @@ namespace GridSystem.EditorTools
             return count;
         }
 
-        // ───────────────────── ④ 물길 끝 아치 수문 + 보도 스트립 ─────────────────────
-        // 1차 버전(워터 1km 연장 + 가로수 107주)은 QA 반려("물이 이상함", "나무 삭제").
-        // 2차 지시: "밑의 물·돌계단과 자연스럽게 이으면서 벽이나 아치 몇 개 추가" —
-        // 물길 남북 끝을 석벽으로 막되, 앞면에 타원 아치 링 + 교각 + 어두운 통수구를 세워
-        // 물이 아치 밑으로 흘러 나가는 수문처럼 보이게 한다(맵의 광통교 아치교와 같은 어법).
+        // ───────────────────── ④ 물길 끝 다리 반복 배치 + 보도 스트립 ─────────────────────
+        // 1차(워터 1km 연장+가로수 107주)·2차(프리미티브 아치 수문) 모두 QA 반려("어색함").
+        // 3차 지시: "수문 모델 뽑거나 이미 있는 걸 재활용해서 양옆으로 자연스럽게 반복 배치" —
+        // 맵 남쪽 끝(z≈-34.9)에 이미 서 있는 광통교 아치교(bridge.glb 인스턴스)를 그대로 복제해
+        // ① 북쪽 끝에 미러 배치(어색했던 수문 자리), ② 남북 안개 속(±약 105m)에 한 채씩 더 —
+        // 청계천에 다리가 줄지어 놓인 실제 풍경 어법. 원본과 완전히 같은 룩(오버라이드 포함 클론).
         private static void BuildExtras(GameObject root, StringBuilder report)
         {
             var old = root.transform.Find(kGroupName);
@@ -244,82 +246,208 @@ namespace GridSystem.EditorTools
             var grp = new GameObject(kGroupName);
             grp.transform.SetParent(root.transform, false);
 
-            var stone  = EnsureLit("Mat_GtgEmbankment", new Color(0.76f, 0.74f, 0.69f));
-            var stoneD = EnsureLit("Mat_GtgArchStone",  new Color(0.68f, 0.66f, 0.61f));   // 아치 링 — 살짝 어두운 석재(윤곽 대비)
-            var mouth  = EnsureLit("Mat_GtgTunnelMouth", new Color(0.10f, 0.11f, 0.13f));  // 통수구 속 어둠
-            var walkMat = EnsureLit("Mat_GtgWalkway", new Color(0.84f, 0.82f, 0.77f));
+            const float kChanCz = -0.343f;   // 물길 큐브 중심 z — 남쪽 다리를 이 축으로 미러하면 북쪽 끝
 
-            float chanW  = kChanXMax - kChanXMin + 1.5f;      // 개구부 폭 + 양쪽 여유
-            float chanCx = (kChanXMin + kChanXMax) * 0.5f;
-            const float kFloorY = -1f;                        // 물길 바닥보다 살짝 아래(틈 방지)
-            const float kSpringY = 1.0f;                      // 아치 스프링 라인(수면 위)
-            const float kArchHalfW = 8f, kArchH = 3.5f;       // 타원 아치 반폭·높이 → 꼭대기 4.5(둔치 5.42 아래)
-
-            for (int dir = -1; dir <= 1; dir += 2)
+            // 원본 다리: 이름 'bridge' + 소스가 bridge.glb인 인스턴스(남쪽 끝)
+            GameObject srcBridge = null;
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
             {
-                string tag = dir < 0 ? "S" : "N";
-                float capZ = dir * (kZPlayEdge + 1.2f);
-                float faceZ = capZ - dir * 1.3f;              // 플레이 쪽 앞면
+                if (t.name != "bridge" || IsUnder(t, kGroupName)) continue;
+                string src = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(t.gameObject);
+                if (!string.IsNullOrEmpty(src) && src.EndsWith("bridge.glb")) { srcBridge = t.gameObject; break; }
+            }
 
-                // 몸통 벽: 물길 단면 전체(바닥 ~ 둔치 윗면)
-                var cap = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Prep(cap, grp.transform, $"ChannelCap{tag}", stone);
-                float h = kBankTopY - kFloorY;
-                cap.transform.position = new Vector3(chanCx, kFloorY + h * 0.5f, capZ);
-                cap.transform.localScale = new Vector3(chanW, h, 2.4f);
+            if (srcBridge != null)
+            {
+                var bp = srcBridge.transform.position;
+                var br = srcBridge.transform.rotation;
+                var mirrorRot = Quaternion.Euler(0f, 180f, 0f) * br;   // 북쪽은 180° 돌려 앞뒤 맞춤
 
-                // 갓돌: 벽 위 밝은 마감 슬래브(실제 옹벽 마감처럼 살짝 돌출)
-                var coping = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Prep(coping, grp.transform, $"CapCoping{tag}", walkMat);
-                coping.transform.position = new Vector3(chanCx, kBankTopY + 0.14f, capZ);
-                coping.transform.localScale = new Vector3(chanW + 0.6f, 0.3f, 3f);
-
-                // 통수구: 아치 안쪽을 채우는 어두운 면 — 물이 그 속으로 흘러드는 깊이감
-                var dark = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Prep(dark, grp.transform, $"TunnelMouth{tag}", mouth);
-                float mouthH = kSpringY + kArchH - 0.25f - kFloorY;
-                dark.transform.position = new Vector3(chanCx, kFloorY + mouthH * 0.5f, faceZ + dir * 0.02f);
-                dark.transform.localScale = new Vector3((kArchHalfW - 0.3f) * 2f, mouthH, 0.25f);
-
-                // 아치 링: 타원(반폭 8 × 높이 3.5)을 따라 석재 세그먼트 11개
-                const int kSegs = 11;
-                for (int i = 0; i < kSegs; i++)
+                // (이름, 위치, 회전, 원경 여부) — 근경 북쪽 1 + 원경 남북 각 1
+                var placements = new (string name, Vector3 pos, Quaternion rot, bool far)[]
                 {
-                    float t0 = Mathf.PI * (i + 0.5f) / kSegs;   // 10°~170° 구간을 균등 분할
-                    float x = chanCx + kArchHalfW * Mathf.Cos(t0);
-                    float y = kSpringY + kArchH * Mathf.Sin(t0);
-                    // 세그먼트 길이 ≈ 타원 호 길이/개수 + 겹침 여유, 기울기 = 타원 접선
-                    float segLen = 2.6f;
-                    float ang = Mathf.Atan2(kArchH * Mathf.Cos(t0), -kArchHalfW * Mathf.Sin(t0)) * Mathf.Rad2Deg;
-                    var seg = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Prep(seg, grp.transform, $"ArchSeg{tag}{i}", stoneD);
-                    seg.transform.position = new Vector3(x, y, faceZ);
-                    seg.transform.rotation = Quaternion.Euler(0f, 0f, ang);
-                    seg.transform.localScale = new Vector3(segLen, 0.85f, 0.6f);
+                    ("BridgeN",    new Vector3(bp.x, bp.y, 2f * kChanCz - bp.z), mirrorRot, false),
+                    ("BridgeFarS", new Vector3(bp.x, bp.y, bp.z - 70f),          br,        true),
+                    ("BridgeFarN", new Vector3(bp.x, bp.y, 2f * kChanCz - bp.z + 70f), mirrorRot, true),
+                };
+                foreach (var (name, pos, rot, far) in placements)
+                {
+                    var clone = Object.Instantiate(srcBridge, grp.transform);   // 오버라이드 포함, 원본과 동일 룩
+                    clone.name = name;
+                    clone.transform.position = pos;
+                    clone.transform.rotation = rot;
+                    foreach (var c in clone.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                    foreach (var r in clone.GetComponentsInChildren<Renderer>(true))
+                    {
+                        if (far)   // 원경 다리는 그림자·레이캐스트 끔(근경 북쪽은 남쪽 원본과 같은 룩 유지)
+                        {
+                            r.shadowCastingMode = ShadowCastingMode.Off;
+                            r.receiveShadows = false;
+                        }
+                        r.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+                    }
                 }
+                report.AppendLine($"[연장] 남쪽 다리(bridge.glb) 재활용 — 북쪽 미러 1 + 원경 남북 각 1 (원본 pos={bp}, 프리미티브 수문은 제거)");
+            }
+            else
+            {
+                report.AppendLine("[연장] ⚠ 원본 다리(bridge.glb 인스턴스)를 못 찾아 다리 복제 생략");
+            }
 
-                // 교각: 아치 양끝 밑을 받치는 돌기둥(앞으로 살짝 돌출)
-                foreach (float px in new[] { chanCx - kArchHalfW - 0.7f, chanCx + kArchHalfW + 0.7f })
+            // ── 물길·계단 연장: 회랑 콘텐츠(Plane 물바닥·Walls 석축·바닥돌·계단·징검다리·덤불)를
+            //    렌더러 단위로 떠서 남북 ±70m 평행이동 복제 1장씩. 이음새(z≈±33~37)는 다리(±34.9)
+            //    뒤에 숨고, 겹치는 구간은 사본을 y -0.03 내려 z-파이트를 피한다.
+            //    실측 바운즈: Plane z -37.5~36.8 · Walls -30.5~60 · GameObject -38.7~27.2 —
+            //    '완전 포함' 필터(v7)는 이들을 다 놓쳤으므로 '코어 교차 + 방향별 침범 가드'로 고른다.
+            // 조인트 = 회랑 콘텐츠의 실제 끝단(Plane 바닥 메시 실측: 남 -37.5 / 북 36.8).
+            // 거울 복제는 '어떤 곡선이든 끝단에서 자기 자신과 정확히 이어진다' — 물 S커브·연석·계단이
+            // 전부 맞물린다(±70m 평행이동은 곡선이 어긋나 "물길이 깨져 보인다" QA 반려).
+            var planeT = root.transform.Find("Plane");
+            var planeR = planeT != null ? planeT.GetComponentInChildren<MeshRenderer>() : null;
+            float jointN = planeR != null ? planeR.bounds.max.z : kZPlayEdge + 4f;
+            float jointS = planeR != null ? planeR.bounds.min.z : -kZPlayEdge - 4f;
+
+            int copied = 0;
+            var tileN = new GameObject("ChannelTileN"); tileN.transform.SetParent(grp.transform, false);
+            var tileS = new GameObject("ChannelTileS"); tileS.transform.SetParent(grp.transform, false);
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (IsUnder(r.transform, "~Horizon") || IsUnder(r.transform, kGroupName) ||
+                    IsUnder(r.transform, "Answer Layer") || IsUnder(r.transform, "BackgroundCity")) continue;
+                bool banned = false;   // 게임플레이/마커류 + 다리(따로 배치함) 제외
+                for (var p = r.transform; p != null && !banned; p = p.parent)
+                    banned = p.name.StartsWith("Spot_") || p.name.Contains("Hammer") || p.name.Contains("Delivery") ||
+                             p.name.Contains("Paint") || p.name.StartsWith("Anchor") || p.name == "bridge";
+                if (banned) continue;
+                var b = r.bounds;
+                if (b.min.x < -18f || b.max.x > 19f) continue;      // 회랑 폭 밖(둔치 큐브 등) 제외
+                if (b.max.y > 8f) continue;                          // 둔치 위 구조물 제외
+                if (b.size.z > 120f) continue;                       // 1km 스트레치 큐브 제외
+                if (b.max.z < -kZPlayEdge || b.min.z > kZPlayEdge) continue;   // 코어 회랑과 무관한 조각 제외
+                var mf = r.GetComponent<MeshFilter>();
+                if (mf == null || mf.sharedMesh == null) continue;
+
+                foreach (int dir in new[] { -1, 1 })
                 {
-                    var pier = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Prep(pier, grp.transform, $"ArchPier{tag}{(px < chanCx ? "W" : "E")}", stoneD);
-                    float ph = kSpringY + 0.9f - kFloorY;
-                    pier.transform.position = new Vector3(px, kFloorY + ph * 0.5f, capZ - dir * 0.6f);
-                    pier.transform.localScale = new Vector3(1.7f, ph, 3.4f);
+                    // 미러 후 실제로 플레이 영역(z ±33) 안까지 접혀 들어오는 조각만 스킵(북쪽 z60 벽 등).
+                    // '조인트를 살짝 걸친' 조각(남쪽 -38.7 계단 등)은 접혀도 영역 밖 — 스킵하면
+                    // 연장부에 구멍이 생긴다(v12에서 남쪽이 뚝 끊겨 보였던 원인).
+                    if (dir > 0 && 2f * jointN - b.max.z < kZPlayEdge + 1f) continue;
+                    if (dir < 0 && 2f * jointS - b.min.z > -kZPlayEdge - 1f) continue;
+                    var copy = new GameObject(r.gameObject.name);
+                    copy.transform.SetParent((dir < 0 ? tileS : tileN).transform, false);
+                    copy.transform.SetPositionAndRotation(r.transform.position, r.transform.rotation);
+                    copy.transform.localScale = r.transform.lossyScale;   // 컨테이너 플립 전 = 월드 TRS 그대로
+                    copy.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
+                    var mr = copy.AddComponent<MeshRenderer>();
+                    mr.sharedMaterials = r.sharedMaterials;
+                    mr.shadowCastingMode = ShadowCastingMode.Off;
+                    mr.receiveShadows = false;
+                    copy.layer = LayerMask.NameToLayer("Ignore Raycast");
+                    copied++;
                 }
             }
 
-            // ── 보도 스트립: 물길 양안 위 2m 폭 밝은 콘크리트 띠(맨 아스팔트와 물길 사이 완충)
-            for (int dir = -1; dir <= 1; dir += 2)
-            foreach (float x in new[] { kChanXMin - 1.6f, kChanXMax + 1.6f })
+            // ── 물(WindingWater): ProBuilder라 메시가 에셋이 아니라 로드 때 컴포넌트가 재구축 —
+            //    렌더러 복제로는 못 뜨고(툴 시점 sharedMesh=null), 그룹을 컴포넌트째 복제해야 한다.
+            //    타일 컨테이너 안에 원본 TRS 그대로 넣으면 아래 플립이 물길도 같이 미러한다.
+            var waterGrp = root.transform.Find("Water");
+            if (waterGrp != null)
             {
-                var strip = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Prep(strip, grp.transform, $"Walkway{(dir < 0 ? "S" : "N")}{(x < 0 ? "W" : "E")}", walkMat);
-                strip.transform.position = new Vector3(x, kBankTopY + 0.02f, dir * (kZPlayEdge + kZFar) * 0.5f);
-                strip.transform.localScale = new Vector3(2.4f, 0.05f, kZFar - kZPlayEdge);
+                foreach (var tile in new[] { tileS, tileN })
+                {
+                    var wclone = Object.Instantiate(waterGrp.gameObject, tile.transform);
+                    wclone.name = "Water";
+                    wclone.transform.position = waterGrp.position;
+                    wclone.transform.rotation = waterGrp.rotation;
+                    wclone.transform.localScale = waterGrp.lossyScale;
+                    foreach (var c in wclone.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+                    foreach (var r in wclone.GetComponentsInChildren<Renderer>(true))
+                    {
+                        r.shadowCastingMode = ShadowCastingMode.Off;
+                        r.receiveShadows = false;
+                        r.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+                    }
+                }
             }
 
-            report.AppendLine("[연장] 남북 아치 수문(벽+아치 링 11segs+교각+통수구+갓돌) + 보도 스트립 — 워터·가로수는 QA 반려로 제거");
+            // 컨테이너째 미러: z' = 2*joint - z, y는 살짝 내려 원본과 겹치는 부분의 z-파이트 방지
+            tileN.transform.localScale = new Vector3(1f, 1f, -1f);
+            tileN.transform.position = new Vector3(0f, -0.03f, 2f * jointN);
+            tileS.transform.localScale = new Vector3(1f, 1f, -1f);
+            tileS.transform.position = new Vector3(0f, -0.03f, 2f * jointS);
+            report.AppendLine($"[연장] 회랑 거울-타일 남북 각 1장 (조인트 z {jointS:F1}/{jointN:F1}) — 사본 {copied}개 + Water(ProBuilder) {(waterGrp != null ? "포함" : "없음⚠")}");
+
+            // (진단) 루트 그룹별 렌더러 바운즈 — 타일 소스 검증용
+            foreach (Transform t in root.transform)
+            {
+                if (t.name == kGroupName || t.name == "~Horizon") continue;
+                Bounds gb = default; bool ghas = false;
+                foreach (var r in t.GetComponentsInChildren<Renderer>())
+                { if (!ghas) { gb = r.bounds; ghas = true; } else gb.Encapsulate(r.bounds); }
+                if (ghas) report.AppendLine($"[바운즈] {t.name}: x {gb.min.x:F1}~{gb.max.x:F1}, y {gb.min.y:F1}~{gb.max.y:F1}, z {gb.min.z:F1}~{gb.max.z:F1}");
+            }
+
+            // (진단) 회랑 개별 렌더러 상세 — 어떤 조각이 물/바닥/석축인지 식별용(머티리얼 이름 포함)
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (IsUnder(r.transform, "~Horizon") || IsUnder(r.transform, kGroupName) ||
+                    IsUnder(r.transform, "BackgroundCity") || IsUnder(r.transform, "Bushes")) continue;
+                var b = r.bounds;
+                if (b.min.x < -20f || b.max.x > 21f || b.max.y > 9f) continue;
+                if (b.max.z < -90f || b.min.z > 90f) continue;
+                string mats = string.Join(",", r.sharedMaterials.Select(m => m == null ? "(null)" : m.name));
+                string pathStr = r.transform.parent != null ? r.transform.parent.name + "/" + r.name : r.name;
+                report.AppendLine($"[조각] {pathStr}: y {b.min.y:F1}~{b.max.y:F1}, z {b.min.z:F1}~{b.max.z:F1}, x {b.min.x:F1}~{b.max.x:F1} · {mats}");
+            }
+
+            // (보도 스트립은 v10에서 제거 — 회랑 복제로 덤불·석축이 이어지자 흰 띠가 오히려 이질적으로 떠 보임)
+        }
+
+        // ───────────────────── 진단 스냅샷 ─────────────────────
+        /// <summary>프리팹을 프리뷰 씬에 세워 남북 물길 끝을 카메라로 찍는다 → Library/GtgShot_*.png.
+        /// 게임을 안 띄우고도 연장 결과를 눈으로 검증하기 위한 QA용.</summary>
+        [MenuItem("Tools/Map/광통교 스냅샷(진단)")]
+        public static void Snapshot()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(kPrefabPath);
+            if (prefab == null) { Debug.LogWarning("[광통교보강] 프리팹 없음 — 스냅샷 생략"); return; }
+
+            var pru = new PreviewRenderUtility();
+            try
+            {
+                pru.camera.farClipPlane = 2000f;
+                pru.camera.nearClipPlane = 0.3f;
+                pru.camera.fieldOfView = 55f;
+                pru.camera.clearFlags = CameraClearFlags.Color;
+                pru.camera.backgroundColor = new Color(0.75f, 0.85f, 0.95f);
+                pru.ambientColor = new Color(0.55f, 0.55f, 0.58f);
+                if (pru.lights.Length > 0)
+                {
+                    pru.lights[0].intensity = 1.2f;
+                    pru.lights[0].transform.rotation = Quaternion.Euler(50f, -32f, 0f);
+                }
+                pru.InstantiatePrefabInScene(prefab);
+
+                var shots = new (string name, Vector3 eye, Vector3 look)[]
+                {
+                    ("N_inside",  new Vector3(0f, 16f, -8f), new Vector3(0f, 0f, 60f)),   // 플레이 영역에서 북쪽 다리 너머
+                    ("N_beyond",  new Vector3(0f, 35f, 75f), new Vector3(0f, 0f, 40f)),   // 북쪽 연장부 부감
+                    ("S_inside",  new Vector3(0f, 16f, 8f),  new Vector3(0f, 0f, -60f)),
+                    ("S_beyond",  new Vector3(0f, 35f, -75f), new Vector3(0f, 0f, -40f)),
+                };
+                foreach (var (name, eye, look) in shots)
+                {
+                    pru.camera.transform.position = eye;
+                    pru.camera.transform.rotation = Quaternion.LookRotation(look - eye);
+                    pru.BeginStaticPreview(new Rect(0f, 0f, 1280f, 720f));
+                    pru.camera.Render();
+                    var tex = pru.EndStaticPreview();
+                    File.WriteAllBytes($"Library/GtgShot_{name}.png", tex.EncodeToPNG());
+                }
+                Debug.Log("[광통교보강] 진단 스냅샷 4장 → Library/GtgShot_*.png");
+            }
+            finally { pru.Cleanup(); }
         }
 
         private static Material EnsureLit(string name, Color color)
@@ -391,11 +519,19 @@ namespace GridSystem.EditorTools
     ///    낡은 인스턴스의 내부 참조가 죽은 것으로 판단) + 텍스처를 추출 PNG로 교체.
     /// 4: QA 반려 반영 — 워터 연장·가로수 107주 제거, 물길 남북 끝을 '아치 수문'(석벽+아치 링+
     ///    교각+어두운 통수구)으로 막아 물·돌계단과 자연스럽게 잇는다.
+    /// 5: 프리미티브 수문도 반려("여전히 어색") — 남쪽 끝의 실제 광통교 다리(bridge.glb 인스턴스)를
+    ///    복제해 북쪽 미러 + 남북 원경(±105m)에 반복 배치. 기존 에셋 재활용이라 톤이 정확히 같다.
+    /// 6: 다리 너머 물길 연장 — Water(WindingWater)·Stairs 그룹을 남북으로 거울-타일 1장씩
+    ///    (끝단 미러라 곡선 이음새 없음). QA "물길 양옆 연장 + 석재 계단 이어서".
+    /// 7: v6의 그룹 이름 기반 선택이 회랑 일부만 집어 빗나감(측정 z -27~-16) — 공간 슬라이스
+    ///    (회랑 |x|≤16 · z ±33 · y≤8 안의 렌더러 전부)로 교체, 렌더러 단위 사본 + z=±33 미러.
+    /// 8: v7 '완전 포함' 필터가 핵심(Plane 물바닥 z -37.5~36.8, Walls, 바닥돌)을 전부 놓침 —
+    ///    '코어 교차 + 방향별 침범 가드'로 선별해 ±70m 평행이동 복제(이음새는 다리 뒤, y -0.03 겹침 가드).
     /// </summary>
     [InitializeOnLoad]
     public static class GwangTongGyoAutoSetup
     {
-        private const int kVersion = 4;
+        private const int kVersion = 13;   // 13: 미러 스킵 가드 완화 — 조인트 걸친 조각(남쪽 계단)이 빠져 남쪽 연장이 끊겨 보였음
         private const string kKey = "GwangTongGyo.PolishVersion";
 
         static GwangTongGyoAutoSetup()
@@ -406,6 +542,7 @@ namespace GridSystem.EditorTools
                 if (EditorPrefs.GetInt(kKey, 0) >= kVersion) return;
                 Debug.Log("[광통교보강] 자동 실행 (Tools ▸ Map ▸ ★ 광통교 그래픽 보강)");
                 GwangTongGyoPolishTool.Apply();
+                GwangTongGyoPolishTool.Snapshot();
                 EditorPrefs.SetInt(kKey, kVersion);
             };
         }
