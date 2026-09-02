@@ -429,19 +429,40 @@ namespace GridSystem
         // 서버: 2vs2 승리 조건(기획 변경 09/02) — 먼저 100%(모든 칸 배치+공정 완료)를 찍는 팀이 즉시 승리.
         // 아무도 못 찍으면 기존대로 타이머 종료 시 완성도 비교(높은 쪽 승 / 동점 DRAW).
         // 반올림 100%(99.6% 표시 100)에 속지 않게 score>=maxScore 원값으로 판정(GameLoopHUD.IsComplete와 동일).
+        // 확정 즉시 전 클라에 "완공!!" 시네마틱(슬로모+줌)을 틀고, 정산은 연출이 걷힐 때 들어간다.
+        private bool m_EarlyFinishPending;   // 서버: 연출 대기 중(중복 트리거·항복 처리 차단)
+
         private bool TryEarlyVictory()
         {
+            if (m_EarlyFinishPending) return true;
             if (!MatchStarted || m_Net == null) return false;
             var a = m_Net.ScoreFor(0);
             var b = m_Net.ScoreFor(1);
             bool aDone = a.maxScore > 0 && a.score >= a.maxScore;
             bool bDone = b.maxScore > 0 && b.score >= b.maxScore;
             if (!aDone && !bDone) return false;
-            // 같은 프레임 동시 완성(사실상 희귀)이면 승자 미확정으로 두고 Finish의 총점 비교(보너스 포함)에 맡긴다.
-            if (aDone != bDone) m_ForcedWinner = aDone ? 0 : 1;
-            Finish();
+            // 같은 프레임 동시 완성(사실상 희귀)이면 보너스 포함 총점으로 표시 승자를 정하고, 그마저 같으면 -1(동시).
+            int winner = aDone != bDone ? (aDone ? 0 : 1)
+                : a.Total == b.Total ? -1 : (a.Total > b.Total ? 0 : 1);
+            if (winner >= 0) m_ForcedWinner = winner;
+            m_EarlyFinishPending = true;
+            EarlyVictoryRpc(winner);
+            StartCoroutine(FinishAfterVictoryCinematic());
             return true;
         }
+
+        private System.Collections.IEnumerator FinishAfterVictoryCinematic()
+        {
+            // 연출(2.4s)보다 살짝 길게 — 배너가 걷히는 타이밍에 정산서가 자연스럽게 등장.
+            // Realtime: 호스트도 연출 슬로모(timeScale 0.25)를 같이 받으므로 스케일 무관 대기.
+            yield return new WaitForSecondsRealtime(VictoryFx.kDuration + 0.2f);
+            m_EarlyFinishPending = false;
+            if (IsBuilding) Finish();   // 그 사이 타이머 만료 등으로 이미 끝났으면 no-op
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void EarlyVictoryRpc(int winnerTeam)
+            => VictoryFx.Play(winnerTeam, LocalTeam);
 
         // 서버: 2vs2 조기 종료 = 항복(기획). 해당 팀 전원이 동의하면 그 팀 패배로 즉시 종료.
         private bool TryTeamSurrender(System.Collections.Generic.IReadOnlyList<ulong> ids)

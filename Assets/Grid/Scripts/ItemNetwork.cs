@@ -244,6 +244,15 @@ namespace GridSystem
             return fx.OrderBlocked ? Mathf.Max(0f, fx.OrderUntil - NetNow()) : 0f;
         }
 
+        /// <summary>팀 진영 월드 경계(2vs2). 비대전이면 null — 승리 시네마틱 카메라 프레이밍용.</summary>
+        public static Bounds? TeamZoneBounds(int team)
+        {
+            if (s_Instance == null || s_Instance.m_Grid == null
+                || s_Instance.m_Loop == null || !s_Instance.m_Loop.IsVersus
+                || team < 0 || team > 1) return null;
+            return s_Instance.ZoneWorldBounds(team);
+        }
+
         /// <summary>대포 조준 연출용 — 상대 진영 중심(월드). 비대전/미배정이면 fallback.</summary>
         public static Vector3 EnemyZoneAimPoint(Vector3 fallback)
         {
