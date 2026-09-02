@@ -485,9 +485,17 @@ public class AnswerPanelHUD : UIHUD
             var xBtn = xGo.AddComponent<Button>();
             xBtn.targetGraphic = xImg;
             xBtn.onClick.AddListener(ToggleCollapsed);
-            var xLabel = MakeTextPx(xGo.transform, "✕", Vector2.zero, new Vector2(64f, 64f), 30, TextAnchor.MiddleCenter);
-            xLabel.color = ink;
-            xLabel.fontStyle = FontStyle.Bold;
+            // ✕ 글리프(U+2715)는 SUITE 폰트에 없어 실기기에서 회색 원만 보였다 —
+            // 폰트 의존 없이 바 2개를 ±45° 회전해 X를 그린다.
+            for (int i = 0; i < 2; i++)
+            {
+                var bar = NewRect("XBar", xGo.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    Vector2.zero, new Vector2(32f, 5f));
+                var barImg = bar.AddComponent<Image>();
+                barImg.color = ink;
+                barImg.raycastTarget = false;
+                bar.transform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 45f : -45f);
+            }
         }
         m_Collapsed = false;
         if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);

@@ -69,6 +69,9 @@ namespace GridSystem.EditorTools
 
         // Models 폴더의 GLB 중 대응 _Fit.prefab(퍼레이드카는 Resources 프리팹)이 없는 것이 하나라도 있는가.
         // ⚠ FindAssets("t:Model")은 glTFast(ScriptedImporter)로 임포트된 .glb를 못 찾는다 — 파일 기준으로 훑는다.
+        // ⚠ 산출 경로는 LotteModelApplyTool과 반드시 일치해야 한다 — 여기가 어긋난 이름(퍼레이드카2~4는
+        //   Resources/ParadeCarN.prefab, 모노빔은 폐기)을 '영원히 미적용'으로 오판해, 에디터 로드마다
+        //   맵 전체 재생성이 돌았고 그때마다 프리팹·썸네일 fileID가 바뀌어 브랜치 머지 충돌이 반복됐다.
         private static bool HasUnappliedModels()
         {
             if (!System.IO.Directory.Exists(kModelDir)) return false;
@@ -77,8 +80,9 @@ namespace GridSystem.EditorTools
                 string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
                 if (ext != ".glb" && ext != ".fbx" && ext != ".obj") continue;
                 string name = System.IO.Path.GetFileNameWithoutExtension(file);
-                string fitPath = name == "롯데_퍼레이드카"
-                    ? "Assets/Resources/LotteWorld/ParadeCar.prefab"
+                if (name == "롯데_모노빔") continue;   // 폐기 — 모노레일은 기둥 마커 방식이라 _Fit을 만들지 않는다
+                string fitPath = name.StartsWith("롯데_퍼레이드카")
+                    ? $"Assets/Resources/LotteWorld/ParadeCar{name.Substring("롯데_퍼레이드카".Length)}.prefab"
                     : $"{kDir}/{name}_Fit.prefab";
                 if (AssetDatabase.LoadAssetAtPath<GameObject>(fitPath) == null) return true;
             }

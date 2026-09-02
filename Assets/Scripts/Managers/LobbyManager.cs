@@ -46,16 +46,24 @@ public class LobbyManager : MonoBehaviour
             if (!AuthenticationService.Instance.IsSignedIn)
             {
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                string playerId = AuthenticationService.Instance.PlayerId ?? "";
-                string shortId = playerId.Length <= 5 ? playerId : playerId.Substring(0, 5);
-                if (string.IsNullOrEmpty(shortId))
-                    shortId = UnityEngine.Random.Range(10000, 99999).ToString();
-                string savedName = PlayerPrefs.GetString("PlayerNickname", "").Trim();
-                string myName = string.IsNullOrEmpty(savedName) ? $"Guest{shortId}" : savedName;
-
-                await AuthenticationService.Instance.UpdatePlayerNameAsync(myName);
                 Debug.Log($"[LobbyManager] 익명 로그인 성공! PlayerID: {AuthenticationService.Instance.PlayerId}");
             }
+
+            // 표시 이름은 로그인 때 한 번이 아니라 매번 저장된 닉네임과 맞춘다.
+            // (메인화면에서 닉네임을 바꾼 뒤 들어와도 세션 목록·로비에 최신 이름이 보이도록)
+            string playerId = AuthenticationService.Instance.PlayerId ?? "";
+            string shortId = playerId.Length <= 5 ? playerId : playerId.Substring(0, 5);
+            if (string.IsNullOrEmpty(shortId))
+                shortId = UnityEngine.Random.Range(10000, 99999).ToString();
+            string savedName = PlayerPrefs.GetString("PlayerNickname", "").Trim().Replace(" ", "");   // UGS 이름은 공백 불가
+            string myName = string.IsNullOrEmpty(savedName) ? $"Guest{shortId}" : savedName;
+
+            string currentName = AuthenticationService.Instance.PlayerName ?? "";
+            int tagIndex = currentName.IndexOf('#');   // UGS가 붙이는 "#1234" 태그 제거 후 비교
+            if (tagIndex >= 0)
+                currentName = currentName.Substring(0, tagIndex);
+            if (currentName != myName)
+                await AuthenticationService.Instance.UpdatePlayerNameAsync(myName);
         }
         catch (Exception e)
         {
@@ -410,11 +418,13 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-        // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인
+        // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인.
+        // 즉시 방을 정리하지 않고 재접속 유예가 있는 공통 경로(HandleNetcodeDisconnected)로 넘긴다.
         if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
         {
-            await JobsnailSessionManager.Instance.EndSessionBecauseHostLeftAsync($"LobbyManager 넷코드 서버 연결 끊김(clientId={clientId})");
+            JobsnailSessionManager.Instance.HandleNetcodeDisconnected(clientId);
         }
+        await Task.CompletedTask;
     }
 
     // 🖥️ 대기방 인원수 및 UI 새로고침 전용 함수 (UI 담당자에게 연결해달라고 할 부분)

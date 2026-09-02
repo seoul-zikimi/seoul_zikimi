@@ -97,6 +97,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         m_NicknameInput = nickPanel != null ? nickPanel.GetComponent<InputField>() : null;
         if (m_NicknameInput != null)
             m_NicknameInput.text = SaveService.Nickname;
+        HookNicknameInput();
 
         var characterImage = FindDeep(screen, "CharacterImage");
         if (characterImage != null && characterImage.TryGetComponent(out Image target))
@@ -160,6 +161,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         nickImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/UserNicknameTextbox");
         nickImage.preserveAspect = true;
         m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", SaveService.Nickname);
+        HookNicknameInput();
 
         MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
             new Vector2(0.70f, 0.41f), new Vector2(0.88f, 0.49f), StartGame);
@@ -180,6 +182,16 @@ public sealed class JobsnailMainMenu : MonoBehaviour
 
     private void ApplySelectedCharacterPreview(Image target)
     {
+        // 시연용 버튼(캐시 삭제·처음부터 시작)이 메뉴를 재구성(Build)할 수 있어, 이전 스테이지/스프라이트를 먼저 정리한다.
+        if (m_CharacterStage != null) Destroy(m_CharacterStage.gameObject);
+        if (m_CharacterSprite != null)
+        {
+            Texture2D old = m_CharacterSprite.texture;
+            Destroy(m_CharacterSprite);
+            if (old != null) Destroy(old);
+            m_CharacterSprite = null;
+        }
+
         var stageObject = new GameObject("@JobsnailMainCharacterStage");
         m_CharacterStage = stageObject.AddComponent<JobsnailLobbyCharacterStage>();
         m_CharacterStage.EnsureBuilt();
@@ -215,19 +227,44 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             ToggleSettings();
     }
 
+    // 닉네임은 "게임 시작"뿐 아니라 입력 확정(엔터·포커스 아웃)과 메뉴 종료 시점에도 저장한다.
+    // 마이페이지·설정 등 다른 경로로 빠져나가도 세션·인게임이 최신 닉네임을 읽게 하기 위함.
+    private void HookNicknameInput()
+    {
+        if (m_NicknameInput == null)
+            return;
+        m_NicknameInput.onEndEdit.AddListener(_ => CommitNickname());
+    }
+
+    private void CommitNickname()
+    {
+        if (m_NicknameInput == null)
+            return;
+
+        string nickname = m_NicknameInput.text.Trim();
+        if (string.IsNullOrEmpty(nickname))
+            return;   // 비워둔 상태는 저장하지 않고 기존 값 유지(기본값은 게임 시작 때 적용)
+
+        if (SaveService.Nickname != nickname)
+            SaveService.Nickname = nickname;   // 변경 시 자동저장(Easy Save, PlayerPrefs 동시 기록)
+    }
+
+    private void OnDisable()
+    {
+        CommitNickname();
+    }
+
     private void OpenMyPage()
     {
+        CommitNickname();
         SceneManager.LoadScene(SceneNames.MyPage);   // 마이페이지 = 전용 씬(옷장 3D + HUD)
     }
 
     private void StartGame()
     {
-        string nickname = m_NicknameInput != null ? m_NicknameInput.text.Trim() : "";
-        if (string.IsNullOrEmpty(nickname))
-            nickname = "달팽이";
-
-        if (SaveService.Nickname != nickname)
-            SaveService.Nickname = nickname;   // 변경 시 자동저장(Easy Save, PlayerPrefs 동시 기록)
+        CommitNickname();
+        if (string.IsNullOrEmpty(SaveService.Nickname))
+            SaveService.Nickname = "달팽이";
         SceneManager.LoadScene(SceneNames.Lobby);
     }
 
@@ -340,6 +377,66 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             new Vector2(0.53f, 0.075f), new Vector2(0.94f, 0.19f), Vector2.zero, Vector2.zero, ToggleSettings);
         StyleFlatButton(done, new Color(1f, 0.57f, 0.16f, 1f));
         MakeButtonText(done.transform, "완료", 19, Color.white);
+
+        BuildDemoTools();
+    }
+
+    // ── 시연용 도구: 설정 패널 아래 분리된 스트립(캐시 삭제 / 코인 지급 / 인트로부터 시작) ──
+    private Text m_DemoCoinLabel;
+
+    private void BuildDemoTools()
+    {
+        var stripImage = JobsnailUiKit.Box("DemoTools", m_SettingsPopup.transform,
+            new Vector2(0.315f, 0.082f), new Vector2(0.685f, 0.152f), Vector2.zero, Vector2.zero,
+            new Color(1f, 0.965f, 0.88f, 0.96f));
+        StyleRounded(stripImage, stripImage.color);
+        var strip = stripImage.transform;
+
+        var wipe = JobsnailUiKit.Button("DemoResetButton", strip, null,
+            new Vector2(0.025f, 0.16f), new Vector2(0.32f, 0.84f), Vector2.zero, Vector2.zero, DemoResetSave);
+        StyleFlatButton(wipe, new Color(0.92f, 0.76f, 0.70f, 1f));
+        MakeButtonText(wipe.transform, "캐시 삭제", 16, new Color(0.38f, 0.18f, 0.14f, 1f));
+
+        var coins = JobsnailUiKit.Button("DemoCoinsButton", strip, null,
+            new Vector2(0.3525f, 0.16f), new Vector2(0.6475f, 0.84f), Vector2.zero, Vector2.zero, DemoGrantCoins);
+        StyleFlatButton(coins, new Color(1f, 0.85f, 0.5f, 1f));
+        MakeButtonText(coins.transform, "코인 +10000", 16, new Color(0.35f, 0.24f, 0.10f, 1f));
+
+        var intro = JobsnailUiKit.Button("DemoIntroButton", strip, null,
+            new Vector2(0.68f, 0.16f), new Vector2(0.975f, 0.84f), Vector2.zero, Vector2.zero, DemoPlayIntro);
+        StyleFlatButton(intro, new Color(0.75f, 0.84f, 0.93f, 1f));
+        MakeButtonText(intro.transform, "처음부터 시작", 16, new Color(0.16f, 0.26f, 0.38f, 1f));
+
+        // 보유 코인 확인용 캡션 — 코인 지급이 실제로 됐는지 시연 중 바로 보이게
+        m_DemoCoinLabel = MakeText(m_SettingsPopup.transform, "", 15, new Color(1f, 0.95f, 0.85f, 0.95f),
+            new Vector2(0f, -474f), new Vector2(400f, 26f), TextAnchor.MiddleCenter);   // 스트립(중앙 기준 y -451..-376) 바로 아래
+        m_DemoCoinLabel.raycastTarget = false;
+        RefreshDemoCoinLabel();
+    }
+
+    private void RefreshDemoCoinLabel()
+    {
+        if (m_DemoCoinLabel != null)
+            m_DemoCoinLabel.text = $"보유 코인 {SaveService.Coins:N0}";
+    }
+
+    private void DemoGrantCoins()
+    {
+        SaveService.AddCoins(10000);
+        RefreshDemoCoinLabel();
+    }
+
+    private void DemoResetSave()
+    {
+        SaveService.ResetAll();
+        Build();   // 닉네임·캐릭터 미리보기까지 첫 실행 상태로 재구성(팝업도 함께 새로 만들어짐)
+    }
+
+    private void DemoPlayIntro()
+    {
+        ToggleSettings();   // 팝업 닫기(볼륨 저장 포함)
+        // 첫 실행과 동일한 흐름: 상경 스토리 → 초기 캐릭터 선택 → 완료 시 메뉴 재구성(선택 캐릭터 반영)
+        IntroCutscene.Show(Build);
     }
 
     private static void StyleRounded(Image image, Color color)

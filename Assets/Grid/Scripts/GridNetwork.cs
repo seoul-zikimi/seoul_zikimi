@@ -132,22 +132,32 @@ namespace GridSystem
         private System.Collections.IEnumerator SpawnPresetsNextFrame()
         {
             yield return null;
+            // 맵 배경·마커 적용(MapLoader)이 끝나야 건축 영역 크기가 확정된다 — 2vs2 팀B 오프셋으로 쓰는
+            // ZoneSize가 씬 기본값인 채로 깔리면 프리셋이 엉뚱한 칸에 들어간다. 맵 로더가 없는 씬을 위해 상한을 둔다.
+            for (int i = 0; i < 120 && MapLoader.Pending; i++) yield return null;
             ServerSpawnPresetBlocks();
         }
 
         /// <summary>
         /// 서버: 정답의 preset 셀을 '완성된 진짜 블록'(전 공정 완료)으로 미리 배치.
-        /// MapAnswerData.SpawnPresetBlocks가 켜진 맵만(경복궁 등) — 배경이 비주얼을 담당하는 맵(광통교)은 스킵.
-        /// 라운드 시작·재시작마다 호출된다. 정답은 셀 단위 저장이라 블록 앵커를 복원해야 하는데,
-        /// (y,z,x) 오름차순으로 훑으면 각 블록의 min-corner(=앵커, rotationStep 0 기준)가 먼저 나온다.
+        /// 협동 모드는 MapAnswerData.SpawnPresetBlocks가 켜진 맵만(경복궁 등) — 배경 프리팹이 기제공 부분의
+        /// 비주얼을 담당하는 맵(광통교)은 스킵한다(켜면 이중 스폰).
+        /// 2vs2는 배경이 공터(경기장) 맵으로 통째로 교체되므로(MapLoader) 그 비주얼이 사라진다 —
+        /// 플래그와 무관하게 preset을 진짜 블록으로 깔아야 정답 구조물이 잘리지 않는다. 팀B 구역도 같이 깐다.
+        /// 라운드 시작·재시작마다 호출된다.
         /// </summary>
         public void ServerSpawnPresetBlocks()
         {
             if (!IsServer || m_ServerGrid == null) return;
             var ans = m_Manager.Answer;
             var catalog = m_Manager.Catalog;
-            if (ans == null || catalog == null || !ans.SpawnPresetBlocks) return;
+            if (ans == null || catalog == null) return;
 
+            bool versus = m_Loop != null && m_Loop.IsVersus;
+            if (!versus && !ans.SpawnPresetBlocks) return;
+
+            // 정답은 셀 단위 저장이라 블록 앵커를 복원해야 하는데,
+            // (y,z,x) 오름차순으로 훑으면 각 블록의 min-corner(=앵커, rotationStep 0 기준)가 먼저 나온다.
             var presets = new List<AnswerCell>();
             foreach (var a in ans.Cells)
                 if (ans.IsPreset(a.cell)) presets.Add(a);
@@ -156,6 +166,15 @@ namespace GridSystem
                                  : p.cell.z != q.cell.z ? p.cell.z - q.cell.z
                                  : p.cell.x - q.cell.x);
 
+            SpawnPresetsAt(presets, ans, catalog, Vector3Int.zero, 0);
+            // 2vs2 팀B: 같은 정답을 구역폭만큼 밀어서 한 벌 더(채점 오프셋 RecomputeScore와 동일 기준).
+            if (versus) SpawnPresetsAt(presets, ans, catalog, new Vector3Int(m_Manager.ZoneSize.x, 0, 0), 1);
+        }
+
+        // preset 블록 한 벌을 offset 만큼 밀어서 스폰. presets는 (y,z,x) 정렬 상태여야 한다(아래→위 순).
+        private void SpawnPresetsAt(List<AnswerCell> presets, MapAnswerData ans, MaterialCatalog catalog,
+                                    Vector3Int offset, int team)
+        {
             var used = new HashSet<Vector3Int>();
             foreach (var a in presets)
             {
@@ -164,32 +183,34 @@ namespace GridSystem
                 if (def == null) continue;
 
                 // footprint 전 셀이 같은 재료의 preset인지 검증(데이터 오류 방어) — 아니면 이 블록은 스킵
+                var fcells = GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep);
                 bool valid = true;
-                foreach (var c in GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep))
+                foreach (var c in fcells)
                     if (!ans.IsPreset(c) || !ans.TryGet(c, out var ac) || ac.materialId != a.materialId)
                     { valid = false; break; }
-                if (!valid || !m_ServerGrid.CanPlace(a.cell, def, a.rotationStep))
+                var anchor = a.cell + offset;
+                if (!valid || !m_ServerGrid.CanPlace(anchor, def, a.rotationStep))
                 {
                     // 조용한 스킵 금지 — 프리셋 블록이 안 깔리면 맵에 구멍이 나는데 원인을 못 찾는다(08/28 모서리기와 실종 사건)
-                    Debug.LogWarning($"[프리셋] 스폰 스킵: 앵커 {a.cell} 재료 {a.materialId} rot {a.rotationStep} — " +
+                    Debug.LogWarning($"[프리셋] 스폰 스킵(팀 {team}): 앵커 {anchor} 재료 {a.materialId} rot {a.rotationStep} — " +
                                      (!valid ? "footprint 셀 검증 실패(전 셀이 같은 재료의 preset이어야 함)" : "CanPlace 거부(겹침/범위)"));
                     continue;
                 }
 
                 ulong owner = ++m_OwnerCounter;
-                m_ServerGrid.Place(a.cell, def, a.rotationStep, owner);
+                m_ServerGrid.Place(anchor, def, a.rotationStep, owner);
                 // 완성품 상태: 고정 + 요구 공정 전부(canonical 순서대로 적용해야 순차 규칙에 안 걸림)
                 foreach (var p in ProcessOrder.Sequence)
                     if (p == ProcessType.Fixed || (def.RequiredMask & (int)p) != 0)
-                        m_ServerGrid.TryApplyProcess(a.cell, p, def);
+                        m_ServerGrid.TryApplyProcess(anchor, p, def);
                 int mask = (int)ProcessType.Fixed | def.RequiredMask;
 
-                foreach (var c in GridFootprint.EnumerateFootprintCells(a.cell, def.Footprint, a.rotationStep))
+                foreach (var c in fcells)
                 {
-                    used.Add(c);
+                    used.Add(c);   // 중복 스폰 방지는 오프셋 전 좌표 기준(정답 좌표계)
                     m_Cells.Add(new CellEntry
                     {
-                        cell = c, materialId = a.materialId, rotationStep = a.rotationStep,
+                        cell = c + offset, materialId = a.materialId, rotationStep = a.rotationStep,
                         completedProcessMask = mask, ownerObjectId = owner,
                     });
                 }
@@ -657,8 +678,13 @@ namespace GridSystem
         public void RequestCheatAlmost() => CheatCompleteRpc(true);
 
         [Rpc(SendTo.Server)]
-        private void CheatCompleteRpc(bool leaveOneOut)
+        private void CheatCompleteRpc(bool leaveOneOut, RpcParams rpc = default)
         {
+            // 치트 RPC 방어: 아무 클라나 호출하면 그리드를 통째로 리셋/완성할 수 있다.
+            // 개발 빌드가 아니면 호스트 본인만 허용(QA 치트는 개발 빌드에서만).
+            if (!Debug.isDebugBuild && rpc.Receive.SenderClientId != NetworkManager.ServerClientId)
+                return;
+
             var ans = m_Manager.Answer;
             var catalog = m_Manager.Catalog;
             if (ans == null || catalog == null) return;

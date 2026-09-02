@@ -151,6 +151,7 @@ public class JobsnailSessionManager
             m_CachedHostId = null;
             m_IsHost = false;
             m_IsLeaving = false;
+            SessionPasswordGate.Clear();   // 다음 방에 이전 방 비밀번호가 남지 않게
 
             if (showMainMenu)
                 ShowMainMenuScene();
@@ -201,6 +202,7 @@ public class JobsnailSessionManager
             m_CachedHostId = null;
             m_IsHost = false;
             m_IsLeaving = false;
+            SessionPasswordGate.Clear();
             // 방이 터진 팀원은 메인 메뉴가 아니라 세션 목록으로 돌아가야 한다(QA 요구).
             SeoulZikimi.UI.New.UiNewRoomClosedNotice.ShowOnRoomList();   // 목록 화면 위 안내 팝업 예약
             ShowRoomListScene();
@@ -216,9 +218,81 @@ public class JobsnailSessionManager
         if (NetworkManager.Singleton.IsServer)
             return;
 
-        // 클라이언트에서 서버 연결이 끊긴 것은 방장 이탈/세션 종료로 처리한다.
+        // 클라이언트에서 서버 연결이 끊김 — 예전엔 즉시 '방 터짐' 처리였지만,
+        // 순간 끊김(와이파이 전환·엘리베이터·짧은 백그라운드)이 대부분이라 먼저 재접속을 시도한다.
+        // 상태가 전부 NetworkVariable/NetworkList 복제라 재접속만 되면 자동 풀싱크로 복구된다.
         if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
-            _ = EndSessionBecauseHostLeftAsync($"넷코드 서버 연결 끊김(clientId={clientId})");
+            _ = TryReconnectThenRecoverAsync($"넷코드 서버 연결 끊김(clientId={clientId})");
+    }
+
+    // ── 재접속 유예: 끊긴 순간부터 이 시간 안에 세션 복구를 반복 시도, 실패 시에만 기존 '방 터짐' 흐름 ──
+    private const float kReconnectWindowSeconds = 60f;
+    private bool m_IsReconnecting;
+
+    public bool IsReconnecting => m_IsReconnecting;
+
+    /// <summary>앱이 백그라운드에서 돌아왔을 때(모바일) — 끊겼으면 디스커넥트 콜백을 기다리지 않고 바로 복구 시도.</summary>
+    public void NotifyAppResumed()
+    {
+        if (m_IsLeaving || m_IsReconnecting || m_ActiveSession == null)
+            return;
+        if (m_ActiveSession.State == SessionState.Disconnected)
+            _ = TryReconnectThenRecoverAsync("앱 복귀 — 세션 끊김 감지");
+    }
+
+    private async Task TryReconnectThenRecoverAsync(string reason)
+    {
+        if (m_IsLeaving || m_IsReconnecting)
+            return;
+        if (m_ActiveSession == null)
+        {
+            await EndSessionBecauseHostLeftAsync(reason);
+            return;
+        }
+
+        m_IsReconnecting = true;
+        ReconnectingOverlay.Show();
+        Debug.LogWarning($"[JobsnailSessionManager] 연결 끊김 — {kReconnectWindowSeconds:0}초간 재접속 시도. ({reason})");
+        try
+        {
+            float deadline = Time.realtimeSinceStartup + kReconnectWindowSeconds;
+            int attempt = 0;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                // 도중에 사용자가 직접 나갔거나(m_IsLeaving) 방장 이탈 이벤트로 세션이 정리됐으면 조용히 물러난다.
+                if (m_IsLeaving || m_ActiveSession == null)
+                    return;
+                if (m_ActiveSession.State == SessionState.Deleted)
+                    break;   // 방 자체가 사라짐 — 더 시도해도 소용없다
+
+                attempt++;
+                try
+                {
+                    Debug.Log($"[JobsnailSessionManager] 재접속 시도 {attempt}...");
+                    await m_ActiveSession.ReconnectAsync();
+                    if (m_ActiveSession != null && m_ActiveSession.State == SessionState.Connected)
+                    {
+                        Debug.Log($"[JobsnailSessionManager] ✅ 재접속 성공(시도 {attempt}) — 방 유지.");
+                        CacheSession(m_ActiveSession);
+                        return;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[JobsnailSessionManager] 재접속 실패({attempt}): {e.Message}");
+                }
+                // 2s → 4s → 6s → 8s(상한) 백오프 — UGS 레이트리밋을 때리지 않게
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(2 * attempt, 8)));
+            }
+
+            if (!m_IsLeaving)
+                await EndSessionBecauseHostLeftAsync($"재접속 실패 — {reason}");
+        }
+        finally
+        {
+            m_IsReconnecting = false;
+            ReconnectingOverlay.Hide();
+        }
     }
 
     /// <summary>세션(방) 목록 화면이 있는 Lobby 씬으로 이동한다. 이미 그 씬이면 다시 로드하지 않는다.</summary>
@@ -264,7 +338,10 @@ public sealed class JobsnailSessionDisconnectWatcher : MonoBehaviour
         m_SubscribedNetworkManager = nm;
 
         if (m_SubscribedNetworkManager != null)
+        {
             m_SubscribedNetworkManager.OnClientDisconnectCallback += OnClientDisconnected;
+            SessionPasswordGate.Configure(m_SubscribedNetworkManager);   // 비밀방 서버측 검증(접속 승인)
+        }
     }
 
     private void OnDestroy()
@@ -276,6 +353,14 @@ public sealed class JobsnailSessionDisconnectWatcher : MonoBehaviour
     private void OnApplicationQuit()
     {
         _ = JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync(false);
+    }
+
+    // 모바일: 백그라운드에 다녀오면 소켓이 조용히 죽어 있을 수 있다(디스커넥트 콜백이 늦거나 안 옴).
+    // 복귀 즉시 세션 상태를 확인해 끊겼으면 바로 재접속을 태운다.
+    private void OnApplicationPause(bool paused)
+    {
+        if (!paused)
+            JobsnailSessionManager.Instance.NotifyAppResumed();
     }
 
     private void OnClientDisconnected(ulong clientId)
