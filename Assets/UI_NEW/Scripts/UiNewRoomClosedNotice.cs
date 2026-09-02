@@ -16,13 +16,16 @@ namespace SeoulZikimi.UI.New
         private const string CanvasName = "@UiNewRoomClosedNotice";
 
         private static bool s_Pending;
+        private static string s_PendingMessage;
 
         /// <summary>세션 목록 화면 도착 후 팝업을 띄운다. 다른 씬이면 Lobby 씬 로드 시점으로 예약.</summary>
-        public static void ShowOnRoomList()
+        /// <param name="message">지정하면 '방 폭파' 그림 팝업 대신 이 문구를 공통 안내 팝업으로 띄운다
+        /// (배경 그림에 문구가 박혀 있어 다른 사유엔 쓸 수 없다).</param>
+        public static void ShowOnRoomList(string message = null)
         {
             if (SceneManager.GetActiveScene().name == SceneNames.Lobby)
             {
-                Present();
+                Present(message);
                 return;
             }
 
@@ -30,6 +33,7 @@ namespace SeoulZikimi.UI.New
                 return;
 
             s_Pending = true;
+            s_PendingMessage = message;
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
@@ -40,10 +44,12 @@ namespace SeoulZikimi.UI.New
 
             SceneManager.sceneLoaded -= OnSceneLoaded;
             s_Pending = false;
-            Present();
+            string message = s_PendingMessage;
+            s_PendingMessage = null;
+            Present(message);
         }
 
-        private static void Present()
+        private static void Present(string message)
         {
             // 방이 사라졌으니 대기방 화면이 아니라 세션 목록으로 되돌리고 목록을 새로 받는다.
             var state = Object.FindFirstObjectByType<UiNewSessionState>(FindObjectsInactive.Include);
@@ -58,7 +64,10 @@ namespace SeoulZikimi.UI.New
             if (catalog != null)
                 catalog.Refresh();
 
-            Build();
+            if (string.IsNullOrEmpty(message))
+                Build();
+            else
+                UiNewNetworkNotice.Show(message);   // 문구가 박히지 않은 공통 안내 팝업
         }
 
         private static void Build()

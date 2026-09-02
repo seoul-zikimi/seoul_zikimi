@@ -202,7 +202,9 @@ namespace SeoulZikimi.UI.New
 
         private void StartGame()
         {
-            if (lobbyNet == null || !lobbyNet.IsAllReady) return;
+            // CanStartGame이 최종 조건이다(준비 + 팀 밸런스 + 입장 중인 팀원 없음).
+            // 세션 프로퍼티 저장(왕복 통신)에 들어가기 전에 여기서 먼저 막는다.
+            if (lobbyNet == null || !lobbyNet.CanStartGame) return;
             _ = MarkInGameAndStartAsync();
         }
 
