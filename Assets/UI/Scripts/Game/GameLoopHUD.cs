@@ -134,10 +134,19 @@ public sealed class GameLoopHUD : UIHUD
         Wire(Btns.SettingsIconButton, ToggleSettingsPopup);
         Wire(Btns.SettingsCloseButton, ToggleSettingsPopup);
         Wire(Btns.KeySettingsButton, () => KeyBindingPopup.Open());
-        if (MobileControlsHUD.ShouldUseMobileUI)   // 모바일은 키보드가 없어 키 설정이 무의미
+        if (MobileControlsHUD.ShouldUseMobileUI)   // 모바일은 키보드가 없어 키 설정이 무의미 — 같은 자리를 '버튼 배치'로 쓴다
         {
             var keyBtn = Get<Button>((int)Btns.KeySettingsButton);
-            if (keyBtn != null) keyBtn.gameObject.SetActive(false);
+            if (keyBtn != null)
+            {
+                var label = keyBtn.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (label != null) label.text = "버튼 배치";
+                Wire(Btns.KeySettingsButton, () =>
+                {
+                    ToggleSettingsPopup();               // 팝업을 닫고 바로 드래그 편집 시작
+                    MobileControlsHUD.BeginLayoutEdit();
+                });
+            }
         }
         Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
         Wire(Btns.RoomButton, OnReturnToRoom);

@@ -44,6 +44,7 @@ namespace Player
 
         void Update()
         {
+            if (m_Orbit == null) Awake();   // 플레이 중 스크립트 핫 리로드로 비직렬화 필드가 날아간 경우 복구(NRE 스팸 방지)
             if (AnswerPanelFocus.Active) return;   // 커서가 정답 패널 위면 양보(정답 카메라가 입력 소비)
             if (m_Input == null || !m_Input.enabled) return;
 

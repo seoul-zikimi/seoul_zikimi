@@ -17,7 +17,7 @@ using UnityEngine.UI;
 public sealed class MobileLayoutCustomizer : MonoBehaviour
 {
     private static readonly string[] kTargets =
-        { "MoveJoystick", "JumpButton", "ThrowButton", "ProcessButton", "RevertButton", "RotateButton", "PhoneButton" };
+        { "MoveJoystick", "JumpButton", "ThrowButton", "ProcessButton", "RevertButton", "RotateButton", "PhoneButton", "ItemButton" };
     private const string kPrefPrefix = "MobileUiPos_";
 
     /// <summary>편집 모드 중인가 — MobileControlsHUD가 상황 버튼 흐림/비활성 처리를 건너뛰는 데 쓴다.</summary>
