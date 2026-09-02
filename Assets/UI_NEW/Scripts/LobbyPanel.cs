@@ -124,9 +124,19 @@ namespace SeoulZikimi.UI.New
 
         // 엔터 전송. onEndEdit 콜백은 입력이 갱신된 '다음' 프레임에 UI 이벤트로 오기 때문에
         // 그 안에서 wasPressedThisFrame을 보면 이미 false다. 그래서 Update에서 직접 키를 본다.
+        //
+        // ⚠ isFocused만 보면 안 된다: InputField는 엔터를 EventSystem 업데이트에서 처리하며 즉시 포커스를
+        // 놓는데, EventSystem과 이 스크립트의 Update 실행 순서는 지정돼 있지 않아 기기/빌드마다 다르다.
+        // EventSystem이 먼저 돌면 엔터 프레임에 이미 isFocused=false → 전송 불발("어떤 컴은 되고 어떤 컴은 안 됨").
+        // 그래서 '직전 프레임까지 포커스였다'도 함께 인정한다.
+        private bool chatHadFocusLastFrame;
+
         private void HandleChatEnterKey()
         {
-            if (chatInput == null || !chatInput.isFocused) return;
+            bool focusedNow = chatInput != null && chatInput.isFocused;
+            bool hadFocus = chatHadFocusLastFrame;
+            chatHadFocusLastFrame = focusedNow;
+            if (chatInput == null || (!focusedNow && !hadFocus)) return;
             // 프로젝트가 신형 Input System 전용(activeInputHandler=1)이라 UnityEngine.Input은 예외를 던진다.
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             if (keyboard == null ||
