@@ -60,12 +60,40 @@ namespace GridSystem
         }
 
         /// <summary>해당 셀이 '아직 망치 고정 전'이면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)
-        /// 고정 필요 여부(MustBeFixed)와 무관 — 망치질로 고정한 블록만 회수 불가(C 철거로만).</summary>
+        /// 고정 필요 여부(MustBeFixed)와 무관 — 망치질로 고정한 블록만 회수 불가(C 철거로만).
+        /// 단, 정답 자리에 완벽히 들어맞은 블록도 재집기 금지(09/03) — 경복궁 프리셋 오집기 방지.
+        /// 이 게이트는 '집기'만 막는다: C 철거·붕괴·화재 소실은 그대로 동작한다.</summary>
         public bool IsPickupable(Vector3Int cell)
         {
             if (!TryGetCell(cell, out int matId, out int completed)) return false;
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
-            return CanReclaim(def, completed);
+            return CanReclaim(def, completed) && !IsAnswerPerfect(cell);
+        }
+
+        /// <summary>이 셀이 속한 오브젝트의 '모든 칸'이 정답 칸이고 재료까지 일치하는가.
+        /// 회전은 채점(ScoreAgainst)과 동일하게 안 본다 — 점유 칸+재료만 비교.
+        /// 2vs2 팀B 구역(x ≥ ZoneSize.x)은 정답을 구역폭만큼 밀어서 본다(RecomputeScore와 동일 기준).</summary>
+        public bool IsAnswerPerfect(Vector3Int cell)
+        {
+            var ans = m_Manager != null ? m_Manager.Answer : null;
+            if (ans == null) return false;
+
+            var off = Vector3Int.zero;
+            if (m_Loop != null && m_Loop.IsVersus && cell.x >= m_Manager.ZoneSize.x)
+                off = new Vector3Int(m_Manager.ZoneSize.x, 0, 0);
+
+            ulong owner = 0; bool found = false;
+            for (int i = 0; i < m_Cells.Count; i++)
+                if (m_Cells[i].cell == cell) { owner = m_Cells[i].ownerObjectId; found = true; break; }
+            if (!found) return false;
+
+            for (int i = 0; i < m_Cells.Count; i++)
+            {
+                if (m_Cells[i].ownerObjectId != owner) continue;
+                if (!ans.TryGet(m_Cells[i].cell - off, out var ac) || ac.materialId != m_Cells[i].materialId)
+                    return false;
+            }
+            return true;
         }
 
         private static bool CanReclaim(MaterialDef def, int completedMask)
@@ -377,6 +405,8 @@ namespace GridSystem
             // 서버 권위 재검증: 아직 망치 고정 전이면 회수 가능(고정 완료 블록은 C 철거로만) — IsPickupable과 동일 규칙
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
             if (!CanReclaim(def, cs.completedProcessMask))
+                return false;
+            if (IsAnswerPerfect(cell))   // 정답 자리에 완벽히 맞은 블록은 재집기 금지(09/03) — 철거·붕괴는 별도 경로라 그대로
                 return false;
 
             ulong owner = cs.ownerObjectId;
