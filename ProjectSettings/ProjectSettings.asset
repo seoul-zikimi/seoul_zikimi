@@ -533,6 +533,9 @@ PlayerSettings:
   - m_BuildTarget: iPhone
     m_StaticBatching: 1
     m_DynamicBatching: 0
+  - m_BuildTarget: Android
+    m_StaticBatching: 1
+    m_DynamicBatching: 0
   m_BuildTargetShaderSettings: []
   m_BuildTargetGraphicsJobs: []
   m_BuildTargetGraphicsJobMode: []
@@ -834,7 +837,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Android: DOTWEEN;DOTWEEN_TEXTMESHPRO;UNITY_POST_PROCESSING_STACK_V2;UNITY_VISUAL_SCRIPTING;ES3_TMPRO;ES3_UGUI
+    Android: DOTWEEN;DOTWEEN_TEXTMESHPRO;UNITY_POST_PROCESSING_STACK_V2;UNITY_VISUAL_SCRIPTING;ES3_TMPRO;ES3_UGUI;MOREMOUNTAINS_NICEVIBRATIONS_INSTALLED
     EmbeddedLinux: DOTWEEN;DOTWEEN_TEXTMESHPRO;UNITY_POST_PROCESSING_STACK_V2;UNITY_VISUAL_SCRIPTING;ES3_TMPRO;ES3_UGUI
     GameCoreScarlett: DOTWEEN;DOTWEEN_TEXTMESHPRO;UNITY_POST_PROCESSING_STACK_V2
     GameCoreXboxOne: DOTWEEN;DOTWEEN_TEXTMESHPRO;UNITY_POST_PROCESSING_STACK_V2
