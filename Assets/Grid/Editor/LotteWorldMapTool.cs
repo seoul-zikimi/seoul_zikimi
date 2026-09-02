@@ -144,14 +144,29 @@ namespace GridSystem.EditorTools
             var root = BuildGreybox(monoPillars);
             ApplyUserPropTweaks(root, propTweaks);      // 재생성 후 같은 이름·근접 소품에 그대로 재적용
             Directory.CreateDirectory(Path.GetDirectoryName(kPrefabPath));
-            var prefab = PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath, out bool ok);
-            Object.DestroyImmediate(root);
-            if (!ok) { Debug.LogError($"[롯데월드] 프리팹 저장 실패: {kPrefabPath}"); return; }
 
-            // BuildGreybox가 프리팹을 매번 처음부터 새로 굽기 때문에, 비주얼 정리 툴이 깔아 둔
-            // ~Horizon(원경)이 재생성 때마다 통째로 사라졌다(QA "horizon 존나 계속 누락") —
-            // 여기서 곧바로 다시 깔아 누락 자체를 없앤다.
-            MapVisualPolishTool.ApplyHorizonFor(kPrefabPath);
+            // ── 멱등 가드: 새로 조립한 결과가 기존 프리팹과 '의미상' 같으면 저장을 건너뛴다.
+            // SaveAsPrefabAsset은 실행마다 모든 fileID를 새로 발급해, 내용이 같아도 파일 텍스트가
+            // 통째로 달라진다 — 브랜치마다 재생성이 돌 때마다 MapBg/Thumb 머지 충돌이 났던 원인.
+            bool prefabChanged = !SameAsExistingPrefab(root, kPrefabPath);
+            GameObject prefab;
+            if (prefabChanged)
+            {
+                prefab = PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath, out bool ok);
+                Object.DestroyImmediate(root);
+                if (!ok) { Debug.LogError($"[롯데월드] 프리팹 저장 실패: {kPrefabPath}"); return; }
+
+                // BuildGreybox가 프리팹을 매번 처음부터 새로 굽기 때문에, 비주얼 정리 툴이 깔아 둔
+                // ~Horizon(원경)이 재생성 때마다 통째로 사라졌다(QA "horizon 존나 계속 누락") —
+                // 여기서 곧바로 다시 깔아 누락 자체를 없앤다.
+                MapVisualPolishTool.ApplyHorizonFor(kPrefabPath);
+            }
+            else
+            {
+                Object.DestroyImmediate(root);
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>(kPrefabPath);
+                Debug.Log("[롯데월드] 배경 프리팹이 기존과 동일 — 저장·썸네일 재생성 생략(머지 충돌 방지)");
+            }
 
             // ⑥ 맵 카드
             var def2 = LoadOrCreate<MapDef>(kMapDefPath);
@@ -173,8 +188,11 @@ namespace GridSystem.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(def2);
 
-            // ⑦ 썸네일 + 맵 카탈로그
-            var thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
+            // ⑦ 썸네일 + 맵 카탈로그 — 프리팹이 실제로 바뀐 경우(또는 썸네일이 없을 때)만 재렌더.
+            // 렌더 결과 PNG는 기기·GPU마다 바이트가 미세하게 달라, 불필요 재렌더 자체가 머지 충돌원이다.
+            var thumb = (prefabChanged || !File.Exists(kThumbPath))
+                ? MapThumbnailUtil.Capture(prefab, kThumbPath)
+                : AssetDatabase.LoadAssetAtPath<Sprite>(kThumbPath);
             if (thumb != null)
             {
                 so.Update();
@@ -192,6 +210,51 @@ namespace GridSystem.EditorTools
                       $"파츠 def 8종(id 21~28) {kDir} — VARCO 모델 나오면 {{파츠이름}}_Fit.prefab만 두고 재실행\n" +
                       $"정답 {cells.Count}칸(높이 9 매직캐슬) · 퍼레이드 기믹(치이면 스턴+재료 드롭) · 제한시간 {kTimeLimitSeconds / 60f:0}분");
         }
+
+        // ── 재생성 멱등 비교: 이름 경로·트랜스폼·메시·머티리얼·그림자 설정이 전부 같으면 '같은 프리팹'으로 본다.
+        // fileID는 비교하지 않는다(재생성마다 달라지는 게 정상). '~'로 시작하는 오브젝트(~Horizon 등)는
+        // 저장 뒤 후처리 툴이 심는 장식이라 새 조립본엔 없으므로 양쪽 다 비교에서 제외한다.
+        private static bool SameAsExistingPrefab(GameObject newRoot, string prefabPath)
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (existing == null) return false;
+            return HierarchySignature(newRoot.transform) == HierarchySignature(existing.transform);
+        }
+
+        private static string HierarchySignature(Transform root)
+        {
+            var lines = new List<string>();
+            void Walk(Transform t, string path)
+            {
+                if (t.name.Length > 0 && t.name[0] == '~') return;
+                var sb = new System.Text.StringBuilder(path);
+                sb.Append('|').Append(t.gameObject.layer)
+                  .Append('|').Append(t.gameObject.activeSelf ? 1 : 0)
+                  .Append('|').Append(Fmt(t.localPosition))
+                  .Append('|').Append(Fmt(t.localRotation))
+                  .Append('|').Append(Fmt(t.localScale));
+                if (t.TryGetComponent(out MeshFilter mf) && mf.sharedMesh != null)
+                    sb.Append("|m:").Append(AssetDatabase.GetAssetPath(mf.sharedMesh)).Append(':').Append(mf.sharedMesh.name);
+                if (t.TryGetComponent(out Renderer r))
+                {
+                    sb.Append("|s:").Append((int)r.shadowCastingMode);
+                    foreach (var mat in r.sharedMaterials)
+                        sb.Append("|M:").Append(mat != null ? AssetDatabase.GetAssetPath(mat) + ":" + mat.name : "null");
+                }
+                lines.Add(sb.ToString());
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    var c = t.GetChild(i);
+                    Walk(c, path + "/" + c.name);   // 형제 순서는 비교하지 않는다(후처리 삽입으로 인덱스가 밀릴 수 있음)
+                }
+            }
+            Walk(root, root.name);
+            lines.Sort(System.StringComparer.Ordinal);
+            return string.Join("\n", lines);
+        }
+
+        private static string Fmt(Vector3 v) => $"{v.x:F4},{v.y:F4},{v.z:F4}";
+        private static string Fmt(Quaternion q) => $"{q.x:F4},{q.y:F4},{q.z:F4},{q.w:F4}";
 
         // ── 파츠 def + 색큐브 프리팹(피벗 min-corner, 규약 준수) ──
         private static MaterialDef EnsurePartDef(Part p)
