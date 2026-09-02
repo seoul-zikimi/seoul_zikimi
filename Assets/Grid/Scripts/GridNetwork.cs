@@ -509,48 +509,20 @@ namespace GridSystem
             return collapsed;
         }
 
-        // 대포 탄도 상수 — 45° 고정 발사각에서 사거리 R = v^2/g 이므로 충전량이 곧 사거리다.
-        private const float kCannonMinRange = 3f;    // 최소 충전 사거리(m)
-        private const float kCannonMaxRange = 17f;   // 최대 충전 사거리 — 분할벽 근처에서 상대 진영 안쪽까지
-        private const float kCannonGravity = 20f;
-        private const float kCannonMarchStep = 0.02f;   // 탄도 적분 간격(초) — 셀 1칸(1m)보다 촘촘해야 관통이 없다
-        private const float kCannonMaxFlight = 12f;     // 안전 상한(초)
-
         /// <summary>조준 발사 — 시전자가 겨눈 방향·세기로 포물선을 그려 처음 부딪히는 블록을 부순다.
         /// enemyTeam 구역의 블록만 파괴되고(아군 진영은 맞아도 멀쩡), 빗나가면 착탄 지점에 불발 연출만 나간다.
-        /// 조준값(ServerCannonSource/AimDir/Charge)은 ItemNetwork가 사용 직전에 넣어준다.</summary>
+        /// 조준값(ServerCannonSource/AimDir/Charge)은 ItemNetwork가 사용 직전에 넣어준다.
+        /// 탄도식은 CannonBallistics — 클라가 그리는 예상 궤적과 같은 식이어야 한다.</summary>
         public bool ServerCannonDestroy(int enemyTeam)
         {
             if (!IsServer || m_ServerGrid == null) return false;
 
-            Vector3 origin = ServerCannonSource + Vector3.up * 0.8f;   // 총구 높이
-            Vector3 dir = ServerCannonAimDir; dir.y = 0f;
-            dir = dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward;
-
-            float range = Mathf.Lerp(kCannonMinRange, kCannonMaxRange, Mathf.Clamp01(ServerCannonCharge));
-            float speed = Mathf.Sqrt(range * kCannonGravity);          // 45°: R = v^2/g
-            float vh = speed * 0.70710678f, vy = vh;                   // cos45 = sin45
+            Vector3 origin = ServerCannonSource + Vector3.up * CannonBallistics.MuzzleHeight;
             float groundY = GridCoordinates.CellToWorld(Vector3Int.zero).y;
 
-            bool hasHit = false;
-            var hitCell = Vector3Int.zero;
-            Vector3 landPoint = origin + dir * range;
-            landPoint.y = groundY;
-
-            for (float t = kCannonMarchStep; t < kCannonMaxFlight; t += kCannonMarchStep)
-            {
-                var p = origin + dir * (vh * t);
-                p.y = origin.y + vy * t - 0.5f * kCannonGravity * t * t;
-
-                if (p.y <= groundY) { landPoint = new Vector3(p.x, groundY, p.z); break; }   // 땅에 떨어짐 = 불발
-
-                var cell = GridCoordinates.WorldToCell(p);
-                if (m_ServerGrid.IsOccupied(cell))
-                {
-                    hasHit = true; hitCell = cell; landPoint = CellWorld(cell);
-                    break;
-                }
-            }
+            bool hasHit = CannonBallistics.March(
+                origin, ServerCannonAimDir, ServerCannonCharge, groundY,
+                m_ServerGrid.IsOccupied, out var hitCell, out Vector3 landPoint);
 
             // 내 진영 블록은 포탄이 부딪혀도 부서지지 않는다(오조준 = 불발).
             bool destroys = hasHit && InZone(enemyTeam, hitCell);
