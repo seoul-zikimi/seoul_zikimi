@@ -97,6 +97,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         m_NicknameInput = nickPanel != null ? nickPanel.GetComponent<InputField>() : null;
         if (m_NicknameInput != null)
             m_NicknameInput.text = SaveService.Nickname;
+        HookNicknameInput();
 
         var characterImage = FindDeep(screen, "CharacterImage");
         if (characterImage != null && characterImage.TryGetComponent(out Image target))
@@ -160,6 +161,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         nickImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/UserNicknameTextbox");
         nickImage.preserveAspect = true;
         m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", SaveService.Nickname);
+        HookNicknameInput();
 
         MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
             new Vector2(0.70f, 0.41f), new Vector2(0.88f, 0.49f), StartGame);
@@ -225,19 +227,44 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             ToggleSettings();
     }
 
+    // 닉네임은 "게임 시작"뿐 아니라 입력 확정(엔터·포커스 아웃)과 메뉴 종료 시점에도 저장한다.
+    // 마이페이지·설정 등 다른 경로로 빠져나가도 세션·인게임이 최신 닉네임을 읽게 하기 위함.
+    private void HookNicknameInput()
+    {
+        if (m_NicknameInput == null)
+            return;
+        m_NicknameInput.onEndEdit.AddListener(_ => CommitNickname());
+    }
+
+    private void CommitNickname()
+    {
+        if (m_NicknameInput == null)
+            return;
+
+        string nickname = m_NicknameInput.text.Trim();
+        if (string.IsNullOrEmpty(nickname))
+            return;   // 비워둔 상태는 저장하지 않고 기존 값 유지(기본값은 게임 시작 때 적용)
+
+        if (SaveService.Nickname != nickname)
+            SaveService.Nickname = nickname;   // 변경 시 자동저장(Easy Save, PlayerPrefs 동시 기록)
+    }
+
+    private void OnDisable()
+    {
+        CommitNickname();
+    }
+
     private void OpenMyPage()
     {
+        CommitNickname();
         SceneManager.LoadScene(SceneNames.MyPage);   // 마이페이지 = 전용 씬(옷장 3D + HUD)
     }
 
     private void StartGame()
     {
-        string nickname = m_NicknameInput != null ? m_NicknameInput.text.Trim() : "";
-        if (string.IsNullOrEmpty(nickname))
-            nickname = "달팽이";
-
-        if (SaveService.Nickname != nickname)
-            SaveService.Nickname = nickname;   // 변경 시 자동저장(Easy Save, PlayerPrefs 동시 기록)
+        CommitNickname();
+        if (string.IsNullOrEmpty(SaveService.Nickname))
+            SaveService.Nickname = "달팽이";
         SceneManager.LoadScene(SceneNames.Lobby);
     }
 

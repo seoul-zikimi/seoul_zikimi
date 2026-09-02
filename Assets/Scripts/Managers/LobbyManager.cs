@@ -46,16 +46,24 @@ public class LobbyManager : MonoBehaviour
             if (!AuthenticationService.Instance.IsSignedIn)
             {
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                string playerId = AuthenticationService.Instance.PlayerId ?? "";
-                string shortId = playerId.Length <= 5 ? playerId : playerId.Substring(0, 5);
-                if (string.IsNullOrEmpty(shortId))
-                    shortId = UnityEngine.Random.Range(10000, 99999).ToString();
-                string savedName = PlayerPrefs.GetString("PlayerNickname", "").Trim();
-                string myName = string.IsNullOrEmpty(savedName) ? $"Guest{shortId}" : savedName;
-
-                await AuthenticationService.Instance.UpdatePlayerNameAsync(myName);
                 Debug.Log($"[LobbyManager] 익명 로그인 성공! PlayerID: {AuthenticationService.Instance.PlayerId}");
             }
+
+            // 표시 이름은 로그인 때 한 번이 아니라 매번 저장된 닉네임과 맞춘다.
+            // (메인화면에서 닉네임을 바꾼 뒤 들어와도 세션 목록·로비에 최신 이름이 보이도록)
+            string playerId = AuthenticationService.Instance.PlayerId ?? "";
+            string shortId = playerId.Length <= 5 ? playerId : playerId.Substring(0, 5);
+            if (string.IsNullOrEmpty(shortId))
+                shortId = UnityEngine.Random.Range(10000, 99999).ToString();
+            string savedName = PlayerPrefs.GetString("PlayerNickname", "").Trim().Replace(" ", "");   // UGS 이름은 공백 불가
+            string myName = string.IsNullOrEmpty(savedName) ? $"Guest{shortId}" : savedName;
+
+            string currentName = AuthenticationService.Instance.PlayerName ?? "";
+            int tagIndex = currentName.IndexOf('#');   // UGS가 붙이는 "#1234" 태그 제거 후 비교
+            if (tagIndex >= 0)
+                currentName = currentName.Substring(0, tagIndex);
+            if (currentName != myName)
+                await AuthenticationService.Instance.UpdatePlayerNameAsync(myName);
         }
         catch (Exception e)
         {
