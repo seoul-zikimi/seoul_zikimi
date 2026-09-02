@@ -157,7 +157,9 @@ public class JobsnailSessionManager
         }
     }
 
-    public async Task EndSessionBecauseHostLeftAsync(string reason)
+    /// <param name="noticeMessage">목록 화면으로 돌아간 뒤 띄울 안내 문구.
+    /// 비워 두면 기본 '방장이 나가서 방이 사라졌어요' 팝업을 띄운다.</param>
+    public async Task EndSessionBecauseHostLeftAsync(string reason, string noticeMessage = null)
     {
         if (m_IsLeaving)
             return;
@@ -202,7 +204,7 @@ public class JobsnailSessionManager
             m_IsHost = false;
             m_IsLeaving = false;
             // 방이 터진 팀원은 메인 메뉴가 아니라 세션 목록으로 돌아가야 한다(QA 요구).
-            SeoulZikimi.UI.New.UiNewRoomClosedNotice.ShowOnRoomList();   // 목록 화면 위 안내 팝업 예약
+            SeoulZikimi.UI.New.UiNewRoomClosedNotice.ShowOnRoomList(noticeMessage);   // 목록 화면 위 안내 팝업 예약
             ShowRoomListScene();
         }
     }
@@ -217,8 +219,19 @@ public class JobsnailSessionManager
             return;
 
         // 클라이언트에서 서버 연결이 끊긴 것은 방장 이탈/세션 종료로 처리한다.
-        if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
-            _ = EndSessionBecauseHostLeftAsync($"넷코드 서버 연결 끊김(clientId={clientId})");
+        if (clientId != NetworkManager.Singleton.LocalClientId && NetworkManager.Singleton.IsListening)
+            return;
+
+        // 방장이 이미 게임을 시작해 입장을 거절당한 경우는 '방 폭파'가 아니다 — 문구를 따로 띄운다.
+        if (NetworkManager.Singleton.DisconnectReason == SessionJoinGate.GameStartedReason)
+        {
+            _ = EndSessionBecauseHostLeftAsync(
+                "이미 시작한 방이라 입장이 거절됨",
+                "방장이 게임을 시작해서\n입장할 수 없습니다.");
+            return;
+        }
+
+        _ = EndSessionBecauseHostLeftAsync($"넷코드 서버 연결 끊김(clientId={clientId})");
     }
 
     /// <summary>세션(방) 목록 화면이 있는 Lobby 씬으로 이동한다. 이미 그 씬이면 다시 로드하지 않는다.</summary>
@@ -254,6 +267,10 @@ public sealed class JobsnailSessionDisconnectWatcher : MonoBehaviour
 
     private void Update()
     {
+        // 승인 콜백은 NetworkManager가 살아 있는 동안 항상 걸려 있어야 한다(프리팹에서
+        // ConnectionApproval을 켰기 때문). 세션 시작 과정에서 남이 덮어쓸 수 있어 매 프레임 확인한다.
+        SessionJoinGate.EnsureInstalled();
+
         var nm = NetworkManager.Singleton;
         if (ReferenceEquals(m_SubscribedNetworkManager, nm))
             return;
