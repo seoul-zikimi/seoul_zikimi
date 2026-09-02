@@ -324,15 +324,15 @@ public sealed class GameLoopHUD : UIHUD
                 m_ShownTimerPctMine = pctMine; m_ShownTimerPctOther = pctOther; m_ShownTimerHeld = held;
 
                 string timer = building ? $"{secs / 60} : {secs % 60:00}" : "종료";
-                // 2vs2 건축 중: 타이머 밑에 양 팀 완성도 실시간 표시
-                if (pctMine >= 0)
-                    timer += $"\n<size=60%>우리 {pctMine}% : 상대 {pctOther}%</size>";
-                // 소지 아이템 안내(F로 사용)
+                // 2vs2 건축 중: 완성도·소지 아이템 안내는 타이머 아래 '별도 중앙 정렬 텍스트'로 —
+                // 타이머는 왼쪽 정렬(시계 아이콘 짝)이라 같은 텍스트에 넣으면 줄이 왼쪽으로 쏠리고 겹친다.
+                string sub = pctMine >= 0 ? $"우리 {pctMine}% : 상대 {pctOther}%" : "";
                 if (!string.IsNullOrEmpty(held))
-                    timer += held == "대포"   // 기획서: 대포는 조준+꾹 발사 안내
-                        ? "\n<size=55%>[대포] 상대 건물 조준 후 E 꾹 눌렀다 떼면 발사!</size>"
-                        : $"\n<size=55%>[{held}] E로 사용</size>";
-                // 걸린 효과(날씨·버프·디버프)는 우상단 버프 아이콘 바가 담당 — UpdateBuffBar()
+                    sub += held == "대포"   // 기획서: 대포는 조준+꾹 발사 안내
+                        ? "\n<size=75%>[대포] 상대 건물 조준 후 E 꾹 눌렀다 떼면 발사!</size>"
+                        : $"\n<size=75%>[{held}] E로 사용</size>";
+                VsPctText().text = sub;
+                // 걸린 효과(날씨·버프·디버프)는 점수줄 아래 버프 아이콘 바가 담당 — UpdateBuffBar()
                 m_TimerText.text = timer;
             }
 
@@ -795,9 +795,34 @@ public sealed class GameLoopHUD : UIHUD
     // ── 우상단 버프/디버프 아이콘 바 — 걸린 효과마다 아이콘 + 어두워지는 라디얼(경과분) + 남은 초 ──
     private RectTransform m_BuffBar;
     private readonly System.Collections.Generic.Dictionary<SeoulZikimi.Gameplay.CompetitiveItemKind,
-        (GameObject go, Image overlay, TextMeshProUGUI secs)> m_BuffCells = new();
+        (GameObject go, Image overlay, TextMeshProUGUI secs, Image icon)> m_BuffCells = new();
     private static readonly System.Collections.Generic.List<GridSystem.ItemNetwork.LocalStatus> s_Statuses = new();
     private static readonly System.Collections.Generic.List<SeoulZikimi.Gameplay.CompetitiveItemKind> s_GoneKinds = new();
+
+    // '우리 % : 상대 %' 중앙 정렬 줄 — 타이머(왼쪽 정렬)와 분리해 런타임 생성. TopBar가 화면 중앙 기준.
+    private TextMeshProUGUI m_VsPctText;
+    private TextMeshProUGUI VsPctText()
+    {
+        if (m_VsPctText != null) return m_VsPctText;
+        var go = new GameObject("VersusPct", typeof(TextMeshProUGUI));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(m_TopBar.transform, false);
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = new Vector2(0f, -88f);   // 타이머 숫자줄(폰트 63 + halo) 아래 여유 있게
+        rt.sizeDelta = new Vector2(700f, 90f);          // 2줄(완성도 + 아이템 안내)까지 수용
+        m_VsPctText = go.GetComponent<TextMeshProUGUI>();
+        m_VsPctText.font = m_TimerText.font;
+        m_VsPctText.fontSharedMaterial = m_TimerText.fontSharedMaterial;   // 타이머와 같은 halo 스타일
+        m_VsPctText.fontStyle = m_TimerText.fontStyle;
+        m_VsPctText.fontSize = m_TimerText.fontSize * 0.6f;
+        m_VsPctText.alignment = TextAlignmentOptions.Top;
+        m_VsPctText.textWrappingMode = TextWrappingModes.NoWrap;
+        m_VsPctText.overflowMode = TextOverflowModes.Overflow;
+        m_VsPctText.color = Color.white;
+        m_VsPctText.raycastTarget = false;
+        return m_VsPctText;
+    }
 
     private void UpdateBuffBar()
     {
@@ -806,6 +831,14 @@ public sealed class GameLoopHUD : UIHUD
             var t = transform.Find("BuffBar");
             if (t == null) return;   // 구버전 프리팹(재생성 전) — 표시 생략
             m_BuffBar = (RectTransform)t;
+            // 우상단 → 상단 중앙('우리 % : 상대 %' 바로 아래)로 재배치 — 프리팹 재생성 없이 코드로.
+            // 화면 끝은 시선 밖이라 걸린 걸 모른다(QA) — 점수줄과 세로로 나란히 두어 한 시선에 들어오게.
+            m_BuffBar.anchorMin = m_BuffBar.anchorMax = new Vector2(0.5f, 1f);
+            m_BuffBar.pivot = new Vector2(0.5f, 1f);
+            m_BuffBar.anchoredPosition = new Vector2(0f, -196f);   // 점수줄(-88, 2줄 최대 ~95px)과 안 겹치게
+            m_BuffBar.sizeDelta = new Vector2(700f, 62f);
+            var lay = m_BuffBar.GetComponent<HorizontalLayoutGroup>();
+            if (lay != null) lay.childAlignment = TextAnchor.MiddleCenter;
         }
 
         GridSystem.ItemNetwork.GetLocalStatuses(s_Statuses);
@@ -829,18 +862,24 @@ public sealed class GameLoopHUD : UIHUD
             {
                 m_BuffSecsShown[st.Kind] = secsLeft;
                 cell.secs.text = secsLeft.ToString();
+                cell.secs.color = secsLeft <= 3 ? new Color(1f, 0.35f, 0.3f) : Color.white;
             }
+            // 만료 직전(3초): 아이콘 깜빡여 '곧 풀린다' 신호
+            var ic = cell.icon.color;
+            ic.a = st.Remaining < 3f ? 0.45f + 0.55f * Mathf.Abs(Mathf.Sin(Time.time * 7f)) : 1f;
+            cell.icon.color = ic;
         }
     }
 
     private readonly System.Collections.Generic.Dictionary<SeoulZikimi.Gameplay.CompetitiveItemKind, int> m_BuffSecsShown = new();
 
-    private (GameObject, Image, TextMeshProUGUI) MakeBuffCell(SeoulZikimi.Gameplay.CompetitiveItemKind kind)
+    private (GameObject, Image, TextMeshProUGUI, Image) MakeBuffCell(SeoulZikimi.Gameplay.CompetitiveItemKind kind)
     {
         var go = new GameObject(kind.ToString(), typeof(RectTransform));
         var rt = (RectTransform)go.transform;
         rt.SetParent(m_BuffBar, false);
-        rt.sizeDelta = new Vector2(40f, 40f);
+        rt.sizeDelta = new Vector2(62f, 62f);   // 걸린 효과는 한눈에 보여야 함(QA) — 바 높이보다 커도 마스크 없어 그대로 그려짐
+        go.AddComponent<GridSystem.ItemPopIn>();   // 걸리는 순간 뿅 팝인(월드 아이템 상자와 같은 이징)
 
         Image Img(string name, Color color)
         {
@@ -855,11 +894,20 @@ public sealed class GameLoopHUD : UIHUD
             return img;
         }
 
-        var bg = Img("Bg", new Color(0f, 0f, 0f, 0.35f));
+        // 배경·테두리 색으로 버프(초록)/디버프(빨강) 즉시 구분
+        bool isBuff = GridSystem.ItemNetwork.IsBuff(kind);
+        var edge = isBuff ? new Color(0.2f, 0.85f, 0.35f, 0.95f) : new Color(1f, 0.28f, 0.22f, 0.95f);
+        var bg = Img("Bg", isBuff ? new Color(0.03f, 0.22f, 0.08f, 0.6f) : new Color(0.25f, 0.03f, 0.03f, 0.6f));
+        var outline = bg.gameObject.AddComponent<Outline>();
+        outline.effectColor = edge;
+        outline.effectDistance = new Vector2(2f, -2f);
+
         var icon = Img("Icon", Color.white);
         icon.sprite = GridSystem.HeldItemBubble.LoadIcon(kind);
         icon.preserveAspect = true;
         if (icon.sprite == null) { icon.color = GridSystem.ItemNetwork.KindColor(kind); }   // 아이콘 없으면 종류색 칸
+        ((RectTransform)icon.transform).offsetMin = new Vector2(4f, 4f);   // 테두리 안쪽으로 살짝 여백
+        ((RectTransform)icon.transform).offsetMax = new Vector2(-4f, -4f);
 
         var overlay = Img("Overlay", new Color(0f, 0f, 0f, 0.55f));
         overlay.type = Image.Type.Filled;
@@ -875,13 +923,16 @@ public sealed class GameLoopHUD : UIHUD
         srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
         var secs = secsGo.GetComponent<TextMeshProUGUI>();
         secs.font = JobsnailUiKit.TmpFont;
-        secs.fontSize = 15f;
+        secs.fontSize = 24f;   // 남은 초가 아이콘만큼 중요 — 멀리서도 읽히게 크게
         secs.fontStyle = FontStyles.Bold;
         secs.alignment = TextAlignmentOptions.BottomRight;
         secs.color = Color.white;
         secs.raycastTarget = false;
+        // 밝은 아이콘 위에서도 읽히게 TMP 아웃라인(UI.Shadow는 TMP에 안 먹음 — 재질 인스턴스 몇 개는 감수)
+        secs.outlineColor = new Color32(0, 0, 0, 220);
+        secs.outlineWidth = 0.22f;
 
-        return (go, overlay, secs);
+        return (go, overlay, secs, icon);
     }
 
     // 시계 줄(첫 줄)만 펌핑 — 아래 '우리:상대'·아이템 줄은 고정.

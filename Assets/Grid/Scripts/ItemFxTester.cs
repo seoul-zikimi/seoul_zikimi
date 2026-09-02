@@ -30,10 +30,22 @@ namespace GridSystem
 
             if (kb.digit1Key.wasPressedThisFrame) ItemFx.Spawned(Pos, Col);
             if (kb.digit2Key.wasPressedThisFrame) ItemFx.PickedUp(Pos, Col);
-            if (kb.digit3Key.wasPressedThisFrame) ItemFx.Used(Pos, Col, ItemNetwork.KindName(Kind));
+            if (kb.digit3Key.wasPressedThisFrame) ItemFx.Used(Pos, Col, ItemNetwork.KindName(Kind), Kind);
             if (kb.digit4Key.wasPressedThisFrame) ItemFx.Expired(Pos, Col);
             if (kb.digit5Key.wasPressedThisFrame) SpawnOrb();
             if (kb.digit0Key.wasPressedThisFrame) ClearOrbs();
+            // 6~9 = 화면 배너/플래시 미리보기(시전·피격·아군버프·플래시)
+            if (kb.digit6Key.wasPressedThisFrame)
+                ItemScreenFx.Banner(Kind, $"{ItemNetwork.KindName(Kind)} 사용!", new Color(0.85f, 0.62f, 0.05f));
+            if (kb.digit7Key.wasPressedThisFrame)
+            {
+                ItemScreenFx.Banner(Kind, $"상대가 {ItemNetwork.KindName(Kind)} 사용!", new Color(0.82f, 0.16f, 0.12f), shake: true);
+                ItemScreenFx.Flash(new Color(1f, 0.15f, 0.1f), 0.55f);
+            }
+            if (kb.digit8Key.wasPressedThisFrame)
+                ItemScreenFx.Banner(Kind, $"아군이 {ItemNetwork.KindName(Kind)} 사용!", new Color(0.15f, 0.62f, 0.25f));
+            if (kb.digit9Key.wasPressedThisFrame)
+                ItemScreenFx.Flash(new Color(0.3f, 1f, 0.4f), 0.35f);
         }
 
         private void SpawnOrb()
@@ -54,7 +66,7 @@ namespace GridSystem
 
         // 조작 안내는 로그로(게임 UI는 프리팹 전용 규칙 — 테스트 씬도 OnGUI 안 씀)
         private void Start() =>
-            Debug.Log("[ItemFxTest] 1=등장 2=획득 3=발동 4=소멸 5=구슬 0=지우기 / ←→ 종류 변경");
+            Debug.Log("[ItemFxTest] 1=등장 2=획득 3=발동 4=소멸 5=구슬 0=지우기 6=시전배너 7=피격배너 8=아군배너 9=플래시 / ←→ 종류 변경");
 
         // 종류 바뀔 때만 현재 선택을 로그로 알림
         private int m_LoggedKind = -1;

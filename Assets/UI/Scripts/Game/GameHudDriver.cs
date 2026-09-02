@@ -118,6 +118,8 @@ public class GameHudDriver : MonoBehaviour
     private void UpdateOrderBlock()
     {
         if (m_OrderHud == null) return;
+        if (m_OrderHud.OrderBlockIcon == null)   // 배너 아이콘 주입(AnswerPanelHUD는 GridSystem을 모른다)
+            m_OrderHud.OrderBlockIcon = HeldItemBubble.LoadIcon(SeoulZikimi.Gameplay.CompetitiveItemKind.OrderHack);
         m_OrderHud.SetOrderBlocked(ItemNetwork.LocalOrderBlockedRemaining());
     }
 

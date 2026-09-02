@@ -21,7 +21,11 @@ namespace SeoulZikimi.UI.New.Editor
             "Assets/Resources/UI_NEW/Weather/FX/WindStreak.png",
             "Assets/Resources/UI_NEW/Weather/FX/AutumnLeaf.png",
             "Assets/Resources/UI_NEW/Weather/FX/CherryPetal.png",
-            // 2vs2 소지 아이템 버블 아이콘(HeldItemBubble) — 바르코 생성
+            // 2vs2 아이템 아이콘(HeldItemBubble·버프바·배너) — 플랫 세트 13종(gpt-image 시트 분할)
+            "Assets/Resources/UI_NEW/Items/Rain.png",
+            "Assets/Resources/UI_NEW/Items/Snow.png",
+            "Assets/Resources/UI_NEW/Items/StrongWind.png",
+            "Assets/Resources/UI_NEW/Items/Typhoon.png",
             "Assets/Resources/UI_NEW/Items/Earthquake.png",
             "Assets/Resources/UI_NEW/Items/Fog.png",
             "Assets/Resources/UI_NEW/Items/MovementSlow.png",

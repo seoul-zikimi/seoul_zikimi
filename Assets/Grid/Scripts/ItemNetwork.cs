@@ -487,25 +487,38 @@ namespace GridSystem
         }
         private float m_NextSlipToast;   // 로컬 전용(수신 클라 기준)
 
-        // 대상 팀 전원 화면에 알림 — 공격: 빨강 "상대가 X 사용!" + 흔들림 / 버프: 초록 "아군이 X 사용!"(시전자 제외).
+        // 전원 화면에 알림(스크린 배너 — 시야 밖이어도 보임). 입장별로:
+        // 시전자 = 금색 "사용!" / 피격팀 = 빨강 배너+비네트+흔들림 / 버프받은 아군 = 초록 / 시전자 팀원(공격) = 파랑 정보.
         [Rpc(SendTo.Everyone)]
-        private void ItemUsedNoticeRpc(int kind, int targetTeam, bool buff, ulong casterId)
+        private void ItemUsedNoticeRpc(int kind, int casterTeam, int targetTeam, bool buff, ulong casterId)
         {
-            if (m_Loop == null || m_Loop.LocalTeam != targetTeam) return;
+            if (m_Loop == null) return;
+            var k = (CompetitiveItemKind)kind;
+            string name = KindName(k);
             var nm = NetworkManager.Singleton;
-            if (buff && nm != null && nm.LocalClientId == casterId) return;   // 시전자는 금색 "사용!" 토스트로 이미 봄
-            var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
-            if (po == null) return;
-            string name = KindName((CompetitiveItemKind)kind);
-            if (buff)
+            bool isCaster = nm != null && nm.LocalClientId == casterId;
+            int my = m_Loop.LocalTeam;
+
+            if (isCaster)
             {
-                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f,
-                    $"아군이 {name} 사용!", new Color(0.25f, 0.85f, 0.35f));
+                ItemScreenFx.Banner(k, $"{name} 사용!", new Color(0.85f, 0.62f, 0.05f));
                 return;
             }
-            GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f,
-                $"상대가 {name} 사용!", new Color(1f, 0.25f, 0.2f));
-            GridJuice.FovPunch(Camera.main, -2f);
+            if (my == targetTeam && !buff)          // 상대 공격에 당함
+            {
+                ItemScreenFx.Banner(k, $"상대가 {name} 사용!", new Color(0.82f, 0.16f, 0.12f), shake: true);
+                ItemScreenFx.Flash(new Color(1f, 0.15f, 0.1f), 0.55f);
+                GridJuice.FovPunch(Camera.main, -2f);
+                return;
+            }
+            if (my == targetTeam && buff)           // 아군이 버프를 걸어줌
+            {
+                ItemScreenFx.Banner(k, $"아군이 {name} 사용!", new Color(0.15f, 0.62f, 0.25f));
+                ItemScreenFx.Flash(new Color(0.3f, 1f, 0.4f), 0.3f);
+                return;
+            }
+            if (my == casterTeam)                   // 팀원이 상대를 공격(나는 구경)
+                ItemScreenFx.Banner(k, $"아군이 상대에게 {name} 사용!", new Color(0.16f, 0.42f, 0.75f));
         }
 
         // 내 팀 상태를 로컬 연출(날씨 파티클·안개)에 반영 — 값이 바뀔 때만.
@@ -631,7 +644,7 @@ namespace GridSystem
                 if (def != null)
                 {
                     bool buff = def.TargetSide == ItemTargetSide.Ally;
-                    ItemUsedNoticeRpc(e.Kind, buff ? team : 1 - team, buff, sender);
+                    ItemUsedNoticeRpc(e.Kind, team, buff ? team : 1 - team, buff, sender);
                 }
                 return;
             }
@@ -740,7 +753,8 @@ namespace GridSystem
                     RemoveVisual(e.Value.Id);
                     var col = KindColor((CompetitiveItemKind)e.Value.Kind);
                     if (e.Value.Held) ItemFx.Used(HolderPos(e.Value.Holder, e.Value.Pos), col,
-                        KindName((CompetitiveItemKind)e.Value.Kind));   // 사용 — 팡 + "○○ 사용!" 문구
+                        KindName((CompetitiveItemKind)e.Value.Kind),
+                        (CompetitiveItemKind)e.Value.Kind);   // 사용 — 팡 + "○○ 사용!" 문구 + 아이콘 팝
                     else ItemFx.Expired(e.Value.Pos, col);                                        // 미사용 소멸
                     break;
 
@@ -798,6 +812,10 @@ namespace GridSystem
             CompetitiveItemKind.Cannon => new Color(0.25f, 0.25f, 0.3f),
             _ => Color.gray,
         };
+
+        /// <summary>아군에게 이로운 효과인가 — HUD 테두리색(초록/빨강) 구분용.</summary>
+        public static bool IsBuff(CompetitiveItemKind k)
+            => k is CompetitiveItemKind.Umbrella or CompetitiveItemKind.MovementBoost or CompetitiveItemKind.ProcessBoost;
 
         public static string KindName(CompetitiveItemKind k) => k switch
         {

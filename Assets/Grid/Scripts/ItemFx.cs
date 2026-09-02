@@ -1,3 +1,4 @@
+using SeoulZikimi.Gameplay;
 using UnityEngine;
 
 namespace GridSystem
@@ -90,8 +91,9 @@ namespace GridSystem
         static GameObject s_UsePoof;
         static bool s_UsePoofTried;
 
-        public static void Used(Vector3 pos, Color col, string label = "")
+        public static void Used(Vector3 pos, Color col, string label = "", CompetitiveItemKind? kind = null)
         {
+            if (kind.HasValue) IconPop(pos, kind.Value);   // 어떤 아이템인지 아이콘이 뿅 떠오름
             // 카툰 팡(CFXR Magic Poof 사본) — '확실히 써졌다' 한눈에 보이게(GroundHit 패턴)
             if (!s_UsePoofTried) { s_UsePoofTried = true; s_UsePoof = Resources.Load<GameObject>("Fx/ItemUsePoof"); }
             if (s_UsePoof != null)
@@ -116,6 +118,34 @@ namespace GridSystem
                 fx.gravity = -7f; fx.life = 0.7f; fx.spinDeg = 300f; fx.spinAxis = Random.onUnitSphere;
             }
             Play(UseClip(), pos, 0.8f);
+        }
+
+        /// <summary>사용 순간 아이템 아이콘이 머리 위로 뿅 떠올라 흔들리며 사라짐 — 멀리서도 종류가 보인다.
+        /// SpriteRenderer 대신 월드 캔버스(HeldItemBubble 방식) — UI 재질은 빌드에서 스트립 안 됨.</summary>
+        public static void IconPop(Vector3 pos, CompetitiveItemKind kind)
+        {
+            var sp = HeldItemBubble.LoadIcon(kind);
+            if (sp == null) return;
+            const float kPx = 100f;
+            var go = new GameObject("~ItemIconPop", typeof(Canvas));
+            var canvas = go.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 30;
+            ((RectTransform)go.transform).sizeDelta = new Vector2(kPx, kPx);
+            go.transform.position = pos + Vector3.up * 1.5f;
+
+            var imgGo = new GameObject("Icon", typeof(UnityEngine.UI.Image));
+            var irt = (RectTransform)imgGo.transform;
+            irt.SetParent(go.transform, false);
+            irt.sizeDelta = new Vector2(kPx, kPx);
+            var img = imgGo.GetComponent<UnityEngine.UI.Image>();
+            img.sprite = sp;
+            img.preserveAspect = true;
+            img.raycastTarget = false;
+
+            var anim = go.AddComponent<ItemIconPopAnim>();
+            anim.BaseScale = 0.9f / kPx;
+            anim.Fade = img;
         }
 
         /// <summary>소멸(60초 미사용): 피식 가라앉는 연기 + 낮은 퐁.</summary>
@@ -355,6 +385,40 @@ namespace GridSystem
         }
 
         void OnDestroy() { if (mat != null) Destroy(mat); }
+    }
+
+    /// <summary>사용 아이콘 연출: 팝인 → 좌우 까딱 → 떠오르며 페이드. 항상 카메라를 본다.</summary>
+    public sealed class ItemIconPopAnim : MonoBehaviour
+    {
+        public float BaseScale = 1f;
+        public UnityEngine.UI.Image Fade;
+        const float kPop = 0.18f, kHold = 0.75f, kFade = 0.4f;
+        float m_T;
+
+        void Update()
+        {
+            m_T += Time.deltaTime;
+            if (Camera.main != null) transform.rotation = Camera.main.transform.rotation;
+
+            float scale = BaseScale;
+            if (m_T < kPop)   // 오버슛 팝인
+            {
+                float n = m_T / kPop;
+                scale *= 1f + 2.7f * Mathf.Pow(n - 1f, 3f) + 1.7f * Mathf.Pow(n - 1f, 2f);
+            }
+            transform.localScale = Vector3.one * scale;
+            // 까딱까딱(감쇠 회전) — 정적인 아이콘에 생기
+            float wob = Mathf.Sin(m_T * 14f) * Mathf.Exp(-m_T * 3f) * 12f;
+            transform.rotation *= Quaternion.Euler(0f, 0f, wob);
+
+            transform.position += Vector3.up * (0.55f * Time.deltaTime);
+            if (m_T > kPop + kHold && Fade != null)
+            {
+                float n = Mathf.Clamp01((m_T - kPop - kHold) / kFade);
+                var c = Fade.color; c.a = 1f - n; Fade.color = c;
+            }
+            if (m_T >= kPop + kHold + kFade) Destroy(gameObject);
+        }
     }
 
     /// <summary>뿅 팝인: 0 → 오버슛 → 원래 크기. 등장 쫀득용.</summary>

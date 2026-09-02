@@ -797,8 +797,12 @@ public class AnswerPanelHUD : UIHUD
     // 카드 그리드 맨 위에 이유 + 남은 초를 띄우고 [주문!]도 함께 잠근다.
     private GameObject m_BlockBanner;
     private Text m_BlockText;
+    private Image m_BlockIcon;
     private int m_BlockSecs;   // 0 = 주문 가능
     private static readonly Color kBlockPurple = new Color(0.62f, 0.20f, 0.80f, 0.96f);
+
+    /// <summary>주문 차단 배너 아이콘(주문해킹) — 드라이버가 주입(이 클래스는 GridSystem을 모른다).</summary>
+    public Sprite OrderBlockIcon;
 
     /// <summary>주문 차단 남은 초(0 = 정상). GameHudDriver가 매 프레임 넘긴다.</summary>
     public void SetOrderBlocked(float remainingSeconds)
@@ -834,6 +838,19 @@ public class AnswerPanelHUD : UIHUD
         bg.raycastTarget = false;   // 배너 아래 카드는 계속 고를 수 있게(주문만 잠긴다)
         m_BlockText.fontStyle = FontStyle.Bold;
         m_BlockText.transform.SetAsLastSibling();
+
+        // 왼쪽 끝 주문해킹 아이콘 — 문구를 읽기 전에 '무슨 아이템인지' 보이게
+        float iconSize = m_MobileLayout ? 48f : 18f;
+        var iconGo = new GameObject("Icon", typeof(Image));
+        var iconRt = (RectTransform)iconGo.transform;
+        iconRt.SetParent(go.transform, false);
+        iconRt.anchorMin = iconRt.anchorMax = new Vector2(0f, 0.5f);
+        iconRt.anchoredPosition = new Vector2(iconSize * 0.65f + 4f, 0f);
+        iconRt.sizeDelta = new Vector2(iconSize, iconSize);
+        m_BlockIcon = iconGo.GetComponent<Image>();
+        m_BlockIcon.preserveAspect = true;
+        m_BlockIcon.raycastTarget = false;
+
         m_BlockBanner = go;
         ApplyBlockVisual();
     }
@@ -846,6 +863,11 @@ public class AnswerPanelHUD : UIHUD
         {
             if (m_BlockText != null) m_BlockText.text = $"주문 해킹! {m_BlockSecs}초 뒤 주문 가능";
             m_BlockBanner.transform.SetAsLastSibling();   // 나중에 지어진 카드 그리드보다 위로
+        }
+        if (m_BlockIcon != null)
+        {
+            if (m_BlockIcon.sprite == null && OrderBlockIcon != null) m_BlockIcon.sprite = OrderBlockIcon;
+            m_BlockIcon.enabled = m_BlockIcon.sprite != null;
         }
         if (m_BlockBanner.activeSelf != on) m_BlockBanner.SetActive(on);
     }

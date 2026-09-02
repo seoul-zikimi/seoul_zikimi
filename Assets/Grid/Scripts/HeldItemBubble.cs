@@ -111,20 +111,29 @@ namespace GridSystem
             transform.localScale = Vector3.one * (kScale / kCanvasPx) * pop;
         }
 
-        static string IconPath(CompetitiveItemKind k) => k switch
+        // 플랫 아이콘 세트(UI_NEW/Items)가 13종 전부를 덮는다. 날씨 4종은 세트가 비어 있을 때만
+        // 기존 날씨 UI 아이콘으로 폴백(세트 재생성 전에도 동작).
+        static string FallbackPath(CompetitiveItemKind k) => k switch
         {
             CompetitiveItemKind.Rain => "UI_NEW/Weather/UI/Rain",
             CompetitiveItemKind.Snow => "UI_NEW/Weather/UI/Snow",
             CompetitiveItemKind.StrongWind => "UI_NEW/Weather/UI/StrongWind",
             CompetitiveItemKind.Typhoon => "UI_NEW/Weather/UI/Typhoon",
-            _ => "UI_NEW/Items/" + k,
+            _ => null,
         };
 
-        /// <summary>아이템 종류 아이콘(HUD 버프 바도 같이 씀). 없으면 null.</summary>
+        /// <summary>아이템 종류 아이콘(HUD 버프 바·배너도 같이 씀). 없으면 null.</summary>
         public static Sprite LoadIcon(CompetitiveItemKind kind)
         {
             if (s_Icons.TryGetValue(kind, out var cached) && cached != null) return cached;
-            string path = IconPath(kind);
+            var sp = LoadSprite("UI_NEW/Items/" + kind);
+            if (sp == null && FallbackPath(kind) is string fb) sp = LoadSprite(fb);
+            if (sp != null) s_Icons[kind] = sp;
+            return sp;
+        }
+
+        static Sprite LoadSprite(string path)
+        {
             var sp = Resources.Load<Sprite>(path);
             if (sp == null)
             {
@@ -132,7 +141,6 @@ namespace GridSystem
                 if (tex != null)
                     sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
             }
-            if (sp != null) s_Icons[kind] = sp;
             return sp;
         }
 
