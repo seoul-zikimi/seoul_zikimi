@@ -355,22 +355,8 @@ namespace GridSystem.EditorTools
             var cityMat = EnsureMaterial("Mat_NamsanCity", new Color(0.75f, 0.76f, 0.8f));
             AddBox(root, "CityPlain", new Vector3(0f, kGroundY - 12f, -30f), new Vector3(260f, 0.2f, 260f), cityMat).isStatic = true;
 
-            // 남쪽 저 멀리 도시 스카이라인(간단한 빌딩 박스 클러스터 — 원경이라 디테일 불필요)
-            var farBldg = EnsureMaterial("Mat_NamsanFarBldg", new Color(0.63f, 0.65f, 0.71f));
-            (Vector3 p, Vector3 s)[] skyline =
-            {
-                (new Vector3(-38f, 0f, -62f), new Vector3(6f, 9f, 6f)),   (new Vector3(-26f, 0f, -72f), new Vector3(5f, 14f, 5f)),
-                (new Vector3(-12f, 0f, -66f), new Vector3(7f, 7f, 6f)),   (new Vector3(2f, 0f, -76f), new Vector3(6f, 16f, 6f)),
-                (new Vector3(14f, 0f, -64f), new Vector3(5f, 10f, 5f)),   (new Vector3(28f, 0f, -74f), new Vector3(8f, 12f, 6f)),
-                (new Vector3(42f, 0f, -66f), new Vector3(6f, 8f, 6f)),    (new Vector3(-50f, 0f, -74f), new Vector3(7f, 11f, 6f)),
-                (new Vector3(52f, 0f, -78f), new Vector3(6f, 15f, 6f)),   (new Vector3(-2f, 0f, -60f), new Vector3(4f, 6f, 4f)),
-            };
-            for (int b = 0; b < skyline.Length; b++)
-            {
-                var (p, s) = skyline[b];
-                AddBox(root, $"FarBldg{b + 1}",
-                    new Vector3(p.x, kGroundY - 12f + s.y * 0.5f, p.z), s, farBldg).isStatic = true;
-            }
+            // FarBldg 박스 스카이라인은 폐기(09/03 "회색 박스 제거" 지시) — 비주얼 정리 툴의
+            // 텍스처 빌딩(VARCO/파사드)이 원경 도시를 담당한다. 기존 프리팹의 잔재는 MapTouchupAutoSetup v3가 지운다.
 
             // 데크 밑 엘베 로비 — 단차가 커진 만큼 건물도 커짐(땅에서 데크 밑면까지 꽉 채움)
             if (!TryPlaceProp(root, "남산_로비건물", new Vector3(10f, kGroundY, -3f)))

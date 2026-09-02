@@ -177,7 +177,7 @@ namespace GridSystem.EditorTools
         [InitializeOnLoad]
         public static class MapTouchupAutoSetup
         {
-            private const int kVersion = 2;   // 2: 남산 회색 박스빌딩(City##) 전부 제거("차라리 제거하자" 09/03) / 1: 경복궁 그레이박스 산 제거
+            private const int kVersion = 3;   // 3: 남산 FarBldg#도 제거(회색 박스의 진범 — City## 삭제 후에도 남던 32개) / 2: City## / 1: 경복궁 산
             private const string kKey = "Map.TouchupVersion";
 
             static MapTouchupAutoSetup()
@@ -195,9 +195,10 @@ namespace GridSystem.EditorTools
                 // ① 경복궁: 그레이박스 산 제거(멱등 — 없으면 무시)
                 RemoveByName("Assets/Resources/MapPrefabs/MapBg_Gyeongbokgung.prefab",
                              t => t.name == "Mountain_1" || t.name == "Mountain_2", "경복궁 그레이박스 산");
-                // ② 남산: 단색 회색 박스빌딩 City## 전부 제거 — 파사드 리스킨 대신 삭제로 확정(09/03)
+                // ② 남산: 단색 회색 박스빌딩 전부 제거 — 파사드 리스킨 대신 삭제로 확정(09/03).
+                //    City## 삭제 후에도 남던 회색 박스의 진범은 FarBldg#(Mat_NamsanFarBldg 흰 민짜 32개)였다.
                 RemoveByName("Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab",
-                             t => System.Text.RegularExpressions.Regex.IsMatch(t.name, @"^City\d+$"), "남산 회색 박스빌딩");
+                             t => System.Text.RegularExpressions.Regex.IsMatch(t.name, @"^(City\d+|FarBldg\d+.*)$"), "남산 회색 박스빌딩");
 
                 EditorPrefs.SetInt(kKey, kVersion);
             }
