@@ -1536,20 +1536,12 @@ namespace GridSystem.EditorTools
             inst.transform.localPosition = groundPos;
             inst.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
             if (scale != 1f) inst.transform.localScale *= scale;
-            // 서 있을 수 있게 콜라이더 보장(모델엔 보통 없음) — 바운즈 기준 박스 하나
+            // 서 있을 수 있게 콜라이더 보장(모델엔 보통 없음) — 모양 그대로 메시 콜라이더.
+            // 바운즈 박스는 곡면 모델(지붕 등)에서 곡면 밖 허공까지 막는 투명벽이 된다(남산 팔각정과 같은 문제).
             if (inst.GetComponentInChildren<Collider>() == null)
-            {
-                var rends = inst.GetComponentsInChildren<Renderer>();
-                if (rends.Length > 0)
-                {
-                    var b = rends[0].bounds;
-                    foreach (var r in rends) b.Encapsulate(r.bounds);
-                    var bc = inst.AddComponent<BoxCollider>();
-                    bc.center = inst.transform.InverseTransformPoint(b.center);
-                    bc.size = Vector3.Scale(b.size, new Vector3(
-                        1f / inst.transform.lossyScale.x, 1f / inst.transform.lossyScale.y, 1f / inst.transform.lossyScale.z));
-                }
-            }
+                foreach (var mf in inst.GetComponentsInChildren<MeshFilter>())
+                    if (mf.sharedMesh != null)
+                        mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
             return true;
         }
 

@@ -926,7 +926,7 @@ namespace GridSystem
             whole.name = "~CompletedModel";
             whole.transform.SetPositionAndRotation(GridCoordinates.CellToWorld(completedAnchor), Quaternion.identity);
             foreach (var col in whole.GetComponentsInChildren<Collider>()) Destroy(col);   // 물리는 아래 셀 콜라이더가 담당
-            AddCellColliders(m_Manager.Catalog, GridContract.Unit);
+            AddCellColliders(m_Manager.Catalog, GridContract.Unit, whole);
             // 완성 후에도 착지 스퀴시 등 VisualAt 연출이 살아 있게 전 셀을 통짜 모델로 매핑
             for (int i = 0; i < m_Cells.Count; i++) m_VisualByCell[m_Cells[i].cell] = whole;
             // (완성 표시 중에는 m_SeenVisualOwners를 건드리지 않는다 — 원본의 조기 리턴과 동일)
@@ -1041,7 +1041,7 @@ namespace GridSystem
 
             RefreshOwnerMarker(ov, def);
             if (SolidAllowed(def, w.mask))
-                for (int i = 0; i < ov.cells.Count; i++) ov.solids.Add(AddCellCollider(ov.cells[i], u));
+                AddSolids(ov, def, u);
             return ov;
         }
 
@@ -1061,8 +1061,7 @@ namespace GridSystem
 
             if (wantSolid && !hadSolid)
             {
-                float u = GridContract.Unit;
-                for (int i = 0; i < ov.cells.Count; i++) ov.solids.Add(AddCellCollider(ov.cells[i], u));
+                AddSolids(ov, def, GridContract.Unit);
             }
             else if (!wantSolid && hadSolid)
             {
@@ -1085,15 +1084,19 @@ namespace GridSystem
 
         // 단단함: 미고정 하중부재(공정 전)만 통과(부딪혀 무너뜨림). 그 외(바닥·물·공정완료 전부)는 막음.
         // 플레이어는 중력+캡슐 → 막힌 블록 '위에 서고' '옆을 못 지나감'. (Walkable은 Y고정 시절 잔재 — 더는 통과시키지 않음)
-        private void AddCellColliders(MaterialCatalog catalog, float u)
+        private void AddCellColliders(MaterialCatalog catalog, float u, GameObject completedModel = null)
         {
+            bool anyFreeform = false;
             foreach (var e in m_Cells)
             {
                 var def = catalog != null ? catalog.GetById(e.materialId) : null;
                 if (def == null) continue;
                 if (def.MustBeFixed && (e.completedProcessMask & (int)ProcessType.Fixed) == 0) continue;   // 미고정 하중부재 → 통과(무너뜨림)
+                if (def.FreeformVisual && completedModel != null) { anyFreeform = true; continue; }         // 곡면 조각 — 칸 박스는 투명벽, 아래 메시로
                 AddCellCollider(e.cell, u);                                                                 // 그 외 전부 → 막음
             }
+            if (anyFreeform)
+                AddMeshSolid(completedModel);   // 완성 모델 메시 그대로 충돌(곡면 표면 걷기)
         }
 
         /// <summary>이 맵에 '완성체 통짜 모델'이 지정돼 있으면 돌려준다(없으면 null).</summary>
@@ -1163,6 +1166,35 @@ namespace GridSystem
                 box.center = mf.sharedMesh.bounds.center;
                 box.size = mf.sharedMesh.bounds.size;
                 box.isTrigger = true;
+            }
+            return go;
+        }
+
+        // 블록 물리 솔리드: 보통 블록 = 칸 박스(그리드 계약 — 위에 서고 옆을 못 지나감).
+        // 자유 형상(DDP 곡면 조각) = 칸 박스가 곡면 밖 허공까지 막는 투명벽이 되므로 비주얼 메시 그대로 콜라이더.
+        private void AddSolids(OwnerVisual ov, MaterialDef def, float u)
+        {
+            if (def != null && def.FreeformVisual && ov.prefabGo != null)
+            {
+                ov.solids.Add(AddMeshSolid(ov.prefabGo));
+                return;
+            }
+            for (int i = 0; i < ov.cells.Count; i++) ov.solids.Add(AddCellCollider(ov.cells[i], u));
+        }
+
+        // 비주얼 메시들을 그대로 복제한 보이지 않는 메시 콜라이더 묶음(렌더러 없음).
+        private GameObject AddMeshSolid(GameObject visual)
+        {
+            var go = new GameObject("~Solid");
+            go.transform.SetParent(m_VisualRoot.transform, true);
+            foreach (var mf in visual.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null) continue;
+                var child = new GameObject("m");
+                child.transform.SetParent(go.transform, true);
+                child.transform.SetPositionAndRotation(mf.transform.position, mf.transform.rotation);
+                child.transform.localScale = mf.transform.lossyScale;
+                child.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
             }
             return go;
         }

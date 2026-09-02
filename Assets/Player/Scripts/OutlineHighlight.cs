@@ -33,7 +33,14 @@ namespace Player
             m_Outlines = new GameObject[filters.Length];
             for (int i = 0; i < filters.Length; i++)
             {
-                if (filters[i].sharedMesh == null) continue;
+                var mesh = filters[i].sharedMesh;
+                if (mesh == null) continue;
+                // 모델에 딸려온 납작한 판때기(평소 투명)까지 그리면 거대한 초록 사각형이 뜬다
+                // — 부피 없는 평면 메시와 꺼진 렌더러는 실루엣에서 제외.
+                var size = mesh.bounds.size;
+                if (Mathf.Min(size.x, Mathf.Min(size.y, size.z)) < 0.01f) continue;
+                var srcR = filters[i].GetComponent<MeshRenderer>();
+                if (srcR == null || !srcR.enabled) continue;
                 var go = new GameObject("~Outline");
                 go.transform.SetParent(filters[i].transform, false);   // 부모 메쉬에 정확히 겹침
                 go.AddComponent<MeshFilter>().sharedMesh = filters[i].sharedMesh;
