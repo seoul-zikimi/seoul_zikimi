@@ -55,6 +55,8 @@ namespace SeoulZikimi.UI.New
             GridSystem.GameLoopManager.HostWeatherEnabled = value.WeatherEnabled;
             GridSystem.GameLoopManager.HostSeasonSelectionMode = SeoulZikimi.Weather.SeasonSelectionMode.Random;
             GridSystem.GameLoopManager.HostFixedSeason = SeoulZikimi.Weather.Season.Spring;
+            // 비밀방 서버측 검증(접속 승인)용 기대 해시 등록 — 공개방은 null
+            SessionPasswordGate.SetExpectedPassword(value.Visibility == RoomVisibility.Private ? value.Password : null);
             createSession.RequestCreateSession(value.RoomName, value.Visibility == RoomVisibility.Private, value.Password);
         }
 

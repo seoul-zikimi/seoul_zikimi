@@ -16,6 +16,7 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private SessionSettings sessionSettings;
 
         private UiNewSessionRoom pendingRoom;
+        private string pendingPassword;   // 접속 승인(ConnectionData)에 실어 보낼 비밀번호 — 호스트가 서버측 재검증
         private bool joining;
 
         private void Awake()
@@ -52,6 +53,7 @@ namespace SeoulZikimi.UI.New
                 return;
             }
 
+            pendingPassword = password;
             _ = JoinAsync(pendingRoom);
         }
 
@@ -65,6 +67,8 @@ namespace SeoulZikimi.UI.New
             try
             {
                 await UiNewSessionService.EnsureReadyAsync();
+                // 넷코드 접속 승인용 비밀번호 탑재(공개방은 빈 페이로드) — 호스트가 서버측에서 재검증한다
+                SessionPasswordGate.SetLocalPassword(room.HasPassword ? pendingPassword : null);
                 JoinSessionOptions options = sessionSettings.ToJoinSessionOptions();
                 ISession session = await MultiplayerService.Instance.JoinSessionByIdAsync(room.SessionId, options);
                 sessionState.Set(session);
