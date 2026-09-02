@@ -62,7 +62,20 @@ namespace SeoulZikimi.UI.New
             UiNewButtonVisualPolicy.Apply(transform);
             roomNameInput.characterLimit = 15;
             roomNameInput.onValueChanged.AddListener(_ => RefreshValidation());
-            passwordInput.onValueChanged.AddListener(_ => RefreshValidation());
+            var passwordHint = PasswordPolicyHint.Attach(passwordInput);
+            passwordInput.onValueChanged.AddListener(_ =>
+            {
+                // 비번 문자 정책(한글·영문·숫자·특수문자 일부 · 길이 무제한) — 허용 밖 문자는 입력 즉시 걸러내고 안내를 띄운다
+                string clean = SessionPasswordPolicy.Sanitize(passwordInput.text);
+                if (clean != passwordInput.text)
+                {
+                    passwordInput.text = clean;
+                    passwordInput.caretPosition = clean.Length;
+                    passwordHint?.Show();
+                    return;   // text 재설정이 onValueChanged를 다시 부른다 — 거기서 RefreshValidation
+                }
+                RefreshValidation();
+            });
             publicButton.onClick.AddListener(() => SetVisibility(RoomVisibility.Public));
             privateButton.onClick.AddListener(() => SetVisibility(RoomVisibility.Private));
             passwordVisibilityButton.onClick.AddListener(TogglePasswordVisibility);
