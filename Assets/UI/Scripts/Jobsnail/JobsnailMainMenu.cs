@@ -97,6 +97,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         m_NicknameInput = nickPanel != null ? nickPanel.GetComponent<InputField>() : null;
         if (m_NicknameInput != null)
             m_NicknameInput.text = SaveService.Nickname;
+        SyncNicknameLegacyKey();
         HookNicknameInput();
 
         var characterImage = FindDeep(screen, "CharacterImage");
@@ -161,6 +162,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         nickImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/UserNicknameTextbox");
         nickImage.preserveAspect = true;
         m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", SaveService.Nickname);
+        SyncNicknameLegacyKey();
         HookNicknameInput();
 
         MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
@@ -227,6 +229,18 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             ToggleSettings();
     }
 
+    // 편집 없이 바로 게임에 들어가는 경우까지 커버 — 메뉴 진입 시점에 정본(ES3)을
+    // 인게임 판독처(PlayerPrefs "PlayerNickname")로 밀어 두 저장소를 항상 일치시킨다.
+    private static void SyncNicknameLegacyKey()
+    {
+        string nick = SaveService.Nickname;
+        if (!string.IsNullOrEmpty(nick) && PlayerPrefs.GetString("PlayerNickname", "") != nick)
+        {
+            PlayerPrefs.SetString("PlayerNickname", nick);
+            PlayerPrefs.Save();
+        }
+    }
+
     // 닉네임은 "게임 시작"뿐 아니라 입력 확정(엔터·포커스 아웃)과 메뉴 종료 시점에도 저장한다.
     // 마이페이지·설정 등 다른 경로로 빠져나가도 세션·인게임이 최신 닉네임을 읽게 하기 위함.
     private void HookNicknameInput()
@@ -245,8 +259,11 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         if (string.IsNullOrEmpty(nickname))
             return;   // 비워둔 상태는 저장하지 않고 기존 값 유지(기본값은 게임 시작 때 적용)
 
-        if (SaveService.Nickname != nickname)
-            SaveService.Nickname = nickname;   // 변경 시 자동저장(Easy Save, PlayerPrefs 동시 기록)
+        // 항상 저장한다(같은 값이어도). 인게임 이름표(GameLoopManager 등 GridSystem 쪽)는
+        // 어셈블리 방향 때문에 SaveService(ES3)가 아니라 PlayerPrefs를 읽는데,
+        // "ES3와 같으면 스킵" 가드가 있으면 과거에 ES3만 갱신된 세이브에서 PlayerPrefs가
+        // 영영 옛 이름으로 남는다 — "메인에서 바꿔도 인게임 미적용" QA의 원인.
+        SaveService.Nickname = nickname;   // Easy Save + PlayerPrefs 동시 기록
     }
 
     private void OnDisable()

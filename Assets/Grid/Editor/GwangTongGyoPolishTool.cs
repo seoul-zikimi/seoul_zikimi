@@ -125,6 +125,8 @@ namespace GridSystem.EditorTools
                     inst.transform.localPosition = p;
                     inst.transform.localRotation = rot;
                     inst.transform.localScale = s;
+                    // 원본 회전은 그대로 둔다(QA 09/03 3차 결론): 이 GLB는 눕혀 제작돼 원 배치 회전이
+                    // 이미 '세운 상태'다. 세우기 보정을 얹으면 오히려 통째로 눕는다 — 문제는 사본 쪽이었다.
                     foreach (var c in inst.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
                     foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
                     {
@@ -153,7 +155,14 @@ namespace GridSystem.EditorTools
                         var worldP = group.transform.TransformPoint(p);
                         worldP += new Vector3(((float)rng.NextDouble() - 0.5f) * 0.3f, 0f, dz);
                         inst.transform.position = worldP;
-                        inst.transform.localRotation = rot * Quaternion.Euler(0f, rng.Next(360), 0f);
+                        // 랜덤 yaw는 '월드 Y' 기준으로(QA 09/03 진범): 이 GLB는 눕혀 제작돼 로컬 Y로 돌리면
+                        // 시각적으로 기울어진다 — 벽에서 옆으로 솟던 사본들의 정체. 원본 월드 회전을 얻은 뒤
+                        // 월드 up 축으로만 돌려 '선 상태'를 유지한 채 방향만 섞는다.
+                        // 360° 풀랜덤이면 길쭉한 덤불이 벽과 직각으로 틀어져 보도로 삐져나온다 —
+                        // 생울타리 결(벽과 평행)을 유지하게 ±15°만 지터.
+                        inst.transform.localRotation = rot;
+                        inst.transform.rotation =
+                            Quaternion.AngleAxis(((float)rng.NextDouble() - 0.5f) * 30f, Vector3.up) * inst.transform.rotation;
                         inst.transform.localScale = s * Mathf.Lerp(0.82f, 1.0f, (float)rng.NextDouble());
                         foreach (var c in inst.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
                         foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
@@ -194,12 +203,19 @@ namespace GridSystem.EditorTools
             if (best == null) { Debug.LogWarning($"[광통교보강] {glbPath}에서 텍스처를 못 찾음"); return null; }
 
             string name = "Mat_GtgBush_" + Path.GetFileNameWithoutExtension(glbPath);
-            var mat = EnsureLit(name, Color.white);
+            var mat = EnsureLit(name, kBushTint);
             if (mat == null) return null;
             mat.SetTexture("_BaseMap", best);
+            // 기존 머티리얼도 색 갱신(EnsureLit는 생성 때만 색을 먹인다) — 흰색 틴트면 원본 텍스처가
+            // 너무 밝고 물빠져 보인다(QA 09/03). 곱하기 틴트로 톤을 누르고 초록 채도를 끌어올린다.
+            mat.SetColor("_BaseColor", kBushTint);
             EditorUtility.SetDirty(mat);
             return mat;
         }
+
+        // 덤불 틴트(곱셈색) — 1차 (0.55,0.78,0.42)는 "너무 퓨어 초록"(QA 09/03 2차).
+        // G를 눌러 채도를 빼고 전체를 낮춰 어두운 올리브톤으로: 어둡게 = 전체↓, 물빠지게 = R·G·B 간격↓.
+        private static readonly Color kBushTint = new Color(0.48f, 0.56f, 0.42f);
 
         private static bool IsColorName(string texName)
         {
@@ -554,7 +570,10 @@ namespace GridSystem.EditorTools
             var grp = new GameObject(kFurnitureGroup).transform;
             grp.SetParent(root.transform, false);
 
-            var railMat = EnsureLit("Mat_GtgRail", new Color(0.18f, 0.32f, 0.24f));   // 청계천 난간 짙은 초록
+            // 난간 색: 초록 → 금속 회색(QA 09/03). EnsureLit는 생성 때만 색을 먹여 기존 에셋도 갱신한다.
+            var kRailGray = new Color(0.47f, 0.48f, 0.51f);
+            var railMat = EnsureLit("Mat_GtgRail", kRailGray);
+            if (railMat != null) { railMat.SetColor("_BaseColor", kRailGray); EditorUtility.SetDirty(railMat); }
             var poleMat = EnsureLit("Mat_GtgLampPole", new Color(0.22f, 0.23f, 0.25f));
             var headMat = EnsureLit("Mat_GtgLampHead", new Color(1f, 0.92f, 0.72f));
             if (headMat != null)
@@ -569,10 +588,12 @@ namespace GridSystem.EditorTools
             {
                 // 난간은 덤불 화단 뒤(물길 반대쪽) 보도 위 — 화단과 겹치지 않게 바깥으로 0.6m
                 float railX = side < 0 ? kChanXMin - 0.6f : kChanXMax + 0.6f;
-                for (float z = -kZPlayEdge; z <= kZPlayEdge + 0.01f; z += 2.5f)
-                { Box(grp, "RailPost", new Vector3(railX, kBankTopY + 0.5f, z), new Vector3(0.08f, 1.0f, 0.08f), railMat); posts++; }
+                // 기둥 간격 2.5 → 1.0m + 가로대 3단(QA 09/03 "더 촘촘하게") — 실물 안전난간 밀도
+                for (float z = -kZPlayEdge; z <= kZPlayEdge + 0.01f; z += 1.0f)
+                { Box(grp, "RailPost", new Vector3(railX, kBankTopY + 0.5f, z), new Vector3(0.07f, 1.0f, 0.07f), railMat); posts++; }
                 Box(grp, "RailTop", new Vector3(railX, kBankTopY + 0.98f, 0f), new Vector3(0.07f, 0.07f, kZPlayEdge * 2f), railMat);
-                Box(grp, "RailMid", new Vector3(railX, kBankTopY + 0.58f, 0f), new Vector3(0.05f, 0.05f, kZPlayEdge * 2f), railMat);
+                Box(grp, "RailMid", new Vector3(railX, kBankTopY + 0.66f, 0f), new Vector3(0.05f, 0.05f, kZPlayEdge * 2f), railMat);
+                Box(grp, "RailLow", new Vector3(railX, kBankTopY + 0.34f, 0f), new Vector3(0.05f, 0.05f, kZPlayEdge * 2f), railMat);
 
                 // 가로등 — 난간보다 한 발 더 보도 안쪽, 양안 지그재그(8m 간격).
                 // DDP의 VARCO 가로등 모델을 재활용(09/03 지시 "DDP에 썼던 에셋 재활용") — 없으면 박스 폴백.
@@ -598,7 +619,22 @@ namespace GridSystem.EditorTools
                     lamps++;
                 }
             }
-            report.AppendLine($"[가구] 난간 기둥 {posts}개(양안 z ±{kZPlayEdge:F0}) + 가로등 {lamps}주");
+            // 벽 위 흰 빈공간 가림막(QA 09/03): 석축 꼭대기와 위 도로 사이 틈으로 배경이 새하얗게 뚫려 보인다 —
+            // 석축과 같은 톤(살짝 어둡게 — 뒷켜로 읽히게)의 벽을 난간·가로등 '뒤'에 한 겹 덧댄다.
+            var kFillerGray = new Color(0.58f, 0.59f, 0.61f);   // 베이지 → 회색(QA 09/03 4차)
+            var fillerMat = EnsureLit("Mat_GtgGapFiller", kFillerGray);
+            if (fillerMat != null) { fillerMat.SetColor("_BaseColor", kFillerGray); EditorUtility.SetDirty(fillerMat); }
+            // 위치(QA 09/03 3차 확정): 석축 '꼭대기 아래', 벽 바로 뒤 — 벽 너머 허공이 윗모서리 틈으로
+            // 새하얗게 비쳐 보이는 걸 막는 덧벽이다. 꼭대기 위로는 한 치도 안 올라간다(도로 쪽 침범 금지).
+            foreach (int side in new[] { -1, 1 })
+            {
+                float x = side < 0 ? kChanXMin - 0.5f : kChanXMax + 0.5f;
+                // 윗모서리를 석축 꼭대기보다 살짝 아래(-0.1)로 — +0.4로 올렸더니 띠가 삐죽 보였다(4차)
+                Box(grp, "GapFillerWall", new Vector3(x, kBankTopY - 2.0f, 0f),
+                    new Vector3(0.3f, 3.8f, (kZPlayEdge + 8f) * 2f), fillerMat);
+            }
+
+            report.AppendLine($"[가구] 난간 기둥 {posts}개(양안 z ±{kZPlayEdge:F0}) + 가로등 {lamps}주 + 가림막 2면");
         }
 
         private static void Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
