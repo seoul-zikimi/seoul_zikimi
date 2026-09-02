@@ -66,6 +66,79 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         for (int i = root.childCount - 1; i >= 0; i--)
             Destroy(root.GetChild(i).gameObject);
 
+        // UI 리마스터: 비주얼은 전부 에디터 프리팹(00_MainScreen)에 있고, 여기서는 인스턴스화 + 로직 바인딩만 한다.
+        var remaster = Resources.Load<GameObject>("UI_NEW/Prefabs/00_MainScreen");
+        if (remaster != null)
+        {
+            BuildFromPrefab(root, remaster);
+            return;
+        }
+
+        BuildLegacy(root);
+    }
+
+    private void BuildFromPrefab(Transform root, GameObject prefab)
+    {
+        // 새 배경 아트는 1920x1080 안전영역 밖 블리드(2432x1608)를 갖고 있다.
+        // Expand여야 안전영역이 절대 잘리지 않고, 화면비에 따라 블리드가 자연스럽게 드러난다.
+        var scaler = GetComponent<CanvasScaler>();
+        if (scaler != null)
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+
+        var screen = Instantiate(prefab, root).transform;
+        screen.name = prefab.name;
+
+        BindButton(screen, "Button_GameStart", StartGame);
+        BindButton(screen, "Button_MyPage", OpenMyPage);
+        BindButton(screen, "Button_Settings", ToggleSettings);
+        BindButton(screen, "Button_GameExit", Quit);
+
+        var nickPanel = FindDeep(screen, "NicknamePanel");
+        m_NicknameInput = nickPanel != null ? nickPanel.GetComponent<InputField>() : null;
+        if (m_NicknameInput != null)
+            m_NicknameInput.text = SaveService.Nickname;
+
+        var characterImage = FindDeep(screen, "CharacterImage");
+        if (characterImage != null && characterImage.TryGetComponent(out Image target))
+            ApplySelectedCharacterPreview(target);
+
+        BuildSettingsPopup(root);
+        JobsnailUiKit.ApplyFontPolicy(root);
+        JuicyButton.AttachAll(gameObject);
+    }
+
+    private static void BindButton(Transform screen, string name, UnityEngine.Events.UnityAction onClick)
+    {
+        var found = FindDeep(screen, name);
+        if (found == null || !found.TryGetComponent(out Button button))
+        {
+            Debug.LogError($"[JobsnailMainMenu] 프리팹에서 버튼을 못 찾음: {name}");
+            return;
+        }
+        button.onClick.AddListener(() =>
+        {
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlaySFX(SFXType.UIClick);
+        });
+        button.onClick.AddListener(onClick);
+    }
+
+    private static Transform FindDeep(Transform root, string name)
+    {
+        if (root.name == name)
+            return root;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var found = FindDeep(root.GetChild(i), name);
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    // 리마스터 프리팹이 없을 때만 쓰는 구버전 코드 생성 UI(폴백).
+    private void BuildLegacy(Transform root)
+    {
         JobsnailUiKit.CoverFill(JobsnailUiKit.Image("Main_BG", root, JobsnailUiKit.Sprite("UI_pngs/1.main/Main_BG")));   // 화면 꽉 채움(레터박스 X)
 
         var logo = JobsnailUiKit.Rect("Logo", root, new Vector2(0.05f, 0.70f), new Vector2(0.45f, 0.985f), Vector2.zero, Vector2.zero);   // 새 로고(건축레인저 : 서울) — 더 큼직하게
