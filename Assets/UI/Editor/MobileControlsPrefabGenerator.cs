@@ -207,16 +207,17 @@ public static class MobileControlsPrefabGenerator
             new Vector2(-400f, 470f), new Vector2(165f, 165f), bottomRight);
         processButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Process);
 
-        // 공정취소: 원형 클러스터에서 빼서 감정표현처럼 '알약형'으로, 우측 상단 클러스터 위에(기획 프로토타입 2026-08-30).
-        var revertButton = Rect("RevertButton", parent, bottomRight, bottomRight,
-            new Vector2(-183f, 353f), new Vector2(220f, 70f));
-        var revertImg = revertButton.gameObject.AddComponent<Image>();
-        revertImg.sprite = RoundSprite(); revertImg.type = Image.Type.Sliced; revertImg.color = BtnFill;
-        var revertBtn = revertButton.gameObject.AddComponent<Button>();
-        revertBtn.targetGraphic = revertImg;
-        SetFlatColors(revertBtn, BtnFill);
-        Label("Label", revertButton, "공정취소", 30, Ink);
+        // 공정취소: 다른 액션 버튼과 같은 원형(사용자 피드백 2026-09-02 — 알약형에서 변경), 우측 상단 클러스터 위에.
+        var revertButton = CircleButton("RevertButton", parent, BtnFill,
+            new Vector2(-183f, 353f), new Vector2(150f, 150f), bottomRight);
+        Label("Label", revertButton, "공정취소", 26, Ink);
         revertButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Revert);
+
+        // 아이템 사용(2vs2 등): '든 채로 E'와 같은 Process 경로 — PlayerCarry가 아이템 우선 규칙으로 가른다.
+        // 아이템이 없을 땐 MobileControlsHUD가 흐림 처리한다.
+        var itemButton = ActionButton("ItemButton", parent, "아이템",
+            new Vector2(-575f, 330f), new Vector2(150f, 150f), bottomRight);
+        itemButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Process);
 
         // 기획서 외 보조 버튼 — 클러스터 왼쪽에 작고 옅게. 좌표는 실기기 튜닝값(2026-08-30).
         // 비계(Scaffold) 버튼은 기획 결정으로 모바일에서 제외(2026-08-30) — WireClick("ScaffoldButton")은 조용히 스킵된다.

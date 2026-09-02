@@ -61,6 +61,10 @@ namespace GridSystem
 
         /// <summary>모바일 눈 버튼: 폰(TAB)이 닫혀 있어도 인월드 고스트를 계속 보여줄지. 데스크톱은 건드리지 않는다(false).</summary>
         public static bool GhostPinned;
+        /// <summary>true면 고스트 표시를 GhostPinned가 단독 결정(모바일 눈 버튼 모드) — MobileControlsHUD가 켠다.
+        /// false(데스크톱)면 기존대로 m_Visible(TAB 토글)이 결정. m_Visible이 초기값 true로 남는 모바일에서
+        /// (m_Visible || GhostPinned)가 항상 참이 되어 눈 버튼이 무력화되던 버그의 해소.</summary>
+        public static bool GhostPinControlled;
         /// <summary>정답 폰 패널이 실제로 펼쳐져 RT가 화면에 보이는지 — AnswerPanelHUD가 접기/펴기 때 넣어준다.
         /// 접혀 있으면 미니씬 카메라를 꺼서 매 프레임 512² 렌더 패스를 없앤다(펴면 즉시 재개).</summary>
         public static bool PanelOpen = true;
@@ -116,7 +120,7 @@ namespace GridSystem
                         ? new Vector3(m_Manager.ZoneSize.x * GridContract.Unit, 0f, 0f)
                         : Vector3.zero;
 
-            bool ghost = (m_Visible || GhostPinned) && m_Built && Building();
+            bool ghost = (GhostPinControlled ? GhostPinned : m_Visible) && m_Built && Building();
             if (m_GhostRoot != null) m_GhostRoot.SetActive(ghost);
             if (ghost)
             {

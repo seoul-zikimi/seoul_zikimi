@@ -21,6 +21,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
     private GameObject m_ProcessButton;
     private GameObject m_RevertButton;
     private GameObject m_ThrowButton;
+    private GameObject m_ItemButton;
     private CanvasGroup m_AnswerToggleGroup;
     private GameLoopManager m_Loop;
     private float m_NextLoopFind;
@@ -87,6 +88,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
         m_ProcessButton = Find("ProcessButton");
         m_RevertButton = Find("RevertButton");
         m_ThrowButton = Find("ThrowButton");
+        m_ItemButton = Find("ItemButton");   // 2vs2 아이템 사용('든 채로 E'와 같은 경로) — 아이템 없으면 흐림
 
         var answerToggle = Find("AnswerToggleButton");
         m_AnswerToggleGroup = answerToggle != null ? answerToggle.GetComponent<CanvasGroup>() : null;
@@ -106,47 +108,30 @@ public sealed class MobileControlsHUD : MonoBehaviour
         if (m_EmotePanel != null) m_EmotePanel.SetActive(false);
         if (m_ControlLayer != null) m_ControlLayer.SetActive(false);
 
-        // 버튼 배치 커스터마이즈(배틀그라운드식): 저장된 배치 적용 + 감정표현 아래 진입 버튼
+        // 버튼 배치 커스터마이즈(배틀그라운드식): 저장된 배치 적용.
+        // 편집 진입은 인게임 상시 버튼이 아니라 설정 팝업(GameLoopHUD, 모바일 한정)에서만 — 게임 중 오탭 방지.
         m_Customizer = gameObject.AddComponent<MobileLayoutCustomizer>();
         var safeArea = Find("SafeArea");
         if (safeArea != null)
-        {
             m_Customizer.ApplySaved(safeArea.transform);
-            BuildLayoutEditEntry(safeArea.transform);
-        }
 
         // 모바일은 폰(TAB)과 별개로 인월드 정답 고스트를 눈 버튼으로 켜고 끈다 — 기본 켜짐.
-        if (ShouldUseMobileUI) AnswerPreview.GhostPinned = true;
+        // GhostPinControlled: 모바일에선 눈 버튼(GhostPinned)이 고스트 표시를 단독 결정하게 전환.
+        if (ShouldUseMobileUI)
+        {
+            AnswerPreview.GhostPinned = true;
+            AnswerPreview.GhostPinControlled = true;
+        }
         UpdateAnswerToggleVisual();
     }
 
     private MobileLayoutCustomizer m_Customizer;
 
-    // '버튼 배치 ✎' 진입 필 — 감정표현 드롭다운 아래(우상단). 프리팹 재생성 없이 런타임 생성.
-    private void BuildLayoutEditEntry(Transform safeArea)
+    /// <summary>설정 팝업(GameLoopHUD)의 '버튼 배치' 진입점 — 모바일 UI가 떠 있을 때만 동작.</summary>
+    public static void BeginLayoutEdit()
     {
-        var go = new GameObject("LayoutEditButton", typeof(RectTransform)) { layer = 5 };
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(safeArea, false);
-        rt.anchorMin = rt.anchorMax = Vector2.one;
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(-130f, -260f);
-        rt.sizeDelta = new Vector2(200f, 56f);
-        var img = go.AddComponent<UnityEngine.UI.Image>();
-        img.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
-        img.type = UnityEngine.UI.Image.Type.Sliced;
-        img.color = new Color(0.94f, 0.94f, 0.93f, 0.55f);   // 옅게 — 보조 기능
-        var btn = go.AddComponent<UnityEngine.UI.Button>();
-        btn.targetGraphic = img;
-        btn.onClick.AddListener(() => m_Customizer.BeginEdit());
-        var label = new GameObject("Label", typeof(RectTransform)) { layer = 5 };
-        var lrt = (RectTransform)label.transform;
-        lrt.SetParent(rt, false);
-        lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.sizeDelta = Vector2.zero;
-        var l = label.AddComponent<TMPro.TextMeshProUGUI>();
-        l.text = "버튼 배치 ✎"; l.font = JobsnailUiKit.TmpFont; l.fontSize = 24;
-        l.fontStyle = TMPro.FontStyles.Bold; l.color = new Color(0.2f, 0.2f, 0.19f, 0.85f);
-        l.alignment = TMPro.TextAlignmentOptions.Center; l.raycastTarget = false;
+        if (s_Instance != null && s_Instance.m_Customizer != null)
+            s_Instance.m_Customizer.BeginEdit();
     }
 
     // 감정표현 드롭다운을 실제 발동 대사(EmoteDefs) 기준으로 재구성 — 프리팹에 구워진 옛 이모지 이름(미소·붐업 등)과
@@ -232,12 +217,21 @@ public sealed class MobileControlsHUD : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (s_Instance == this) s_Instance = null;
+        if (s_Instance == this)
+        {
+            s_Instance = null;
+            AnswerPreview.GhostPinControlled = false;   // 에디터 프리뷰 껐다 켤 때 데스크톱 TAB 동작 복원
+        }
     }
 
     private void Update()
     {
         bool inGame = s_InGameScene;
+        // 고스트 결정권(눈 버튼 vs TAB)은 Awake 한 번이 아니라 매 프레임 현재 모드를 따라간다 —
+        // 에디터 프리뷰 토글/터치 기기 연결로 플레이 중 모드가 바뀌면 Awake 값이 얼어붙어
+        // TAB도 눈 버튼도 안 먹는 상태가 될 수 있었다.
+        AnswerPreview.GhostPinControlled = ShouldUseMobileUI;
+
         // 정산(크레인샷) 단계에선 컨트롤을 내려 하단 중앙의 '건축물 둘러보기' 버튼 등을 가리지 않는다.
         bool show = inGame && ShouldUseMobileUI && !m_PhoneOpen && InBuildPhase();
         if (show != m_LastControlsVisible)
@@ -265,6 +259,23 @@ public sealed class MobileControlsHUD : MonoBehaviour
         SetActionVisible(m_ProcessButton, force || MobileGameplayInput.ProcessActionAvailable);
         SetActionVisible(m_RevertButton, force || MobileGameplayInput.ProcessCancelAvailable);
         SetActionVisible(m_ThrowButton, force || MobileGameplayInput.ThrowAvailable);
+
+        UpdateAnswerToggleVisual();   // 눈 아이콘이 항상 실제 GhostPinned 상태를 보여주게(0.1s 스로틀 구간)
+
+        // 아이템 버튼: 대결(2vs2) 모드에서만 존재 — 협동 모드에선 흐림도 아니고 아예 숨긴다.
+        // 대결 중엔 아이템을 들고 있을 때만 선명. 입력은 공정 버튼과 같은 E 경로라
+        // PlayerCarry가 '아이템 우선' 규칙으로 알아서 가른다(대포는 꾹 눌렀다 떼면 발사).
+        if (m_ItemButton != null)
+        {
+            bool versus = m_Loop != null && m_Loop.IsVersus;   // m_Loop은 InBuildPhase()가 1초 간격으로 찾아 캐시
+            if (versus || force)
+            {
+                var items = GridSystem.ItemNetwork.Instance;
+                SetActionVisible(m_ItemButton, force || (items != null && items.LocalHasItem));
+            }
+            else if (m_ItemButton.activeSelf)
+                m_ItemButton.SetActive(false);
+        }
     }
 
     private void OnPhoneVisibility(bool visible)
