@@ -458,57 +458,101 @@ namespace GridSystem
             return collapsed;
         }
 
-        /// <summary>[아이템: 대포] 해당 팀 구역에 배치된 블록 하나를 무작위로 파괴한다.
-        /// 위에 얹혀 있던 것들은 기존 붕괴 규칙대로 연쇄로 무너진다. 서버 전용, 파괴 성공 여부 반환.
-        /// 예전에는 '공정까지 모두 끝난 완성 파츠'만 노렸는데, 경기 중엔 그런 블록이 거의 없어
-        /// 쏴도 아무 일이 없다는 QA 피드백이 있었다. 지금은 배치된 블록이면 전부 후보다.</summary>
-        public bool ServerCannonDestroy(int team)
+        // 대포 탄도 상수 — 45° 고정 발사각에서 사거리 R = v^2/g 이므로 충전량이 곧 사거리다.
+        private const float kCannonMinRange = 3f;    // 최소 충전 사거리(m)
+        private const float kCannonMaxRange = 17f;   // 최대 충전 사거리 — 분할벽 근처에서 상대 진영 안쪽까지
+        private const float kCannonGravity = 20f;
+        private const float kCannonMarchStep = 0.02f;   // 탄도 적분 간격(초) — 셀 1칸(1m)보다 촘촘해야 관통이 없다
+        private const float kCannonMaxFlight = 12f;     // 안전 상한(초)
+
+        /// <summary>조준 발사 — 시전자가 겨눈 방향·세기로 포물선을 그려 처음 부딪히는 블록을 부순다.
+        /// enemyTeam 구역의 블록만 파괴되고(아군 진영은 맞아도 멀쩡), 빗나가면 착탄 지점에 불발 연출만 나간다.
+        /// 조준값(ServerCannonSource/AimDir/Charge)은 ItemNetwork가 사용 직전에 넣어준다.</summary>
+        public bool ServerCannonDestroy(int enemyTeam)
         {
             if (!IsServer || m_ServerGrid == null) return false;
 
-            var targets = new System.Collections.Generic.List<Vector3Int>();
-            for (int i = 0; i < m_Cells.Count; i++)
-            {
-                var e = m_Cells[i];
-                if (!InZone(team, e.cell)) continue;
-                var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(e.materialId) : null;
-                if (def == null) continue;
-                targets.Add(e.cell);
-            }
-            if (targets.Count == 0) return false;
+            Vector3 origin = ServerCannonSource + Vector3.up * 0.8f;   // 총구 높이
+            Vector3 dir = ServerCannonAimDir; dir.y = 0f;
+            dir = dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward;
 
-            var hit = targets[Random.Range(0, targets.Count)];
-            // 포탄이 날아가는 동안 파괴를 미룬다 — 착탄 연출과 블록 소멸이 같은 순간에 보이게
-            CannonShotFxRpc(ServerCannonSource, CellWorld(hit));
-            StartCoroutine(CannonLandThenDestroy(hit));
-            return true;
+            float range = Mathf.Lerp(kCannonMinRange, kCannonMaxRange, Mathf.Clamp01(ServerCannonCharge));
+            float speed = Mathf.Sqrt(range * kCannonGravity);          // 45°: R = v^2/g
+            float vh = speed * 0.70710678f, vy = vh;                   // cos45 = sin45
+            float groundY = GridCoordinates.CellToWorld(Vector3Int.zero).y;
+
+            bool hasHit = false;
+            var hitCell = Vector3Int.zero;
+            Vector3 landPoint = origin + dir * range;
+            landPoint.y = groundY;
+
+            for (float t = kCannonMarchStep; t < kCannonMaxFlight; t += kCannonMarchStep)
+            {
+                var p = origin + dir * (vh * t);
+                p.y = origin.y + vy * t - 0.5f * kCannonGravity * t * t;
+
+                if (p.y <= groundY) { landPoint = new Vector3(p.x, groundY, p.z); break; }   // 땅에 떨어짐 = 불발
+
+                var cell = GridCoordinates.WorldToCell(p);
+                if (m_ServerGrid.IsOccupied(cell))
+                {
+                    hasHit = true; hitCell = cell; landPoint = CellWorld(cell);
+                    break;
+                }
+            }
+
+            // 내 진영 블록은 포탄이 부딪혀도 부서지지 않는다(오조준 = 불발).
+            bool destroys = hasHit && InZone(enemyTeam, hitCell);
+            CannonShotFxRpc(origin, landPoint, destroys);
+            if (destroys) StartCoroutine(CannonLandThenDestroy(hitCell));
+            return destroys;
         }
 
         /// <summary>대포 발사 위치(시전자) — ItemNetwork가 사용 직전에 넣어준다(서버 전용).</summary>
         public Vector3 ServerCannonSource;
+        /// <summary>대포 조준 방향(수평) — 시전자가 마우스로 겨눈 방향.</summary>
+        public Vector3 ServerCannonAimDir = Vector3.forward;
+        /// <summary>대포 충전량 0~1 — 사거리로 환산된다.</summary>
+        public float ServerCannonCharge = 1f;
 
         private System.Collections.IEnumerator CannonLandThenDestroy(Vector3Int hit)
         {
             yield return new WaitForSeconds(ItemFx.kCannonFlightSeconds);
             if (m_ServerGrid == null) yield break;
             if (!m_ServerGrid.GetCell(hit).occupied) yield break;   // 비행 중 다른 붕괴로 이미 사라짐
-            foreach (var co in m_ServerGrid.Collapse(hit)) RemoveCollapsed(co);
-            foreach (var co in m_ServerGrid.SettleUnsupported()) RemoveCollapsed(co);
+            // 고정 블록도 포탄에는 부서진다 — 위에 얹힌 미고정은 ForceDestroy 안에서 연쇄로 무너진다.
+            foreach (var co in m_ServerGrid.ForceDestroy(hit)) RemoveCollapsed(co);
         }
 
-        // 발사 → 포탄이 포물선으로 날아가고, 착탄 순간 폭발 연출(모든 클라).
+        // 발사 → 포탄이 포물선으로 날아가고, 착탄 순간 연출(모든 클라). hit=false면 불발 연출.
         [Rpc(SendTo.Everyone)]
-        private void CannonShotFxRpc(Vector3 from, Vector3 to)
-            => ItemFx.CannonShot(from, to, () => CannonImpactFx(to));
+        private void CannonShotFxRpc(Vector3 from, Vector3 to, bool hit)
+            => ItemFx.CannonShot(from, to, () => { if (hit) CannonImpactFx(to); else CannonMissFx(to); });
+
+        // 대포 폭발 스케일 — CFXR 원본이 블록 한 칸(1m)보다 크게 만들어져 있어 줄여서 쓴다.
+        private const float kCannonBlastScale = 0.45f;
+        private const float kCannonMissBlastScale = 0.22f;   // 불발은 같은 폭발을 훨씬 작게
 
         private static void CannonImpactFx(Vector3 center)
         {
+            GridJuice.CannonBlast(center, kCannonBlastScale);   // 섬광 → 주황 뭉게구름 + 파편 → 연기
             GridJuice.CollapseBurst(center, GridContract.Unit);
             GridJuice.GroundHit(center, 1.6f);
             GridJuice.FovPunch(Camera.main, -7f);
             GridSoundBridge.PlaySFXAt("LandObject", center);
             GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.5f),
                                  "대포 명중!", new Color(0.95f, 0.55f, 0.15f));
+        }
+
+        // 불발 — 같은 폭발을 작게 쓰고 파편·화면 흔들림을 뺀다(맞았을 때와 확실히 구분되게).
+        private static void CannonMissFx(Vector3 center)
+        {
+            GridJuice.CannonBlast(center, kCannonMissBlastScale);
+            GridJuice.GroundHit(center, 1.1f);
+            GridJuice.FovPunch(Camera.main, -3f);
+            GridSoundBridge.PlaySFXAt("LandObject", center);
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f),
+                                 "빗나감!", new Color(0.75f, 0.72f, 0.68f));
         }
 
         /// <summary>[날씨: 강풍·태풍] 해당 팀 구역의 미고정 블록 중 최대 count개를 바람에 무너뜨린다.

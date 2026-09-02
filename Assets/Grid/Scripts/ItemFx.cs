@@ -188,6 +188,19 @@ namespace GridSystem
             Play(CannonFireClip(), from, 0.9f);
         }
 
+        /// <summary>충전 시작음 — 충전 시간 동안 음이 올라가서 언제 완충되는지 귀로 알 수 있다.</summary>
+        public static void CannonChargeSfx(Vector3 pos, float seconds) => Play(CannonChargeClip(seconds), pos, 0.55f);
+
+        static AudioClip s_CannonCharge;
+        static AudioClip CannonChargeClip(float seconds) => s_CannonCharge != null ? s_CannonCharge
+            : s_CannonCharge = Synth("~CannonCharge", seconds, t =>
+            {
+                float k = Mathf.Clamp01(t / Mathf.Max(0.01f, seconds));
+                float freq = Mathf.Lerp(180f, 720f, k * k);        // 뒤로 갈수록 급하게 올라감 = 임박감
+                float env = Mathf.Min(1f, k * 8f) * Mathf.Lerp(0.35f, 1f, k);
+                return Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.5f;
+            });
+
         static Material s_CannonballMat;   // 포탄 공유 재질(색 고정) — 발사당 Material 누수 방지
 
         // 포성: 낮은 '펑' — 노이즈 버스트 + 90Hz 저음 감쇠

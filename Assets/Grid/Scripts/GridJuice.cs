@@ -194,6 +194,19 @@ namespace GridSystem
             Object.Destroy(go, 4f);
         }
 
+        // 대포 착탄 폭발. Resources/Fx/CannonBlast = CFXR Explosion 1 사본(섬광 → 주황 뭉게구름 + 파편 → 연기).
+        // 원본이 블록 한 칸(1m)보다 훨씬 크게 만들어져 있어 기본 스케일을 줄여서 쓴다.
+        static GameObject s_CannonBlast;
+        static bool s_CannonBlastTried;
+        public static void CannonBlast(Vector3 pos, float scale = 1f)
+        {
+            if (!s_CannonBlastTried) { s_CannonBlastTried = true; s_CannonBlast = Resources.Load<GameObject>("Fx/CannonBlast"); }
+            if (s_CannonBlast == null) return;
+            var go = Object.Instantiate(s_CannonBlast, pos, Quaternion.identity);
+            go.transform.localScale *= scale;
+            Object.Destroy(go, 5f);
+        }
+
         // 젤리 파동: visualRoot 자식 비주얼들을 중심에서 거리순 지연 스퀴시 → 출렁임이 번져나감(민달팽이 시그니처).
         public static void Ripple(Transform visualRoot, Vector3 center, float radius, float amount = 0.08f, float speed = 9f)
         {

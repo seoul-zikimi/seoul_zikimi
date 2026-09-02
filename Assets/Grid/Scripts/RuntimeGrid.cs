@@ -190,6 +190,21 @@ namespace GridSystem
             return removed;
         }
 
+        /// <summary>
+        /// cell이 속한 오브젝트를 '고정 여부와 무관하게' 파괴하고, 지지를 잃은 미고정 오브젝트를 연쇄로 제거.
+        /// 대포 전용 — Collapse는 충격에 안 무너지는 고정 블록을 앵커로 남기지만, 포탄은 그 앵커째로 부순다.
+        /// (계약: ICompletedConstructionTarget — "공정 완료 여부는 따지지 않는다")
+        /// </summary>
+        public List<CollapsedObject> ForceDestroy(Vector3Int cell)
+        {
+            var removed = new List<CollapsedObject>();
+            if (!m_Cells.TryGetValue(cell, out var s) || !s.occupied) return removed;
+
+            RemoveObjectInternal(s.ownerObjectId, s.materialId, removed);
+            removed.AddRange(SettleUnsupported());   // 받치던 것이 사라졌으니 위에 얹힌 미고정이 연쇄로 무너진다
+            return removed;
+        }
+
         /// <summary>지지를 잃은 '미고정' 오브젝트를 고정점 도달까지 반복 제거(연쇄 정착). 제거 목록 반환.
         /// 배치/철거/충격 등 구조 변경 직후 호출 → 떠 있는 미고정 블록을 무너뜨린다.</summary>
         public List<CollapsedObject> SettleUnsupported()
