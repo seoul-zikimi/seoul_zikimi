@@ -32,9 +32,13 @@ MonoBehaviour:
   m_NamsanGimmicks: {fileID: 11400000, guid: 0a037aadc1231bf4bb7fe45a981f50a2, type: 2}
   m_LotteGimmicks: {fileID: 0}
   m_DdpGimmicks: {fileID: 0}
+  m_GyeongbokgungGimmicks: {fileID: 0}
   m_Bgm:
     Building: {fileID: 8300000, guid: 48a297ec2c8f36641a01b3016d07488d, type: 3}
     Urgent: {fileID: 0}
     Result: {fileID: 8300000, guid: 3faab657524bf4d4897a6e7d350d9735, type: 3}
+  m_GhostAlpha: 0
+  m_GhostTintMul: 0
   m_CompletedModel: {fileID: 0}
+  m_CompletedModelPath: 
   m_CompletedModelAnchor: {x: 0, y: 0, z: 0}

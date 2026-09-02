@@ -262,8 +262,9 @@ namespace GridSystem.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(def2);
 
-            // ⑥ 썸네일 + 맵 카탈로그
-            var thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
+            // ⑥ 썸네일 + 맵 카탈로그 — 일괄 촬영 툴과 같은 '완성 건물 중심' 규격(배경 통짜 샷 금지)
+            var thumb = MapAnswerThumbnailTool.CaptureAnswerCentered(def2);
+            if (thumb == null) thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
             if (thumb != null)
             {
                 so.Update();

@@ -17,6 +17,18 @@ namespace GridSystem
         private static readonly Vector3 kStagePos = new(0f, -5000f, 0f);   // 씬 밖 지하 스테이지
         private static readonly Color kNoPrefabColor = new(0.85f, 0.83f, 0.75f);
 
+        // ── 맵별 카메라 앵글(없으면 기본: 정면 + 살짝 위, 거리 1.0배) ──
+        // dir = 건물 중심에서 카메라 쪽 방향(정규화 전), distMul = 기본 거리 배율(작을수록 근접).
+        private struct Shot { public Vector3 dir; public float distMul; }
+        private static readonly Shot kDefaultShot = new() { dir = new Vector3(0f, 0.35f, -1f), distMul = 1f };
+        private static readonly Dictionary<string, Shot> kShotByMap = new()
+        {
+            ["Map_NamsanTower"]   = new Shot { dir = new Vector3(0.65f, 0.35f, -1f), distMul = 0.8f },  // 사선 + 근접
+            ["Map_LotteWorld"]    = new Shot { dir = new Vector3(0f, 0.35f, -1f),    distMul = 0.8f },  // 근접
+            ["Map_Ddp"]           = new Shot { dir = new Vector3(0f, 0.7f, -1f),     distMul = 1f },    // 조금 위에서 내려다봄
+            ["Map_Gyeongbokgung"] = new Shot { dir = new Vector3(0f, 0.15f, -1f),    distMul = 1f },    // 조금 낮은 눈높이
+        };
+
         /// <summary>materialId → MaterialDef 조회. 실제 게임과 동일한 결과를 내기 위해
         /// GameScene의 GridManager가 참조하는 MaterialCatalog(= 런타임이 쓰는 그 카탈로그)을 그대로 쓴다.
         /// 프로젝트엔 id가 겹치는 카탈로그가 여럿 있어(구버전 Grid/Data 6종: id2=벽 vs 광통교 카탈로그: id2=상부기둥)
@@ -67,6 +79,22 @@ namespace GridSystem
             public MaterialDef GetById(int id) => m_ById.TryGetValue(id, out var d) ? d : null;
         }
 
+        /// <summary>맵 하나를 '완성 건물 중심' 규격으로 촬영 — 맵 생성 툴들이 배경 통짜 샷 대신 호출한다
+        /// (맵 재생성이 로비 썸네일을 밝은 전체샷으로 되돌리던 사고 방지). 실패 시 null(호출부가 폴백).</summary>
+        public static Sprite CaptureAnswerCentered(MapDef def)
+        {
+            if (def == null) return null;
+            try
+            {
+                return CaptureFor(def, new MergedMaterialLookup());
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[MapAnswerThumbnailTool] {def.name} 완성건물 촬영 실패 — 배경 촬영 폴백\n{e}");
+                return null;
+            }
+        }
+
         [MenuItem("Tools/Map/맵 썸네일 일괄 촬영 (완성 건물 중심)")]
         public static void CaptureAll()
         {
@@ -77,10 +105,20 @@ namespace GridSystem
             int done = 0;
             foreach (var def in catalog.Maps)
             {
-                if (def == null || def.IsVersusArena) continue;
+                if (def == null || def.IsVersusArena || def.IsTutorial) continue;
 
-                materials.SelectForMap(def);
-                var sprite = CaptureFor(def, materials);
+                // 한 맵의 예외로 전체가 조용히 중단되던 문제 — 맵별로 격리하고 반드시 로그를 남긴다.
+                Sprite sprite = null;
+                try
+                {
+                    materials.SelectForMap(def);
+                    sprite = CaptureFor(def, materials);
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"[MapAnswerThumbnailTool] {def.name} 촬영 중 예외 — 건너뜀\n{e}");
+                    continue;
+                }
                 if (sprite == null) { Debug.LogWarning($"[MapAnswerThumbnailTool] 촬영 실패: {def.name}"); continue; }
 
                 var so = new SerializedObject(def);
@@ -109,9 +147,24 @@ namespace GridSystem
             Camera cam = null;
             RenderTexture rt = null;
             var prevActive = RenderTexture.active;
+            // 열려 있는 씬의 라이팅(밤 앰비언트·안개·스카이박스)에 좌우되면 DDP처럼 새까만 썸네일이 나온다 —
+            // 촬영 동안만 중립 라이팅으로 바꾸고 끝나면 되돌린다.
+            var prevAmbientMode = RenderSettings.ambientMode;
+            var prevAmbientLight = RenderSettings.ambientLight;
+            bool prevFog = RenderSettings.fog;
 
             try
             {
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientLight = new Color(0.60f, 0.63f, 0.70f);
+                RenderSettings.fog = false;
+                var lightGo = new GameObject("~ThumbLight");
+                lightGo.transform.SetParent(stage.transform, false);
+                lightGo.transform.rotation = Quaternion.Euler(50f, -35f, 0f);
+                var keyLight = lightGo.AddComponent<Light>();
+                keyLight.type = LightType.Directional;
+                keyLight.intensity = 1.15f;
+                keyLight.color = new Color(1f, 0.97f, 0.9f);
                 // ① 배경(있으면) — Spot_GridManager 마커가 구조물 원점.
                 Vector3 origin = kStagePos;
                 if (def.BackgroundPrefab != null)
@@ -120,6 +173,18 @@ namespace GridSystem
                     bg.transform.SetParent(stage.transform, false);
                     foreach (var t in bg.GetComponentsInChildren<Transform>(true))
                         if (t.name == "Spot_GridManager") { origin = t.position; break; }
+
+                    // 배경이 건물과 같은 밝기면 완성 건물이 묻힌다(QA) — 배경만 어둡게 눌러 실루엣 무대로.
+                    // MaterialPropertyBlock이라 실제 머티리얼 에셋은 더럽히지 않는다(촬영용 인스턴스에만 적용).
+                    var dim = new Color(0.42f, 0.45f, 0.52f, 1f);
+                    var mpb = new MaterialPropertyBlock();
+                    foreach (var r in bg.GetComponentsInChildren<Renderer>())
+                    {
+                        r.GetPropertyBlock(mpb);
+                        mpb.SetColor("_BaseColor", dim);
+                        mpb.SetColor("_Color", dim);
+                        r.SetPropertyBlock(mpb);
+                    }
                 }
 
                 // ② 정답 구조물 조립(AnswerPreview.GroupAnswer/MakeBlockVisual과 동일 규약, 솔리드).
@@ -153,10 +218,15 @@ namespace GridSystem
                 var camGO = new GameObject("~ThumbCam");
                 camGO.transform.SetParent(stage.transform, false);
                 cam = camGO.AddComponent<Camera>();
-                cam.clearFlags = CameraClearFlags.Skybox;
+                cam.clearFlags = CameraClearFlags.SolidColor;   // 밤 스카이박스여도 썸네일 배경은 밝은 하늘색
+                cam.backgroundColor = new Color(0.76f, 0.86f, 0.95f);
                 cam.fieldOfView = 40f;
-                float dist = Mathf.Max(4f, bounds.size.magnitude * 0.85f + 2f);
-                cam.transform.position = bounds.center + new Vector3(1f, 0.75f, -1f).normalized * dist;
+                var shot = kShotByMap.TryGetValue(def.name, out var s0) ? s0 : kDefaultShot;
+                float dist = Mathf.Max(6f, bounds.size.magnitude * 1.5f + 3f) * shot.distMul;   // 건물이 프레임을 꽉 채우면 답답(QA) — 여유 있게 뒤로
+                Debug.Log($"[MapAnswerThumbnailTool] {def.name}: cells={(answer != null ? answer.Cells.Count : 0)}"
+                          + $" bounds={bounds.size} dist={dist:F1}{(hasBounds && answer != null && answer.Cells.Count > 0 ? "" : " (배경 폴백!)")}");
+                // 기본은 정면 샷(-Z + 살짝 위). 맵별 예외는 kShotByMap에서 방향·거리 배율만 바꾼다.
+                cam.transform.position = bounds.center + shot.dir.normalized * dist;
                 cam.transform.LookAt(bounds.center);
                 cam.nearClipPlane = 0.1f;
                 cam.farClipPlane = dist * 6f;
@@ -199,6 +269,9 @@ namespace GridSystem
                 if (rt != null) rt.Release();
                 foreach (var m in tempMats) if (m != null) Object.DestroyImmediate(m);
                 Object.DestroyImmediate(stage);
+                RenderSettings.ambientMode = prevAmbientMode;
+                RenderSettings.ambientLight = prevAmbientLight;
+                RenderSettings.fog = prevFog;
             }
         }
 
