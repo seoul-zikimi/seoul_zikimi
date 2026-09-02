@@ -87,6 +87,16 @@ namespace SeoulZikimi.UI.New
                 else ReadyRequested?.Invoke();
             });
             chatSendButton?.onClick.AddListener(SendChat);
+            // 모바일: 소프트 키보드의 '완료/보내기'는 Keyboard.current 이벤트를 안 만들어
+            // 데스크톱용 엔터 폴링(HandleChatEnterKey)으로는 절대 안 잡힌다 — onEndEdit로 전송.
+            // (뒤로가기 등으로 취소(wasCanceled)한 경우는 제외. 탭으로 포커스만 잃어도 전송되지만
+            //  모바일 채팅에선 '완료=전송'이 표준 UX라 감수한다.)
+            if (MobileControlsHUD.ShouldUseMobileUI)
+                chatInput?.onEndEdit.AddListener(_ =>
+                {
+                    if (chatInput != null && !chatInput.wasCanceled)
+                        SendChat();
+                });
             for (int i = 0; quickChatButtons != null && i < quickChatButtons.Length; i++)
             {
                 int index = i;

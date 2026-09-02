@@ -222,7 +222,18 @@ public class JobsnailSessionManager
         // 순간 끊김(와이파이 전환·엘리베이터·짧은 백그라운드)이 대부분이라 먼저 재접속을 시도한다.
         // 상태가 전부 NetworkVariable/NetworkList 복제라 재접속만 되면 자동 풀싱크로 복구된다.
         if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
+        {
+            // 서버가 사유를 밝히고 거부한 경우(비번 불일치 = 구버전 빌드 혼용이 대표적)는
+            // 재접속해도 똑같이 거부된다 — 60초 헛시도 없이 바로 정리한다.
+            string reason = NetworkManager.Singleton.DisconnectReason;
+            if (reason == "wrong_password")
+            {
+                Debug.LogWarning("[JobsnailSessionManager] 서버가 비밀번호 불일치로 접속 거부 — 구버전 빌드이거나 개조 클라일 수 있음.");
+                _ = EndSessionBecauseHostLeftAsync("비밀번호 불일치로 서버가 접속 거부");
+                return;
+            }
             _ = TryReconnectThenRecoverAsync($"넷코드 서버 연결 끊김(clientId={clientId})");
+        }
     }
 
     // ── 재접속 유예: 끊긴 순간부터 이 시간 안에 세션 복구를 반복 시도, 실패 시에만 기존 '방 터짐' 흐름 ──

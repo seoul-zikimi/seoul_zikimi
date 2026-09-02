@@ -17,8 +17,18 @@ namespace SeoulZikimi.UI.New
 
         private void Awake()
         {
+            var passwordHint = PasswordPolicyHint.Attach(passwordInput);
             passwordInput.onValueChanged.AddListener(_ =>
             {
+                // 생성 쪽과 같은 문자 정책으로 걸러 '입력 자체가 안 되는' 문자로 헤매지 않게 한다
+                string clean = SessionPasswordPolicy.Sanitize(passwordInput.text);
+                if (clean != passwordInput.text)
+                {
+                    passwordInput.text = clean;
+                    passwordInput.caretPosition = clean.Length;
+                    passwordHint?.Show();
+                    return;   // 재설정이 이 콜백을 다시 부른다
+                }
                 RefreshSubmitInteractable();
                 errorMessage.SetActive(false);
             });

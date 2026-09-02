@@ -34,10 +34,13 @@ public sealed class MobileControlsHUD : MonoBehaviour
         get
         {
 #if UNITY_EDITOR
-            if (PlayerPrefs.GetInt(kEditorPreviewPref, 0) == 1)
-                return true;
+            // 에디터: 프리뷰 토글 또는 Device Simulator(가상 터치스크린)면 모바일 취급
+            return PlayerPrefs.GetInt(kEditorPreviewPref, 0) == 1 || Touchscreen.current != null;
+#else
+            // 빌드: 진짜 모바일 플랫폼만. Touchscreen.current 조건을 함께 쓰면
+            // 터치스크린 노트북(윈도우 등)의 데스크톱 빌드가 조이스틱 UI를 띄워버린다.
+            return Application.isMobilePlatform;
 #endif
-            return Application.isMobilePlatform || Touchscreen.current != null;
         }
     }
 
