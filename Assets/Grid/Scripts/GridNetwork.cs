@@ -657,8 +657,13 @@ namespace GridSystem
         public void RequestCheatAlmost() => CheatCompleteRpc(true);
 
         [Rpc(SendTo.Server)]
-        private void CheatCompleteRpc(bool leaveOneOut)
+        private void CheatCompleteRpc(bool leaveOneOut, RpcParams rpc = default)
         {
+            // 치트 RPC 방어: 아무 클라나 호출하면 그리드를 통째로 리셋/완성할 수 있다.
+            // 개발 빌드가 아니면 호스트 본인만 허용(QA 치트는 개발 빌드에서만).
+            if (!Debug.isDebugBuild && rpc.Receive.SenderClientId != NetworkManager.ServerClientId)
+                return;
+
             var ans = m_Manager.Answer;
             var catalog = m_Manager.Catalog;
             if (ans == null || catalog == null) return;

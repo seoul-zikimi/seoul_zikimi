@@ -410,11 +410,13 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-        // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인
+        // 연결이 끊긴 게 '나'이거나, 내가 클라이언트인데 서버가 터진 상황인지 확인.
+        // 즉시 방을 정리하지 않고 재접속 유예가 있는 공통 경로(HandleNetcodeDisconnected)로 넘긴다.
         if (clientId == NetworkManager.Singleton.LocalClientId || !NetworkManager.Singleton.IsListening)
         {
-            await JobsnailSessionManager.Instance.EndSessionBecauseHostLeftAsync($"LobbyManager 넷코드 서버 연결 끊김(clientId={clientId})");
+            JobsnailSessionManager.Instance.HandleNetcodeDisconnected(clientId);
         }
+        await Task.CompletedTask;
     }
 
     // 🖥️ 대기방 인원수 및 UI 새로고침 전용 함수 (UI 담당자에게 연결해달라고 할 부분)

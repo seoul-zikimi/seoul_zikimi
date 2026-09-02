@@ -463,15 +463,17 @@ public class LobbyRoomNet : NetworkBehaviour
         }
 
         // 서버(방장)에게 내 무전(ServerRpc)으로 준비 상태를 전송
-        SetReadyStatusServerRpc(NetworkManager.Singleton.LocalClientId, m_IsLocallyReady);
+        SetReadyStatusServerRpc(m_IsLocallyReady);
     }
 
     /// <summary>
-    /// [서버 RPC] 클라이언트가 보낸 상태를 방장 서버가 받아서 리스트에 추가/삭제
+    /// [서버 RPC] 클라이언트가 보낸 상태를 방장 서버가 받아서 리스트에 추가/삭제.
+    /// clientId는 파라미터로 받지 않는다 — 발신자를 신뢰하면 남의 준비 상태를 조작할 수 있다(발신자 검증).
     /// </summary>
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void SetReadyStatusServerRpc(ulong clientId, bool isReady)
+    private void SetReadyStatusServerRpc(bool isReady, RpcParams rpc = default)
     {
+        ulong clientId = rpc.Receive.SenderClientId;
         if (isReady)
             m_ReadyClients.Add(clientId);
         else
@@ -552,6 +554,11 @@ public class LobbyRoomNet : NetworkBehaviour
     }
 
     /// <summary>[서버] 나간 clientId의 슬롯을 비운다. 위치는 그대로 두어 중간에 구멍이 남는다.</summary>
+    // ── 재접속 유예: 끊긴 클라의 자리·팀을 잠시 기억했다가, 같은 닉네임이 다시 들어오면 복원한다.
+    // (재접속하면 NGO clientId가 새로 발급되므로 닉네임으로 잇는다 — 대기방 슬롯 UX용이라 충돌해도 무해)
+    private readonly Dictionary<string, (int slot, byte team, double expireAt)> m_SlotRestore = new();
+    private const double kSlotRestoreSeconds = 90;
+
     private void ClearSlotForClient(ulong clientId)
     {
         if (!IsServer)
@@ -560,6 +567,10 @@ public class LobbyRoomNet : NetworkBehaviour
         int idx = FindSlotByClient(clientId);
         if (idx < 0)
             return;
+
+        string nick = m_Slots[idx].Nickname.ToString();
+        if (!string.IsNullOrEmpty(nick))
+            m_SlotRestore[nick] = (idx, m_Slots[idx].Team, Time.realtimeSinceStartupAsDouble + kSlotRestoreSeconds);
 
         m_Slots[idx] = new LobbySlot { Occupied = false };
     }
@@ -599,6 +610,33 @@ public class LobbyRoomNet : NetworkBehaviour
         s.CharacterId = charId;
         s.OutfitId = outfitId;
         m_Slots[idx] = s;
+
+        RestoreSlotIfReconnected(ref idx, nick.ToString());
+    }
+
+    /// <summary>[서버] 재접속 유예 복원 — 방금 닉네임을 제출한 클라가 최근(90초) 끊긴 사람이면
+    /// 원래 앉아 있던 슬롯·팀으로 되돌린다(그 자리가 아직 비어 있을 때만).</summary>
+    private void RestoreSlotIfReconnected(ref int idx, string nick)
+    {
+        if (string.IsNullOrEmpty(nick) || !m_SlotRestore.TryGetValue(nick, out var r))
+            return;
+        m_SlotRestore.Remove(nick);
+        if (r.expireAt < Time.realtimeSinceStartupAsDouble)
+            return;
+
+        var s = m_Slots[idx];
+        s.Team = IsVersusMode ? r.team : s.Team;   // 팀은 대전 모드에서만 의미
+        if (r.slot != idx && r.slot >= 0 && r.slot < m_Slots.Count && !m_Slots[r.slot].Occupied)
+        {
+            m_Slots[idx] = new LobbySlot { Occupied = false };   // 지금 자리 비우고
+            m_Slots[r.slot] = s;                                  // 원래 자리로
+            idx = r.slot;
+        }
+        else
+        {
+            m_Slots[idx] = s;
+        }
+        Debug.Log($"[LobbyRoomNet] 재접속 복원 — '{nick}' 슬롯 {r.slot}·팀 {r.team} 되돌림");
     }
 
     // ────────────────────────── 팀 선택 (2vs2) ──────────────────────────
