@@ -120,9 +120,9 @@ namespace GridSystem.EditorTools
             AddDividerWoodwork(root);   // 외곽과 같은 나무 기둥·레일(통일감)
 
             // 투명 차단벽 5장(중앙 + 외곽 4면, 높이 100m) — 인게임 검수로 확정한 좌표(펜스보다 살짝 안쪽).
-            void Blocker(string name, Vector3 pos, Vector3 size)
+            void Blocker(string name, Vector3 pos, Vector3 size, int layer = 0)
             {
-                var go = new GameObject(name);
+                var go = new GameObject(name) { layer = layer };
                 go.transform.SetParent(root.transform, false);
                 go.transform.localPosition = pos;
                 go.AddComponent<BoxCollider>().size = size;
@@ -133,6 +133,11 @@ namespace GridSystem.EditorTools
             Blocker("DividerBlocker_Back",  new Vector3(-11.5f, 4f, 8f),   new Vector3(0.3f, 100f, 39f));
             Blocker("DividerBlocker_Right", new Vector3(16f, 4f, 27.5f),   new Vector3(100f, 100f, 0.3f));
             Blocker("DividerBlocker_Left",  new Vector3(16f, 4f, -11.4f),  new Vector3(100f, 100f, 0.3f));
+
+            // 천장 — 상대 진영으로 '위로 넘어가는' 경로를 아예 막는다.
+            // 바닥 y=12: 최대 8층(그리드 Y=8) 꼭대기에 서서 점프(1.1)해도 머리가 11 언저리라 평소엔 안 닿는다.
+            // 레이어 2(Ignore Raycast)에 둬서 마우스 조준·카메라 가림 판정에는 안 잡히고 몸만 막는다.
+            Blocker("CeilingBlocker",       new Vector3(16f, 13f, 8f),     new Vector3(58f, 2f, 42f), 2);
 
             // Spot 마커 7종 — 팀A 쪽에만 두면 작업대는 반대편에 자동 생성, 배송은 팀별 점대칭 배송(MaterialDepot).
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));          // 그리드 시작(팀A 왼쪽 아래)
