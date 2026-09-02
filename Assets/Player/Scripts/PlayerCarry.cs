@@ -441,6 +441,7 @@ namespace Player
             if (m_SweatFx != null) Destroy(m_SweatFx.gameObject);
             m_HelpTarget = null;
             if (m_ThrowAim != null) Destroy(m_ThrowAim);
+            ClearCannonArc();   // 조준 화살표·예상 궤적은 씬에 따로 떠 있는 오브젝트 — 같이 정리
             DestroyPreview();
             if (m_PreviewMat != null) Destroy(m_PreviewMat);
             if (m_Hud != null) m_Hud.gameObject.SetActive(false);   // HUD는 UIManager 캐시 → 숨기기만
@@ -781,7 +782,7 @@ namespace Player
             if (input.ProcessIsPressed)
             {
                 // 완충으로 이미 쐈다면 아이템 소멸이 복제될 때까지 화살표만 유지(같은 누름으로 두 번 쏘지 않게)
-                if (m_CannonFiredThisHold) { DrawCannonAim(aim, 0f); return; }
+                if (m_CannonFiredThisHold) { DrawCannonAim(aim, 0f); ClearCannonArcPreview(); return; }
 
                 if (!m_CannonChargeSfxPlayed)
                 {
@@ -792,6 +793,7 @@ namespace Player
                 m_CannonCharge += Time.deltaTime;
                 float charge01 = Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds);
                 DrawCannonAim(aim, charge01);
+                DrawCannonArc(aim, charge01);   // E를 누른 동안은 예상 궤적도 같이 보여준다
 
                 if (m_CannonCharge >= kCannonChargeSeconds)
                 {
@@ -810,6 +812,7 @@ namespace Player
             }
 
             DrawCannonAim(aim, 0f);   // 대기 상태 — 최소 길이 화살표로 방향만 보여준다
+            ClearCannonArcPreview();  // 궤적은 E를 누르고 있을 때만
         }
 
         private void FireCannon(GridSystem.ItemNetwork items, Vector3 aim, float charge01)
@@ -836,43 +839,134 @@ namespace Player
             return dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
         }
 
-        // 충전 중 조준 화살표(로컬 연출) — 바닥에 깔린 화살표가 마우스 방향을 가리키고 충전량만큼 길어진다.
-        // 예상 궤적은 일부러 그리지 않는다(기획).
-        private LineRenderer m_CannonArc;
+        // 조준 화살표(로컬 연출) — 마우스 방향을 가리키고 충전량만큼 길어진다.
+        // 선(LineRenderer)은 얇아서 잘 안 보였다 → 석상 안내 화살표와 같은 입체 메시 + 발광 재질로 만든다.
+        // 바닥에 깔면 블록·지면에 묻히므로 총구와 같은 높이(몸통 중간)에 띄운다.
+        private static readonly Color kCannonSky = new Color(0.35f, 0.80f, 1f, 0.95f);   // 공사장 톤(흙·주황)과 안 겹치는 하늘색
+        private const float kCannonTipLen = 0.55f;
+
+        private static Material s_CannonAimMat;
+        private GameObject m_CannonArrow;
+        private Transform m_CannonArrowShaft, m_CannonArrowTip;
+
         private void DrawCannonAim(Vector3 dir, float charge01)
         {
-            if (m_CannonArc == null)
+            if (m_CannonArrow == null) BuildCannonArrow();
+
+            m_CannonArrow.transform.position = transform.position
+                + Vector3.up * GridSystem.CannonBallistics.MuzzleHeight + dir * 0.6f;
+            m_CannonArrow.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+
+            // 충전량 = 화살표 길이. 촉은 그대로 두고 몸통만 늘려야 촉이 안 뭉개진다.
+            float shaft = Mathf.Max(0.25f, Mathf.Lerp(1.6f, 4.5f, charge01) - kCannonTipLen);
+            m_CannonArrowShaft.localScale = new Vector3(0.22f, 0.22f, shaft);
+            m_CannonArrowShaft.localPosition = new Vector3(0f, 0f, shaft * 0.5f);
+            m_CannonArrowTip.localPosition = new Vector3(0f, 0f, shaft + kCannonTipLen * 0.5f);
+        }
+
+        // 몸통(길쭉 큐브) + 촉(45° 돌린 큐브 = 다이아몬드) — 앞(+Z)이 조준 방향. BuildStatueArrow와 같은 언어.
+        private void BuildCannonArrow()
+        {
+            m_CannonArrow = new GameObject("~CannonAim");
+            // 화살표는 대포를 들 때마다 새로 만들지만 재질은 한 번만(MakeGlow는 HideAndDontSave — 매번 만들면 샌다)
+            if (s_CannonAimMat == null) s_CannonAimMat = GridSystem.GuardianNetwork.MakeGlow(kCannonSky);
+            var mat = s_CannonAimMat;
+
+            m_CannonArrowShaft = MakeArrowPart(m_CannonArrow.transform, mat, Vector3.one);
+            m_CannonArrowTip = MakeArrowPart(m_CannonArrow.transform, mat,
+                new Vector3(0.5f, 0.24f, kCannonTipLen));
+            m_CannonArrowTip.localRotation = Quaternion.Euler(0f, 45f, 0f);
+        }
+
+        private Transform MakeArrowPart(Transform parent, Material mat, Vector3 scale)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false);
+            go.transform.localScale = scale;
+            go.GetComponent<Renderer>().sharedMaterial = mat;
+            return go.transform;
+        }
+
+        // 예상 궤적 — E를 누르고 있는 동안만. 서버 명중 판정과 같은 CannonBallistics 식을 쓰고,
+        // 블록 점유는 복제 상태(GridNetwork.IsCellFree)로 본다 → 클라가 보는 궤적 = 실제 탄도.
+        private LineRenderer m_CannonPreview;
+        private Transform m_CannonMarker;
+        private readonly System.Collections.Generic.List<Vector3> m_CannonPath = new();
+        private Vector3[] m_CannonPathBuf = System.Array.Empty<Vector3>();
+
+        private void DrawCannonArc(Vector3 dir, float charge01)
+        {
+            var net = m_Net != null ? m_Net : FindFirstObjectByType<GridNetwork>();
+            if (net == null) { ClearCannonArcPreview(); return; }
+
+            Vector3 origin = transform.position + Vector3.up * GridSystem.CannonBallistics.MuzzleHeight;
+            float groundY = GridSystem.GridCoordinates.CellToWorld(Vector3Int.zero).y;
+
+            bool hit = GridSystem.CannonBallistics.March(
+                origin, dir, charge01, groundY,
+                c => !net.IsCellFree(c), out _, out Vector3 landPoint, m_CannonPath);
+
+            if (m_CannonPreview == null)
+                m_CannonPreview = MakeCannonLine("~CannonArc", 0, new Color(0.35f, 0.80f, 1f, 0.7f), 0.11f);
+
+            // SetPositions는 배열 길이 = positionCount를 요구한다 → 딱 맞는 크기로만 갈아끼운다.
+            if (m_CannonPathBuf.Length != m_CannonPath.Count) m_CannonPathBuf = new Vector3[m_CannonPath.Count];
+            m_CannonPath.CopyTo(m_CannonPathBuf);
+            m_CannonPreview.positionCount = m_CannonPath.Count;
+            m_CannonPreview.SetPositions(m_CannonPathBuf);
+
+            DrawCannonMarker(landPoint, hit);
+        }
+
+        // 착탄 지점 표시 — 링 하나. 블록에 맞으면 진한 하늘색, 허공/땅이면 흐리게.
+        private void DrawCannonMarker(Vector3 point, bool hit)
+        {
+            const int kSegments = 24;
+            if (m_CannonMarker == null)
             {
-                var go = new GameObject("~CannonAim");
-                m_CannonArc = go.AddComponent<LineRenderer>();
-                var sh = Shader.Find("Universal Render Pipeline/Unlit");
-                if (sh == null) sh = Shader.Find("Sprites/Default");
-                m_CannonArc.material = new Material(sh) { color = new Color(0.95f, 0.55f, 0.15f, 0.85f) };
-                m_CannonArc.widthMultiplier = 0.18f;
-                m_CannonArc.positionCount = 5;
-                m_CannonArc.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                var lr = MakeCannonLine("~CannonMark", kSegments, Color.white, 0.07f);
+                lr.loop = true;   // 마지막 점과 첫 점을 자동으로 이어 원이 닫힌다
+                m_CannonMarker = lr.transform;
             }
 
-            // 바닥 바로 위에 그린다(블록에 파묻히지 않게 살짝 띄움)
-            Vector3 baseP = transform.position + Vector3.up * 0.08f + dir * 0.6f;
-            float len = Mathf.Lerp(1.6f, 4.5f, charge01);        // 충전량 = 화살표 길이
-            Vector3 tip = baseP + dir * len;
-            Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
-            float headLen = Mathf.Min(1.0f, len * 0.35f), headW = headLen * 0.6f;
+            var ring = m_CannonMarker.GetComponent<LineRenderer>();
+            ring.material.color = hit ? kCannonSky : new Color(0.60f, 0.80f, 0.90f, 0.40f);
+            float r = hit ? 0.55f : 0.4f;
+            for (int i = 0; i < kSegments; i++)
+            {
+                float a = i * Mathf.PI * 2f / kSegments;
+                ring.SetPosition(i, point + new Vector3(Mathf.Cos(a) * r, 0.06f, Mathf.Sin(a) * r));
+            }
+        }
 
-            // 폴리라인 하나로 화살표를 그린다: 밑동 → 촉 → 왼날개 → 촉 → 오른날개(되짚기)
-            m_CannonArc.SetPosition(0, baseP);
-            m_CannonArc.SetPosition(1, tip);
-            m_CannonArc.SetPosition(2, tip - dir * headLen + right * headW);
-            m_CannonArc.SetPosition(3, tip);
-            m_CannonArc.SetPosition(4, tip - dir * headLen - right * headW);
+        private LineRenderer MakeCannonLine(string name, int points, Color color, float width)
+        {
+            var go = new GameObject(name);
+            var lr = go.AddComponent<LineRenderer>();
+            var sh = Shader.Find("Universal Render Pipeline/Unlit");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            lr.material = new Material(sh) { color = color };
+            lr.widthMultiplier = width;
+            lr.positionCount = points;
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return lr;
+        }
+
+        private void ClearCannonArcPreview()
+        {
+            if (m_CannonPreview != null) { Destroy(m_CannonPreview.gameObject); m_CannonPreview = null; }
+            if (m_CannonMarker != null) { Destroy(m_CannonMarker.gameObject); m_CannonMarker = null; }
         }
 
         private void ClearCannonArc()
         {
-            if (m_CannonArc == null) return;
-            Destroy(m_CannonArc.gameObject);
-            m_CannonArc = null;
+            ClearCannonArcPreview();
+            if (m_CannonArrow == null) return;
+            Destroy(m_CannonArrow);
+            m_CannonArrow = null;
+            m_CannonArrowShaft = null;
+            m_CannonArrowTip = null;
         }
 
         // 아이템을 쓴/버린 그 E 홀드가 곧바로 공정으로 이어지지 않게 — E를 뗄 때까지 공정 잠금.

@@ -191,8 +191,12 @@ namespace GridSystem
         }
 
         /// <summary>
-        /// cell이 속한 오브젝트를 '고정 여부와 무관하게' 파괴하고, 지지를 잃은 미고정 오브젝트를 연쇄로 제거.
-        /// 대포 전용 — Collapse는 충격에 안 무너지는 고정 블록을 앵커로 남기지만, 포탄은 그 앵커째로 부순다.
+        /// cell이 속한 오브젝트를 '고정 여부와 무관하게' 파괴하고, 그 위에 얹혀 있던 것들을 연쇄로 무너뜨린다.
+        /// 대포 전용 — Collapse는 고정 블록을 앵커로 남기지만, 포탄은 그 앵커째로 부수고
+        /// 받침을 잃은 위층은 '고정되어 있어도' 같이 무너진다(포탄에 밑이 뚫렸는데 위가 떠 있으면 안 된다).
+        ///
+        /// 연쇄는 '무너진 셀 바로 위'에서만 위로 타고 올라간다 — 이번 파괴와 무관하게
+        /// 원래부터 떠 있던 고정 구조물까지 건드리지 않기 위해서다.
         /// (계약: ICompletedConstructionTarget — "공정 완료 여부는 따지지 않는다")
         /// </summary>
         public List<CollapsedObject> ForceDestroy(Vector3Int cell)
@@ -200,9 +204,52 @@ namespace GridSystem
             var removed = new List<CollapsedObject>();
             if (!m_Cells.TryGetValue(cell, out var s) || !s.occupied) return removed;
 
+            var frontier = CellsOf(s.ownerObjectId);
             RemoveObjectInternal(s.ownerObjectId, s.materialId, removed);
-            removed.AddRange(SettleUnsupported());   // 받치던 것이 사라졌으니 위에 얹힌 미고정이 연쇄로 무너진다
+
+            var above = new List<ulong>();
+            while (frontier.Count > 0)
+            {
+                CollectOwnersAbove(frontier, above);
+                frontier.Clear();
+                foreach (ulong owner in above)
+                {
+                    if (HasPhysicalSupport(owner)) continue;   // 옆 기둥 등 다른 받침이 남아 있으면 버틴다
+                    var cells = CellsOf(owner);
+                    RemoveObjectInternal(owner, MaterialOf(owner), removed);
+                    frontier.AddRange(cells);                  // 이번에 무너진 것 위층도 이어서 검사
+                }
+            }
+
+            removed.AddRange(SettleUnsupported());   // 남은 미고정 중 지지를 잃은 것 정착
             return removed;
+        }
+
+        /// <summary>cells 바로 위 칸을 점유한 '다른' 오브젝트들(중복 제거). ForceDestroy 연쇄용.</summary>
+        private void CollectOwnersAbove(List<Vector3Int> cells, List<ulong> result)
+        {
+            result.Clear();
+            foreach (var c in cells)
+            {
+                var up = new Vector3Int(c.x, c.y + 1, c.z);
+                if (!m_Cells.TryGetValue(up, out var a) || !a.occupied) continue;
+                if (!result.Contains(a.ownerObjectId)) result.Add(a.ownerObjectId);
+            }
+        }
+
+        private List<Vector3Int> CellsOf(ulong owner)
+        {
+            var cells = new List<Vector3Int>();
+            foreach (var kv in m_Cells)
+                if (kv.Value.occupied && kv.Value.ownerObjectId == owner) cells.Add(kv.Key);
+            return cells;
+        }
+
+        private int MaterialOf(ulong owner)
+        {
+            foreach (var kv in m_Cells)
+                if (kv.Value.ownerObjectId == owner) return kv.Value.materialId;
+            return 0;
         }
 
         /// <summary>지지를 잃은 '미고정' 오브젝트를 고정점 도달까지 반복 제거(연쇄 정착). 제거 목록 반환.
