@@ -43,7 +43,7 @@ namespace GridSystem
         private readonly NetworkVariable<int> m_Winner =
             new(-2, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // -2=미정 -1=무승부 0/1=승리 팀
         private GameModeCatalog m_Modes;
-        private int m_SurrenderWinner = -2;   // 서버: 항복으로 확정된 승자(-2=없음)
+        private int m_ForcedWinner = -2;   // 서버: 점수 비교 전에 확정된 승자(항복 상대팀·선(先)100% 달성팀. -2=없음)
 
         private GridManager m_Grid;
         private GridNetwork m_Net;
@@ -371,7 +371,8 @@ namespace GridSystem
             ServerTickMatchGate(ids);   // 전원 로딩 완료 → 카운트다운 예약
             if (IsBuilding && IsVersus)
             {
-                TryTeamSurrender(ids);   // 2vs2 건축중: 팀 전원 동의 = 그 팀 항복(즉시 패배)
+                if (TryEarlyVictory()) return;   // [기획 09/02] 먼저 100% 찍은 팀 즉시 승리
+                TryTeamSurrender(ids);           // 2vs2 건축중: 팀 전원 동의 = 그 팀 항복(즉시 패배)
             }
             else if (ids.Count > 0 && m_Consents.Count >= ids.Count)
             {
@@ -408,10 +409,10 @@ namespace GridSystem
             if (IsServer && m_Net != null)
                 m_Net.RecomputeScore();
 
-            // 2vs2: 승패 확정 — 항복이 있으면 그대로, 아니면 완성도(점수) 비교. 동점=무승부.
+            // 2vs2: 승패 확정 — 항복/선100%로 이미 정해졌으면 그대로, 아니면 완성도(점수) 비교. 동점=무승부.
             if (IsServer && IsVersus && m_Net != null)
             {
-                if (m_SurrenderWinner >= 0) m_Winner.Value = m_SurrenderWinner;
+                if (m_ForcedWinner >= 0) m_Winner.Value = m_ForcedWinner;
                 else
                 {
                     // Total = 건축 점수 + 보너스(DDP 유구 출토 등) — 보너스도 승패에 반영된다.
@@ -419,10 +420,27 @@ namespace GridSystem
                     m_Winner.Value = a == b ? -1 : (a > b ? 0 : 1);
                 }
             }
-            m_SurrenderWinner = -2;
+            m_ForcedWinner = -2;
 
             m_Phase.Value = (int)GamePhase.Finished;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);   // 종료 진입 → 동의 초기화(재시작 동의는 새로 받음)
+        }
+
+        // 서버: 2vs2 승리 조건(기획 변경 09/02) — 먼저 100%(모든 칸 배치+공정 완료)를 찍는 팀이 즉시 승리.
+        // 아무도 못 찍으면 기존대로 타이머 종료 시 완성도 비교(높은 쪽 승 / 동점 DRAW).
+        // 반올림 100%(99.6% 표시 100)에 속지 않게 score>=maxScore 원값으로 판정(GameLoopHUD.IsComplete와 동일).
+        private bool TryEarlyVictory()
+        {
+            if (!MatchStarted || m_Net == null) return false;
+            var a = m_Net.ScoreFor(0);
+            var b = m_Net.ScoreFor(1);
+            bool aDone = a.maxScore > 0 && a.score >= a.maxScore;
+            bool bDone = b.maxScore > 0 && b.score >= b.maxScore;
+            if (!aDone && !bDone) return false;
+            // 같은 프레임 동시 완성(사실상 희귀)이면 승자 미확정으로 두고 Finish의 총점 비교(보너스 포함)에 맡긴다.
+            if (aDone != bDone) m_ForcedWinner = aDone ? 0 : 1;
+            Finish();
+            return true;
         }
 
         // 서버: 2vs2 조기 종료 = 항복(기획). 해당 팀 전원이 동의하면 그 팀 패배로 즉시 종료.
@@ -439,7 +457,7 @@ namespace GridSystem
                 }
                 if (members > 0 && agreed >= members)
                 {
-                    m_SurrenderWinner = 1 - team;
+                    m_ForcedWinner = 1 - team;
                     Finish();
                     return true;
                 }
