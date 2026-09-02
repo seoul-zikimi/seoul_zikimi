@@ -62,9 +62,9 @@ namespace GridSystem.EditorTools
         {
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_Tutorial.prefab",    Ground = GroundKind.Grass, Trees = true,  Skirt = true },
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_GwangTongGyo.prefab", Ground = GroundKind.City,  Trees = false, Skirt = false,   // 청계천 = 완전 시티뷰
-                             FloorY = 5.52f,                                       // 둔치 윗면(5.4)보다 살짝 위에 도시 옥상 텍스처를 덮음(바닥 평면 y = FloorY-0.1 = 5.42). 콜라이더는 그대로
+                             FloorY = 5.66f,                                       // 바닥 평면 y = FloorY-0.1 = 5.56 — 슬래브 윗면(5.42)과 4cm 간격도 원거리(수백 m) 깊이 정밀도에선 Z-파이팅 삼각형이 남았다(09/03). 14cm로 확실히 분리
                              StretchZ = new[] { "Cube", "Cube (1)", "Cube (2)" },   // 물길+둔치 40×200 → 1km (08/22 "알아서 커트" 승인)
-                             ChannelXMin = -12.6f, ChannelXMax = 13f },            // 물길 구간은 덮지 않음
+                             ChannelXMin = -12.2f, ChannelXMax = 12.6f },          // 옹벽 상단을 0.4m 덮어 벽-바닥 사이 흰 틈새 제거(09/03 스크린샷)
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = true,
                              RemoveObjects = new[] { "CityPlain" }, FloorY = -27.4f },                                                                          // 산 위에서 내려다본 도시. 회색 판은 치움(08/22 승인)
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_VersusField.prefab",  Ground = GroundKind.Grass, Trees = true,  Skirt = true },
@@ -80,10 +80,10 @@ namespace GridSystem.EditorTools
         };
 
         // ── 팔레트(모두 같은 '맑은 오후' 톤으로 묶음 — 안개색 = 지평선 하늘색) ──
-        private static readonly Color kFogColor      = new Color(0.89f, 0.93f, 0.97f);   // FastSky 지평선 밝기에 맞춤(어두우면 원경이 회색 덩어리로 뜸)
-        private static readonly Color kAmbientSky    = new Color(0.66f, 0.74f, 0.86f);
-        private static readonly Color kAmbientEq     = new Color(0.62f, 0.60f, 0.56f);
-        private static readonly Color kAmbientGround = new Color(0.34f, 0.31f, 0.28f);
+        private static readonly Color kFogColor      = new Color(0.78f, 0.87f, 0.98f);   // 흰 안개는 "뿌옇다"(09/03) — 하늘색 공기로. 원경 카드가 회색으로 뜨면 밝기만 올릴 것
+        private static readonly Color kAmbientSky    = new Color(0.71f, 0.79f, 0.90f);   // 09/02 "칙칙하다" 피드백 — 한 단계 화사하게
+        private static readonly Color kAmbientEq     = new Color(0.67f, 0.65f, 0.61f);
+        private static readonly Color kAmbientGround = new Color(0.38f, 0.35f, 0.32f);
         private static readonly Color kSunColor      = new Color(1.00f, 0.96f, 0.88f);
         private static readonly Color kGroundColor   = new Color(0.56f, 0.68f, 0.46f);   // 연한 풀밭
         // 카드 틴트 — VARCO 컬러 이미지라 거의 흰색. 코드로 그린 흰 실루엣 PNG(폴백)일 때만 색이 여기서 나온다.
@@ -93,8 +93,8 @@ namespace GridSystem.EditorTools
         private static readonly Color kSkirtColor    = new Color(0.46f, 0.55f, 0.38f);   // 맵 밑 산 몸통(짙은 풀색)
         private const string kHorizonTexDir = "Assets/Map/Horizon";
 
-        private const float kFogStart = 90f;
-        private const float kFogEnd   = 320f;
+        private const float kFogStart = 130f;   // 90은 플레이 영역 끝자락부터 뿌예짐(09/03) — 근경 완전 클리어
+        private const float kFogEnd   = 380f;
 
         [MenuItem("Tools/Map/★ 비주얼 정리(하늘·안개·원경·포프) 전체 적용")]
         public static void ApplyAll()
@@ -140,7 +140,8 @@ namespace GridSystem.EditorTools
             var mat = AssetDatabase.LoadAssetAtPath<Material>(kSkyPath);
             if (mat != null)
             {
-                SetIf(mat, "_DayBrightness", 0.95f);   // 1.1은 하늘이 하얗게 날아감(포프 노출과 겹침)
+                SetIf(mat, "_DayBrightness", 1.05f);   // 0.95는 "칙칙하다" 피드백(09/02) — 1.1은 하얗게 날아가니 그 사이
+                SetIf(mat, "_Saturation", 0.88f);      // 0.75도 "뿌옇다"(09/03) — 하늘 파란기를 확실히
                 TuneClouds(mat);
                 EditorUtility.SetDirty(mat);
                 return mat;
@@ -160,8 +161,8 @@ namespace GridSystem.EditorTools
             {
                 mat = new Material(src);
                 // 카툰톤: 채도 약간 올리고, 구름은 크고 느리게·조금 적게. 별은 낮엔 안 보이므로 그대로.
-                SetIf(mat, "_Saturation", 0.65f);
-                SetIf(mat, "_DayBrightness", 0.95f);
+                SetIf(mat, "_Saturation", 0.75f);
+                SetIf(mat, "_DayBrightness", 1.05f);
                 SetIf(mat, "_CloudSpeed", 1.2f);
                 TuneClouds(mat);
                 SetIf(mat, "_SunSize", 0.15f);
@@ -201,12 +202,12 @@ namespace GridSystem.EditorTools
             tone.mode.Override(TonemappingMode.Neutral);
 
             var bloom = Add<Bloom>(profile);
-            bloom.threshold.Override(1.1f);
-            bloom.intensity.Override(0.35f);
+            bloom.threshold.Override(1.08f);   // 1.0은 툰 전환 후 밝은 벽(베이스×태양 1.15 > 1)이 통째로 빛나 허옇게 떴다(09/03)
+            bloom.intensity.Override(0.45f);
             bloom.scatter.Override(0.6f);
 
             var vignette = Add<Vignette>(profile);
-            vignette.intensity.Override(0.22f);
+            vignette.intensity.Override(0.16f);   // 0.22는 가장자리가 어두워 "칙칙" 인상에 한몫(09/02)
             vignette.smoothness.Override(0.45f);
 
             var color = Add<ColorAdjustments>(profile);
@@ -266,7 +267,7 @@ namespace GridSystem.EditorTools
                     var data = cam.GetUniversalAdditionalCameraData();
                     if (data == null) continue;
                     data.renderPostProcessing = true;
-                    data.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
+                    data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;   // FXAA는 카툰 외곽선을 뭉갬 — SMAA가 라인이 또렷
                     EditorUtility.SetDirty(cam);
                 }
 
@@ -528,7 +529,7 @@ namespace GridSystem.EditorTools
             string texPath = $"{kHorizonTexDir}/{texName}.png";
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
             if (tex == null) tex = texName.Contains("Asphalt")
-                ? EnsureNoiseTexture("Ground_AsphaltNoise", new Color(0.50f, 0.50f, 0.53f), new Color(0.56f, 0.56f, 0.58f))
+                ? EnsureAsphaltRoadTexture("Ground_AsphaltRoads")   // 민짜 노이즈는 원거리에서 회색 판("텍스처 안 된 듯" 09/03) — 도로 골목 무늬로
                 : EnsureNoiseTexture("Ground_GrassNoise", new Color(0.52f, 0.66f, 0.40f), new Color(0.60f, 0.74f, 0.46f));
             else ApplyTileImportSettings(texPath);
 
@@ -542,6 +543,45 @@ namespace GridSystem.EditorTools
             mat.SetFloat("_EnvironmentReflections", 0f);
             EditorUtility.SetDirty(mat);
             return mat;
+        }
+
+        /// <summary>아스팔트 + 골목 격자(512² = 10m 타일): 노이즈 바탕에 타일 가장자리로 어두운 도로 띠 +
+        /// 중앙 점선. 멀리서 보면 도시 블록 격자로 읽혀 '회색 민판' 인상을 없앤다(09/03).</summary>
+        private static Texture2D EnsureAsphaltRoadTexture(string name)
+        {
+            Directory.CreateDirectory(kHorizonTexDir);
+            string path = $"{kHorizonTexDir}/{name}.png";
+            var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (existing != null) return existing;
+
+            const int N = 512, road = 64;   // 도로 폭 64px ≈ 1.25m
+            var baseA = new Color(0.52f, 0.52f, 0.55f); var baseB = new Color(0.58f, 0.58f, 0.60f);
+            var roadCol = new Color(0.40f, 0.40f, 0.43f); var curb = new Color(0.66f, 0.66f, 0.68f);
+            var dash = new Color(0.80f, 0.79f, 0.72f);
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float u = x / (float)N * Mathf.PI * 2f, v = y / (float)N * Mathf.PI * 2f;
+                    float n = 0.5f + 0.25f * Mathf.Sin(u * 3f + Mathf.Sin(v * 2f)) + 0.25f * Mathf.Sin(v * 5f + Mathf.Cos(u * 4f) * 1.3f);
+                    Color c = Color.Lerp(baseA, baseB, Mathf.SmoothStep(0f, 1f, n));
+                    bool onRoadX = x < road, onRoadY = y < road;
+                    if (onRoadX || onRoadY)
+                    {
+                        c = roadCol * Mathf.Lerp(0.96f, 1.04f, n);
+                        if (x == road - 1 || y == road - 1) c = curb;                                 // 연석 라인
+                        if (onRoadX && !onRoadY && x >= road / 2 - 2 && x < road / 2 + 2 && (y / 24) % 2 == 0) c = dash;   // 중앙 점선
+                        if (onRoadY && !onRoadX && y >= road / 2 - 2 && y < road / 2 + 2 && (x / 24) % 2 == 0) c = dash;
+                    }
+                    px[y * N + x] = c;
+                }
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
+            tex.SetPixels32(px); tex.Apply();
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(path);
+            ApplyTileImportSettings(path);
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
 
         /// <summary>두 톤이 얼룩지는 타일 노이즈(256²). 잔디/아스팔트 폴백.</summary>

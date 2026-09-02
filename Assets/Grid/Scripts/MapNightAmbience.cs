@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace GridSystem
 {
@@ -29,20 +30,28 @@ namespace GridSystem
         public Material NightSky;
 
         [Header("안개 (Linear) — 안개색 = 밤 지평선 색")]
-        public Color FogColor = new Color(0.09f, 0.12f, 0.21f);
+        public Color FogColor = new Color(0.12f, 0.15f, 0.26f);
         public float FogStart = 70f;
         public float FogEnd   = 280f;
 
         [Header("앰비언트 (Trilight) — 너무 어두우면 플레이가 안 보인다. 카툰 밤은 '파랗게', 검게 말고")]
-        public Color AmbientSky     = new Color(0.33f, 0.39f, 0.56f);
-        public Color AmbientEquator = new Color(0.25f, 0.27f, 0.38f);
-        public Color AmbientGround  = new Color(0.13f, 0.13f, 0.19f);
+        public Color AmbientSky     = new Color(0.48f, 0.54f, 0.73f);   // 09/01 2차 톤 업 — "좀만 더 밝게"
+        public Color AmbientEquator = new Color(0.37f, 0.40f, 0.53f);
+        public Color AmbientGround  = new Color(0.22f, 0.22f, 0.30f);
 
         [Header("달빛 (씬 Directional 재사용)")]
-        public Color MoonColor     = new Color(0.62f, 0.71f, 0.92f);
-        public float MoonIntensity = 0.45f;
+        public Color MoonColor     = new Color(0.70f, 0.78f, 0.96f);
+        public float MoonIntensity = 0.70f;   // 09/01 2차 톤 업 (0.55 → 0.70)
         [Tooltip("달 방향(오일러). 고도(x)를 낮게 두면 FastSky가 저녁→밤(별)으로 넘어간다.")]
         public Vector3 MoonEuler = new Vector3(14f, -35f, 0f);
+
+        [Header("블룸 (밤 네온·미디어 파사드 강조) — 글로벌 볼륨 프로필을 밤 동안만 올린다")]
+        [Tooltip("밤 블룸 세기(주간 프로필 0.35). 0 이하면 블룸은 건드리지 않는다.")]
+        public float BloomIntensity = 0.9f;
+        [Tooltip("밤 블룸 문턱(주간 1.1). 낮출수록 에미션(빛 창문·LED)이 잘 번진다. NightBuildGlow 세기 1.25와 세트.")]
+        public float BloomThreshold = 0.9f;
+        [Tooltip("밤 블룸 퍼짐(주간 0.6). 클수록 네온이 부드럽고 넓게 번진다.")]
+        public float BloomScatter = 0.7f;
 
         // ── 원복용 스냅샷(static 1벌 — 클래스 주석의 파괴 순서 문제 참고) ──
         private static MapNightAmbience s_Applied;   // 마지막으로 적용한 인스턴스
@@ -54,6 +63,9 @@ namespace GridSystem
         private static Color s_AmbSky, s_AmbEq, s_AmbGround;
         private static Light s_Sun;
         private static Color s_SunColor; private static float s_SunIntensity; private static Quaternion s_SunRot;
+        // 블룸 원복용 — volume.profile(런타임 사본)에만 쓰므로 에셋(GameVisualProfile)은 더럽히지 않는다
+        private static Bloom s_Bloom;
+        private static float s_BloomInt, s_BloomThr, s_BloomScat;
 
         private void OnEnable()
         {
@@ -92,6 +104,31 @@ namespace GridSystem
                 sun.intensity = MoonIntensity;
                 sun.transform.rotation = Quaternion.Euler(MoonEuler);
             }
+
+            ApplyNightBloom();
+        }
+
+        /// <summary>글로벌 볼륨의 블룸을 밤 값으로. 프로필은 volume.profile(런타임 사본)을 쓴다 —
+        /// sharedProfile(에셋)을 직접 바꾸면 에디터에서 GameVisualProfile이 영구히 더럽혀진다.</summary>
+        private void ApplyNightBloom()
+        {
+            if (BloomIntensity <= 0f) return;
+            foreach (var v in FindObjectsByType<Volume>(FindObjectsSortMode.None))
+            {
+                if (!v.isGlobal || v.profile == null) continue;
+                if (!v.profile.TryGet<Bloom>(out var bloom)) continue;
+                if (s_Bloom == null)   // 첫 적용 때만 스냅샷(맵 교체 시 새 맵 OnEnable이 먼저 와도 밤값을 원본으로 오인하지 않게)
+                {
+                    s_Bloom = bloom;
+                    s_BloomInt = bloom.intensity.value;
+                    s_BloomThr = bloom.threshold.value;
+                    s_BloomScat = bloom.scatter.value;
+                }
+                bloom.intensity.Override(BloomIntensity);
+                bloom.threshold.Override(BloomThreshold);
+                bloom.scatter.Override(BloomScatter);
+                break;
+            }
         }
 
         private void OnDisable()
@@ -119,6 +156,13 @@ namespace GridSystem
                 s_Sun.color = s_SunColor;
                 s_Sun.intensity = s_SunIntensity;
                 s_Sun.transform.rotation = s_SunRot;
+            }
+            if (s_Bloom != null)
+            {
+                s_Bloom.intensity.Override(s_BloomInt);
+                s_Bloom.threshold.Override(s_BloomThr);
+                s_Bloom.scatter.Override(s_BloomScat);
+                s_Bloom = null;
             }
         }
 

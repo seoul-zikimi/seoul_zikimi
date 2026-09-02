@@ -110,3 +110,14 @@ InitTestScene*.unity*
 
 # macOS Finder metadata
 .DS_Store
+
+# External unitypackages kept for editor import only (large binaries)
+/ExternalPackages/
+
+# Club-shared paid assets (public repo - must NOT be committed)
+/[Aa]ssets/ThirdParty/ToonFX/
+/[Aa]ssets/ThirdParty/ToonFX.meta
+/[Aa]ssets/ThirdParty/TransitionBlocks/
+/[Aa]ssets/ThirdParty/TransitionBlocks.meta
+/[Aa]ssets/ThirdParty/ARTnGAME/
+/[Aa]ssets/ThirdParty/ARTnGAME.meta

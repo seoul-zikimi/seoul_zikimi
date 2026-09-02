@@ -32,7 +32,22 @@ namespace GridSystem
         [Tooltip("새 렌더러 탐색 주기(초). 블록이 놓인 뒤 최대 이만큼 늦게 켜진다.")]
         public float PollInterval = 0.5f;
 
+        [Tooltip("대상 머티리얼을 URP Lit 에미션 인스턴스로 강제 교체(베이스 텍스처·색 승계). " +
+                 "glTFast 임포트 머티리얼은 에미션 0으로 구워지면 셰이더에서 에미션 분기가 아예 빠져 " +
+                 "런타임에 emissiveFactor를 줘도 안 빛난다 — LED 장미가 그 케이스(09/01).")]
+        public bool ForceLitEmissive = false;
+
+        [Tooltip("반짝임 세기(0=고정 발광). 0.6이면 기준 밝기의 ±60%를 오간다 — LED 장미용.")]
+        public float TwinkleAmount = 0f;
+        [Tooltip("반짝임 속도(사이클/초 감각). 대상마다 위상이 달라 밭 전체가 별밭처럼 반짝인다.")]
+        public float TwinkleSpeed = 2.2f;
+
         private readonly HashSet<Renderer> m_Seen = new();
+        // 반짝임용: 발광을 켠 머티리얼 인스턴스와 (셰이더별) 에미션 프로퍼티·기준값·위상
+        private readonly List<Material> m_TwinkleMats = new();
+        private readonly List<int> m_TwinkleProp = new();
+        private readonly List<Color> m_TwinkleBase = new();
+        private readonly List<float> m_TwinklePhase = new();
         private Transform m_WatchRoot;
         private float m_NextPoll;
 
@@ -40,19 +55,45 @@ namespace GridSystem
 
         private void Update()
         {
-            if (Time.time < m_NextPoll) return;
-            m_NextPoll = Time.time + PollInterval;
-
-            if (m_WatchRoot == null && !string.IsNullOrEmpty(WatchRootName))
+            if (Time.time >= m_NextPoll)
             {
-                var go = GameObject.Find(WatchRootName);
-                if (go != null) m_WatchRoot = go.transform;
+                m_NextPoll = Time.time + PollInterval;
+
+                if (m_WatchRoot == null && !string.IsNullOrEmpty(WatchRootName))
+                {
+                    var go = GameObject.Find(WatchRootName);
+                    if (go != null) m_WatchRoot = go.transform;
+                }
+
+                if (m_WatchRoot != null) ApplyUnder(m_WatchRoot);
+                if (ExtraTargets != null)
+                    foreach (var t in ExtraTargets)
+                        if (t != null) ApplyUnder(t);
             }
 
-            if (m_WatchRoot != null) ApplyUnder(m_WatchRoot);
-            if (ExtraTargets != null)
-                foreach (var t in ExtraTargets)
-                    if (t != null) ApplyUnder(t);
+            // 반짝임 — 매 프레임, 인스턴스 머티리얼의 에미션만 흔든다(키워드는 이미 켜져 있음)
+            if (TwinkleAmount > 0f)
+            {
+                float t = Time.time * TwinkleSpeed;
+                for (int i = 0; i < m_TwinkleMats.Count; i++)
+                {
+                    var mat = m_TwinkleMats[i];
+                    if (mat == null) continue;
+                    float k = 1f + TwinkleAmount * Mathf.Sin(t + m_TwinklePhase[i]);
+                    mat.SetColor(m_TwinkleProp[i], m_TwinkleBase[i] * Mathf.Max(0.05f, k));
+                }
+            }
+        }
+
+        private void RegisterTwinkle(Renderer r, Material mat, int propId, Color baseEmission)
+        {
+            if (TwinkleAmount <= 0f) return;
+            m_TwinkleMats.Add(mat);
+            m_TwinkleProp.Add(propId);
+            m_TwinkleBase.Add(baseEmission);
+            // 위치 기반 위상 — 결정론(리스폰해도 같은 별밭)이면서 송이마다 제각각
+            var p = r.transform.position;
+            m_TwinklePhase.Add((p.x * 12.9898f + p.z * 78.233f) % (Mathf.PI * 2f));
         }
 
         private void ApplyUnder(Transform root)
@@ -62,8 +103,11 @@ namespace GridSystem
                 if (m_Seen.Contains(r)) continue;
                 m_Seen.Add(r);
                 // ⚠ .materials — 이 렌더러 전용 인스턴스를 만든다(공유 에셋을 더럽히지 않게).
-                foreach (var mat in r.materials)
+                var mats = r.materials;
+                bool replaced = false;
+                for (int mi = 0; mi < mats.Length; mi++)
                 {
+                    var mat = mats[mi];
                     if (mat == null) continue;
                     Color baseCol =
                         mat.HasProperty("_BaseColor")      ? mat.GetColor("_BaseColor") :
@@ -72,17 +116,42 @@ namespace GridSystem
                     var emission = baseCol * Tint * Intensity;
                     emission.a = 1f;
 
+                    if (ForceLitEmissive)
+                    {
+                        // glTFast의 에미션-없는 변형 문제를 우회 — 베이스 텍스처·색을 승계한
+                        // URP Lit 에미션 인스턴스로 통째 교체(장미 수십 송이 수준이라 비용 무시 가능).
+                        var sh = Shader.Find("Universal Render Pipeline/Lit");
+                        if (sh != null)
+                        {
+                            var lit = new Material(sh);
+                            var tex = mat.HasProperty("_BaseMap") ? mat.GetTexture("_BaseMap")
+                                    : mat.HasProperty("baseColorTexture") ? mat.GetTexture("baseColorTexture") : null;
+                            if (tex != null) lit.SetTexture("_BaseMap", tex);
+                            lit.SetColor("_BaseColor", baseCol);
+                            lit.EnableKeyword("_EMISSION");
+                            lit.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                            lit.SetColor("_EmissionColor", emission);
+                            mats[mi] = lit;
+                            replaced = true;
+                            RegisterTwinkle(r, lit, Shader.PropertyToID("_EmissionColor"), emission);
+                            continue;
+                        }
+                    }
+
                     if (mat.HasProperty("_EmissionColor"))
                     {
                         mat.EnableKeyword("_EMISSION");
                         mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                         mat.SetColor("_EmissionColor", emission);
+                        RegisterTwinkle(r, mat, Shader.PropertyToID("_EmissionColor"), emission);
                     }
                     else if (mat.HasProperty("emissiveFactor"))   // glTFast 임포트 머티리얼
                     {
                         mat.SetColor("emissiveFactor", emission);
+                        RegisterTwinkle(r, mat, Shader.PropertyToID("emissiveFactor"), emission);
                     }
                 }
+                if (replaced) r.materials = mats;
             }
         }
     }

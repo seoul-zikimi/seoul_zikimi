@@ -34514,6 +34514,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 495651115713165190}
+  - component: {fileID: 3005377634089839623}
   m_Layer: 0
   m_Name: MapBg_Tutorial
   m_TagString: Untagged
@@ -34545,6 +34546,23 @@ Transform:
   - {fileID: 3848659439887703544}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
+--- !u!114 &3005377634089839623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5495699232571850440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c228662371e736545bbe3c20a4b82204, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapMoodGrade
+  Saturation: 20
+  Contrast: 5
+  Temperature: 4
+  Tint: 0
+  ColorFilter: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &5510670848331893217
 GameObject:
   m_ObjectHideFlags: 0

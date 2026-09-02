@@ -52,7 +52,7 @@ Material:
     - _CloudSpeed: 0.8
     - _CloudThickness: 0.4
     - _CloudTwirl: 0.15
-    - _DayBrightness: 0.95
+    - _DayBrightness: 1.05
     - _DayScatterStrength: 1
     - _DensityAtSeaLevel: 1.225
     - _DensityPower: 20
@@ -64,7 +64,7 @@ Material:
     - _N: 0
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Saturation: 0.65
+    - _Saturation: 0.88
     - _ScaledHeight: 8
     - _ScatterStrength: 20
     - _StarBrightness: 500

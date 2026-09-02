@@ -87,8 +87,36 @@ namespace GridSystem.EditorTools
         ///     '지어야 하는 것'은 폴리싱 전의 검증된 통짜(DDP_본관.glb 원본)로 복귀:
         ///     파츠 GLB(윗동·중간동·꼬리동)·조립 프리팹 제거(→ 절단이 통짜 폴백), 스팬 13×5×10 복귀.
         ///     야경 컨셉과 발굴 기믹 제거는 그대로 유지. 조립 툴(DdpAssembleTool)은 휴면 —
-        ///     파츠 GLB 3종을 다시 넣으면 재가동된다.</summary>
-        private const int kSetupVersion = 21;
+        ///     파츠 GLB 3종을 다시 넣으면 재가동된다.
+        /// 22: 외관 폴리싱 2차 —
+        ///     ① 초록 언덕 버그: 비주얼정리 스커트가 광장 남쪽까지 부풀어 LED 장미밭을 덮던 것 →
+        ///        DDP 프로필 Skirt=false + 데크 밑을 은색 패널(DeckSkirt_W/E/N)로 마감
+        ///     ② 투명 경계벽(~BoundaryWalls) — 광장·데크 둘레, 맵 이탈 방지
+        ///     ③ 물길 연출 강화 — 반투명·에미션 물(회색 민짜 박스 탈출), 차오름 0.6→0.25초,
+        ///        수문 물보라 파티클(예고 잔뿌림 → 개방 순간 90발 버스트 → 방류 중 연속)
+        ///     ④ 야경 강화 — 미디어폴 6기(색 순환), 서치라이트 빔 2기(SlowSpin), 곡면 벤치 3,
+        ///        가로등 3.0·장미 2.4·사이클러 3.4로 증폭. VARCO 슬롯 추가: DDP_미디어폴·DDP_벤치.
+        /// 23: 야경 스크린샷 피드백(08/31→09/01) —
+        ///     ① 가로등 위 '묻은 정육면체' 수정: 발광 헤드 큐브 → 모델 바운즈 꼭대기의 가산 헤일로(쿼드 3장)
+        ///     ② 꼬리동 그레이박스 제거(통짜 롤백 후 중복 + 초록 박스 줄로 보임)
+        ///     ③ 밤 앰비언트·달빛 톤 업(칙칙함 완화), 데크 나무 2그루 추가
+        ///     ④ 바닥 텍스처 VARCO 생성(잔디지붕·광장바닥·은색패널 — ApplyTexture 슬롯에 꽂힘).
+        /// 24: 야경 3차 피드백(09/01) —
+        ///     ① 가로등 '위·아래만 빛' 교정: 헤드→웅덩이를 잇는 가산 빛 원뿔 메시(LampCone.asset) 추가
+        ///     ② 텍스처 미적용 원인 수정: 자동 지문이 GLB만 보고 PNG를 무시 → 텍스처도 지문에 포함
+        ///     ③ 물길: 뿅 등장 → 상류에서 하류로 전선(front)이 퍼지고, 끝나면 상류부터 빠지는 연출
+        ///     ④ 수로 침수 구간의 미디어폴 제거·벤치 이사, ⑤ LED 장미 반짝임(NightBuildGlow.Twinkle).
+        /// 25: 야경 4차(09/01) — ① 장미 안 반짝이던 원인 수정: glTFast 장미가 '에미션 없는 셰이더 변형'으로
+        ///     구워져 emissiveFactor가 안 먹혔다 → URP Lit 에미션 인스턴스로 강제 교체(ForceLitEmissive)
+        ///     ② 예고 중 물판 표시 제거 — "차기도 전에 하늘색 꽉 참"으로 보였다(예고는 토스트+잔뿌림만)
+        ///     ③ 데크 윤곽 조명(둘레 4변 발광 라인) + 장미밭 반딧불 파티클(~RoseFireflies).
+        /// 26: 맵 전체 밝기 업(09/01 "좀만 더 밝게") — 밤 앰비언트 3색·달빛(0.55→0.70)·안개색 상향,
+        ///     데크 상공 라이트 0.75→1.05. 밤 분위기는 유지, 플레이 가시성만 올림.
+        /// 27: '허공에 뜬 맵' 종결(09/01) — ① 재생성 후 ~Horizon 자동 재깔기(수동 재실행 까먹음 방지)
+        ///     ② 데크 난간(서·동·북 — 실물 잔디지붕 가드레일, 비주얼 전용)
+        ///     ③ 서치라이트 수리: 빔 쿼드가 90° 잘못 돌아 하늘에 수평으로 누워 안 보이던 버그 수정 +
+        ///        '꺼먼 정육면체' 받침을 원기둥 받침+기울인 몸통+발광 렌즈 프로젝터로 교체.</summary>
+        private const int kSetupVersion = 27;
 
         private const string kStampKey = "SeoulZikimi.Ddp.SetupStamp";
 
@@ -112,6 +140,9 @@ namespace GridSystem.EditorTools
                 if (HasAnyModel())
                     DdpModelApplyTool.Apply();      // GLB → _Fit.prefab + def 연결
                 DdpMapTool.Generate();              // 배경 소품 반영(멱등 — 재실행 안전)
+                // 맵 재생성이 프리팹을 통째로 다시 쓰면서 ~Horizon(1km 바닥·원경 도시)이 매번 날아간다 —
+                // 수동 재실행을 계속 까먹어 "맵이 허공에 떠 있다"(09/01)가 반복돼 여기서 자동으로 다시 깐다(멱등).
+                MapVisualPolishTool.ApplyHorizonOnly();
 
                 // 성공/실패와 무관하게 지문을 갱신한다 — 실패한 GLB 때문에 매번 다시 돌지 않게.
                 EditorPrefs.SetString(kStampKey, stamp);
@@ -129,7 +160,9 @@ namespace GridSystem.EditorTools
         private static bool IsModel(string path)
         {
             string ext = Path.GetExtension(path).ToLowerInvariant();
-            return ext == ".glb" || ext == ".fbx" || ext == ".obj";
+            // 텍스처(텍스처_*.png)도 지문에 포함 — GLB만 보던 시절엔 텍스처를 나중에 넣으면
+            // 재적용이 안 걸려 "바닥 텍스처 적용 안 됨"(09/01)이 됐다.
+            return ext == ".glb" || ext == ".fbx" || ext == ".obj" || ext == ".png" || ext == ".jpg";
         }
 
         // Models 폴더의 지문: 버전 + (파일명, 크기) 목록. GLB를 교체하면 크기가 달라져 지문이 바뀐다.

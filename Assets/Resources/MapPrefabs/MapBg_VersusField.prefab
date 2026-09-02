@@ -62216,6 +62216,7 @@ GameObject:
   m_Component:
   - component: {fileID: 935890928549299855}
   - component: {fileID: 4740447816246684345}
+  - component: {fileID: 6963112733659735900}
   m_Layer: 0
   m_Name: MapBg_VersusField
   m_TagString: Untagged
@@ -62272,6 +62273,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: GridSystem::GridSystem.SunsetAmbience
   m_SunsetSky: {fileID: 2100000, guid: f516dda2c5604bf48855ffe6a8d1afca, type: 2}
+--- !u!114 &6963112733659735900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7872802193577534633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c228662371e736545bbe3c20a4b82204, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GridSystem::GridSystem.MapMoodGrade
+  Saturation: 22
+  Contrast: 5
+  Temperature: 4
+  Tint: 0
+  ColorFilter: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &7873752332228295784
 GameObject:
   m_ObjectHideFlags: 0

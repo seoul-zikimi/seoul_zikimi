@@ -304,6 +304,46 @@ ${issue.chat ? `\n스레드 대화:\n${issue.chat}` : ""}${attachNote}${
   saveState();
 }
 
+// ---------- CI 감시 (푸시 후 결과만 스레드에 보고 — 자동 수정은 안 함) ----------
+const kCiPollMs    = 60 * 1000;       // 1분 간격 폴링
+const kCiTimeoutMs = 30 * 60 * 1000;  // 30분 넘으면 포기(결과는 PR 페이지에 있음)
+
+// 방금 푸시한 커밋(sha)의 CI 런을 찾아 끝날 때까지 기다렸다가 결과를 스레드에 보고.
+// 큐 밖에서 돌므로 다음 수정 작업을 막지 않는다. 봇을 재시작하면 감시는 사라진다.
+async function watchCi(thread, branch, sha) {
+  const deadline = Date.now() + kCiTimeoutMs;
+  let ci = null;
+  while (Date.now() < deadline) {
+    try {
+      const out = await run("gh", ["run", "list", "--branch", branch, "--limit", "3",
+        "--json", "databaseId,status,conclusion,headSha,url"], WORKSPACE);
+      ci = JSON.parse(out || "[]").find((r) => r.headSha === sha) || null;
+      if (ci && ci.status === "completed") break;
+    } catch (e) {
+      console.warn("CI 조회 실패(재시도):", e.message);
+    }
+    await new Promise((r) => setTimeout(r, kCiPollMs));
+  }
+  if (!ci || ci.status !== "completed") {
+    if (ci) await thread.send(`⏳ CI가 30분 넘게 안 끝남 — 결과는 여기서 확인: ${ci.url}`);
+    return;
+  }
+  if (ci.conclusion === "success") {
+    await thread.send("🟢 **CI 통과** — 테스트 전부 초록. 머지해도 됨.");
+    return;
+  }
+  // 실패·취소 등: 실패한 잡 이름까지 붙여서 보고
+  let detail = "";
+  try {
+    const jobs = await run("gh", ["run", "view", String(ci.databaseId), "--json", "jobs",
+      "-q", '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")'], WORKSPACE);
+    if (jobs) detail = `\n실패한 잡: ${jobs}`;
+  } catch {}
+  await thread.send(
+    `🔴 **CI ${ci.conclusion === "failure" ? "실패" : ci.conclusion}** — 머지 전에 확인 필요.${detail}\n${ci.url}`
+  );
+}
+
 async function handleConfirm(thread, approvedBy) {
   const s = state[thread.id];
   if (!s || s.status !== "awaiting_confirm") return;
@@ -365,6 +405,7 @@ ${s.plan}`;
     const msgFile = path.join(DATA_DIR, "commit-msg.txt");
     fs.writeFileSync(msgFile, commitMsg, "utf8");
     await git(["commit", "-F", msgFile]);
+    var pushedSha = await git(["rev-parse", "HEAD"]);   // CI 감시가 이 커밋의 런을 특정하는 데 씀
     await git(["push", "-f", "-u", REMOTE, branch]);
 
     if (CREATE_PR) {
@@ -410,6 +451,7 @@ ${s.plan}`;
       `🌿 브랜치: \`${branch}\`` +
       (prUrl ? `\n🔀 PR: ${prUrl}` : `\n(PR 자동 생성은 실패 — 브랜치에서 직접 PR 열면 됨)`)
   );
+  watchCi(thread, branch, pushedSha).catch((e) => console.warn("CI 감시 실패:", e.message));
 }
 
 async function handleSkip(thread, by) {

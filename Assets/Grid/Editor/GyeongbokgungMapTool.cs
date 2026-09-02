@@ -333,7 +333,7 @@ namespace GridSystem.EditorTools
             var redCol  = EnsureMaterial("Mat_GbkRedWall",  new Color(0.62f, 0.20f, 0.16f));   // 회랑 벽(적색)
             var darkTile= EnsureMaterial("Mat_GbkRoofTile", new Color(0.30f, 0.33f, 0.38f));   // 회랑·문 지붕
             var baseSt  = EnsureMaterial("Mat_GbkStoneBase",new Color(0.58f, 0.56f, 0.52f));   // 기단석
-            var mtn     = EnsureMaterial("Mat_GbkMountain", new Color(0.38f, 0.50f, 0.38f));   // 북악산
+            // Mat_GbkMountain은 그레이박스 산 폐기(09/03)로 더 이상 안 씀
 
             // ── 2단 월대 지형(08/28, 실제 근정전 고증 — 상월대+하월대): 건축 구역(상월대) 상판 y=0.
             // 그리드/블록/작업대는 전부 상월대 위(y0) — 기존 좌표계 무변경.
@@ -518,11 +518,8 @@ namespace GridSystem.EditorTools
             // 석상 낙하 지점(광장 중앙, 근정전 정면 앞) — 기믹이 이름으로 찾는 빈 마커
             AddSpotless(root, "GuardianDropPoint", new Vector3(15f, 0f, 1f));
 
-            // 북악산 원경(북쪽) — 회랑이 밀려난 만큼 산도 뒤로(지면 -1.8에 맞춰 내림)
-            var m1 = AddBox(root, "Mountain_1", new Vector3(5f, 2.2f, 60f), new Vector3(56f, 24f, 16f), mtn);
-            m1.transform.rotation = Quaternion.Euler(-38f, 0f, 0f); m1.isStatic = true;
-            var m2 = AddBox(root, "Mountain_2", new Vector3(36f, 0.2f, 64f), new Vector3(48f, 20f, 14f), mtn);
-            m2.transform.rotation = Quaternion.Euler(-42f, 8f, 0f); m2.isStatic = true;
+            // 그레이박스 북악산(Mountain_1/2)은 폐기(09/03 지시 "초록색 육면체 삭제") —
+            // 비주얼 정리 툴의 Skyline_Bugaksan 실루엣 카드가 원경 산을 담당한다.
 
             // ── 마커 — [08/28 배치도] 전부 상월대(y0) 위 ──
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));

@@ -54,8 +54,10 @@ namespace GridSystem.EditorTools
                 int missingFixed = FillMissingMaterials(root, report);
                 int reskinned = ReskinBackgroundCity(root, report);
                 BuildExtras(root, report);
+                BuildBankFurniture(root, report);
 
                 PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath);
+                MapVisualPolishTool.ApplyHorizonFor(kPrefabPath);   // 물길 카브 폭이 바뀌면(흰 틈새 픽스) 바닥 평면도 같이 다시 깐다
                 foreach (var leftover in new[] { "Mat_GtgStreamWater", "Mat_GtgLeaf", "Mat_GtgTrunk",
                                                  "Mat_GtgArchStone", "Mat_GtgTunnelMouth", "Mat_GtgWalkway" })   // 지난 버전들(워터·가로수·수문·보도) 잔재 정리
                     AssetDatabase.DeleteAsset($"{kMatDir}/{leftover}.mat");
@@ -81,7 +83,7 @@ namespace GridSystem.EditorTools
 
             var matCache = new System.Collections.Generic.Dictionary<string, Material>();
             var prefabCache = new System.Collections.Generic.Dictionary<string, GameObject>();
-            int replaced = 0, nullMesh = 0, noSrc = 0;
+            int replaced = 0, nullMesh = 0, noSrc = 0, extraPlanted = 0;
 
             foreach (var group in bushGroups)
             {
@@ -94,6 +96,7 @@ namespace GridSystem.EditorTools
                 var doomed = new System.Collections.Generic.List<GameObject>();
                 foreach (Transform child in group.transform)
                 {
+                    if (child.name.StartsWith("~BushExtra")) { doomed.Add(child.gameObject); continue; }   // 지난 실행의 밀도업 사본 — 갈아엎는다(스펙 수집 제외)
                     string src = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(child.gameObject);
                     if (string.IsNullOrEmpty(src) || !src.EndsWith(".glb")) { noSrc++; continue; }
                     specs.Add((src, child.localPosition, child.localRotation, child.localScale));
@@ -131,9 +134,40 @@ namespace GridSystem.EditorTools
                     }
                     replaced++;
                 }
+
+                // "다닥다닥" 밀도 업(09/03 지시): 덤불마다 사본 2주를 주변에 흩뿌린다.
+                // 이름 ~BushExtra — 재실행 시 위에서 지우고 다시 심으므로 불어나지 않는다(멱등).
+                var rng = new System.Random(77);
+                foreach (var (src, p, rot, s) in specs)
+                {
+                    if (!prefabCache.TryGetValue(src, out var prefab) || prefab == null) continue;
+                    matCache.TryGetValue(src, out var mat);
+                    for (int k = 0; k < 4; k++)   // 09/03 2차 "더 빽빽" — 주당 사본 4주(사실상 생울타리)
+                    {
+                        var inst = (GameObject)PrefabUtility.InstantiatePrefab(prefab, group.transform);
+                        inst.name = $"~BushExtra_{extraPlanted}";
+                        // ⚠ 오프셋은 반드시 '월드' 기준(09/03 사고): Bushes 그룹 로컬축이 회전·스케일돼 있어
+                        // 로컬 z ±1.1가 월드에선 하늘 방향 10~20m로 튀었다(공중 부유 덤불의 정체 — 진단 리포트로 확인).
+                        // 물길·화단 줄은 월드 z 방향이므로 월드 z로만 끼워 넣고 y는 원본과 동일하게 고정한다.
+                        float dz = (k - 1.5f) * 0.75f + ((float)rng.NextDouble() - 0.5f) * 0.3f;   // -1.1 ~ +1.1 균등 4칸
+                        var worldP = group.transform.TransformPoint(p);
+                        worldP += new Vector3(((float)rng.NextDouble() - 0.5f) * 0.3f, 0f, dz);
+                        inst.transform.position = worldP;
+                        inst.transform.localRotation = rot * Quaternion.Euler(0f, rng.Next(360), 0f);
+                        inst.transform.localScale = s * Mathf.Lerp(0.82f, 1.0f, (float)rng.NextDouble());
+                        foreach (var c in inst.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                        foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
+                        {
+                            if (mat != null) r.sharedMaterials = Enumerable.Repeat(mat, r.sharedMaterials.Length).ToArray();
+                            r.shadowCastingMode = ShadowCastingMode.Off;
+                            r.receiveShadows = false;
+                        }
+                        extraPlanted++;
+                    }
+                }
             }
 
-            report.AppendLine($"[덤불] 재인스턴스 {replaced}주 · (진단) 기존 인스턴스의 빈 메시 {nullMesh}개 · 소스 불명 {noSrc}개");
+            report.AppendLine($"[덤불] 재인스턴스 {replaced}주 + 밀도업 사본 {extraPlanted}주 · (진단) 빈 메시 {nullMesh}개 · 소스 불명 {noSrc}개");
         }
 
         /// <summary>GLB의 서브에셋 중 컬러맵(diffuse/baseColor 우선, 노말맵 제외)을 찾아
@@ -507,6 +541,81 @@ namespace GridSystem.EditorTools
                 if (name == null || t.name == name) list.Add(t.gameObject);
             return list;
         }
+
+        // ───────────────────── ⑦ 둔치 가구(난간·가로등) — 09/03 "위쪽이 텅 비고 휑하다" ─────────────────────
+        // 청계천 실물처럼: 물길 양안 상단 보도에 짙은 초록 난간(기둥+가로대 2단) + 가로등(지그재그).
+        // 전부 ~GtgFurniture 아래(멱등 — 재실행 시 갈아엎음), 장식이라 콜라이더 없음.
+        private const string kFurnitureGroup = "~GtgFurniture";
+
+        private static void BuildBankFurniture(GameObject root, StringBuilder report)
+        {
+            var old = root.transform.Find(kFurnitureGroup);
+            if (old != null) Object.DestroyImmediate(old.gameObject);
+            var grp = new GameObject(kFurnitureGroup).transform;
+            grp.SetParent(root.transform, false);
+
+            var railMat = EnsureLit("Mat_GtgRail", new Color(0.18f, 0.32f, 0.24f));   // 청계천 난간 짙은 초록
+            var poleMat = EnsureLit("Mat_GtgLampPole", new Color(0.22f, 0.23f, 0.25f));
+            var headMat = EnsureLit("Mat_GtgLampHead", new Color(1f, 0.92f, 0.72f));
+            if (headMat != null)
+            {   // 은은한 발광 — _EMISSION이 켜져 있으면 셀 셰이딩 전환에서도 자동 제외된다
+                headMat.EnableKeyword("_EMISSION");
+                headMat.SetColor("_EmissionColor", new Color(1f, 0.83f, 0.5f) * 1.6f);
+                EditorUtility.SetDirty(headMat);
+            }
+
+            int posts = 0, lamps = 0;
+            foreach (int side in new[] { -1, 1 })
+            {
+                // 난간은 덤불 화단 뒤(물길 반대쪽) 보도 위 — 화단과 겹치지 않게 바깥으로 0.6m
+                float railX = side < 0 ? kChanXMin - 0.6f : kChanXMax + 0.6f;
+                for (float z = -kZPlayEdge; z <= kZPlayEdge + 0.01f; z += 2.5f)
+                { Box(grp, "RailPost", new Vector3(railX, kBankTopY + 0.5f, z), new Vector3(0.08f, 1.0f, 0.08f), railMat); posts++; }
+                Box(grp, "RailTop", new Vector3(railX, kBankTopY + 0.98f, 0f), new Vector3(0.07f, 0.07f, kZPlayEdge * 2f), railMat);
+                Box(grp, "RailMid", new Vector3(railX, kBankTopY + 0.58f, 0f), new Vector3(0.05f, 0.05f, kZPlayEdge * 2f), railMat);
+
+                // 가로등 — 난간보다 한 발 더 보도 안쪽, 양안 지그재그(8m 간격).
+                // DDP의 VARCO 가로등 모델을 재활용(09/03 지시 "DDP에 썼던 에셋 재활용") — 없으면 박스 폴백.
+                var lampPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Map/4_Ddp/DDP_가로등_Fit.prefab");
+                float lampX = side < 0 ? kChanXMin - 1.8f : kChanXMax + 1.8f;
+                for (float z = -kZPlayEdge + 2f + (side < 0 ? 0f : 4f); z <= kZPlayEdge - 1f; z += 8f)
+                {
+                    if (lampPrefab != null)
+                    {
+                        var inst = (GameObject)PrefabUtility.InstantiatePrefab(lampPrefab, grp);
+                        inst.name = "Lamp";
+                        inst.transform.localPosition = new Vector3(lampX, kBankTopY, z);
+                        inst.transform.localRotation = Quaternion.Euler(0f, side < 0 ? 90f : -90f, 0f);   // 헤드가 물길 쪽을 보게
+                        foreach (var c in inst.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                        foreach (var r in inst.GetComponentsInChildren<MeshRenderer>(true))
+                        { r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false; }
+                    }
+                    else
+                    {
+                        Box(grp, "LampPole", new Vector3(lampX, kBankTopY + 1.6f, z), new Vector3(0.12f, 3.2f, 0.12f), poleMat);
+                        Box(grp, "LampHead", new Vector3(lampX, kBankTopY + 3.35f, z), new Vector3(0.38f, 0.3f, 0.38f), headMat);
+                    }
+                    lamps++;
+                }
+            }
+            report.AppendLine($"[가구] 난간 기둥 {posts}개(양안 z ±{kZPlayEdge:F0}) + 가로등 {lamps}주");
+        }
+
+        private static void Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localScale = size;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            var r = go.GetComponent<MeshRenderer>();
+            if (mat != null) r.sharedMaterial = mat;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            go.isStatic = true;
+            go.layer = LayerMask.NameToLayer("Ignore Raycast");
+        }
     }
 
     /// <summary>
@@ -531,20 +640,27 @@ namespace GridSystem.EditorTools
     [InitializeOnLoad]
     public static class GwangTongGyoAutoSetup
     {
-        private const int kVersion = 13;   // 13: 미러 스킵 가드 완화 — 조인트 걸친 조각(남쪽 계단)이 빠져 남쪽 연장이 끊겨 보였음
+        private const int kVersion = 18;   // 18: 덤불 주당 4주(생울타리 밀도) — 09/03 2차 "더 빽빽" 지시
         private const string kKey = "GwangTongGyo.PolishVersion";
 
         static GwangTongGyoAutoSetup()
         {
-            EditorApplication.delayCall += () =>
-            {
-                if (EditorApplication.isPlayingOrWillChangePlaymode) return;   // 플레이 끝난 다음 리로드 때 다시 시도
-                if (EditorPrefs.GetInt(kKey, 0) >= kVersion) return;
-                Debug.Log("[광통교보강] 자동 실행 (Tools ▸ Map ▸ ★ 광통교 그래픽 보강)");
-                GwangTongGyoPolishTool.Apply();
-                GwangTongGyoPolishTool.Snapshot();
-                EditorPrefs.SetInt(kKey, kVersion);
-            };
+            EditorApplication.delayCall += TryRun;
+            // 컴파일 직후 곧장 플레이에 들어가면 위 delayCall이 스킵되고, 플레이 종료는 도메인 리로드가
+            // 없어 영영 안 돌았다(09/03 v16 미적용 사고 — 삼각형 픽스가 프리팹에 안 실린 채 QA됨).
+            // 플레이가 끝나 에디트 모드로 돌아온 시점에 재시도한다.
+            EditorApplication.playModeStateChanged += s =>
+            { if (s == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += TryRun; };
+        }
+
+        private static void TryRun()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            if (EditorPrefs.GetInt(kKey, 0) >= kVersion) return;
+            Debug.Log("[광통교보강] 자동 실행 (Tools ▸ Map ▸ ★ 광통교 그래픽 보강)");
+            GwangTongGyoPolishTool.Apply();
+            GwangTongGyoPolishTool.Snapshot();
+            EditorPrefs.SetInt(kKey, kVersion);
         }
     }
 }
