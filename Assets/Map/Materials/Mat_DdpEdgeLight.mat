@@ -14,7 +14,8 @@ Material:
   m_ValidKeywords:
   - _EMISSIVE_SIMPLE
   - _OUTLINE_NML
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _EMISSION
   m_LightmapFlags: 0
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
