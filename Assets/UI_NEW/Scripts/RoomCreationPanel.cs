@@ -36,9 +36,11 @@ namespace SeoulZikimi.UI.New
         [SerializeField] private Button[] mapOptionButtons;
         [SerializeField] private Button[] modeOptionButtons;
 
-        // 방 이름 비워두고 만들면 쓰는 기본 이름(플레이스홀더에도 표시) — 열 때마다 랜덤
-        private static readonly string[] DefaultNameAdjectives = { "튼튼한", "성실한", "느긋한", "야무진", "든든한", "부지런한", "씩씩한", "꼼꼼한" };
-        private static readonly string[] DefaultNameNouns = { "소라게", "달팽이", "거북이", "개미", "비버", "두더지", "딱따구리", "일개미" };
+        // 방 이름 비워두고 만들면 쓰는 기본 이름(플레이스홀더에도 표시) — 열 때마다 랜덤.
+        // 동물은 게임에 실제 나오는 넷만(QA — 아무 동물이나 나오면 세계관 밖), 수식어는 구인공고풍 일솜씨 표현.
+        private static readonly string[] DefaultNameAdjectives =
+            { "재료 잘 나르는", "망치질 잘하는", "손이 빠른", "튼튼한", "집 잘 짓는", "부지런한", "성실한", "야무진" };
+        private static readonly string[] DefaultNameNouns = { "거북이", "달팽이", "소라게", "레인저" };
         private string defaultRoomName = "";
 
         private static readonly string[] MapFallbacks = { "(001) 광통교", "(002) 남산타워", "(003) 서울광장" };
@@ -70,6 +72,8 @@ namespace SeoulZikimi.UI.New
             modeButton.onClick.AddListener(() => ToggleOptions(modeOptionsRoot, mapOptionsRoot));
             BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다
             BindOptions(modeOptionButtons, SelectMode, modeOptionsRoot);
+            UiNewDropdownList.Setup(modeOptionsRoot,
+                modeButton != null ? (RectTransform)modeButton.transform : null);   // 스크롤 목록 조립(맵 쪽은 BuildMapOptions가)
             weatherButton.onClick.AddListener(ToggleWeather);
             submitButton.onClick.AddListener(Submit);
             ResetForm();
@@ -137,6 +141,8 @@ namespace SeoulZikimi.UI.New
                 buttons[i].onClick.AddListener(() => { SelectMap(slot); mapOptionsRoot?.SetActive(false); });
             }
             mapOptionButtons = buttons;
+            UiNewDropdownList.Setup(mapOptionsRoot,
+                mapButton != null ? (RectTransform)mapButton.transform : null);   // 스크롤 목록 조립(최대 4행 + 바깥 클릭 닫힘)
         }
 
         // 인자는 '옵션 버튼 순번'이고, 실제로 들고 다니는 mapIndex는 카탈로그 인덱스다.

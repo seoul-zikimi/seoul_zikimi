@@ -22,6 +22,12 @@ namespace SeoulZikimi.UI.New
         /// <summary>'랜덤' 항목의 로비 표시 이름.</summary>
         public const string RandomLabel = "랜덤";
 
+        /// <summary>'랜덤' 전용 썸네일(노랑 물음표 카드) — 실제 MapDef가 없어 카탈로그 밖 리소스에서 로드.</summary>
+        private static Sprite s_RandomThumb;
+        public static Sprite RandomThumbnail
+            => s_RandomThumb != null ? s_RandomThumb
+                : s_RandomThumb = Resources.Load<Sprite>("UI_pngs/MapThumb_Random");
+
         /// <summary>선택지에 올릴 인덱스를 into에 채운다. 맨 앞은 항상 '랜덤'(MapCatalog.RandomMapIndex),
         /// 그 뒤로 공터(대전 모드가 알아서 씀)와 튜토리얼(설정창의 다시보기 전용)을 뺀 카탈로그 인덱스.
         /// 카탈로그가 없으면 빈 목록.</summary>

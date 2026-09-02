@@ -281,24 +281,52 @@ public static class JobsnailLobbyPrefabBinder
     /// <summary>맵 선택(방장 ◀▶ + 전원 썸네일·이름).</summary>
     private static void EnsureMapSelect(Transform lobbyPcRoot)
     {
-        if (lobbyPcRoot == null || Find(lobbyPcRoot, "MapThumb") != null)
+        if (lobbyPcRoot == null)
             return;
 
-        var thumb = JobsnailLobbyUiPrefabGenerator.Image("MapThumb", lobbyPcRoot, null, Color.white);
-        var rt = thumb.rectTransform;
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(312, 8);
-        rt.sizeDelta = new Vector2(130, 130);
-        thumb.preserveAspect = true;
-        thumb.raycastTarget = false;
-        thumb.enabled = false;   // 썸네일이 없으면 기존 회색 자리 그대로
+        if (Find(lobbyPcRoot, "MapThumb") == null)
+        {
+            var thumb = JobsnailLobbyUiPrefabGenerator.Image("MapThumb", lobbyPcRoot, null, Color.white);
+            var rt = thumb.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(312, 8);
+            rt.sizeDelta = new Vector2(130, 130);
+            thumb.preserveAspect = true;
+            thumb.raycastTarget = false;
+            thumb.enabled = false;   // 썸네일이 없으면 기존 회색 자리 그대로
 
-        JobsnailLobbyUiPrefabGenerator.Text("MapNameText", lobbyPcRoot, "", 15,
-            new Color(0.25f, 0.17f, 0.10f, 1f), new Vector2(312, -66), new Vector2(170, 26), TextAnchor.MiddleCenter);
-        JobsnailLobbyUiPrefabGenerator.Button("MapPrevButton", lobbyPcRoot, "◀",
-            new Vector2(232, 8), new Vector2(26, 44), 15, new Color(1f, 0.92f, 0.76f, 0.95f));
-        JobsnailLobbyUiPrefabGenerator.Button("MapNextButton", lobbyPcRoot, "▶",
-            new Vector2(392, 8), new Vector2(26, 44), 15, new Color(1f, 0.92f, 0.76f, 0.95f));
+            JobsnailLobbyUiPrefabGenerator.Text("MapNameText", lobbyPcRoot, "", 15,
+                new Color(0.25f, 0.17f, 0.10f, 1f), new Vector2(312, -66), new Vector2(170, 26), TextAnchor.MiddleCenter);
+            JobsnailLobbyUiPrefabGenerator.Button("MapPrevButton", lobbyPcRoot, "",
+                new Vector2(232, 8), new Vector2(26, 44), 15, new Color(1f, 0.92f, 0.76f, 0.95f));
+            JobsnailLobbyUiPrefabGenerator.Button("MapNextButton", lobbyPcRoot, "",
+                new Vector2(392, 8), new Vector2(26, 44), 15, new Color(1f, 0.92f, 0.76f, 0.95f));
+        }
+
+        // 화살표는 글자(◀▶) 대신 이미지 — 모바일 폰트에 해당 글리프가 없어 네모로 깨진다.
+        // 이미 생성된 프리팹도 재바인딩 때 글자 라벨을 지우고 스프라이트로 업그레이드.
+        ApplyMapArrow(lobbyPcRoot, "MapPrevButton", "UI_pngs/MapArrow_Left");
+        ApplyMapArrow(lobbyPcRoot, "MapNextButton", "UI_pngs/MapArrow_Right");
+    }
+
+    private static void ApplyMapArrow(Transform root, string buttonName, string spritePath)
+    {
+        var t = Find(root, buttonName);
+        if (t == null)
+            return;
+        var sprite = JobsnailLobbyUiPrefabGenerator.Sprite(spritePath);
+        if (sprite == null)
+        {
+            Debug.LogWarning($"[JobsnailLobbyPrefabBinder] {spritePath} 스프라이트 없음 — 화살표 이미지 미적용");
+            return;
+        }
+        var image = t.GetComponent<Image>();
+        image.sprite = sprite;
+        image.color = Color.white;
+        image.preserveAspect = true;
+        var label = Find(t, buttonName + "Label");
+        if (label != null)
+            Object.DestroyImmediate(label.gameObject);
     }
 
     private static void EditPrefab(string path, System.Action<GameObject> edit)
