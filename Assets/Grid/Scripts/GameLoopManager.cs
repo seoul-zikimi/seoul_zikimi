@@ -386,7 +386,17 @@ namespace GridSystem
             if (IsBuilding && MatchStarted)
             {
                 m_ServerTimeLeft -= Time.deltaTime;
-                if (m_ServerTimeLeft <= 0f) { m_ServerTimeLeft = 0f; m_TimeLeft.Value = 0f; Finish(); }
+                if (m_ServerTimeLeft <= 0f)
+                {
+                    m_ServerTimeLeft = 0f; m_TimeLeft.Value = 0f;
+                    // 2vs2 타임오버도 승리 시네마틱을 거친다(QA — 선100%만 나오고 타임오버 승리는 안 나옴).
+                    if (IsVersus && m_Net != null)
+                    {
+                        int ta = m_Net.ScoreFor(0).Total, tb = m_Net.ScoreFor(1).Total;
+                        FinishWithVictoryCinematic(ta == tb ? -1 : (ta > tb ? 0 : 1), byCompletion: false);
+                    }
+                    else Finish();
+                }
                 else if (m_ServerTimeLeft < 1e9f)   // 자유모드(float.MaxValue)는 사실상 안 줄어 복제 불필요
                 {
                     float q = Mathf.Floor(m_ServerTimeLeft * 10f) * 0.1f;
@@ -444,11 +454,18 @@ namespace GridSystem
             // 같은 프레임 동시 완성(사실상 희귀)이면 보너스 포함 총점으로 표시 승자를 정하고, 그마저 같으면 -1(동시).
             int winner = aDone != bDone ? (aDone ? 0 : 1)
                 : a.Total == b.Total ? -1 : (a.Total > b.Total ? 0 : 1);
+            FinishWithVictoryCinematic(winner, byCompletion: true);
+            return true;
+        }
+
+        /// <summary>2vs2 승부 확정 연출 공용 진입로(선100%·타임오버) — 전 클라 시네마틱 후 정산.</summary>
+        private void FinishWithVictoryCinematic(int winner, bool byCompletion)
+        {
+            if (m_EarlyFinishPending) return;
             if (winner >= 0) m_ForcedWinner = winner;
             m_EarlyFinishPending = true;
-            EarlyVictoryRpc(winner);
+            EarlyVictoryRpc(winner, byCompletion);
             StartCoroutine(FinishAfterVictoryCinematic());
-            return true;
         }
 
         private System.Collections.IEnumerator FinishAfterVictoryCinematic()
@@ -461,8 +478,8 @@ namespace GridSystem
         }
 
         [Rpc(SendTo.Everyone)]
-        private void EarlyVictoryRpc(int winnerTeam)
-            => VictoryFx.Play(winnerTeam, LocalTeam);
+        private void EarlyVictoryRpc(int winnerTeam, bool byCompletion)
+            => VictoryFx.Play(winnerTeam, LocalTeam, byCompletion);
 
         // 서버: 2vs2 조기 종료 = 항복(기획). 해당 팀 전원이 동의하면 그 팀 패배로 즉시 종료.
         private bool TryTeamSurrender(System.Collections.Generic.IReadOnlyList<ulong> ids)

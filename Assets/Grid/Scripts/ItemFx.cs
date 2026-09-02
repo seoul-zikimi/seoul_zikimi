@@ -217,8 +217,9 @@ namespace GridSystem
         static GameObject s_ShinyLoop;
         static bool s_ShinyTried;
 
-        /// <summary>아이템 픽업 비주얼: 무지개 '?' 상자 — 무지개색 순환 + 4면 물음표 + 회전·둥실·팝인 + Shiny 루프 FX.</summary>
-        public static GameObject MakeItemBox(Vector3 pos, Color kindColor)
+        /// <summary>아이템 픽업 비주얼: 무지개 '?' 상자 — 무지개색 순환 + 4면 물음표 + 회전·둥실·팝인 + Shiny 루프 FX.
+        /// revealedKind가 있으면(내려놓은 아이템) '?' 대신 종류 아이콘을 머리 위에 띄운다 — 깐 패는 공개.</summary>
+        public static GameObject MakeItemBox(Vector3 pos, Color kindColor, CompetitiveItemKind? revealedKind = null)
         {
             var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
             box.name = "~ItemBox";
@@ -232,9 +233,36 @@ namespace GridSystem
             var mat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
             box.GetComponent<Renderer>().material = mat;
 
+            // 깐 상자(드롭)면 '?' 생략 + 종류 아이콘을 머리 위 빌보드로
+            if (revealedKind.HasValue)
+            {
+                var sp = HeldItemBubble.LoadIcon(revealedKind.Value);
+                if (sp != null)
+                {
+                    const float kPx = 100f;
+                    var cgo = new GameObject("KindIcon", typeof(Canvas));
+                    cgo.transform.SetParent(box.transform, false);
+                    cgo.transform.localPosition = new Vector3(0f, 1.5f, 0f);   // 상자(0.55 스케일) 위 — 월드 ~0.8m
+                    var cv = cgo.GetComponent<Canvas>();
+                    cv.renderMode = RenderMode.WorldSpace;
+                    cv.sortingOrder = 20;
+                    ((RectTransform)cgo.transform).sizeDelta = new Vector2(kPx, kPx);
+                    cgo.transform.localScale = Vector3.one * (0.85f / kPx / 0.55f);   // 부모 스케일 보정
+                    var igo = new GameObject("Icon", typeof(UnityEngine.UI.Image));
+                    var irt = (RectTransform)igo.transform;
+                    irt.SetParent(cgo.transform, false);
+                    irt.sizeDelta = new Vector2(kPx, kPx);
+                    var img = igo.GetComponent<UnityEngine.UI.Image>();
+                    img.sprite = sp;
+                    img.preserveAspect = true;
+                    img.raycastTarget = false;
+                    cgo.AddComponent<BillboardFace>();
+                }
+            }
+
             // 4면 '?' — 내장 폰트 TextMesh(월드 텍스트, GridJuice와 같은 방식)
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; revealedKind == null && i < 4; i++)
             {
                 var tgo = new GameObject("?");
                 tgo.transform.SetParent(box.transform, false);
@@ -398,6 +426,15 @@ namespace GridSystem
         }
 
         void OnDestroy() { if (mat != null) Destroy(mat); }
+    }
+
+    /// <summary>항상 카메라를 보는 월드 UI(드롭 아이템 종류 아이콘 등).</summary>
+    public sealed class BillboardFace : MonoBehaviour
+    {
+        void LateUpdate()
+        {
+            if (Camera.main != null) transform.rotation = Camera.main.transform.rotation;
+        }
     }
 
     /// <summary>사용 아이콘 연출: 팝인 → 좌우 까딱 → 떠오르며 페이드. 항상 카메라를 본다.</summary>

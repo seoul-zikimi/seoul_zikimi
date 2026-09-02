@@ -66,7 +66,7 @@ namespace SeoulZikimi.Gameplay
             return new CompetitiveItemSpawnDirector(
                 selector,
                 spawnGateway,
-                worldSpawnIntervalSeconds: 30f,
+                worldSpawnIntervalSeconds: 15f,   // [09/03] 30→15 — 완성도 보상에만 묶이지 않게 월드 스폰을 자주(플레이테스트)
                 completionStepPercent: 10f,
                 itemLifetimeSeconds: 60f);
         }

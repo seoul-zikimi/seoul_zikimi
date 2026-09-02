@@ -12,18 +12,20 @@ namespace GridSystem
     {
         public const float kDuration = 2.4f;   // 서버 Finish 지연은 이것 + 0.2s — 배너 걷히는 타이밍에 정산 등장
 
-        public static void Play(int winnerTeam, int myTeam)
+        public static void Play(int winnerTeam, int myTeam, bool byCompletion)
         {
             var go = new GameObject("~VictoryCinematic");
             var runner = go.AddComponent<VictoryCinematicRunner>();
             runner.WinnerTeam = winnerTeam;
             runner.MyTeam = myTeam;
+            runner.ByCompletion = byCompletion;
         }
     }
 
     internal sealed class VictoryCinematicRunner : MonoBehaviour
     {
-        public int WinnerTeam = -1, MyTeam = -1;   // WinnerTeam -1 = 동시 완공(무승부 방향)
+        public int WinnerTeam = -1, MyTeam = -1;   // WinnerTeam -1 = 무승부(동시 완공/동점 타임오버)
+        public bool ByCompletion = true;           // true = 선100% 완공 / false = 타임오버 점수 승부
 
         const float kSlowScale = 0.25f;
         Camera m_Cam;
@@ -128,8 +130,11 @@ namespace GridSystem
 
             bool tie = WinnerTeam < 0;
             bool win = tie || WinnerTeam == MyTeam;
-            string main = tie ? "동시 완공?!" : win ? "완공!!" : "상대팀 완공...";
-            string sub = tie ? "총점으로 승부를 가립니다" : win ? "우리 팀 승리!" : "다음 판엔 더 빠르게!";
+            string main = tie ? (ByCompletion ? "동시 완공?!" : "무승부!")
+                : ByCompletion ? (win ? "완공!!" : "상대팀 완공...")
+                : win ? "시간 종료 — 승리!" : "시간 종료 — 패배...";
+            string sub = tie ? (ByCompletion ? "총점으로 승부를 가립니다" : "완성도가 똑같다!")
+                : win ? (ByCompletion ? "우리 팀 승리!" : "우리가 더 지었다!") : "다음 판엔 더 빠르게!";
             var mainColor = win ? new Color(1f, 0.82f, 0.1f) : new Color(0.75f, 0.78f, 0.85f);
 
             m_Main = MakeText(canvasGo.transform, main, win ? 120 : 84, mainColor, new Vector2(0f, 60f));

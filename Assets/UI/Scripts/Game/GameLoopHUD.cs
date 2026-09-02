@@ -337,9 +337,14 @@ public sealed class GameLoopHUD : UIHUD
                 // 타이머는 왼쪽 정렬(시계 아이콘 짝)이라 같은 텍스트에 넣으면 줄이 왼쪽으로 쏠리고 겹친다.
                 string sub = pctMine >= 0 ? $"우리 {pctMine}% : 상대 {pctOther}%" : "";
                 if (!string.IsNullOrEmpty(held))
-                    sub += held == "대포"   // 기획서: 대포는 조준+꾹 발사 안내
-                        ? "\n<size=75%>[대포] 상대 건물 조준 후 E 꾹 눌렀다 떼면 발사!</size>"
-                        : $"\n<size=75%>[{held}] E로 사용</size>";
+                {
+                    // 1줄 = 효과 설명(기획 문구), 2줄 = 조작 — 아이템 효과 학습은 '든 순간'이 최적(QA)
+                    string hint = m_ItemNet != null ? m_ItemNet.LocalHeldHint() : "";
+                    sub += $"\n<size=75%>[{held}] {hint}</size>";
+                    sub += held == "대포"   // 기획서: 대포는 조준+꾹 발사
+                        ? "\n<size=65%>E 꾹 조준 발사 · G 내려놓기</size>"
+                        : "\n<size=65%>E 사용 · G 내려놓기</size>";
+                }
                 VsPctText().text = sub;
                 // 걸린 효과(날씨·버프·디버프)는 점수줄 아래 버프 아이콘 바가 담당 — UpdateBuffBar()
                 m_TimerText.text = timer;

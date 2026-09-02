@@ -66,10 +66,11 @@ namespace SeoulZikimi.Gameplay
                         CompetitiveItemKind.Rain, 4f, ItemTargetSide.Enemy, 60f),
                     new CompetitiveItemDefinition(
                         CompetitiveItemKind.Snow, 4f, ItemTargetSide.Enemy, 60f),
+                    // [밸패 09/03] 강풍 60→20초(5초당 1개 붕괴), 태풍 60→10초(초당 2개+미끄러짐 — 짧고 굵게)
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.StrongWind, 4f, ItemTargetSide.Enemy, 60f),
+                        CompetitiveItemKind.StrongWind, 4f, ItemTargetSide.Enemy, 20f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.Typhoon, 4f, ItemTargetSide.Enemy, 60f),
+                        CompetitiveItemKind.Typhoon, 4f, ItemTargetSide.Enemy, 10f),
                     new CompetitiveItemDefinition(
                         CompetitiveItemKind.Fog, 8f, ItemTargetSide.Enemy, 5f),
                     new CompetitiveItemDefinition(
@@ -77,7 +78,7 @@ namespace SeoulZikimi.Gameplay
                     new CompetitiveItemDefinition(
                         CompetitiveItemKind.ProcessSlow, 8f, ItemTargetSide.Enemy, 15f, 0.7f),
                     new CompetitiveItemDefinition(
-                        CompetitiveItemKind.OrderHack, 6f, ItemTargetSide.Enemy, 5f),
+                        CompetitiveItemKind.OrderHack, 6f, ItemTargetSide.Enemy, 10f),   // [밸패 09/03] 5→10초
                     new CompetitiveItemDefinition(
                         CompetitiveItemKind.Umbrella, 6f, ItemTargetSide.Ally, 30f),
                     new CompetitiveItemDefinition(

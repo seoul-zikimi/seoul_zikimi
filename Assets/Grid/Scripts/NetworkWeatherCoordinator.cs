@@ -84,6 +84,10 @@ namespace GridSystem
         {
             if (!IsSpawned || !IsServer || !m_WeatherEnabled.Value || m_GameLoop == null || !m_GameLoop.IsBuilding)
                 return;
+            // [기획 09/03] 2vs2는 자연 날씨 기믹 제외 — 아이템 날씨(ItemNetwork)와 겹쳐 정신없고,
+            // 이 경로는 우산(팀 날씨 면역)도 안 보기 때문에 "우산 썼는데 미끄덩" QA의 원인이었다.
+            if (m_GameLoop.IsVersus)
+                return;
 
             WeatherKind weather = SelectedWeather;
             if (weather is WeatherKind.Rain or WeatherKind.Snow or WeatherKind.Typhoon)
@@ -153,9 +157,11 @@ namespace GridSystem
 
         private void ApplyVisualsAndNotify()
         {
-            WeatherKind weather = m_WeatherEnabled.Value ? SelectedWeather : WeatherKind.Sunny;
+            // [기획 09/03] 2vs2는 자연 날씨 비주얼도 끔(맑음 고정) — 아이템 날씨만 화면에 나온다.
+            bool enabled = m_WeatherEnabled.Value && (m_GameLoop == null || !m_GameLoop.IsVersus);
+            WeatherKind weather = enabled ? SelectedWeather : WeatherKind.Sunny;
             TeamWeatherFx.Get().SetBaseWeather(weather);
-            WeatherSelection selection = m_WeatherEnabled.Value
+            WeatherSelection selection = enabled
                 ? WeatherSelection.Enabled(SelectedSeason, weather)
                 : WeatherSelection.Disabled();
             SelectionChanged?.Invoke(selection);

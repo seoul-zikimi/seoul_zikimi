@@ -817,6 +817,7 @@ namespace Player
             m_CannonCharge = 0f;
             m_CannonChargeSfxPlayed = false;
             ClearCannonArc();
+            m_ProcessLockedUntilRelease = true;   // 완충 자동발사(E 홀드 중) 뒤 같은 홀드가 공정으로 새지 않게
             items.RequestUseHeldAimed(aim, charge01);
         }
 
@@ -874,6 +875,11 @@ namespace Player
             m_CannonArc = null;
         }
 
+        // 아이템을 쓴/버린 그 E 홀드가 곧바로 공정으로 이어지지 않게 — E를 뗄 때까지 공정 잠금.
+        // (아이템 발동 프레임엔 return하지만, 서버가 아이템을 지우는 다음 프레임부터 같은 홀드가
+        //  공정으로 새서 "아이템 쓰면 공정도 같이 됨" QA — 잠금으로 원천 차단)
+        private bool m_ProcessLockedUntilRelease;
+
         private void UpdateProcessInput(PlayerInputHandler input)
         {
             // [기획] 2vs2 아이템은 '든 채로 E'. 도구를 들고 있어도 아이템이 우선 발동한다
@@ -881,13 +887,33 @@ namespace Player
             var items = GridSystem.ItemNetwork.Instance;
             if (items != null && items.LocalHasItem)
             {
+                // [기획 09/03] G = 든 아이템 내려놓기(깐 채로 바닥에, 15초 뒤 소멸 — 스왑·팀원 패스용).
+                // 모바일은 전용 버튼 추후(TODO) — 지금은 키보드만.
+                var kb = UnityEngine.InputSystem.Keyboard.current;
+                if (!GameplayInputBlocker.Blocked && kb != null && kb.gKey.wasPressedThisFrame)
+                {
+                    items.RequestDropHeld();
+                    m_ProcessLockedUntilRelease = input.ProcessIsPressed;
+                    m_CannonCharge = 0f;
+                    m_CannonChargeSfxPlayed = false;
+                    m_CannonFiredThisHold = false;
+                    ClearCannonArc();
+                    return;
+                }
                 if (items.LocalHoldsCannon) { UpdateCannonCharge(input, items); return; }
-                if (input.ProcessPressedThisFrame) { items.RequestUseHeld(); return; }
+                if (input.ProcessPressedThisFrame) { items.RequestUseHeld(); m_ProcessLockedUntilRelease = true; }
+                return;   // 아이템 든 동안 E는 아이템 전용 — 공정으로 안 샌다
             }
             m_CannonCharge = 0f;
             m_CannonChargeSfxPlayed = false;
             m_CannonFiredThisHold = false;
             ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 조준 화살표 제거
+
+            if (m_ProcessLockedUntilRelease)
+            {
+                if (input.ProcessIsPressed) return;   // 아이템을 쓴 홀드가 아직 안 끝남
+                m_ProcessLockedUntilRelease = false;
+            }
 
             // 양동이(경복궁 화마 진화)는 그리드 공정이 아니라 '불타는 블록에 물 붓기' — 전용 분기.
             if (m_HeldTool == ProcessType.Bucket) { UpdateBucket(input); return; }
