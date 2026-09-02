@@ -90,7 +90,8 @@ namespace GridSystem
         private readonly float[] m_WeatherUntil = new float[2];
         private readonly float[] m_FogUntil = new float[2];
         private readonly float[] m_ImmuneUntil = new float[2];
-        private float m_NextWeatherTick;   // 날씨 피해 판정 주기
+        private float m_NextWeatherTick;   // 날씨 피해 판정 주기(미끄러짐)
+        private float m_NextWindTick;      // 바람 붕괴 주기 — 미끄러짐보다 훨씬 느리게 돈다
         private GameObject m_VisualRoot;
         private readonly System.Collections.Generic.Dictionary<uint, GameObject> m_Visuals = new();
 
@@ -211,7 +212,13 @@ namespace GridSystem
         /// <summary>[기획] 아이템을 든 채로 E — 입력은 PlayerCarry가 공정(도구)과 갈라서 호출한다.</summary>
         public void RequestUseHeld()
         {
-            if (LocalHasItem) UseHeldRpc();
+            if (LocalHasItem) UseHeldRpc(Vector3.forward, 1f);
+        }
+
+        /// <summary>대포 전용 — 겨눈 방향(수평)과 충전량(0~1)을 실어 보낸다. 명중 판정은 서버가 한다.</summary>
+        public void RequestUseHeldAimed(Vector3 aimDir, float charge01)
+        {
+            if (LocalHasItem) UseHeldRpc(aimDir, Mathf.Clamp01(charge01));
         }
 
         /// <summary>내(로컬 플레이어)가 들고 있는 아이템 이름. 없으면 "".</summary>
@@ -434,11 +441,19 @@ namespace GridSystem
 
         // ── 날씨: 서버가 피해를 판정하고, 보이는 건 각 클라가 그린다 ──
         // 비/눈 = 미끄러짐(플레이어가 훅 밀림), 강풍/태풍 = 미고정 블록이 바람에 무너짐.
-        // 우산(면역)이 걸린 팀은 피해를 건너뛴다. 태풍은 둘 다 + 더 잦게.
+        // 우산(면역)이 걸린 팀은 피해를 건너뛴다.
+        //
+        // 미끄러짐과 바람 붕괴는 주기가 다르다. 미끄러짐은 자주 와야 '계속 미끄럽다'는 느낌이 나지만,
+        // 붕괴는 같은 1초 주기로 돌리면 60초짜리 강풍 한 방에 수십 개가 쓸려나가 게임이 터진다.
+        private const float kSlipTickSeconds = 1f;
+        private const float kWindTickSeconds = 6f;   // 강풍 60초 = 약 10개. 태풍은 한 번에 2개씩.
         private void TickWeatherDamage()
         {
-            if (Time.time < m_NextWeatherTick) return;
-            m_NextWeatherTick = Time.time + 1f;
+            bool slipTick = Time.time >= m_NextWeatherTick;
+            bool windTick = Time.time >= m_NextWindTick;
+            if (!slipTick && !windTick) return;
+            if (slipTick) m_NextWeatherTick = Time.time + kSlipTickSeconds;
+            if (windTick) m_NextWindTick = Time.time + kWindTickSeconds;
 
             for (int team = 0; team < 2; team++)
             {
@@ -449,8 +464,8 @@ namespace GridSystem
                 bool slippery = weather is WeatherKind.Rain or WeatherKind.Snow or WeatherKind.Typhoon;
                 bool windy = weather is WeatherKind.StrongWind or WeatherKind.Typhoon;
 
-                if (slippery) SlipTeam(team, weather == WeatherKind.Typhoon ? 1f : 0.6f);
-                if (windy && m_Net != null)
+                if (slipTick && slippery) SlipTeam(team, weather == WeatherKind.Typhoon ? 1f : 0.6f);
+                if (windTick && windy && m_Net != null)
                 {
                     int blown = m_Net.ServerWindCollapse(team, weather == WeatherKind.Typhoon ? 2 : 1);
                     if (blown > 0) Debug.Log($"[Weather] 바람에 무너짐 → 팀{TeamId(team)} {blown}개");
@@ -625,7 +640,7 @@ namespace GridSystem
 
         // ── 사용 ─────────────────────────────────────────────────
         [Rpc(SendTo.Server)]
-        private void UseHeldRpc(RpcParams rpc = default)
+        private void UseHeldRpc(Vector3 aimDir, float charge01, RpcParams rpc = default)
         {
             ulong sender = rpc.Receive.SenderClientId;
             for (int i = m_Items.Count - 1; i >= 0; i--)
@@ -637,7 +652,11 @@ namespace GridSystem
                 m_Items.RemoveAt(i);
                 // 대포 발사 위치 = 시전자(포탄 궤적 연출용) — Use 안에서 ServerCannonDestroy가 읽는다
                 if ((CompetitiveItemKind)e.Kind == CompetitiveItemKind.Cannon && m_Net != null)
+                {
                     m_Net.ServerCannonSource = HolderPos(sender, transform.position);
+                    m_Net.ServerCannonAimDir = aimDir;
+                    m_Net.ServerCannonCharge = Mathf.Clamp01(charge01);
+                }
                 m_UseService?.Use((CompetitiveItemKind)e.Kind, sender.ToString(), TeamId(team));
                 // 대상 팀 전원에게 알림 — 공격이면 당한 팀에 빨강, 버프면 아군에 초록('누구한테 쓴 건지' 가시화)
                 var def = m_Definitions?.Get((CompetitiveItemKind)e.Kind);
@@ -672,8 +691,8 @@ namespace GridSystem
             int team = TeamIndex(teamId);
             if (team < 0 || m_Net == null) return;
             bool hit = m_Net.ServerCannonDestroy(team);
-            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 배치 블록 1개 파괴(위에 얹힌 것은 연쇄 붕괴)"
-                          : $"[Item] 대포 → 팀{teamId}: 구역에 부술 블록이 없음");
+            Debug.Log(hit ? $"[Item] 대포 → 팀{teamId}: 조준한 블록 파괴(위에 얹힌 것은 연쇄 붕괴)"
+                          : $"[Item] 대포 → 팀{teamId}: 빗나감(아군 진영에 맞았거나 허공)");
         }
 
         void ITeamMovementModifierTarget.ApplyMovementSpeedMultiplier(string teamId, float multiplier, float durationSeconds)

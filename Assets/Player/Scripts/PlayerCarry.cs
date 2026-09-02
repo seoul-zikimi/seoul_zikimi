@@ -765,31 +765,80 @@ namespace Player
              : kind == ProcessType.Bucket ? FireNetwork.ExtinguishSeconds
              : m_ProcessSeconds;
 
-        // 대포: E를 꾹 눌러 충전(공정 바를 그대로 재활용해 게이지 표시), 떼면 발사.
-        // 조준은 상대 진영을 바라보는 연출이고, 실제 파괴 대상은 서버가 배치된 블록 중 무작위로 고른다(기획서).
+        // 대포: E를 꾹 눌러 충전하고 떼면 그 세기로 발사. 끝까지 차면 그 즉시 자동 발사.
+        // 방향은 마우스가 가리키는 지점(바닥 평면) — 화살표가 그 방향을 따라간다.
+        // 실제 명중 판정은 서버가 같은 조준값으로 포물선을 그려서 정한다(GridNetwork.ServerCannonDestroy).
         private const float kCannonChargeSeconds = 0.8f;
         private float m_CannonCharge;
+        private bool m_CannonChargeSfxPlayed;
+        private bool m_CannonFiredThisHold;   // 완충 자동 발사 후 — E를 떼기 전까지 재충전 금지(연발 방지)
 
         private void UpdateCannonCharge(PlayerInputHandler input, GridSystem.ItemNetwork items)
         {
+            // 대포를 든 동안은 충전 중이 아니어도 화살표가 마우스를 계속 따라다닌다(조준 상태 상시 표시).
+            Vector3 aim = CannonAimDirection(input);
+
             if (input.ProcessIsPressed)
             {
+                // 완충으로 이미 쐈다면 아이템 소멸이 복제될 때까지 화살표만 유지(같은 누름으로 두 번 쏘지 않게)
+                if (m_CannonFiredThisHold) { DrawCannonAim(aim, 0f); return; }
+
+                if (!m_CannonChargeSfxPlayed)
+                {
+                    m_CannonChargeSfxPlayed = true;
+                    GridSystem.ItemFx.CannonChargeSfx(transform.position, kCannonChargeSeconds);
+                }
+
                 m_CannonCharge += Time.deltaTime;
-                DrawCannonArc(Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds));   // 게이지 = 궤적이 뻗어나감(기획서)
+                float charge01 = Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds);
+                DrawCannonAim(aim, charge01);
+
+                if (m_CannonCharge >= kCannonChargeSeconds)
+                {
+                    m_CannonFiredThisHold = true;
+                    FireCannon(items, aim, 1f);   // 완충 = 자동 발사(기획)
+                }
                 return;
             }
+
+            m_CannonFiredThisHold = false;
+
             if (input.ProcessReleasedThisFrame && m_CannonCharge > 0f)
             {
-                bool charged = m_CannonCharge >= kCannonChargeSeconds;
-                m_CannonCharge = 0f;
-                ClearCannonArc();
-                if (charged) items.RequestUseHeld();   // 덜 눌렀으면 불발(다시 조준)
+                FireCannon(items, aim, Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds));
+                return;
             }
+
+            DrawCannonAim(aim, 0f);   // 대기 상태 — 최소 길이 화살표로 방향만 보여준다
         }
 
-        // 충전 중 발사 궤적 미리보기(로컬 연출) — 실제 파괴 대상은 서버 랜덤이므로 상대 진영 중심을 향한 포물선.
+        private void FireCannon(GridSystem.ItemNetwork items, Vector3 aim, float charge01)
+        {
+            m_CannonCharge = 0f;
+            m_CannonChargeSfxPlayed = false;
+            ClearCannonArc();
+            items.RequestUseHeldAimed(aim, charge01);
+        }
+
+        /// <summary>마우스 포인터가 가리키는 바닥 지점 → 내 위치에서 그쪽으로의 수평 단위벡터.</summary>
+        private Vector3 CannonAimDirection(PlayerInputHandler input)
+        {
+            var cam = Camera.main;
+            if (cam == null) return transform.forward;
+
+            var ray = cam.ScreenPointToRay(input.PointerPosition);
+            var ground = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
+            if (!ground.Raycast(ray, out float enter)) return transform.forward;
+
+            Vector3 dir = ray.GetPoint(enter) - transform.position;
+            dir.y = 0f;
+            return dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
+        }
+
+        // 충전 중 조준 화살표(로컬 연출) — 바닥에 깔린 화살표가 마우스 방향을 가리키고 충전량만큼 길어진다.
+        // 예상 궤적은 일부러 그리지 않는다(기획).
         private LineRenderer m_CannonArc;
-        private void DrawCannonArc(float charge01)
+        private void DrawCannonAim(Vector3 dir, float charge01)
         {
             if (m_CannonArc == null)
             {
@@ -798,24 +847,24 @@ namespace Player
                 var sh = Shader.Find("Universal Render Pipeline/Unlit");
                 if (sh == null) sh = Shader.Find("Sprites/Default");
                 m_CannonArc.material = new Material(sh) { color = new Color(0.95f, 0.55f, 0.15f, 0.85f) };
-                m_CannonArc.widthMultiplier = 0.07f;
-                m_CannonArc.positionCount = 20;
+                m_CannonArc.widthMultiplier = 0.18f;
+                m_CannonArc.positionCount = 5;
                 m_CannonArc.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
-            Vector3 from = transform.position + Vector3.up * 1.0f;
-            Vector3 target = GridSystem.ItemNetwork.EnemyZoneAimPoint(from + transform.forward * 10f);
-            Vector3 dir = target - from; dir.y = 0f;
-            float fullDist = Mathf.Max(3f, dir.magnitude);
-            dir = dir.sqrMagnitude > 0.01f ? dir.normalized : transform.forward;
-            float dist = Mathf.Lerp(3f, fullDist, charge01);
-            float height = Mathf.Lerp(1f, 5f, charge01);
-            for (int i = 0; i < 20; i++)
-            {
-                float t = i / 19f;
-                Vector3 p = from + dir * (dist * t);
-                p.y += Mathf.Sin(t * Mathf.PI) * height;
-                m_CannonArc.SetPosition(i, p);
-            }
+
+            // 바닥 바로 위에 그린다(블록에 파묻히지 않게 살짝 띄움)
+            Vector3 baseP = transform.position + Vector3.up * 0.08f + dir * 0.6f;
+            float len = Mathf.Lerp(1.6f, 4.5f, charge01);        // 충전량 = 화살표 길이
+            Vector3 tip = baseP + dir * len;
+            Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
+            float headLen = Mathf.Min(1.0f, len * 0.35f), headW = headLen * 0.6f;
+
+            // 폴리라인 하나로 화살표를 그린다: 밑동 → 촉 → 왼날개 → 촉 → 오른날개(되짚기)
+            m_CannonArc.SetPosition(0, baseP);
+            m_CannonArc.SetPosition(1, tip);
+            m_CannonArc.SetPosition(2, tip - dir * headLen + right * headW);
+            m_CannonArc.SetPosition(3, tip);
+            m_CannonArc.SetPosition(4, tip - dir * headLen - right * headW);
         }
 
         private void ClearCannonArc()
@@ -836,7 +885,9 @@ namespace Player
                 if (input.ProcessPressedThisFrame) { items.RequestUseHeld(); return; }
             }
             m_CannonCharge = 0f;
-            ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 궤적 제거
+            m_CannonChargeSfxPlayed = false;
+            m_CannonFiredThisHold = false;
+            ClearCannonArc();   // 대포를 버렸거나(사용/드롭) 충전 조건이 깨짐 → 조준 화살표 제거
 
             // 양동이(경복궁 화마 진화)는 그리드 공정이 아니라 '불타는 블록에 물 붓기' — 전용 분기.
             if (m_HeldTool == ProcessType.Bucket) { UpdateBucket(input); return; }
