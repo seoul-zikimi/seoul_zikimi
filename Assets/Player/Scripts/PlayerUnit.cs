@@ -331,11 +331,15 @@ namespace Player
         }
 
         // 스폰 지점에서 위 20m → 아래로 쏴 가장 높은 바닥 y를 찾는다(자기 콜라이더는 제외).
+        // Ignore Raycast(레이어 2)는 뺀다 — 2vs2 맵 천장 차단벽처럼 '몸만 막는' 콜라이더가
+        // 가장 높은 히트로 잡히면 그 위에 스폰돼 공중에 떠버린다.
+        private const int kGroundMask = ~(1 << 2);
+
         private bool TryGetGroundY(Vector3 center, out float groundY)
         {
             groundY = float.NegativeInfinity;
             Vector3 rayOrigin = center + Vector3.up * 20f;
-            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 80f, ~0, QueryTriggerInteraction.Ignore);
+            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 80f, kGroundMask, QueryTriggerInteraction.Ignore);
             foreach (var hit in hits)
             {
                 if (hit.collider.transform == transform || hit.collider.transform.IsChildOf(transform))
