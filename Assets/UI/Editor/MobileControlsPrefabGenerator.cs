@@ -10,7 +10,10 @@ using UnityEngine.UI;
 /// 모바일 컨트롤 프리팹 '초기' 생성기 — 기획서 레이아웃(배틀그라운드식):
 ///  좌하단 조이스틱 / 우하단 점프·던지기·공정 클러스터(+알약형 공정취소) /
 ///  좌상단 눈 아이콘(정답 고스트 토글) / 우상단 감정표현 드롭다운 / 하단 중앙 휴대폰.
-/// 스타일: 반투명 라이트 그레이 원형 버튼 + 짙은 회색 텍스트(미니멀 플랫).
+/// 스타일: 디자이너 분리 에셋(Resources/UI_NEW/04_모바일 UI, 2026-09-03) — 원형 버튼 Mobile_UI_Button,
+/// 감정표현 Mobile_UI_voice(둥근 사각), 조이스틱 베이스 joystick1(회색 큰 원)/노브 joystic2(흰 작은 원).
+/// 색은 스프라이트에 구워져 있으므로 Image 색은 흰색(틴트 없음) + 짙은 회색 텍스트.
+/// 휴대폰·감정표현 행·제스처 힌트는 아직 전용 에셋이 없어 RoundRect(라이트 그레이 틴트) 유지.
 ///
 /// ⚠ 운영 원칙(2026-08-30 확정): 레이아웃의 소스 오브 트루스는 이 코드가 아니라
 /// **MobileControlsCanvas.prefab 자체**다. 위치·크기 조정은 프리팹을 더블클릭해 프리팹 모드에서
@@ -30,6 +33,9 @@ public static class MobileControlsPrefabGenerator
     private static readonly Color Ink = new(0.20f, 0.20f, 0.19f, 1f);
     private static readonly Color InkSoft = new(0.20f, 0.20f, 0.19f, 0.72f);
     private static readonly Color PanelFill = new(0.96f, 0.96f, 0.95f, 0.97f);
+    // 디자이너 스프라이트는 자체 색을 가지므로 틴트하지 않는다(흰색). Soft는 보조 버튼(회전)용 투명도.
+    private static readonly Color SpriteFill = Color.white;
+    private static readonly Color SpriteFillSoft = new(1f, 1f, 1f, 0.7f);
 
     // 감정표현 행 라벨은 실제 발동 대사(EmoteDefs)에서 가져온다 — UI와 대사 불일치 방지.
     // 런타임(MobileControlsHUD.RebuildEmoteRows)에서도 같은 원본·같은 행 크기로 다시 쓰므로 프리팹이 낡아도 안전.
@@ -155,15 +161,15 @@ public static class MobileControlsPrefabGenerator
         var baseRt = Rect("MoveJoystick", parent, Vector2.zero, Vector2.zero,
             new Vector2(145f, 173f), new Vector2(300f, 300f));   // 실기기 엄지 위치 튜닝값(2026-08-30)
         var baseImage = baseRt.gameObject.AddComponent<Image>();
-        baseImage.sprite = CircleSprite();
-        baseImage.color = new Color(0.94f, 0.94f, 0.93f, 0.38f);
+        baseImage.sprite = JoystickBaseSprite();   // 디자이너 회색 큰 원
+        baseImage.color = new Color(1f, 1f, 1f, 0.8f);
         baseImage.raycastTarget = true;
 
         var knob = Rect("JoystickKnob", baseRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(120f, 120f));
         var knobImage = knob.gameObject.AddComponent<Image>();
-        knobImage.sprite = CircleSprite();
-        knobImage.color = new Color(0.94f, 0.94f, 0.93f, 0.92f);
+        knobImage.sprite = JoystickKnobSprite();   // 디자이너 흰 작은 원 — 대시 중엔 MobileJoystickControl이 살구색 틴트
+        knobImage.color = new Color(1f, 1f, 1f, 0.95f);
         knobImage.raycastTarget = false;
 
         baseRt.gameObject.AddComponent<MobileJoystickControl>().Configure(knob, 90f);
@@ -172,7 +178,7 @@ public static class MobileControlsPrefabGenerator
     // 좌상단 눈 아이콘 — 정답 고스트(기존 TAB의 인월드 표시) 켜기/끄기. 꺼짐 상태는 HUD가 CanvasGroup 알파로 표시.
     private static void BuildAnswerToggle(Transform parent)
     {
-        var rt = CircleButton("AnswerToggleButton", parent, BtnFill,
+        var rt = CircleButton("AnswerToggleButton", parent, SpriteFill,
             new Vector2(104f, -96f), new Vector2(96f, 96f), new Vector2(0f, 1f));
         rt.gameObject.AddComponent<CanvasGroup>();
 
@@ -208,7 +214,7 @@ public static class MobileControlsPrefabGenerator
         processButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Process);
 
         // 공정취소: 다른 액션 버튼과 같은 원형(사용자 피드백 2026-09-02 — 알약형에서 변경), 우측 상단 클러스터 위에.
-        var revertButton = CircleButton("RevertButton", parent, BtnFill,
+        var revertButton = CircleButton("RevertButton", parent, SpriteFill,
             new Vector2(-183f, 353f), new Vector2(150f, 150f), bottomRight);
         Label("Label", revertButton, "공정취소", 26, Ink);
         revertButton.gameObject.AddComponent<MobileHoldButton>().Configure(MobileHoldButton.ActionType.Revert);
@@ -246,9 +252,9 @@ public static class MobileControlsPrefabGenerator
         var button = Rect("EmoteButton", parent, Vector2.one, Vector2.one,
             new Vector2(-130f, -170f), new Vector2(200f, 70f));
         var image = button.gameObject.AddComponent<Image>();
-        image.sprite = RoundSprite(); image.type = Image.Type.Sliced; image.color = BtnFill;
+        image.sprite = VoiceSprite(); image.type = Image.Type.Sliced; image.color = SpriteFill;   // 디자이너 'voice' 둥근 사각(보더 40)
         var btn = button.gameObject.AddComponent<Button>(); btn.targetGraphic = image;
-        SetFlatColors(btn, BtnFill);
+        SetFlatColors(btn, SpriteFill);
         Label("Label", button, "감정표현 ▾", 24, Ink);
 
         // 행 수·라벨의 원본은 EmoteDefs — 대사를 추가/수정하면 이 메뉴를 다시 돌리기만 하면 된다.
@@ -278,7 +284,7 @@ public static class MobileControlsPrefabGenerator
     private static RectTransform ActionButton(string name, Transform parent, string text,
         Vector2 anchored, Vector2 size, Vector2 anchor)
     {
-        var rt = CircleButton(name, parent, BtnFill, anchored, size, anchor);
+        var rt = CircleButton(name, parent, SpriteFill, anchored, size, anchor);
         Label("Label", rt, text, Mathf.RoundToInt(Mathf.Clamp(size.x * 0.19f, 22f, 34f)), Ink);
         return rt;
     }
@@ -286,7 +292,7 @@ public static class MobileControlsPrefabGenerator
     private static RectTransform SmallButton(string name, Transform parent, string text,
         Vector2 anchored, Vector2 anchor)
     {
-        var rt = CircleButton(name, parent, BtnFillSoft, anchored, new Vector2(100f, 100f), anchor);
+        var rt = CircleButton(name, parent, SpriteFillSoft, anchored, new Vector2(100f, 100f), anchor);
         Label("Label", rt, text, 22, InkSoft);
         return rt;
     }
@@ -296,7 +302,7 @@ public static class MobileControlsPrefabGenerator
     {
         var rt = Rect(name, parent, anchor, anchor, anchored, size);
         var image = rt.gameObject.AddComponent<Image>();
-        image.sprite = CircleSprite(); image.color = fill;
+        image.sprite = ButtonSprite(); image.color = fill;   // 눈 아이콘 부품(EyeAlmond 등)은 CircleSprite를 따로 쓴다
         var button = rt.gameObject.AddComponent<Button>(); button.targetGraphic = image;
         SetFlatColors(button, fill);
         return rt;
@@ -361,4 +367,11 @@ public static class MobileControlsPrefabGenerator
 
     private static Sprite RoundSprite() => Resources.Load<Sprite>("UI_pngs/MyPage/RoundRect");
     private static Sprite CircleSprite() => Resources.Load<Sprite>("UI_pngs/EmoteWheel_Disc") ?? RoundSprite();
+
+    // 디자이너 모바일 UI 분리 에셋(2026-09-03). 파일명은 전달받은 그대로(joystic2 오타 포함) — 없으면 옛 원형으로 폴백.
+    private const string kMobileArtDir = "UI_NEW/04_모바일 UI/";
+    private static Sprite ButtonSprite() => Resources.Load<Sprite>(kMobileArtDir + "Mobile_UI_Button") ?? CircleSprite();
+    private static Sprite VoiceSprite() => Resources.Load<Sprite>(kMobileArtDir + "Mobile_UI_voice") ?? RoundSprite();
+    private static Sprite JoystickBaseSprite() => Resources.Load<Sprite>(kMobileArtDir + "mobile_ui_joystick1") ?? CircleSprite();
+    private static Sprite JoystickKnobSprite() => Resources.Load<Sprite>(kMobileArtDir + "mobile_ui_joystic2") ?? CircleSprite();
 }
