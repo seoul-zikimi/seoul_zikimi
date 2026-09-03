@@ -41,6 +41,10 @@ namespace GridSystem
             {
                 var arena = catalog.FindVersusArena();
                 if (arena != null && arena.BackgroundPrefab != null) bgDef = arena;
+                // 폴백이 조용해서 "2vs2인데 선택한 맵 배경이 그대로 나온다"를 한참 못 찾았다.
+                // 경기장 프리팹이 깨져 임포트가 실패해도 여기로 떨어지므로 반드시 남긴다.
+                else Debug.LogWarning($"[MapLoader] 2vs2인데 공터 경기장 배경을 못 얻음(arena={(arena == null ? "없음" : arena.name)}, " +
+                                      $"프리팹={(arena != null && arena.BackgroundPrefab != null ? "OK" : "null")}) — 선택한 맵 배경으로 폴백합니다.");
             }
 
             if (def == null || bgDef == null || bgDef.BackgroundPrefab == null)
