@@ -27,10 +27,22 @@ namespace SeoulZikimi.UI.New
             {
                 button.transition = Selectable.Transition.ColorTint;
                 ColorBlock colors = button.colors;
-                colors.normalColor = Color.white;
-                colors.highlightedColor = Highlight;
-                colors.pressedColor = Pressed;
-                colors.selectedColor = Highlight;
+                if (button.name.StartsWith("Option_"))
+                {
+                    // 드롭다운 옵션 행: 이미지 = 하늘색 강조박스. 평소엔 투명, 커서를 올렸을 때만 보인다
+                    // (피그마 '드롭박스 - 펼쳐졌을 때 커서 올린 곳 강조박스'). 선택 후에도 남지 않게 selected도 투명.
+                    colors.normalColor = new Color(1f, 1f, 1f, 0f);
+                    colors.highlightedColor = Color.white;
+                    colors.pressedColor = new Color(0.88f, 0.94f, 1f, 1f);
+                    colors.selectedColor = new Color(1f, 1f, 1f, 0f);
+                }
+                else
+                {
+                    colors.normalColor = Color.white;
+                    colors.highlightedColor = Highlight;
+                    colors.pressedColor = Pressed;
+                    colors.selectedColor = Highlight;
+                }
                 colors.colorMultiplier = 1f;
                 colors.fadeDuration = 0.05f;
                 button.colors = colors;

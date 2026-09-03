@@ -110,6 +110,8 @@ namespace SeoulZikimi.UI.New
             BuildMapOptions();   // 맵 목록은 프리팹 고정이 아니라 카탈로그에서 만든다(바인딩도 여기서)
             BuildMapArrows();
             BindOptions(modeOptionButtons, index => ModeRequested?.Invoke(index), modeOptionsRoot);
+            UiNewDropdownList.Setup(modeOptionsRoot,
+                modeSelector != null ? (RectTransform)modeSelector.transform : null);   // 스크롤 목록 조립(맵 쪽은 BuildMapOptions가)
             // 세션 화면 배경도 같은 창 헤더를 쓴다. ×는 '나가기'와 동일하게 확인 팝업을 거쳐 방을 떠난다.
             closeWindowButton = UiNewWindowCloseButton.Attach(transform, RequestLeave);
         }
@@ -429,6 +431,8 @@ namespace SeoulZikimi.UI.New
                 });
             }
             mapOptionButtons = buttons;
+            UiNewDropdownList.Setup(mapOptionsRoot,
+                mapSelector != null ? (RectTransform)mapSelector.transform : null);   // 스크롤 목록 조립(최대 4행 + 바깥 클릭 닫힘)
         }
 
         private static void BindOptions(Button[] options, Action<int> callback, GameObject root)

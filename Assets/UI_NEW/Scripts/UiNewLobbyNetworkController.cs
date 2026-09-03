@@ -170,7 +170,8 @@ namespace SeoulZikimi.UI.New
                 ? GridSystem.MapCatalog.Instance.Get(mapIndex) : null;
             bool isHost = spawned && lobbyNet.IsHost;
             view.SetSettings(randomMap ? UiNewMapOptions.RandomLabel : (map != null ? map.DisplayName : "맵 없음"),
-                ModeNames[Mathf.Clamp(modeIndex, 0, ModeNames.Length - 1)], map != null ? map.Thumbnail : null, weather,
+                ModeNames[Mathf.Clamp(modeIndex, 0, ModeNames.Length - 1)],
+                map != null ? map.Thumbnail : (randomMap ? UiNewMapOptions.RandomThumbnail : null), weather,
                 spawned && lobbyNet.CanHostEditSettings);
             bool canChangeTeam = spawned && (!lobbyNet.IsLocallyReady || isHost);
             view.SetTeam(spawned ? lobbyNet.LocalTeam : 0, versusMode, canChangeTeam);

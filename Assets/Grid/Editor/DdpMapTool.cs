@@ -242,8 +242,10 @@ namespace GridSystem.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(def2);
 
-            // ⑦ 썸네일 + 맵 카탈로그 — 썸네일도 밤으로 찍는다(로비 카드에서 야경 컨셉이 보여야 한다)
-            var thumb = CaptureNightThumbnail(prefab);
+            // ⑦ 썸네일 + 맵 카탈로그 — 일괄 촬영 툴과 같은 '완성 건물 중심' 규격으로 통일(QA: 건물이 보여야 함).
+            // 실패 시에만 기존 밤 배경 촬영 폴백.
+            var thumb = MapAnswerThumbnailTool.CaptureAnswerCentered(def2);
+            if (thumb == null) thumb = CaptureNightThumbnail(prefab);
             if (thumb != null)
             {
                 so.Update();

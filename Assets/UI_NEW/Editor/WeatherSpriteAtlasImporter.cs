@@ -34,7 +34,14 @@ namespace SeoulZikimi.UI.New.Editor
             "Assets/Resources/UI_NEW/Items/Umbrella.png",
             "Assets/Resources/UI_NEW/Items/MovementBoost.png",
             "Assets/Resources/UI_NEW/Items/ProcessBoost.png",
-            "Assets/Resources/UI_NEW/Items/Cannon.png"
+            "Assets/Resources/UI_NEW/Items/Cannon.png",
+            // 로비 맵 선택 화살표(JobsnailLobbyPrefabBinder) — 글자 ◀▶ 모바일 깨짐 대체 이미지
+            "Assets/Resources/UI_pngs/MapArrow_Left.png",
+            "Assets/Resources/UI_pngs/MapArrow_Right.png",
+            // 로비 '랜덤' 맵 선택 썸네일(JobsnailLobbySkinner)
+            "Assets/Resources/UI_pngs/MapThumb_Random.png",
+            // 드롭다운 스크롤바 핸들(UiNewDropdownList)
+            "Assets/Resources/UI_NEW/02_세션 화면/드롭박스 - 스크롤바.png"
         };
 
         private static bool s_IsRunning;

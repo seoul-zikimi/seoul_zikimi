@@ -37,6 +37,8 @@ MonoBehaviour:
     Building: {fileID: 8300000, guid: d88faf5838f548d489ab87f5d8b869b9, type: 3}
     Urgent: {fileID: 8300000, guid: 35a57bb86f6bbff469a2462825db56a3, type: 3}
     Result: {fileID: 0}
+  m_GhostAlpha: 0
+  m_GhostTintMul: 0
   m_CompletedModel: {fileID: 0}
   m_CompletedModelPath: 
   m_CompletedModelAnchor: {x: 0, y: 0, z: 0}

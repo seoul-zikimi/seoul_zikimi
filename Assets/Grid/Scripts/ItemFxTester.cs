@@ -30,7 +30,8 @@ namespace GridSystem
 
             if (kb.digit1Key.wasPressedThisFrame) ItemFx.Spawned(Pos, Col);
             if (kb.digit2Key.wasPressedThisFrame) ItemFx.PickedUp(Pos, Col);
-            if (kb.digit3Key.wasPressedThisFrame) ItemFx.Used(Pos, Col, ItemNetwork.KindName(Kind), Kind);
+            if (kb.digit3Key.wasPressedThisFrame)
+                ItemFx.Used(Pos, Col, ItemNetwork.KindName(Kind), Kind, ItemNetwork.KindUseSfx(Kind));   // 아이콘 팝 + 종류별 발동음까지 확인
             if (kb.digit4Key.wasPressedThisFrame) ItemFx.Expired(Pos, Col);
             if (kb.digit5Key.wasPressedThisFrame) SpawnOrb();
             if (kb.digit0Key.wasPressedThisFrame) ClearOrbs();

@@ -190,9 +190,14 @@ namespace GridSystem.EditorTools
 
             // ⑦ 썸네일 + 맵 카탈로그 — 프리팹이 실제로 바뀐 경우(또는 썸네일이 없을 때)만 재렌더.
             // 렌더 결과 PNG는 기기·GPU마다 바이트가 미세하게 달라, 불필요 재렌더 자체가 머지 충돌원이다.
-            var thumb = (prefabChanged || !File.Exists(kThumbPath))
-                ? MapThumbnailUtil.Capture(prefab, kThumbPath)
-                : AssetDatabase.LoadAssetAtPath<Sprite>(kThumbPath);
+            // 재렌더할 때는 일괄 촬영 툴과 같은 '완성 건물 중심' 규격(실패 시에만 배경 통짜 샷 폴백).
+            Sprite thumb;
+            if (prefabChanged || !File.Exists(kThumbPath))
+            {
+                thumb = MapAnswerThumbnailTool.CaptureAnswerCentered(def2);
+                if (thumb == null) thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
+            }
+            else thumb = AssetDatabase.LoadAssetAtPath<Sprite>(kThumbPath);
             if (thumb != null)
             {
                 so.Update();

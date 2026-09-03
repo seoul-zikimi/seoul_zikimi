@@ -60,12 +60,40 @@ namespace GridSystem
         }
 
         /// <summary>해당 셀이 '아직 망치 고정 전'이면 true — 좌클릭 재집기 가능. (복제 상태 기준, 클라/UI도 호출)
-        /// 고정 필요 여부(MustBeFixed)와 무관 — 망치질로 고정한 블록만 회수 불가(C 철거로만).</summary>
+        /// 고정 필요 여부(MustBeFixed)와 무관 — 망치질로 고정한 블록만 회수 불가(C 철거로만).
+        /// 단, 정답 자리에 완벽히 들어맞은 블록도 재집기 금지(09/03) — 경복궁 프리셋 오집기 방지.
+        /// 이 게이트는 '집기'만 막는다: C 철거·붕괴·화재 소실은 그대로 동작한다.</summary>
         public bool IsPickupable(Vector3Int cell)
         {
             if (!TryGetCell(cell, out int matId, out int completed)) return false;
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(matId) : null;
-            return CanReclaim(def, completed);
+            return CanReclaim(def, completed) && !IsAnswerPerfect(cell);
+        }
+
+        /// <summary>이 셀이 속한 오브젝트의 '모든 칸'이 정답 칸이고 재료까지 일치하는가.
+        /// 회전은 채점(ScoreAgainst)과 동일하게 안 본다 — 점유 칸+재료만 비교.
+        /// 2vs2 팀B 구역(x ≥ ZoneSize.x)은 정답을 구역폭만큼 밀어서 본다(RecomputeScore와 동일 기준).</summary>
+        public bool IsAnswerPerfect(Vector3Int cell)
+        {
+            var ans = m_Manager != null ? m_Manager.Answer : null;
+            if (ans == null) return false;
+
+            var off = Vector3Int.zero;
+            if (m_Loop != null && m_Loop.IsVersus && cell.x >= m_Manager.ZoneSize.x)
+                off = new Vector3Int(m_Manager.ZoneSize.x, 0, 0);
+
+            ulong owner = 0; bool found = false;
+            for (int i = 0; i < m_Cells.Count; i++)
+                if (m_Cells[i].cell == cell) { owner = m_Cells[i].ownerObjectId; found = true; break; }
+            if (!found) return false;
+
+            for (int i = 0; i < m_Cells.Count; i++)
+            {
+                if (m_Cells[i].ownerObjectId != owner) continue;
+                if (!ans.TryGet(m_Cells[i].cell - off, out var ac) || ac.materialId != m_Cells[i].materialId)
+                    return false;
+            }
+            return true;
         }
 
         private static bool CanReclaim(MaterialDef def, int completedMask)
@@ -378,6 +406,8 @@ namespace GridSystem
             var def = m_Manager.Catalog != null ? m_Manager.Catalog.GetById(cs.materialId) : null;
             if (!CanReclaim(def, cs.completedProcessMask))
                 return false;
+            if (IsAnswerPerfect(cell))   // 정답 자리에 완벽히 맞은 블록은 재집기 금지(09/03) — 철거·붕괴는 별도 경로라 그대로
+                return false;
 
             ulong owner = cs.ownerObjectId;
             materialId = cs.materialId;
@@ -479,48 +509,20 @@ namespace GridSystem
             return collapsed;
         }
 
-        // 대포 탄도 상수 — 45° 고정 발사각에서 사거리 R = v^2/g 이므로 충전량이 곧 사거리다.
-        private const float kCannonMinRange = 3f;    // 최소 충전 사거리(m)
-        private const float kCannonMaxRange = 17f;   // 최대 충전 사거리 — 분할벽 근처에서 상대 진영 안쪽까지
-        private const float kCannonGravity = 20f;
-        private const float kCannonMarchStep = 0.02f;   // 탄도 적분 간격(초) — 셀 1칸(1m)보다 촘촘해야 관통이 없다
-        private const float kCannonMaxFlight = 12f;     // 안전 상한(초)
-
         /// <summary>조준 발사 — 시전자가 겨눈 방향·세기로 포물선을 그려 처음 부딪히는 블록을 부순다.
         /// enemyTeam 구역의 블록만 파괴되고(아군 진영은 맞아도 멀쩡), 빗나가면 착탄 지점에 불발 연출만 나간다.
-        /// 조준값(ServerCannonSource/AimDir/Charge)은 ItemNetwork가 사용 직전에 넣어준다.</summary>
+        /// 조준값(ServerCannonSource/AimDir/Charge)은 ItemNetwork가 사용 직전에 넣어준다.
+        /// 탄도식은 CannonBallistics — 클라가 그리는 예상 궤적과 같은 식이어야 한다.</summary>
         public bool ServerCannonDestroy(int enemyTeam)
         {
             if (!IsServer || m_ServerGrid == null) return false;
 
-            Vector3 origin = ServerCannonSource + Vector3.up * 0.8f;   // 총구 높이
-            Vector3 dir = ServerCannonAimDir; dir.y = 0f;
-            dir = dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward;
-
-            float range = Mathf.Lerp(kCannonMinRange, kCannonMaxRange, Mathf.Clamp01(ServerCannonCharge));
-            float speed = Mathf.Sqrt(range * kCannonGravity);          // 45°: R = v^2/g
-            float vh = speed * 0.70710678f, vy = vh;                   // cos45 = sin45
+            Vector3 origin = ServerCannonSource + Vector3.up * CannonBallistics.MuzzleHeight;
             float groundY = GridCoordinates.CellToWorld(Vector3Int.zero).y;
 
-            bool hasHit = false;
-            var hitCell = Vector3Int.zero;
-            Vector3 landPoint = origin + dir * range;
-            landPoint.y = groundY;
-
-            for (float t = kCannonMarchStep; t < kCannonMaxFlight; t += kCannonMarchStep)
-            {
-                var p = origin + dir * (vh * t);
-                p.y = origin.y + vy * t - 0.5f * kCannonGravity * t * t;
-
-                if (p.y <= groundY) { landPoint = new Vector3(p.x, groundY, p.z); break; }   // 땅에 떨어짐 = 불발
-
-                var cell = GridCoordinates.WorldToCell(p);
-                if (m_ServerGrid.IsOccupied(cell))
-                {
-                    hasHit = true; hitCell = cell; landPoint = CellWorld(cell);
-                    break;
-                }
-            }
+            bool hasHit = CannonBallistics.March(
+                origin, ServerCannonAimDir, ServerCannonCharge, groundY,
+                m_ServerGrid.IsOccupied, out var hitCell, out Vector3 landPoint);
 
             // 내 진영 블록은 포탄이 부딪혀도 부서지지 않는다(오조준 = 불발).
             bool destroys = hasHit && InZone(enemyTeam, hitCell);
@@ -624,7 +626,8 @@ namespace GridSystem
 
             var center = GridCoordinates.CellToWorld(
                 new Vector3Int(m_Manager.ZoneSize.x / 2 + (team == 1 ? m_Manager.ZoneSize.x : 0), 1, m_Manager.ZoneSize.z / 2));
-            GridSoundBridge.PlaySFXAt("LandObject", center);
+            // 지진 전용 '쿠르릉'(돌 구르는 소리) — 클립 연결 전엔 기존 착지음으로 폴백
+            GridSoundBridge.PlaySFXAt(GridSoundBridge.HasSFX("ItemEarthquake") ? "ItemEarthquake" : "LandObject", center);
             if (mine) GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 2f),
                                            "지진! 고정 안 한 블록이 무너져요!", new Color(0.85f, 0.35f, 0.15f));
         }

@@ -505,10 +505,18 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (!int.TryParse(ReadSessionProperty(session, kMapPropertyKey), out int mapIndex))
             return string.Empty;
 
+        if (mapIndex == GridSystem.MapCatalog.RandomMapIndex)
+            return "랜덤";
         var catalog = GridSystem.MapCatalog.Instance;
         var mapDef = catalog != null ? catalog.Get(mapIndex) : null;
         return mapDef != null ? mapDef.DisplayName : string.Empty;
     }
+
+    // '랜덤' 선택 전용 썸네일(물음표 카드) — 실제 MapDef가 없어 카탈로그 밖 리소스에서 로드.
+    private static Sprite s_RandomMapThumb;
+    private static Sprite RandomMapThumb()
+        => s_RandomMapThumb != null ? s_RandomMapThumb
+            : s_RandomMapThumb = Resources.Load<Sprite>("UI_pngs/MapThumb_Random");
 
     /// <summary>세션에 저장된 모드 인덱스를 짧은 모드 이름으로 바꾼다. 저장돼 있지 않으면 빈 문자열.</summary>
     private static string ModeLabelFromSession(ISessionInfo session)
@@ -891,8 +899,11 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             MaxPlayers = maxPlayers,
             ShowModeButton = isHost,
             ModeLabel = kLobbyModeLabels[lobbyMode],
-            MapName = mapDef != null ? mapDef.DisplayName : string.Empty,
-            MapThumbnail = mapDef != null ? mapDef.Thumbnail : null,
+            // '랜덤'(센티널 -1)은 카탈로그에 MapDef가 없다 — 전용 물음표 썸네일과 이름으로 표시
+            MapName = mapDef != null ? mapDef.DisplayName
+                : mapIndex == GridSystem.MapCatalog.RandomMapIndex ? "랜덤" : string.Empty,
+            MapThumbnail = mapDef != null ? mapDef.Thumbnail
+                : mapIndex == GridSystem.MapCatalog.RandomMapIndex ? RandomMapThumb() : null,
             ShowMapArrows = isHost && isNetworkServer && mapCount > 1,
             WeatherOn = weatherOn,
             ShowWeatherToggle = isHost,

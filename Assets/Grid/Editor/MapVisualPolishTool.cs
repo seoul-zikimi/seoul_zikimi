@@ -67,7 +67,10 @@ namespace GridSystem.EditorTools
                              ChannelXMin = -12.2f, ChannelXMax = 12.6f },          // 옹벽 상단을 0.4m 덮어 벽-바닥 사이 흰 틈새 제거(09/03 스크린샷)
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = true,
                              RemoveObjects = new[] { "CityPlain" }, FloorY = -27.4f },                                                                          // 산 위에서 내려다본 도시. 회색 판은 치움(08/22 승인)
-            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_VersusField.prefab",  Ground = GroundKind.Grass, Trees = true,  Skirt = true },
+            // 공터 대결장 — 스커트 끔(09/03): 평지인데 펜스(가로 56m)를 '플랫폼'으로 잘못 잡아
+            // 반지름 45m·꼭대기 y+0.57 짜리 초록 돔이 경기장 전체를 덮었다. 콜라이더가 없어
+            // 플레이어는 y=0인 진짜 바닥에 서는데 눈에는 돔 속에 파묻힌 것으로 보였다.
+            new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_VersusField.prefab",  Ground = GroundKind.Grass, Trees = true,  Skirt = false },
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_LotteWorld.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = false,   // 잠실 도심 — 호수 둘레 육지에만 빌딩
                              KeepClear = new[] { "Lake" },              // 석촌호수 — 크기 예외를 뚫고 빌딩 금지(안 하면 물 위에 빌딩이 선다)
                              GrassGround = true,                        // 호수공원 도시 — 아스팔트 회색판이 인조적이라 바닥만 풀밭(빌딩 격자는 유지)

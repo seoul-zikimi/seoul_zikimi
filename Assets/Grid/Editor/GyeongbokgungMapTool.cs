@@ -133,6 +133,9 @@ namespace GridSystem.EditorTools
             new Vector3Int( 7, 4, 10), new Vector3Int(15, 4, 10),
             // 2층 본보기 — 서쪽 측면 + 뒤 왼쪽 모듈
             new Vector3Int( 7, 5,  7), new Vector3Int( 7, 5, 13),
+            // [09/03 밸런스] 2층이 병목(플레이어 몫 8블록 × 2공정 = 16작업) → 뒷줄 3개 추가 프리셋.
+            // 남는 플레이어 몫: 잘 보이는 앞줄 4개 + 동쪽 측면 1개 = 5블록 × 2공정 = 10작업.
+            new Vector3Int(11, 5, 13), new Vector3Int(15, 5, 13), new Vector3Int(19, 5, 13),
         };
 
         [MenuItem("Tools/Map/★ 경복궁 맵 생성 (테스트)")]
@@ -262,8 +265,9 @@ namespace GridSystem.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(def2);
 
-            // ⑥ 썸네일 + 맵 카탈로그
-            var thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
+            // ⑥ 썸네일 + 맵 카탈로그 — 일괄 촬영 툴과 같은 '완성 건물 중심' 규격(배경 통짜 샷 금지)
+            var thumb = MapAnswerThumbnailTool.CaptureAnswerCentered(def2);
+            if (thumb == null) thumb = MapThumbnailUtil.Capture(prefab, kThumbPath);
             if (thumb != null)
             {
                 so.Update();

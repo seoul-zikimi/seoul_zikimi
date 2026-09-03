@@ -61,6 +61,7 @@ namespace GridSystem
         {
             if (Instance == this) Instance = null;
             m_State.OnValueChanged -= OnStateChanged;
+            if (m_FloodLoopOn) { m_FloodLoopOn = false; GridSoundBridge.StopLoop("DdpFloodLoop"); }
             DestroyVisuals();
         }
 
@@ -81,6 +82,27 @@ namespace GridSystem
             RefreshMarkers(DdpSpots.WaterChannelPrefix, m_Path, 2);
             if (IsServer) ServerTick();
             UpdateVisuals();
+            UpdateFloodSound();
+        }
+
+        // ── 물소리(전 클라 로컬) — Flowing 동안 수로 한가운데서 콸콸 루프 ──
+        // OnValueChanged 대신 매 프레임 폴링: 페이즈를 놓칠 일이 없고(늦게 합류해도 정확),
+        // PlayLoopAt은 이미 도는 중이면 위치 갱신만 하므로 매 프레임 불러도 안전하다.
+        private bool m_FloodLoopOn;
+
+        private void UpdateFloodSound()
+        {
+            bool want = Phase == FloodPhase.Flowing && m_Path.Count >= 2;
+            if (want)
+            {
+                GridSoundBridge.PlayLoopAt("DdpFloodLoop", m_Path[m_Path.Count / 2]);   // 3D — 수로에 가까울수록 크게
+                m_FloodLoopOn = true;
+            }
+            else if (m_FloodLoopOn)
+            {
+                m_FloodLoopOn = false;
+                GridSoundBridge.StopLoop("DdpFloodLoop");   // 물 빠짐 — fade-out
+            }
         }
 
         private void ServerTick()
@@ -227,7 +249,7 @@ namespace GridSystem
                 var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
                 if (po != null)
                     GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🌊 수문이 열립니다!", kWarnColor);
-                // TODO(사운드팀): 수문 개방 경보 + 물소리 SFX — GridSoundBridge에 전용 이름 추가 후 여기서 호출
+                // 개방 경보음은 쓰지 않기로 함(토스트만) — 물 콸콸 루프는 UpdateFloodSound가 Flowing에 켠다
             }
             else if (phase == FloodPhase.Flowing && m_Splash != null)
             {

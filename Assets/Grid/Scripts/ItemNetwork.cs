@@ -27,13 +27,20 @@ namespace GridSystem
             public Vector3 Pos;
             public bool Held;
             public ulong Holder;
+            public bool Revealed;    // 한 번 주웠다 내려놓은 아이템 — 종류 공개(? 상자 대신 아이콘 상자)
+            public float DespawnAt;  // Revealed 드롭의 소멸 시각(NetNow 기준). 스폰 상자(60초)는 Director 담당
             public void NetworkSerialize<T>(BufferSerializer<T> s) where T : IReaderWriter
             {
                 s.SerializeValue(ref Id); s.SerializeValue(ref Kind); s.SerializeValue(ref Pos);
                 s.SerializeValue(ref Held); s.SerializeValue(ref Holder);
+                s.SerializeValue(ref Revealed); s.SerializeValue(ref DespawnAt);
             }
-            public bool Equals(ItemEntry o) => Id == o.Id && Kind == o.Kind && Pos == o.Pos && Held == o.Held && Holder == o.Holder;
+            public bool Equals(ItemEntry o) => Id == o.Id && Kind == o.Kind && Pos == o.Pos && Held == o.Held && Holder == o.Holder
+                && Revealed == o.Revealed && DespawnAt == o.DespawnAt;
         }
+
+        /// <summary>[기획 09/03] 내려놓은(깐) 아이템 소멸 초 — 스왑·팀원 패스용 짧은 유예. 스폰 상자(60초)와 별개.</summary>
+        private const float kDropDespawnSeconds = 15f;
 
         /// <summary>팀에 걸린 지속 효과(서버가 만료 관리, 클라는 값만 읽는다).</summary>
         private struct TeamEffects : INetworkSerializable, System.IEquatable<TeamEffects>
@@ -91,7 +98,6 @@ namespace GridSystem
         private readonly float[] m_FogUntil = new float[2];
         private readonly float[] m_ImmuneUntil = new float[2];
         private float m_NextWeatherTick;   // 날씨 피해 판정 주기(미끄러짐)
-        private float m_NextWindTick;      // 바람 붕괴 주기 — 미끄러짐보다 훨씬 느리게 돈다
         private GameObject m_VisualRoot;
         private readonly System.Collections.Generic.Dictionary<uint, GameObject> m_Visuals = new();
 
@@ -191,6 +197,7 @@ namespace GridSystem
             if (!m_LocalHeldDirty) return;
             m_LocalHeldDirty = false;
             m_LocalHeldName = "";
+            m_LocalHeldHint = "";
             m_LocalHoldsCannon = false;
             ulong me = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : ulong.MaxValue;
             for (int i = 0; i < m_Items.Count; i++)
@@ -198,9 +205,19 @@ namespace GridSystem
                 var e = m_Items[i];
                 if (!e.Held || e.Holder != me) continue;
                 m_LocalHeldName = KindName((CompetitiveItemKind)e.Kind);
+                m_LocalHeldHint = KindHint((CompetitiveItemKind)e.Kind);
                 m_LocalHoldsCannon = (CompetitiveItemKind)e.Kind == CompetitiveItemKind.Cannon;
                 break;
             }
+        }
+
+        private string m_LocalHeldHint = "";
+
+        /// <summary>내가 든 아이템의 효과 한 줄 설명(없으면 "") — HUD 안내줄용.</summary>
+        public string LocalHeldHint()
+        {
+            RefreshLocalHeld();
+            return m_LocalHeldHint;
         }
 
         /// <summary>내가 든 게 대포인가 — 대포만 '꾹 눌렀다 떼기'로 발사한다(기획서).</summary>
@@ -219,6 +236,43 @@ namespace GridSystem
         public void RequestUseHeldAimed(Vector3 aimDir, float charge01)
         {
             if (LocalHasItem) UseHeldRpc(aimDir, Mathf.Clamp01(charge01));
+        }
+
+        /// <summary>[기획 09/03] G — 든 아이템을 깐 채로 바닥에 내려놓기(15초 뒤 소멸, 아무나 주울 수 있음).
+        /// 더 좋은 아이템으로 스왑하거나 팀원에게 패스하는 용도.</summary>
+        public void RequestDropHeld()
+        {
+            if (LocalHasItem) DropHeldRpc();
+        }
+
+        [Rpc(SendTo.Server)]
+        private void DropHeldRpc(RpcParams rpc = default)
+        {
+            ulong sender = rpc.Receive.SenderClientId;
+            for (int i = 0; i < m_Items.Count; i++)
+            {
+                var e = m_Items[i];
+                if (!e.Held || e.Holder != sender) continue;
+                e.Held = false;
+                e.Holder = 0;
+                e.Revealed = true;
+                e.DespawnAt = NetNow() + kDropDespawnSeconds;
+                e.Pos = DropPos(sender);
+                m_Items[i] = e;
+                return;
+            }
+        }
+
+        // 드롭 위치: 시전자 살짝 앞 발밑 지면(점프 중 드롭도 땅에 붙게). 지면 못 찾으면 제자리.
+        private Vector3 DropPos(ulong clientId)
+        {
+            var nm = NetworkManager.Singleton;
+            var po = nm != null && nm.SpawnManager != null ? nm.SpawnManager.GetPlayerNetworkObject(clientId) : null;
+            if (po == null) return transform.position + Vector3.up * 0.45f;
+            Vector3 probe = po.transform.position + po.transform.forward * 0.9f + Vector3.up * 1.5f;
+            if (Physics.Raycast(probe, Vector3.down, out var hit, 30f))
+                return hit.point + Vector3.up * 0.45f;
+            return po.transform.position + Vector3.up * 0.45f;
         }
 
         /// <summary>내(로컬 플레이어)가 들고 있는 아이템 이름. 없으면 "".</summary>
@@ -242,6 +296,15 @@ namespace GridSystem
         {
             var fx = LocalEffects();
             return fx.OrderBlocked ? Mathf.Max(0f, fx.OrderUntil - NetNow()) : 0f;
+        }
+
+        /// <summary>팀 진영 월드 경계(2vs2). 비대전이면 null — 승리 시네마틱 카메라 프레이밍용.</summary>
+        public static Bounds? TeamZoneBounds(int team)
+        {
+            if (s_Instance == null || s_Instance.m_Grid == null
+                || s_Instance.m_Loop == null || !s_Instance.m_Loop.IsVersus
+                || team < 0 || team > 1) return null;
+            return s_Instance.ZoneWorldBounds(team);
         }
 
         /// <summary>대포 조준 연출용 — 상대 진영 중심(월드). 비대전/미배정이면 fallback.</summary>
@@ -437,6 +500,18 @@ namespace GridSystem
 
             ExpireEffects();
             TickWeatherDamage();
+            TickDroppedDespawn();
+        }
+
+        // 내려놓은(깐) 아이템 15초 소멸 — 스폰 상자(60초)는 Director가, 드롭은 여기서 직접 관리.
+        private void TickDroppedDespawn()
+        {
+            float now = NetNow();
+            for (int i = m_Items.Count - 1; i >= 0; i--)
+            {
+                var e = m_Items[i];
+                if (!e.Held && e.Revealed && now >= e.DespawnAt) m_Items.RemoveAt(i);
+            }
         }
 
         // ── 날씨: 서버가 피해를 판정하고, 보이는 건 각 클라가 그린다 ──
@@ -446,14 +521,16 @@ namespace GridSystem
         // 미끄러짐과 바람 붕괴는 주기가 다르다. 미끄러짐은 자주 와야 '계속 미끄럽다'는 느낌이 나지만,
         // 붕괴는 같은 1초 주기로 돌리면 60초짜리 강풍 한 방에 수십 개가 쓸려나가 게임이 터진다.
         private const float kSlipTickSeconds = 1f;
-        private const float kWindTickSeconds = 6f;   // 강풍 60초 = 약 10개. 태풍은 한 번에 2개씩.
+        // [밸패 09/03] 붕괴 주기를 날씨별로 분리 — 강풍(20초) = 5초당 1개(총 4개),
+        // 태풍(10초) = 5초당 2개(총 ~4개 + 미끄러짐). 팀별 타이머라 양 팀에 각각 걸려도 안 섞인다.
+        private const float kStrongWindBlowSeconds = 5f;
+        private const float kTyphoonBlowSeconds = 5f;
+        private readonly float[] m_NextWindBlow = new float[2];
+
         private void TickWeatherDamage()
         {
             bool slipTick = Time.time >= m_NextWeatherTick;
-            bool windTick = Time.time >= m_NextWindTick;
-            if (!slipTick && !windTick) return;
             if (slipTick) m_NextWeatherTick = Time.time + kSlipTickSeconds;
-            if (windTick) m_NextWindTick = Time.time + kWindTickSeconds;
 
             for (int team = 0; team < 2; team++)
             {
@@ -462,12 +539,14 @@ namespace GridSystem
                 if (weather == WeatherKind.Sunny || fx.WeatherImmune) continue;
 
                 bool slippery = weather is WeatherKind.Rain or WeatherKind.Snow or WeatherKind.Typhoon;
-                bool windy = weather is WeatherKind.StrongWind or WeatherKind.Typhoon;
+                bool typhoon = weather == WeatherKind.Typhoon;
+                bool windy = typhoon || weather == WeatherKind.StrongWind;
 
-                if (slipTick && slippery) SlipTeam(team, weather == WeatherKind.Typhoon ? 1f : 0.6f);
-                if (windTick && windy && m_Net != null)
+                if (slipTick && slippery) SlipTeam(team, typhoon ? 1f : 0.6f);
+                if (windy && m_Net != null && Time.time >= m_NextWindBlow[team])
                 {
-                    int blown = m_Net.ServerWindCollapse(team, weather == WeatherKind.Typhoon ? 2 : 1);
+                    m_NextWindBlow[team] = Time.time + (typhoon ? kTyphoonBlowSeconds : kStrongWindBlowSeconds);
+                    int blown = m_Net.ServerWindCollapse(team, typhoon ? 2 : 1);
                     if (blown > 0) Debug.Log($"[Weather] 바람에 무너짐 → 팀{TeamId(team)} {blown}개");
                 }
             }
@@ -493,11 +572,12 @@ namespace GridSystem
             if (po == null) return;
             var rb = po.GetComponent<Rigidbody>();
             if (rb != null && !rb.isKinematic) rb.AddForce(impulse, ForceMode.VelocityChange);
-            // 날씨 틱마다(1초) 밀리므로 문구는 스로틀 — 매초 도배 방지
+            // 날씨 틱마다(1초) 밀리므로 문구·소리는 스로틀 — 매초 도배 방지
             if (Time.time >= m_NextSlipToast)
             {
                 m_NextSlipToast = Time.time + 3f;
                 GridJuice.WorldToast(po.transform.position + Vector3.up * 2.2f, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+                GridSoundBridge.PlaySFX("WeatherSlip");   // 킹받는 미끄덩 — 당한 본인에게만(타깃 RPC)
             }
         }
         private float m_NextSlipToast;   // 로컬 전용(수신 클라 기준)
@@ -770,11 +850,11 @@ namespace GridSystem
                 case NetworkListEvent<ItemEntry>.EventType.Remove:
                 case NetworkListEvent<ItemEntry>.EventType.RemoveAt:
                     RemoveVisual(e.Value.Id);
-                    var col = KindColor((CompetitiveItemKind)e.Value.Kind);
+                    var kind = (CompetitiveItemKind)e.Value.Kind;
+                    var col = KindColor(kind);
                     if (e.Value.Held) ItemFx.Used(HolderPos(e.Value.Holder, e.Value.Pos), col,
-                        KindName((CompetitiveItemKind)e.Value.Kind),
-                        (CompetitiveItemKind)e.Value.Kind);   // 사용 — 팡 + "○○ 사용!" 문구 + 아이콘 팝
-                    else ItemFx.Expired(e.Value.Pos, col);                                        // 미사용 소멸
+                        KindName(kind), kind, KindUseSfx(kind));   // 사용 — 팡 + "○○ 사용!" 문구 + 아이콘 팝 + 종류별 발동음
+                    else ItemFx.Expired(e.Value.Pos, col);   // 미사용 소멸
                     break;
 
                 default:
@@ -800,7 +880,9 @@ namespace GridSystem
         private void AddVisual(ItemEntry e)
         {
             if (m_VisualRoot == null || e.Held || m_Visuals.ContainsKey(e.Id)) return;
-            var go = ItemFx.MakeItemBox(e.Pos, KindColor((CompetitiveItemKind)e.Kind));   // 무지개 '?' 상자
+            // 스폰 상자 = 무지개 '?' / 내려놓은(깐) 상자 = ? 없이 종류 아이콘 공개
+            var go = ItemFx.MakeItemBox(e.Pos, KindColor((CompetitiveItemKind)e.Kind),
+                e.Revealed ? (CompetitiveItemKind)e.Kind : (CompetitiveItemKind?)null);
             go.name = $"~Item_{e.Id}";
             go.transform.SetParent(m_VisualRoot.transform, true);
             m_Visuals[e.Id] = go;
@@ -836,6 +918,21 @@ namespace GridSystem
         public static bool IsBuff(CompetitiveItemKind k)
             => k is CompetitiveItemKind.Umbrella or CompetitiveItemKind.MovementBoost or CompetitiveItemKind.ProcessBoost;
 
+        /// <summary>종류별 발동음 SFXType 이름 — OnItemsChanged(전 클라)에서 ItemFx.Used로 전달돼
+        /// 2D로 재생된다(시전자·피격자 모두 거리 무관하게 들림). null이면 공통 스윕/전용 RPC가 담당:
+        /// 대포·지진은 GridNetwork의 Everyone RPC(발사/흔들림 연출)에 이미 자기 소리가 있고,
+        /// 날씨 4종은 당한 팀 화면의 TeamWeatherFx가 앰비언스 루프를 켠다.</summary>
+        public static string KindUseSfx(CompetitiveItemKind k) => k switch
+        {
+            CompetitiveItemKind.OrderHack => "ItemOrderHack",           // 해킹 삐리릭 오류음
+            CompetitiveItemKind.MovementSlow => "ItemSlowdown",         // 하강음(띠로리, 8bit)
+            CompetitiveItemKind.ProcessSlow => "ItemSlowdown",
+            CompetitiveItemKind.MovementBoost => "ItemSpeedup",         // 상승음(저하의 반대)
+            CompetitiveItemKind.ProcessBoost => "ItemSpeedup",
+            CompetitiveItemKind.Fog => "ItemFog",                       // 연막탄 피유융 바람소리
+            _ => null,
+        };
+
         public static string KindName(CompetitiveItemKind k) => k switch
         {
             CompetitiveItemKind.Earthquake => "지진",
@@ -844,14 +941,34 @@ namespace GridSystem
             CompetitiveItemKind.StrongWind => "강풍",
             CompetitiveItemKind.Typhoon => "태풍",
             CompetitiveItemKind.Fog => "안개",
-            CompetitiveItemKind.MovementSlow => "속도 디버프",
+            // [09/03] 기획 개명 — 아이콘과 짝: 달팽이(🐌)·신발(👟)·해킹(📵)
+            CompetitiveItemKind.MovementSlow => "달팽이",
             CompetitiveItemKind.ProcessSlow => "공정 디버프",
-            CompetitiveItemKind.OrderHack => "주문 해킹",
+            CompetitiveItemKind.OrderHack => "해킹",
             CompetitiveItemKind.Umbrella => "우산",
-            CompetitiveItemKind.MovementBoost => "속도 버프",
+            CompetitiveItemKind.MovementBoost => "신발",
             CompetitiveItemKind.ProcessBoost => "공정 버프",
             CompetitiveItemKind.Cannon => "대포",
             _ => k.ToString(),
+        };
+
+        /// <summary>아이템 효과 한 줄 설명(기획 문구 09/03) — 소지 중 HUD 안내줄에 표시.</summary>
+        public static string KindHint(CompetitiveItemKind k) => k switch
+        {
+            CompetitiveItemKind.Earthquake => "상대의 고정되지 않은 재료들이 한번에 와르르!",
+            CompetitiveItemKind.Rain => "60초간 상대 진영에 비! 발이 미끄러진다",
+            CompetitiveItemKind.Snow => "60초간 상대 진영에 눈! 발이 미끄러진다",
+            CompetitiveItemKind.StrongWind => "20초간 상대의 재료들을 날려버린다!",
+            CompetitiveItemKind.Typhoon => "10초간 상대의 재료들을 무자비하게 날려버린다! 미끄러지는 비바람은 덤",
+            CompetitiveItemKind.Fog => "상대의 화면을 5초간 안개로 가린다!",
+            CompetitiveItemKind.MovementSlow => "상대의 이동속도가 느려진다! 15초",
+            CompetitiveItemKind.ProcessSlow => "상대의 작업속도가 느려진다! 15초",
+            CompetitiveItemKind.OrderHack => "상대의 주문을 10초간 봉인한다!",
+            CompetitiveItemKind.Umbrella => "날씨 효과에 면역된다! 30초",
+            CompetitiveItemKind.MovementBoost => "이동속도가 증가한다! 15초",
+            CompetitiveItemKind.ProcessBoost => "작업속도가 증가한다! 15초",
+            CompetitiveItemKind.Cannon => "맞추기만 한다면, 완성된 블럭 하나를 날려버린다!",
+            _ => "",
         };
 
         private sealed class UnityRandom : IRandomSource

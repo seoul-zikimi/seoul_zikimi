@@ -67,6 +67,29 @@ namespace GridSystem
                 m_Rig.SetWeather(effective);
             EnsureGround();
             m_Ground.SetWeather(effective);
+            ApplyAmbience(effective);
+        }
+
+        // ── 날씨 앰비언스 루프(로컬) ──────────────────────────
+        // '내 화면'의 유효 날씨를 그대로 따른다 — 세션 기본 날씨든 아이템으로 맞은 임시 날씨든
+        // 여기 하나로 흘러들어오므로, 아이템 태풍을 맞은 순간 태풍 소리가 켜지고 풀리면 꺼진다.
+        private string m_AmbienceLoop;
+
+        private static string AmbienceFor(WeatherKind w) => w switch
+        {
+            WeatherKind.Rain       => "WeatherRainLoop",      // 빗소리
+            WeatherKind.StrongWind => "WeatherWindLoop",      // 바람소리
+            WeatherKind.Typhoon    => "WeatherTyphoonLoop",   // 비+바람(태풍 전용 클립)
+            _ => null,   // Sunny·Snow·낙엽·벚꽃 — 앰비언스 없음(눈은 무음이 오히려 분위기)
+        };
+
+        private void ApplyAmbience(WeatherKind weather)
+        {
+            string want = AmbienceFor(weather);
+            if (want == m_AmbienceLoop) return;
+            if (m_AmbienceLoop != null) GridSoundBridge.StopLoop(m_AmbienceLoop);
+            m_AmbienceLoop = want;
+            if (want != null) GridSoundBridge.PlayLoop(want);   // 2D — 하늘에서 내리는 소리라 거리 개념 없음
         }
 
         private void EnsureGround()
@@ -130,6 +153,7 @@ namespace GridSystem
         private void OnDestroy()
         {
             m_Fog = false; ApplyFog();
+            if (m_AmbienceLoop != null) GridSoundBridge.StopLoop(m_AmbienceLoop);   // 씬 이탈 시 앰비언스 끔
             if (s_Instance == this) s_Instance = null;
         }
 

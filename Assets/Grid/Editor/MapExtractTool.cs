@@ -103,7 +103,9 @@ namespace GridSystem.EditorTools
             var so = new SerializedObject(def);
             var prefab = so.FindProperty("m_BackgroundPrefab").objectReferenceValue as GameObject;
             if (prefab == null) { Debug.LogError("[MapExtract] MapDef에 배경 프리팹이 없습니다."); return; }
-            var thumb = CaptureThumbnail(prefab, $"{kMapDefDir}/Thumb_{def.name.Replace("Map_", "")}.png");
+            // 일괄 촬영 툴과 같은 '완성 건물 중심' 규격 우선 — 정답 없는 맵만 배경 촬영 폴백.
+            var thumb = MapAnswerThumbnailTool.CaptureAnswerCentered(def);
+            if (thumb == null) thumb = CaptureThumbnail(prefab, $"{kMapDefDir}/Thumb_{def.name.Replace("Map_", "")}.png");
             if (thumb == null) return;
             so.FindProperty("m_Thumbnail").objectReferenceValue = thumb;
             so.ApplyModifiedPropertiesWithoutUndo();
