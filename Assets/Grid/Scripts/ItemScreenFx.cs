@@ -24,7 +24,7 @@ namespace GridSystem
             var go = new GameObject("~ItemBanner", typeof(RectTransform), typeof(Image));
             var rt = (RectTransform)go.transform;
             rt.SetParent(s_BannerRoot, false);
-            rt.sizeDelta = new Vector2(430f, 62f);
+            rt.sizeDelta = new Vector2(617f, 89f);
 
             var bg = go.GetComponent<Image>();
             bg.sprite = RoundRect();
@@ -37,8 +37,8 @@ namespace GridSystem
             var irt = (RectTransform)iconGo.transform;
             irt.SetParent(rt, false);
             irt.anchorMin = irt.anchorMax = new Vector2(0f, 0.5f);
-            irt.anchoredPosition = new Vector2(38f, 0f);
-            irt.sizeDelta = new Vector2(46f, 46f);
+            irt.anchoredPosition = new Vector2(55f, 0f);
+            irt.sizeDelta = new Vector2(66f, 66f);
             var icon = iconGo.GetComponent<Image>();
             icon.raycastTarget = false;
             icon.preserveAspect = true;
@@ -51,10 +51,10 @@ namespace GridSystem
             var trt = (RectTransform)txtGo.transform;
             trt.SetParent(rt, false);
             trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
-            trt.offsetMin = new Vector2(70f, 0f); trt.offsetMax = new Vector2(-14f, 0f);
+            trt.offsetMin = new Vector2(100f, 0f); trt.offsetMax = new Vector2(-20f, 0f);
             var txt = txtGo.GetComponent<Text>();
             txt.font = BannerFont();
-            txt.fontSize = 26;
+            txt.fontSize = 37;
             txt.fontStyle = FontStyle.Bold;
             txt.alignment = TextAnchor.MiddleCenter;
             txt.color = Color.white;
@@ -90,7 +90,7 @@ namespace GridSystem
             s_Canvas.sortingOrder = 450;   // HUD 위, 팝업(설정 등)보단 아래 취지의 오버레이
             var scaler = go.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1338f, 753f);
+            scaler.referenceResolution = new Vector2(1920f, 1080f);   // 전 캔버스 공통 기준(해상도 대응 통일)
             scaler.matchWidthOrHeight = 0.5f;
 
             // 비네트(배너보다 아래 깔림)
@@ -110,8 +110,8 @@ namespace GridSystem
             s_BannerRoot.SetParent(go.transform, false);
             s_BannerRoot.anchorMin = s_BannerRoot.anchorMax = new Vector2(0.5f, 1f);
             s_BannerRoot.pivot = new Vector2(0.5f, 1f);
-            s_BannerRoot.anchoredPosition = new Vector2(0f, -200f);   // 타이머 → 점수줄 → 버프바(쿨타임) 아래 순서
-            s_BannerRoot.sizeDelta = new Vector2(430f, 0f);
+            s_BannerRoot.anchoredPosition = new Vector2(0f, -287f);   // 타이머 → 점수줄 → 버프바(쿨타임) 아래 순서
+            s_BannerRoot.sizeDelta = new Vector2(617f, 0f);
             var layout = bgo.AddComponent<VerticalLayoutGroup>();
             layout.childAlignment = TextAnchor.UpperCenter;
             layout.spacing = 8f;

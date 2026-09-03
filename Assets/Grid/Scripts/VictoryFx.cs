@@ -125,7 +125,7 @@ namespace GridSystem
             canvas.sortingOrder = 480;   // ItemScreenFx(450)보다 위
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1338f, 753f);
+            scaler.referenceResolution = new Vector2(1920f, 1080f);   // 전 캔버스 공통 기준(해상도 대응 통일)
             m_Group = canvasGo.GetComponent<CanvasGroup>();
 
             bool tie = WinnerTeam < 0;
@@ -137,10 +137,10 @@ namespace GridSystem
                 : win ? (ByCompletion ? "우리 팀 승리!" : "우리가 더 지었다!") : "다음 판엔 더 빠르게!";
             var mainColor = win ? new Color(1f, 0.82f, 0.1f) : new Color(0.75f, 0.78f, 0.85f);
 
-            m_Main = MakeText(canvasGo.transform, main, win ? 120 : 84, mainColor, new Vector2(0f, 60f));
+            m_Main = MakeText(canvasGo.transform, main, win ? 172 : 120, mainColor, new Vector2(0f, 86f));
             m_MainRt = m_Main.rectTransform;
             m_MainRt.localScale = Vector3.zero;
-            MakeText(canvasGo.transform, sub, 34, Color.white, new Vector2(0f, -30f));
+            MakeText(canvasGo.transform, sub, 49, Color.white, new Vector2(0f, -43f));
         }
 
         static Text MakeText(Transform parent, string value, int size, Color color, Vector2 pos)
@@ -150,7 +150,7 @@ namespace GridSystem
             rt.SetParent(parent, false);
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = pos;
-            rt.sizeDelta = new Vector2(1200f, size + 40f);
+            rt.sizeDelta = new Vector2(1720f, size + 57f);
             var text = go.GetComponent<Text>();
             var font = Resources.Load<Font>("Fonts/서울한강 장체M");
             text.font = font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

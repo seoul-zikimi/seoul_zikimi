@@ -307,12 +307,23 @@ internal sealed class JobsnailPreviewMotion : MonoBehaviour
     private Quaternion m_Forward;
     private int m_Phase;
     private float m_PhaseStartedAt;
+    // 달팽이(PlayerAnim)는 파라미터 구동 컨트롤러 — Grounded 기본 false면 자체 전이가
+    // Jump(허우적)로 끌고 간다. 파라미터가 있으면 지상·속도를 계속 맞춰준다.
+    private bool m_HasGrounded, m_HasSpeed;
 
     public void Initialize(Animator animator)
     {
         m_Animator = animator;
         m_Forward = transform.localRotation;
         m_PhaseStartedAt = Time.unscaledTime;
+        if (m_Animator != null)
+            foreach (var p in m_Animator.parameters)
+            {
+                if (p.name == "Grounded") m_HasGrounded = true;
+                else if (p.name == "Speed") m_HasSpeed = true;
+            }
+        if (m_HasGrounded) m_Animator.SetBool("Grounded", true);
+        if (m_HasSpeed) m_Animator.SetFloat("Speed", 0f);
         Play("Idle", 0f);
     }
 
@@ -365,8 +376,13 @@ internal sealed class JobsnailPreviewMotion : MonoBehaviour
 
     private void UpdateWalkPlayback(float elapsed)
     {
-        if (m_Animator == null || m_Phase != 1)
+        if (m_Animator == null)
             return;
+        if (m_Phase != 1)
+        {
+            if (m_HasSpeed) m_Animator.SetFloat("Speed", 0f);   // 걷기 밖 = 정지(파라미터 컨트롤러가 Idle 유지)
+            return;
+        }
 
         float remaining = kDurations[1] - elapsed;
         float playback;
@@ -378,6 +394,7 @@ internal sealed class JobsnailPreviewMotion : MonoBehaviour
             playback = 1f;
 
         m_Animator.speed = playback;
+        if (m_HasSpeed) m_Animator.SetFloat("Speed", playback * 2f);   // 파라미터 전이도 걷기 유지
     }
 
     private void Play(string state, float fadeSeconds)

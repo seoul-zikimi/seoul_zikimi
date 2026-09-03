@@ -78,14 +78,14 @@ public class MirrorReflection : MonoBehaviour
             m_Char = ch.transform;
         }
 
-        // 옷 갈아입기(조각 생성/파괴)로 렌더러가 바뀔 때만 다시 수집 + 레이어 재적용.
-        // hierarchyCount는 계층 내 트랜스폼 수라 조각이 생기고 사라지면 반드시 변한다(같은 프레임 교체도
-        // Destroy가 프레임 끝까지 지연돼 한 프레임 +1로 잡힌다).
+        // 옷 조각은 갈아입기 타이밍(프레임 경계·지연 파괴)에 따라 레이어 재적용을 놓칠 수 있어
+        // 매 프레임 레이어를 확정한다(옷장 씬 캐릭터 계층 수십 개 — 비용 무시 가능).
+        // 렌더러 목록만 계층 수 변화 때 재수집.
+        SetLayerRecursively(m_Char, kMirrorLayer);   // 거울 카메라 전용 레이어(메인 카메라도 이 레이어를 그림)
         int hierarchyCount = m_Char.hierarchyCount;
         if (m_CharRenderers == null || hierarchyCount != m_CharHierarchyCount)
         {
             m_CharHierarchyCount = hierarchyCount;
-            SetLayerRecursively(m_Char, kMirrorLayer);   // 거울 카메라 전용 레이어(메인 카메라도 이 레이어를 그림)
             m_CharRenderers = m_Char.GetComponentsInChildren<Renderer>();
         }
 
@@ -147,7 +147,10 @@ public class MirrorReflection : MonoBehaviour
         var mouse = UnityEngine.InputSystem.Mouse.current;
         if (mouse == null) return;
 
-        if (mouse.rightButton.wasPressedThisFrame && m_SurfaceTr != null)
+        // 좌·우클릭 아무거나 거울 위에서 꾹 → 드래그 회전
+        bool pressedNow = mouse.rightButton.wasPressedThisFrame || mouse.leftButton.wasPressedThisFrame;
+        bool held = mouse.rightButton.isPressed || mouse.leftButton.isPressed;
+        if (pressedNow && m_SurfaceTr != null)
         {
             var cam = Camera.main;
             if (cam != null)
@@ -167,7 +170,7 @@ public class MirrorReflection : MonoBehaviour
                 }
             }
         }
-        if (!mouse.rightButton.isPressed) { m_Dragging = false; return; }
+        if (!held) { m_Dragging = false; return; }
         if (!m_Dragging) return;
 
         float x = mouse.position.ReadValue().x;

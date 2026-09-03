@@ -15,7 +15,7 @@ public static class GameLoopHudPrefabGenerator
     private const string kPath = "Assets/Resources/UI/HUD/GameLoopHUD.prefab";
 
     /// <summary>리마스터 레이아웃이 적용된 프리팹인지(자동 재생성 판단용 마커 노드).</summary>
-    public const string kRemasterMarker = "RemasterMarker_v15";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
+    public const string kRemasterMarker = "RemasterMarker_v16";   // 레이아웃 바뀌면 버전 올리기 → 자동 재생성
 
     [MenuItem("Jobsnail/UI/Generate GameLoopHud Prefab")]
     public static void Generate()
@@ -27,6 +27,7 @@ public static class GameLoopHudPrefabGenerator
         rootRt.anchorMin = Vector2.zero; rootRt.anchorMax = Vector2.one;
         rootRt.offsetMin = Vector2.zero; rootRt.offsetMax = Vector2.zero;
         root.AddComponent<GameLoopHUD>();
+        root.AddComponent<MobileSafeArea>();   // 노치·펀치홀 회피 — HUD 전체(타이머·버튼·버프바)를 세이프에어리어 안으로
         var rootT = root.transform;
 
         // ── 상단: 타이머 아이콘 + 남은 시간(리마스터 · 피그마 "2 : 15" 642,19 120x60 · 아이콘 38x44 왼쪽) ──
