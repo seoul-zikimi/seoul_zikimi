@@ -150,12 +150,23 @@ namespace Player
         }
 
         // ── 벽 기어오르기 ───────────────────────────────────────────
-        // 전방(수평 카메라 forward)에 벽이 있나 + 그 방향 반환.
-        private bool WallInFront(Transform cameraArm, out Vector3 inDir)
+        // 붙어 있는 벽 방향(수평) — 카메라가 아니라 '입력으로 민 방향'으로 잡아서 옆·뒤 벽도 탄다.
+        private Vector3 m_ClimbDir;
+
+        // 입력(카메라 상대)을 월드 수평 방향으로.
+        private static Vector3 MoveDir(Vector2 input, Transform cameraArm)
         {
-            inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
+            Vector3 fwd = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
+            Vector3 right = Vector3.ProjectOnPlane(cameraArm.right, Vector3.up).normalized;
+            return fwd * input.y + right * input.x;
+        }
+
+        // dir 방향에 벽이 있나.
+        private bool WallInDirection(Vector3 dir)
+        {
+            if (dir.sqrMagnitude < 0.01f) return false;
             var origin = transform.position + Vector3.up * kClimbRayH;
-            int n = Physics.RaycastNonAlloc(origin, inDir, s_Hits, kWallReach, kCastMask, QueryTriggerInteraction.Ignore);
+            int n = Physics.RaycastNonAlloc(origin, dir.normalized, s_Hits, kWallReach, kCastMask, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n; i++)
             {
                 var h = s_Hits[i];
@@ -168,38 +179,48 @@ namespace Player
             return false;
         }
 
-        // 일반 이동 전 호출: 벽 보고 W면 기어오르기 진입. (벽점프 직후 쿨다운 동안은 안 붙음)
+        // 일반 이동 전 호출: 어느 방향이든 벽으로 밀면 기어오르기 진입. (벽점프 직후 쿨다운 동안은 안 붙음)
         public bool TryStartClimb(Vector2 input, Transform cameraArm)
         {
             if (m_IsClimbing) return true;
             if (m_ClimbCooldown > 0f) { m_ClimbCooldown -= Time.fixedDeltaTime; return false; }
-            if (input.y > 0.1f && WallInFront(cameraArm, out _)) m_IsClimbing = true;
+            Vector3 dir = MoveDir(input, cameraArm);
+            if (input.sqrMagnitude > 0.01f && WallInDirection(dir))
+            {
+                m_ClimbDir = dir.normalized;
+                m_IsClimbing = true;
+            }
             return m_IsClimbing;
         }
 
         // 기어오르기 이동 + 탈출 (중력 off 상태, FixedUpdate).
+        // 조작은 벽 기준: 벽 쪽으로 밀면 ↑, 벽 반대로 밀면 ↓, 수직 성분은 좌우 이동.
         public void Climb(Vector2 input, Transform cameraArm)
         {
-            if (!WallInFront(cameraArm, out Vector3 inDir))   // 발이 벽 위로(꼭대기) 또는 벽 벗어남 → 렛지로 넘기고 해제
+            if (!WallInDirection(m_ClimbDir))   // 발이 벽 위로(꼭대기) 또는 벽 벗어남 → 렛지로 넘기고 해제
             {
-                m_Rb.linearVelocity = inDir * m_Config.MoveSpeed + Vector3.up * m_Config.ClimbSpeed;
+                m_Rb.linearVelocity = m_ClimbDir * m_Config.MoveSpeed + Vector3.up * m_Config.ClimbSpeed;
                 m_IsClimbing = false;
                 return;
             }
-            if (input.y < 0f && IsGrounded()) { m_IsClimbing = false; return; }   // 내려와 접지 → 해제
 
-            Vector3 right = Vector3.ProjectOnPlane(cameraArm.right, Vector3.up).normalized;
-            float vy      = input.y * m_Config.ClimbSpeed;            // W=↑ / S=↓
-            Vector3 along = right * (input.x * m_Config.ClimbSpeed);  // A/D 좌우
-            Vector3 into  = inDir * 0.5f;                            // 벽에 약하게 밀착(마찰로 못 오르는 것 방지)
-            // 돌풍은 매달린 상태에도 작용 — 벽에서 밀려나면 다음 틱 WallInFront가 실패해 자연스럽게 떨어진다.
-            m_Rb.linearVelocity = new Vector3(along.x + into.x + ExternalPush.x, vy, along.z + into.z + ExternalPush.z);
+            Vector3 move = MoveDir(input, cameraArm);
+            float toward = Vector3.Dot(move, m_ClimbDir);              // 벽 쪽 성분 = 오르내림
+            if (toward < 0f && IsGrounded()) { m_IsClimbing = false; return; }   // 내려와 접지 → 해제
+
+            Vector3 lateral = (move - m_ClimbDir * toward) * m_Config.ClimbSpeed;   // 벽면 좌우
+            float vy = toward * m_Config.ClimbSpeed;
+            Vector3 into = m_ClimbDir * 0.5f;                          // 벽에 약하게 밀착(마찰로 못 오르는 것 방지)
+            // 돌풍은 매달린 상태에도 작용 — 벽에서 밀려나면 다음 틱 WallInDirection이 실패해 자연스럽게 떨어진다.
+            m_Rb.linearVelocity = new Vector3(lateral.x + into.x + ExternalPush.x, vy, lateral.z + into.z + ExternalPush.z);
         }
 
         // 벽에서 점프 탈출: 벽 반대로 + 위로.
         public void ClimbJumpOff(Transform cameraArm)
         {
-            Vector3 inDir = Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
+            Vector3 inDir = m_ClimbDir.sqrMagnitude > 0.01f
+                ? m_ClimbDir
+                : Vector3.ProjectOnPlane(cameraArm.forward, Vector3.up).normalized;
             float jumpV = Mathf.Sqrt(2f * Physics.gravity.magnitude * kJumpHeight);
             m_Rb.linearVelocity = -inDir * m_Config.MoveSpeed + Vector3.up * jumpV;
             JumpStretch();   // 벽차기도 발구름 쭉
