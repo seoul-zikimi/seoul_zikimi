@@ -124,6 +124,9 @@ namespace GridSystem.EditorTools
         {
             string name = mat.name;
             if (name.StartsWith("Sky_") || name == "Mat_ToonEdge") return false;
+            // 원경(빌딩 격자·광통교 파사드·지평선 바닥)은 툰 금지 — UTS가 URP 안개를 안 먹어서
+            // 세상은 하얀 안개로 녹는데 빌딩만 까만 실루엣으로 남는 사고(09/03 "미친듯이 발광").
+            if (name.StartsWith("Mat_Bldg_") || name.StartsWith("Mat_GtgFacade") || name.StartsWith("Mat_Horizon")) return false;
             if (mat.HasProperty("_Surface") && mat.GetFloat("_Surface") > 0.5f) return false;      // 투명(물·유리 등)
             if (mat.HasProperty("_AlphaClip") && mat.GetFloat("_AlphaClip") > 0.5f) return false;  // 컷아웃(나무 빌보드·실루엣 카드)
             if (mat.IsKeywordEnabled("_EMISSION")) return false;                                    // 가로등·네온(밤 발광 유지)
