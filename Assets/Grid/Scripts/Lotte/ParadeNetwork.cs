@@ -304,7 +304,7 @@ namespace GridSystem
             var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
             if (po != null)
                 GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🎉 퍼레이드 지나갑니다!", new Color(0.98f, 0.45f, 0.65f));
-            GridSoundBridge.PlaySFX("LotteParadeFanfare");   // 예고 팡파레(2D 전원) — 행진곡 루프는 UpdateParadeSound가 Running에 켠다
+            // 예고 팡파레는 쓰지 않기로 함(토스트만) — 행진곡 루프는 UpdateParadeSound가 Running에 켠다
         }
 
         private void UpdateVisuals()

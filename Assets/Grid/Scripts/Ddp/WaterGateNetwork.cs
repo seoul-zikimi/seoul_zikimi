@@ -249,7 +249,7 @@ namespace GridSystem
                 var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
                 if (po != null)
                     GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🌊 수문이 열립니다!", kWarnColor);
-                GridSoundBridge.PlaySFX("DdpFloodWarning");   // 개방 경보(2D 전원) — 물 콸콸 루프는 UpdateFloodSound가 Flowing에 켠다
+                // 개방 경보음은 쓰지 않기로 함(토스트만) — 물 콸콸 루프는 UpdateFloodSound가 Flowing에 켠다
             }
             else if (phase == FloodPhase.Flowing && m_Splash != null)
             {

@@ -2,14 +2,15 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// 아이템·날씨·맵 기믹 사운드 17종을 SoundLibrary.asset에 원클릭 연결(멱등 — 있으면 클립만 갱신).
+/// 아이템·날씨·맵 기믹 사운드 14종을 SoundLibrary.asset에 원클릭 연결(멱등 — 있으면 클립만 갱신).
 /// 클립: Assets/Sound/Clips/Gameplay/ 아래 아래 표의 파일명(.wav/.mp3/.ogg 아무거나).
 ///
 /// 클립이 아직 없는 항목은 건너뛴다 — 연결 전엔 호출부가 각자 폴백으로 동작한다:
-///   · 아이템 계열: ItemFx의 기존 합성음(뾰롱/펑/스윕)이 그대로 남
+///   · 아이템 계열: ItemFx의 기존 합성음(뾰롱/펑)이 그대로 남
 ///   · 지진: 착지음(LandObject) 폴백
 ///   · 날씨 루프·수문·퍼레이드·미끄덩: 무음(클립 연결 순간부터 들림)
 /// 즉 사운드팀은 파일을 폴더에 넣고 이 메뉴만 다시 누르면 된다.
+/// (발동 공통 스윕·수문 경보·퍼레이드 팡파레는 쓰지 않기로 해 목록에서 뺐다 — 09/03)
 /// </summary>
 public static class GameplaySoundWiring
 {
@@ -23,7 +24,6 @@ public static class GameplaySoundWiring
         // ── 아이템 공통 ──
         (SFXType.ItemBoxSpawn,       "Item_Box_Spawn",       "상자 등장 뾰롱"),
         (SFXType.ItemPickup,         "Item_Pickup",          "상자 획득 뾰롱"),
-        (SFXType.ItemUse,            "Item_Use",             "발동 공통 스윕(전용음 없는 종류)"),
         // ── 아이템 종류별 발동음 ──
         (SFXType.ItemCannonFire,     "Item_Cannon_Fire",     "대포 펑~"),
         (SFXType.ItemEarthquake,     "Item_Earthquake",      "지진 쿠르릉(돌 구르는 소리)"),
@@ -37,9 +37,7 @@ public static class GameplaySoundWiring
         (SFXType.WeatherTyphoonLoop, "Weather_Typhoon_Loop", "태풍(비+바람) 루프"),
         (SFXType.WeatherSlip,        "Weather_Slip",         "미끄덩 킹받는 소리"),
         // ── 맵 기믹 ──
-        (SFXType.DdpFloodWarning,    "Ddp_Flood_Warning",    "DDP 수문 개방 경보"),
         (SFXType.DdpFloodLoop,       "Ddp_Flood_Loop",       "DDP 물 콸콸 루프"),
-        (SFXType.LotteParadeFanfare, "Lotte_Parade_Fanfare", "롯월 퍼레이드 예고 팡파레"),
         (SFXType.LotteParadeMusic,   "Lotte_Parade_Music",   "롯월 퍼레이드 행진곡 루프"),
     };
 

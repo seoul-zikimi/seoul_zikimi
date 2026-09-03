@@ -46,9 +46,10 @@ public enum SFXType
 
     // ── 아이템(2vs2 경쟁) — 클립: Assets/Sound/Clips/Gameplay, 연결: Tools ▸ Sound ▸ 아이템·날씨·맵 사운드 연결 ──
     // 클립이 SoundLibrary에 없으면 ItemFx의 기존 합성음(뾰롱류)으로 폴백 — 미연결 상태여도 무음이 되지 않는다.
+    // (주의) 이 아래는 SoundLibrary.asset에 enum 정수값으로 저장된다 — 중간 삽입/삭제 시
+    //        뒤 항목들의 저장값이 밀리므로, 순서를 바꾸면 asset의 type 인덱스도 같이 마이그레이션할 것.
     ItemBoxSpawn,       // 상자 등장 뾰롱 — ItemFx.Spawned
-    ItemPickup,         // 상자 획득 뾰롱 — ItemFx.PickedUp
-    ItemUse,            // 발동 공통(전용음 없는 종류의 폴백 스윕) — ItemFx.Used
+    ItemPickup,         // 상자 획득 뾰롱 — ItemFx.PickedUp (발동 공통 스윕은 합성음 고정 — 전용 타입 없음)
     ItemCannonFire,     // 대포 발사 '펑~' — ItemFx.CannonShot (착탄음은 LandObject 별도)
     ItemEarthquake,     // 지진 '쿠르릉' 돌 구르는 소리 — GridNetwork.EarthquakeFxRpc
     ItemOrderHack,      // 주문 해킹 '삐리릭' 오류음 — 전 클라 2D(시전자·피격자 모두)
@@ -62,9 +63,7 @@ public enum SFXType
     WeatherTyphoonLoop, // 태풍 — 비+바람 합친 태풍 루프(클립 하나로 믹스해 제작)
     WeatherSlip,        // 미끄덩 — 빗물/눈에 미끄러졌을 때 킹받는 소리(PlayerStun.StunSlip)
 
-    // ── 맵 기믹 ──
-    DdpFloodWarning,    // DDP 수문 개방 경보(예고 순간 원샷)
+    // ── 맵 기믹 ── (예고 경보/팡파레는 쓰지 않기로 — 토스트만)
     DdpFloodLoop,       // DDP 수문 물 콸콸 루프(Flowing 동안, 수로 위치 3D)
-    LotteParadeFanfare, // 롯월 퍼레이드 예고 팡파레(원샷)
     LotteParadeMusic,   // 롯월 퍼레이드 행진곡 루프(Running 동안, 선두 카를 따라다니는 3D)
 }

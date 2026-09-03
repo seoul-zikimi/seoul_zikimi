@@ -120,9 +120,9 @@ namespace GridSystem
                 fx.gravity = -7f; fx.life = 0.7f; fx.spinDeg = 300f; fx.spinAxis = Random.onUnitSphere;
             }
             if (useSfx != null && GridSoundBridge.HasSFX(useSfx))
-                GridSoundBridge.PlaySFX(useSfx);                     // 종류별 발동음(2D — 전원 청취)
+                GridSoundBridge.PlaySFX(useSfx);       // 종류별 발동음(2D — 전원 청취)
             else
-                PlayOrSynth("ItemUse", UseClip(), pos, 0.8f);        // 공통 스윕(뾰로롱↑)
+                Play(UseClip(), pos, 0.8f);            // 전용음 없는 종류(우산·날씨 등)는 합성 스윕(뾰로롱↑) 고정
         }
 
         /// <summary>사용 순간 아이템 아이콘이 머리 위로 뿅 떠올라 흔들리며 사라짐 — 멀리서도 종류가 보인다.

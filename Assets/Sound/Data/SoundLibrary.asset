@@ -63,6 +63,48 @@ MonoBehaviour:
   - type: 17
     clips:
     - {fileID: 8300000, guid: ec6baa5ead691d848bb7434b1c15876f, type: 3}
+  - type: 18
+    clips:
+    - {fileID: 8300000, guid: 36ecf427e6b12ad48b9e28fdf8b505c1, type: 3}
+  - type: 19
+    clips:
+    - {fileID: 8300000, guid: 2b570624d6a83ed45bb5676536fa490e, type: 3}
+  - type: 20
+    clips:
+    - {fileID: 8300000, guid: 66722ed6a30773c42996699be70dccfe, type: 3}
+  - type: 21
+    clips:
+    - {fileID: 8300000, guid: c8a843b28e4ae36418817f7c579d749c, type: 3}
+  - type: 22
+    clips:
+    - {fileID: 8300000, guid: 4e3c238d2b7675b4bb39d083783a5e69, type: 3}
+  - type: 23
+    clips:
+    - {fileID: 8300000, guid: a363fca670a791d4e919ad970f64fd82, type: 3}
+  - type: 24
+    clips:
+    - {fileID: 8300000, guid: 670246abd7b23ad4b9a2a8b587d5fbc8, type: 3}
+  - type: 25
+    clips:
+    - {fileID: 8300000, guid: 7ab83460b606c6747b6524d5d29cb047, type: 3}
+  - type: 26
+    clips:
+    - {fileID: 8300000, guid: 04376d48461e4284b96ceb4194932c42, type: 3}
+  - type: 27
+    clips:
+    - {fileID: 8300000, guid: 29a2fa6623dd5a14ca6da38a6fa1416b, type: 3}
+  - type: 28
+    clips:
+    - {fileID: 8300000, guid: 087660e04cdbb8f4bbc2906cda45d6bb, type: 3}
+  - type: 29
+    clips:
+    - {fileID: 8300000, guid: ccb4685e16a3dc74a8187eec9af7941a, type: 3}
+  - type: 30
+    clips:
+    - {fileID: 8300000, guid: 2bd30824c9507c04da6fcf0f503efe92, type: 3}
+  - type: 31
+    clips:
+    - {fileID: 8300000, guid: 0ce6261540bce694591c0a432fcbf5f6, type: 3}
   bgmEntries:
   - phase: 0
     clip: {fileID: 8300000, guid: 7fc011adfdae0864e82134e5df56f0b5, type: 3}
