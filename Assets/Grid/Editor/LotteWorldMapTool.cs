@@ -409,7 +409,8 @@ namespace GridSystem.EditorTools
                                   EnsureMaterial("Mat_LotteCauseway", new Color(0.88f, 0.85f, 0.80f)));   // 광장과 같은 벽돌 텍스처 훅
             causeway.isStatic = true;
             // VARCO 아치 다리는 둑길 남측(섬 쪽)에 장식으로 겹친다. y -1.35는 물에 묻혔음 → -0.75(+0.6 상향)
-            PlaceProp(root, "롯데_다리", new Vector3(6.5f, -0.75f, 24f), 0f, 1f, addCollider: false);
+            // 아치가 둑길 평면 위로 솟아 몸이 파묻혔음 → 메시 콜라이더로 실제 곡면을 걷게(둑길 박스와 공존)
+            PlaceProp(root, "롯데_다리", new Vector3(6.5f, -0.75f, 24f), 0f, 1f);
             bool turretL = TryPlaceProp(root, "롯데_다리탑", new Vector3(2.85f, 0f, 18.6f));    // 섬 북문 게이트 성탑
             bool turretR = TryPlaceProp(root, "롯데_다리탑", new Vector3(10.15f, 0f, 18.6f));
             float[] lampZ = { 22f, 27f, 32f, 37f, 42f };   // 둑길 양옆 가로등 행렬
@@ -1124,20 +1125,12 @@ namespace GridSystem.EditorTools
             inst.transform.localPosition = groundPos;
             inst.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
             if (scale != 1f) inst.transform.localScale *= scale;
-            // 서 있을 수 있게 콜라이더 보장(모델엔 보통 없음) — 바운즈 기준 박스 하나
+            // 서 있을 수 있게 콜라이더 보장(모델엔 보통 없음) — 모양 그대로 메시 콜라이더.
+            // 바운즈 박스는 나무·곡면 모델에서 모양 밖 허공까지 막는 투명벽이 된다(DDP와 같은 처리).
             if (addCollider && inst.GetComponentInChildren<Collider>() == null)
-            {
-                var rends = inst.GetComponentsInChildren<Renderer>();
-                if (rends.Length > 0)
-                {
-                    var b = rends[0].bounds;
-                    foreach (var r in rends) b.Encapsulate(r.bounds);
-                    var bc = inst.AddComponent<BoxCollider>();
-                    bc.center = inst.transform.InverseTransformPoint(b.center);
-                    bc.size = Vector3.Scale(b.size, new Vector3(
-                        1f / inst.transform.lossyScale.x, 1f / inst.transform.lossyScale.y, 1f / inst.transform.lossyScale.z));
-                }
-            }
+                foreach (var mf in inst.GetComponentsInChildren<MeshFilter>())
+                    if (mf.sharedMesh != null)
+                        mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
             return inst;
         }
 
