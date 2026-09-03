@@ -211,7 +211,9 @@ public class AnswerPanelHUD : UIHUD
         m_CollapseLabel.color = InGameUiSkin.TextGray;
         m_CollapseLabel.fontStyle = FontStyle.Bold;
 
-        m_Collapsed = false;   // 판 시작 = 항상 펼침(고스트도 기본 켜짐)
+        // 데스크톱: 판 시작 = 펼침(고스트도 기본 켜짐). 모바일: 전체화면 주문서가 시작부터 덮으면 조작을 못 해
+        // 접힌 채로 시작 — 폰 버튼을 눌러야 열린다(기획 2026-09-04).
+        m_Collapsed = m_IsMobileDevice;
         ApplyCollapsed();
     }
 
@@ -497,7 +499,7 @@ public class AnswerPanelHUD : UIHUD
                 bar.transform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 45f : -45f);
             }
         }
-        m_Collapsed = false;
+        m_Collapsed = m_IsMobileDevice;   // 모바일은 접힌 채 시작(Init과 동일 규칙)
         if (m_Phone != null) m_Phone.SetActive(!m_Collapsed);
         PhoneVisibilityChanged?.Invoke(!m_Collapsed);
         closeGo.SetActive(!m_Collapsed);

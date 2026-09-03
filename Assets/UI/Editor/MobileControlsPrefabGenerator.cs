@@ -292,7 +292,8 @@ public static class MobileControlsPrefabGenerator
     private static RectTransform SmallButton(string name, Transform parent, string text,
         Vector2 anchored, Vector2 anchor)
     {
-        var rt = CircleButton(name, parent, SpriteFillSoft, anchored, new Vector2(100f, 100f), anchor);
+        // 불투명 — 흐림/선명은 MobileControlsHUD가 CanvasGroup 알파로(회전 버튼은 블록을 들었을 때만 선명)
+        var rt = CircleButton(name, parent, SpriteFill, anchored, new Vector2(100f, 100f), anchor);
         Label("Label", rt, text, 22, InkSoft);
         return rt;
     }

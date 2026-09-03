@@ -22,6 +22,19 @@ namespace Player
                 go.transform.localPosition = new Vector3(0, 0.05f, 0);
 
                 m_Ps = go.GetComponent<ParticleSystem>();
+
+                // CFXR 프리팹은 clearBehavior=Destroy — IsAlive가 false로 잡히는 순간(컬링 일시정지·백그라운드 복귀 등)
+                // 20프레임 검사에서 게임오브젝트를 통째로 지운다. 먼지는 emission을 꺼둔 채 상시 대기하는 구조라
+                // 한 번 지워지면 조용히 영영 안 나온다(m_Ps != null 검사가 false). 바운스 FX(PlayerBounce)와 같은 방어.
+                foreach (var effect in go.GetComponentsInChildren<CartoonFX.CFXR_Effect>(true))
+                    effect.clearBehavior = CartoonFX.CFXR_Effect.ClearBehavior.None;
+                foreach (var ps in go.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    var m = ps.main;
+                    m.stopAction = ParticleSystemStopAction.None;
+                    m.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;   // 화면 밖 일시정지로 '죽음' 판정 안 나게
+                }
+
                 if (m_Ps != null)
                 {
                     var shape = m_Ps.shape;
