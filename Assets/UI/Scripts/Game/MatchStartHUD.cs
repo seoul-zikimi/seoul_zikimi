@@ -49,6 +49,37 @@ public sealed class MatchStartHUD : MonoBehaviour
         if (scene.name != SceneNames.GameScene)
             return;
         new GameObject("@MatchStartHUD").AddComponent<MatchStartHUD>();
+        new GameObject("@MatchRestartWatcher").AddComponent<RestartWatcher>();   // 라운드 재시작 감시(아래 참조)
+    }
+
+    /// <summary>라운드 재시작(씬 재로드 없음)용 — 카운트다운 연출을 다시 띄운다. 이미 있으면 무시.</summary>
+    public static void EnsureForRestart()
+    {
+        if (FindFirstObjectByType<MatchStartHUD>() != null) return;
+        new GameObject("@MatchStartHUD").AddComponent<MatchStartHUD>();
+    }
+
+    // 재시작 감시자 — MatchStartHUD는 1회용(끝나면 자멸)이라, 씬 재로드 없는 재시작
+    // (종료→건축 전환) 때도 로딩·3-2-1 연출이 다시 뜨도록 페이즈 전환을 지켜본다.
+    // (전엔 재시작 시 입력 잠금만 걸리고 화면 안내가 없어 '락 걸린 것 같은' 체감이 났다)
+    private sealed class RestartWatcher : MonoBehaviour
+    {
+        private GameLoopManager m_Loop;
+        // 전역 GamePhase(사운드 페이즈)와 이름이 겹쳐 완전 수식 — GridSystem.GamePhase가 게임 루프 페이즈다.
+        private GridSystem.GamePhase m_Prev = (GridSystem.GamePhase)(-1);
+
+        private void Update()
+        {
+            if (m_Loop == null)
+            {
+                m_Loop = FindFirstObjectByType<GameLoopManager>();
+                if (m_Loop == null) return;
+            }
+            var p = m_Loop.Phase;
+            if (m_Prev == GridSystem.GamePhase.Finished && p == GridSystem.GamePhase.Building)
+                EnsureForRestart();
+            m_Prev = p;
+        }
     }
 
     /// <summary>로비에서 게임 시작 직후(씬 전환 전) 로딩 화면을 미리 띄운다.

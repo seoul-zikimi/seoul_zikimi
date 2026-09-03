@@ -9,6 +9,9 @@ public static class GameplayInputBlocker
     }
     private static bool s_Manual;
 
+    /// <summary>수동 잠금만(키 설정 팝업 등). 매치 게이트와 무관한 입력(동의 엔터 등)의 판정용.</summary>
+    public static bool ManualBlocked => s_Manual;
+
     /// <summary>전원 로딩 대기 + 시작 카운트다운 동안의 입력 잠금(GameLoopManager가 관리).</summary>
     public static bool MatchGateBlocked { get; set; }
 }

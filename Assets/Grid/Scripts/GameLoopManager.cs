@@ -337,14 +337,15 @@ namespace GridSystem
             // 입력(모든 클라): Enter = 동의 토글 (건축중=종료 동의 / 종료화면=재시작 동의)
             // RequestToggleConsent 경유 — 버튼 submit과 같은 프레임에 겹쳐도 한 번만 토글.
             // 숫자패드 Enter도 인정(메인 Enter만 보면 "엔터 눌러도 안 돼"가 된다).
+            // 동의 엔터 규칙:
+            //  · 종료 화면 = 게이트 무관(재시작 동의는 언제든) — 재시작 직후 "엔터 안 된다" 방지
+            //  · 건축 중 = 매치 시작(3-2-1 끝) 후에만 — 카운트다운 중 조기종료가 터지면
+            //    엔터 연타 시 종료↔재시작 무한 루프에 갇힌다(입력 잠금 지속 = 캐릭터 못 움직임)
             var kb = Keyboard.current;
-            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
-            {
-                if (GameplayInputBlocker.Blocked)
-                    Debug.Log("[Consent] 엔터 눌림 — 입력 차단 상태라 무시(Blocked)");
-                else
-                    RequestToggleConsent();
-            }
+            bool consentGateOk = !IsBuilding || !GameplayInputBlocker.Blocked;
+            if (!GameplayInputBlocker.ManualBlocked && consentGateOk && kb != null
+                && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
+                RequestToggleConsent();
 
             if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f && InGameScene)
             {
