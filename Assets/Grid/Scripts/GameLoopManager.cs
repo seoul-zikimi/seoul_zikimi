@@ -335,9 +335,16 @@ namespace GridSystem
             GameplayInputBlocker.MatchGateBlocked = IsBuilding && !MatchStarted;
 
             // 입력(모든 클라): Enter = 동의 토글 (건축중=종료 동의 / 종료화면=재시작 동의)
+            // RequestToggleConsent 경유 — 버튼 submit과 같은 프레임에 겹쳐도 한 번만 토글.
+            // 숫자패드 Enter도 인정(메인 Enter만 보면 "엔터 눌러도 안 돼"가 된다).
             var kb = Keyboard.current;
-            if (!GameplayInputBlocker.Blocked && kb != null && kb.enterKey.wasPressedThisFrame)
-                ToggleConsentRpc();
+            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
+            {
+                if (GameplayInputBlocker.Blocked)
+                    Debug.Log("[Consent] 엔터 눌림 — 입력 차단 상태라 무시(Blocked)");
+                else
+                    RequestToggleConsent();
+            }
 
             if (IsBuilding && !m_UrgentBgmStarted && m_TimeLeft.Value <= 60f && InGameScene)
             {
@@ -376,6 +383,15 @@ namespace GridSystem
             }
             else if (ids.Count > 0 && m_Consents.Count >= ids.Count)
             {
+                // 전원동의 → 종료/재시작. 즉시 하면 동의 아이콘이 검게 채워진 걸 볼 새가 없어서
+                // (특히 혼자 테스트 = 엔터 즉시 전환) 잠깐 보여주고 진행한다.
+                if (m_ServerConsentFireAt < 0f) m_ServerConsentFireAt = Time.time + 0.1f;
+            }
+            else m_ServerConsentFireAt = -1f;   // 동의가 깨지면(취소/이탈) 예약 취소
+
+            if (m_ServerConsentFireAt >= 0f && Time.time >= m_ServerConsentFireAt)
+            {
+                m_ServerConsentFireAt = -1f;
                 if (IsBuilding) Finish();   // 건축 전원동의 → 종료
                 else            Restart();  // 종료 전원동의 → 재시작
             }
@@ -406,6 +422,7 @@ namespace GridSystem
         }
 
         private float m_ServerTimeLeft;   // 서버 권위 타이머 원본 — m_TimeLeft는 이 값의 0.1초 격자 복제본
+        private float m_ServerConsentFireAt = -1f;   // 전원동의 처리 예약 시각(아이콘 채움 잠깐 보여주기, -1=없음)
 
         private static bool Contains(System.Collections.Generic.IReadOnlyList<ulong> ids, ulong id)
         {
@@ -515,8 +532,14 @@ namespace GridSystem
         {
             ulong sender = rpc.Receive.SenderClientId;
             for (int i = 0; i < m_Consents.Count; i++)
-                if (m_Consents[i] == sender) { m_Consents.RemoveAt(i); return; }
+                if (m_Consents[i] == sender)
+                {
+                    m_Consents.RemoveAt(i);
+                    Debug.Log($"[Consent] 해제: 클라 {sender} → {m_Consents.Count}/{m_PlayerCount.Value}");
+                    return;
+                }
             m_Consents.Add(sender);
+            Debug.Log($"[Consent] 동의: 클라 {sender} → {m_Consents.Count}/{m_PlayerCount.Value}");
         }
 
         // 각 클라가 스폰 시 자기 표시 이름(PlayerPrefs 닉네임)을 서버로 제출 → NetworkList로 전원 복제.
@@ -593,9 +616,15 @@ namespace GridSystem
 
         public bool HasLocalConsent => IsSpawned && NetworkManager.Singleton != null && LocalConsented();
 
+        // 같은 프레임 중복 토글 가드 — 엔터가 '버튼 submit'과 '직접 폴링' 두 경로로 들어오면
+        // 동의가 켜졌다 바로 꺼져 원위치가 된다(동의 아이콘이 계속 반투명이던 버그).
+        private int m_LastConsentToggleFrame = -1;
+
         public void RequestToggleConsent()
         {
             if (!IsSpawned) return;
+            if (Time.frameCount == m_LastConsentToggleFrame) return;
+            m_LastConsentToggleFrame = Time.frameCount;
             ToggleConsentRpc();
         }
 

@@ -1772,20 +1772,24 @@ namespace Player
             var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배(팀B 구역 포함)
             var (xMin, xMax) = PlaceableXRange(s);
             GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
+            // 거부 사유를 말해준다 — 프리뷰 초록(=정답 자리)이어도 규칙상 못 놓는 경우가 있어
+            // 흔들림만으론 "왜 안 놔지지?"가 안 보인다(광통교 다리 상판 허공 배치 등).
             for (int i = 0; i < m_PreviewCells.Count; i++)
             {
                 var cell = m_PreviewCells[i];
-                if (cell.x < xMin || cell.x >= xMax || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z) { ShakePreview(); return; }
-                if (!m_Net.IsCellFree(cell)) { ShakePreview(); return; }
+                if (cell.x < xMin || cell.x >= xMax || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z)
+                { RejectPlace("여기엔 놓을 수 없어요"); return; }
+                if (!m_Net.IsCellFree(cell)) { RejectPlace("자리가 차 있어요"); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
                     m_PreviewCells,
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
-            { ShakePreview(); return; }
+            { RejectPlace("아래에 받쳐줄 게 없어요 — 비계(SPACE 연타)로 받치면 놓을 수 있어요!"); return; }
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
+            m_NextRejectToast = 0f;   // 성공하면 안내 스로틀 리셋
             if (SoundManager.Instance != null)   // 놓는 자리서 3D + 피치 랜덤(단조로움 방지)
                 SoundManager.Instance.PlaySFXAt(SFXType.LandObject,
                     GridCoordinates.CellToWorld(m_Target) + Vector3.one * (0.5f * GridContract.Unit),
@@ -1793,6 +1797,17 @@ namespace Player
             GridSystem.GridJuice.FovPunch(m_Cam, -1.5f);   // 놓는 순간 카메라 살짝 쿵(owner 즉각 반응)
             ClearHeld();   // 놓으면 손이 빔 → 재고서 다시 집어야(리썰컴퍼니식)
             OnPlace?.Invoke();
+        }
+
+        // 배치 거부: 흔들림 + 사유 토스트(연타 도배 방지 1.5초 스로틀).
+        private float m_NextRejectToast;
+        private void RejectPlace(string reason)
+        {
+            ShakePreview();
+            if (Time.time < m_NextRejectToast) return;
+            m_NextRejectToast = Time.time + 1.5f;
+            Vector3 pos = GridCoordinates.CellToWorld(m_Target) + new Vector3(0.5f, 1.4f, 0.5f) * GridContract.Unit;
+            GridSystem.GridJuice.WorldToast(pos, reason, new Color(1f, 0.5f, 0.3f));
         }
 
         private static void PlaySFX(SFXType type)

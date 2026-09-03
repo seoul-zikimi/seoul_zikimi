@@ -1216,6 +1216,8 @@ public sealed class GameLoopHUD : UIHUD
     {
         if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
         if (m_Loop != null) m_Loop.RequestToggleConsent();
+        // 클릭 후 버튼 선택 해제 — 선택된 채로 두면 이후 엔터가 '버튼 submit'으로도 들어와 이중 토글된다
+        if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
     }
 
     private static void SetButtonColor(Button button, Color color)

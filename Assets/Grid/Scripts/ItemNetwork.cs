@@ -865,10 +865,9 @@ namespace GridSystem
 
         private static Vector3 HolderPos(ulong clientId, Vector3 fallback)
         {
-            var nm = NetworkManager.Singleton;
-            if (nm == null || nm.SpawnManager == null) return fallback;
-            var po = nm.SpawnManager.GetPlayerNetworkObject(clientId);
-            return po != null ? po.transform.position + Vector3.up * 0.6f : fallback;
+            // GetPlayerNetworkObject는 클라에서 남의 플레이어를 못 찾고 에러 로그를 뱉는다 — 관측 목록에서 직접.
+            var t = FindPlayerTransform(clientId);
+            return t != null ? t.position + Vector3.up * 0.6f : fallback;
         }
 
         private void RemoveVisual(uint id)
