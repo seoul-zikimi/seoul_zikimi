@@ -19,6 +19,10 @@ namespace GridSystem
         private static MethodInfo s_PlaySfxAtMethod;
         private static MethodInfo s_SetPhaseMethod;
         private static MethodInfo s_PlayBgmMethod;
+        private static MethodInfo s_HasClipMethod;
+        private static MethodInfo s_PlayLoopMethod;
+        private static MethodInfo s_PlayLoopAtMethod;
+        private static MethodInfo s_StopLoopMethod;
 
         // 호출당 할당 제거: 파싱된 enum 박싱 값 캐시(실패도 null로 캐시해 반복 예외 방지) + Invoke 인자 버퍼 재사용.
         // 효과음은 연타 중 초당 수 회 이 브릿지를 타므로 매 호출 Enum.Parse + object[] 할당이 핫패스였다.
@@ -45,6 +49,52 @@ namespace GridSystem
             s_PlaySfxAtMethod ??= SoundManagerType.GetMethod("PlaySFXAt", new[] { SfxType, typeof(Vector3) });
             s_Args2[0] = value; s_Args2[1] = worldPos;
             s_PlaySfxAtMethod?.Invoke(instance, s_Args2);
+        }
+
+        /// <summary>SoundLibrary에 이 타입의 클립이 실제로 연결되어 있는가.
+        /// '연결 전엔 기존 합성음 폴백' 분기(ItemFx)에 쓴다 — 이름 오타·미연결이면 false.</summary>
+        public static bool HasSFX(string sfxName)
+        {
+            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, s_SfxValueCache, out var value))
+                return false;
+
+            s_HasClipMethod ??= SoundManagerType.GetMethod("HasClip", new[] { SfxType });
+            if (s_HasClipMethod == null) return false;
+            s_Args1[0] = value;
+            return (bool)s_HasClipMethod.Invoke(instance, s_Args1);
+        }
+
+        /// <summary>2D 루프 시작(앰비언스). 이미 도는 중이면 무시 — 매 프레임 불러도 안전.</summary>
+        public static void PlayLoop(string sfxName)
+        {
+            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, s_SfxValueCache, out var value))
+                return;
+
+            s_PlayLoopMethod ??= SoundManagerType.GetMethod("PlayLoop", new[] { SfxType });
+            s_Args1[0] = value;
+            s_PlayLoopMethod?.Invoke(instance, s_Args1);
+        }
+
+        /// <summary>3D 루프 시작/위치 갱신 — 움직이는 음원(퍼레이드 카)은 매 프레임 위치를 넘기면 따라간다.</summary>
+        public static void PlayLoopAt(string sfxName, Vector3 worldPos)
+        {
+            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, s_SfxValueCache, out var value))
+                return;
+
+            s_PlayLoopAtMethod ??= SoundManagerType.GetMethod("PlayLoopAt", new[] { SfxType, typeof(Vector3) });
+            s_Args2[0] = value; s_Args2[1] = worldPos;
+            s_PlayLoopAtMethod?.Invoke(instance, s_Args2);
+        }
+
+        /// <summary>해당 루프 fade-out 정지. 안 돌고 있으면 무시.</summary>
+        public static void StopLoop(string sfxName)
+        {
+            if (!TryGetInstance(out var instance) || !TryParseEnum(SfxType, sfxName, s_SfxValueCache, out var value))
+                return;
+
+            s_StopLoopMethod ??= SoundManagerType.GetMethod("StopLoop", new[] { SfxType });
+            s_Args1[0] = value;
+            s_StopLoopMethod?.Invoke(instance, s_Args1);
         }
 
         public static void SetPhase(string phaseName)

@@ -626,7 +626,8 @@ namespace GridSystem
 
             var center = GridCoordinates.CellToWorld(
                 new Vector3Int(m_Manager.ZoneSize.x / 2 + (team == 1 ? m_Manager.ZoneSize.x : 0), 1, m_Manager.ZoneSize.z / 2));
-            GridSoundBridge.PlaySFXAt("LandObject", center);
+            // 지진 전용 '쿠르릉'(돌 구르는 소리) — 클립 연결 전엔 기존 착지음으로 폴백
+            GridSoundBridge.PlaySFXAt(GridSoundBridge.HasSFX("ItemEarthquake") ? "ItemEarthquake" : "LandObject", center);
             if (mine) GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 2f),
                                            "지진! 고정 안 한 블록이 무너져요!", new Color(0.85f, 0.35f, 0.15f));
         }

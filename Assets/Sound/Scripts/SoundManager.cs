@@ -17,7 +17,13 @@ using DG.Tweening;
 /// ── SFX ──────────────────────────────────────────────────
 /// PlaySFX(SFXType) / PlaySFX(AudioClip)               : 2D (한 소스 PlayOneShot, 겹침 OK)
 /// PlaySFXAt(SFXType, pos) / PlaySFXAt(AudioClip, pos) : 3D (위치별 voice 풀, round-robin)
-/// StopAllSFX()                                        : 2D + 3D 전부 정지
+/// StopAllSFX()                                        : 2D + 3D + 루프 전부 정지
+///
+/// ── 루프 SFX (앰비언스·기믹 지속음: 빗소리, 수문 물소리, 퍼레이드 음악…) ──
+/// PlayLoop(SFXType)          : 2D 루프 시작(이미 도는 중이면 무시 — 매 프레임 불러도 안전)
+/// PlayLoopAt(SFXType, pos)   : 3D 루프 — 이미 도는 중이면 위치만 갱신(이동체 추적용)
+/// StopLoop(SFXType)          : 해당 루프 fade-out 정지
+/// StopAllLoops()             : 루프 전부 정지 — 씬 전환·라운드 리셋 안전망
 ///
 /// ── 볼륨 (AudioMixer log scale, PlayerPrefs 저장) ─────────
 /// SetBGMVolume(0~1) / SetSFXVolume(0~1)
@@ -84,6 +90,9 @@ public class SoundManager : Singleton<SoundManager>
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (Instance != this) return;
+        // 루프는 시작한 쪽(날씨 FX·기믹)이 OnDestroy에서 끄는 게 원칙이지만, 씬이 통째로 내려가면
+        // 그 오브젝트들이 순서를 보장받지 못한다 — 씬 전환 자체를 안전망으로 삼아 전부 정리.
+        StopAllLoops();
         if (scene.name == SceneNames.Lobby || scene.name == SceneNames.BootstrapScene)
             SetPhase(GamePhase.Lobby);
     }
@@ -293,11 +302,12 @@ public class SoundManager : Singleton<SoundManager>
         src.PlayOneShot(clip);
     }
 
-    /// <summary>모든 SFX 즉시 정지 (2D + 3D 전부).</summary>
+    /// <summary>모든 SFX 즉시 정지 (2D + 3D + 루프 전부).</summary>
     public void StopAllSFX()
     {
         _sfx2D.Stop();
         foreach (var s in _sfx3D) s.Stop();
+        StopAllLoops();
     }
 
     // SoundLibrary에서 랜덤 클립 선택
@@ -305,6 +315,89 @@ public class SoundManager : Singleton<SoundManager>
     {
         if (!_sfxMap.TryGetValue(type, out var clips) || clips.Length == 0) return null;
         return clips[Random.Range(0, clips.Length)];
+    }
+
+    /// <summary>라이브러리에 이 타입의 클립이 연결되어 있는가 — 호출부가 '연결 전엔 기존 합성음 폴백' 분기에 쓴다.</summary>
+    public bool HasClip(SFXType type)
+        => _sfxMap.TryGetValue(type, out var clips) && clips.Length > 0;
+
+    // ── 루프 SFX ─────────────────────────────────────────
+    // 원샷(PlayOneShot)과 달리 켜짐/꺼짐 상태가 있는 지속음 — 타입당 소스 1개를 만들어 두고 재사용.
+    // 시작·정지 모두 짧게 fade해서 '뚝' 끊기는 소리를 막는다.
+
+    const float kLoopFadeSeconds = 0.6f;
+    readonly Dictionary<SFXType, AudioSource> _loops = new();
+    readonly HashSet<SFXType> _stoppingLoops = new();   // fade-out 중(isPlaying이지만 곧 꺼질) 표시
+
+    /// <summary>2D 루프 시작(거리 무관 — 날씨 앰비언스 등). 이미 도는 중이면 무시하므로 매 프레임 불러도 안전.</summary>
+    public void PlayLoop(SFXType type) => PlayLoopInternal(type, null);
+
+    /// <summary>3D 루프 시작/위치 갱신. 이미 도는 중이면 위치만 옮긴다 — 퍼레이드 카처럼 움직이는 음원 추적용.</summary>
+    public void PlayLoopAt(SFXType type, Vector3 worldPos) => PlayLoopInternal(type, worldPos);
+
+    void PlayLoopInternal(SFXType type, Vector3? worldPos)
+    {
+        var src = GetOrCreateLoopSource(type);
+        if (src == null) return;   // 클립 미연결 — 조용히 무시(연결되면 그때부터 들림)
+
+        src.spatialBlend = worldPos.HasValue ? 1f : 0f;
+        if (worldPos.HasValue) src.transform.position = worldPos.Value;
+
+        // fade-out 도중 다시 켜진 경우(isPlaying이지만 곧 Stop 예약됨) — 예약을 취소하고 볼륨을 되살린다.
+        // 이 처리가 없으면 '정지 0.6초 안에 재요청'이 무시된 채 그대로 꺼져버린다(날씨 짧은 재전환 등).
+        bool rescuing = _stoppingLoops.Remove(type);
+        if (src.isPlaying && !rescuing) return;
+
+        src.DOKill();
+        if (!src.isPlaying) { src.volume = 0f; src.Play(); }
+        src.DOFade(1f, kLoopFadeSeconds);
+    }
+
+    /// <summary>해당 루프를 fade-out 후 정지. 안 돌고 있으면 무시.</summary>
+    public void StopLoop(SFXType type)
+    {
+        if (!_loops.TryGetValue(type, out var src) || src == null || !src.isPlaying) return;
+        _stoppingLoops.Add(type);
+        src.DOKill();
+        src.DOFade(0f, kLoopFadeSeconds)
+           .OnComplete(() => { src.Stop(); _stoppingLoops.Remove(type); });
+    }
+
+    /// <summary>루프 전부 즉시 정지 — 씬 전환·라운드 리셋 안전망.</summary>
+    public void StopAllLoops()
+    {
+        _stoppingLoops.Clear();
+        foreach (var kv in _loops)
+        {
+            if (kv.Value == null) continue;
+            kv.Value.DOKill();
+            kv.Value.Stop();
+        }
+    }
+
+    // 타입당 전용 자식 소스(SFX 믹서그룹·3D 감쇠 설정 포함). 클립이 라이브러리에 없으면 null.
+    AudioSource GetOrCreateLoopSource(SFXType type)
+    {
+        if (_loops.TryGetValue(type, out var src) && src != null)
+        {
+            // 클립 여러 개 등록 타입도 루프는 한 곡을 유지 — 재생 중 랜덤 교체는 위화감이 크다.
+            if (src.clip == null) src.clip = PickClip(type);
+            return src.clip != null ? src : null;
+        }
+
+        var clip = PickClip(type);
+        if (clip == null) return null;
+
+        var go = new GameObject($"SFXLoop_{type}");
+        go.transform.SetParent(transform);
+        src = go.AddComponent<AudioSource>();
+        src.outputAudioMixerGroup = _mixer.FindMatchingGroups("SFX")[0];
+        src.loop = true;
+        src.playOnAwake = false;
+        src.clip = clip;
+        ApplySpatialRange(src);   // 3D로 쓸 때의 감쇠 — 2D(spatialBlend 0)면 무시됨
+        _loops[type] = src;
+        return src;
     }
 
     // ── 볼륨 (AudioMixer logarithmic scale) ──────────────

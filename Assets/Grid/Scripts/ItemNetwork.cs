@@ -572,11 +572,12 @@ namespace GridSystem
             if (po == null) return;
             var rb = po.GetComponent<Rigidbody>();
             if (rb != null && !rb.isKinematic) rb.AddForce(impulse, ForceMode.VelocityChange);
-            // 날씨 틱마다(1초) 밀리므로 문구는 스로틀 — 매초 도배 방지
+            // 날씨 틱마다(1초) 밀리므로 문구·소리는 스로틀 — 매초 도배 방지
             if (Time.time >= m_NextSlipToast)
             {
                 m_NextSlipToast = Time.time + 3f;
                 GridJuice.WorldToast(po.transform.position + Vector3.up * 2.2f, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+                GridSoundBridge.PlaySFX("WeatherSlip");   // 킹받는 미끄덩 — 당한 본인에게만(타깃 RPC)
             }
         }
         private float m_NextSlipToast;   // 로컬 전용(수신 클라 기준)
@@ -849,11 +850,11 @@ namespace GridSystem
                 case NetworkListEvent<ItemEntry>.EventType.Remove:
                 case NetworkListEvent<ItemEntry>.EventType.RemoveAt:
                     RemoveVisual(e.Value.Id);
-                    var col = KindColor((CompetitiveItemKind)e.Value.Kind);
+                    var kind = (CompetitiveItemKind)e.Value.Kind;
+                    var col = KindColor(kind);
                     if (e.Value.Held) ItemFx.Used(HolderPos(e.Value.Holder, e.Value.Pos), col,
-                        KindName((CompetitiveItemKind)e.Value.Kind),
-                        (CompetitiveItemKind)e.Value.Kind);   // 사용 — 팡 + "○○ 사용!" 문구 + 아이콘 팝
-                    else ItemFx.Expired(e.Value.Pos, col);                                        // 미사용 소멸
+                        KindName(kind), kind, KindUseSfx(kind));   // 사용 — 팡 + "○○ 사용!" 문구 + 아이콘 팝 + 종류별 발동음
+                    else ItemFx.Expired(e.Value.Pos, col);   // 미사용 소멸
                     break;
 
                 default:
@@ -916,6 +917,21 @@ namespace GridSystem
         /// <summary>아군에게 이로운 효과인가 — HUD 테두리색(초록/빨강) 구분용.</summary>
         public static bool IsBuff(CompetitiveItemKind k)
             => k is CompetitiveItemKind.Umbrella or CompetitiveItemKind.MovementBoost or CompetitiveItemKind.ProcessBoost;
+
+        /// <summary>종류별 발동음 SFXType 이름 — OnItemsChanged(전 클라)에서 ItemFx.Used로 전달돼
+        /// 2D로 재생된다(시전자·피격자 모두 거리 무관하게 들림). null이면 공통 스윕/전용 RPC가 담당:
+        /// 대포·지진은 GridNetwork의 Everyone RPC(발사/흔들림 연출)에 이미 자기 소리가 있고,
+        /// 날씨 4종은 당한 팀 화면의 TeamWeatherFx가 앰비언스 루프를 켠다.</summary>
+        public static string KindUseSfx(CompetitiveItemKind k) => k switch
+        {
+            CompetitiveItemKind.OrderHack => "ItemOrderHack",           // 해킹 삐리릭 오류음
+            CompetitiveItemKind.MovementSlow => "ItemSlowdown",         // 하강음(띠로리, 8bit)
+            CompetitiveItemKind.ProcessSlow => "ItemSlowdown",
+            CompetitiveItemKind.MovementBoost => "ItemSpeedup",         // 상승음(저하의 반대)
+            CompetitiveItemKind.ProcessBoost => "ItemSpeedup",
+            CompetitiveItemKind.Fog => "ItemFog",                       // 연막탄 피유융 바람소리
+            _ => null,
+        };
 
         public static string KindName(CompetitiveItemKind k) => k switch
         {

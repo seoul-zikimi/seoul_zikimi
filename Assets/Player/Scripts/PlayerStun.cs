@@ -42,8 +42,13 @@ namespace Player
         /// <summary>즉시 스턴(초). 든 것을 떨어뜨리고 어질어질 연출.</summary>
         public void Stun(float seconds) => StunWithToast(seconds, "어질어질…", new Color(1f, 0.9f, 0.3f));
 
-        /// <summary>날씨(비/눈) 미끄러짐 스턴 — 문구만 다름. NetworkWeatherCoordinator가 SendMessage로 호출.</summary>
-        public void StunSlip(float seconds) => StunWithToast(seconds, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+        /// <summary>날씨(비/눈) 미끄러짐 스턴 — 문구만 다름. NetworkWeatherCoordinator가 SendMessage로 호출.
+        /// 타깃 RPC로 미끄러진 당사자 클라에서만 실행되므로, 킹받는 미끄덩 소리는 2D로 본인에게만 들린다.</summary>
+        public void StunSlip(float seconds)
+        {
+            if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.WeatherSlip);
+            StunWithToast(seconds, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+        }
 
         private void StunWithToast(float seconds, string toast, Color toastColor)
         {

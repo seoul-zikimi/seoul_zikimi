@@ -67,7 +67,7 @@ namespace GridSystem
                 fx.vel = new Vector3(Random.Range(-0.25f, 0.25f), 3.4f + Random.value, Random.Range(-0.25f, 0.25f));
                 fx.gravity = -6f; fx.life = 0.5f; fx.scaleVel = -0.08f;
             }
-            Play(SparkleClip(), pos, 0.7f);
+            PlayOrSynth("ItemBoxSpawn", SparkleClip(), pos, 0.7f);   // 상자 등장 뾰롱
         }
 
         /// <summary>획득: 바깥의 반짝이가 중심으로 빨려들며 위로 솟음 + 코인 소리.</summary>
@@ -84,14 +84,16 @@ namespace GridSystem
                 fx.life = 0.3f; fx.scaleVel = -0.12f;
                 fx.spinDeg = 420f; fx.spinAxis = Random.onUnitSphere;
             }
-            Play(CoinClip(), pos, 0.85f);
+            PlayOrSynth("ItemPickup", CoinClip(), pos, 0.85f);   // 획득 뾰롱
         }
 
         /// <summary>발동: 수평 링 충격파 + 위 분수 + 상승 스윕 사운드.</summary>
         static GameObject s_UsePoof;
         static bool s_UsePoofTried;
 
-        public static void Used(Vector3 pos, Color col, string label = "", CompetitiveItemKind? kind = null)
+        /// <param name="useSfx">종류별 발동음 SFXType 이름(ItemNetwork.KindUseSfx). 라이브러리에 연결돼 있으면
+        /// 공통 스윕 대신 그 소리를 2D로 재생한다 — 발동음은 시전자·피격자 '모두' 들려야 해서 거리 감쇠 없이.</param>
+        public static void Used(Vector3 pos, Color col, string label = "", CompetitiveItemKind? kind = null, string useSfx = null)
         {
             if (kind.HasValue) IconPop(pos, kind.Value);   // 어떤 아이템인지 아이콘이 뿅 떠오름
             // 카툰 팡(CFXR Magic Poof 사본) — '확실히 써졌다' 한눈에 보이게(GroundHit 패턴)
@@ -117,7 +119,10 @@ namespace GridSystem
                 fx.vel = new Vector3(Random.Range(-0.6f, 0.6f), 3.2f + Random.value * 1.5f, Random.Range(-0.6f, 0.6f));
                 fx.gravity = -7f; fx.life = 0.7f; fx.spinDeg = 300f; fx.spinAxis = Random.onUnitSphere;
             }
-            Play(UseClip(), pos, 0.8f);
+            if (useSfx != null && GridSoundBridge.HasSFX(useSfx))
+                GridSoundBridge.PlaySFX(useSfx);                     // 종류별 발동음(2D — 전원 청취)
+            else
+                PlayOrSynth("ItemUse", UseClip(), pos, 0.8f);        // 공통 스윕(뾰로롱↑)
         }
 
         /// <summary>사용 순간 아이템 아이콘이 머리 위로 뿅 떠올라 흔들리며 사라짐 — 멀리서도 종류가 보인다.
@@ -185,7 +190,7 @@ namespace GridSystem
             f.From = from + Vector3.up * 0.8f;
             f.To = to;
             f.OnLand = onLand;
-            Play(CannonFireClip(), from, 0.9f);
+            PlayOrSynth("ItemCannonFire", CannonFireClip(), from, 0.9f);   // 발사 '펑~' (착탄음은 CannonImpactFx)
         }
 
         /// <summary>충전 시작음 — 충전 시간 동안 음이 올라가서 언제 완충되는지 귀로 알 수 있다.</summary>
@@ -300,6 +305,14 @@ namespace GridSystem
         static void Play(AudioClip clip, Vector3 pos, float vol)
         {
             if (clip != null) AudioSource.PlayClipAtPoint(clip, pos, vol);
+        }
+
+        // SoundLibrary에 실제 클립이 연결된 SFXType이면 그걸(3D, SFX 볼륨 슬라이더 적용), 아니면 기존 합성음.
+        // 사운드팀이 클립을 연결하는 순간 합성음이 자동으로 물러나고, 연결 전엔 지금 소리가 그대로 난다.
+        static void PlayOrSynth(string sfxName, AudioClip synth, Vector3 pos, float vol)
+        {
+            if (GridSoundBridge.HasSFX(sfxName)) GridSoundBridge.PlaySFXAt(sfxName, pos);
+            else Play(synth, pos, vol);
         }
 
         static AudioClip Synth(string name, float dur, System.Func<float, float> wave)

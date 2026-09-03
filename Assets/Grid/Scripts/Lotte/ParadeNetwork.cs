@@ -80,6 +80,7 @@ namespace GridSystem
         {
             if (Instance == this) Instance = null;
             m_State.OnValueChanged -= OnStateChanged;
+            if (m_MusicOn) { m_MusicOn = false; GridSoundBridge.StopLoop("LotteParadeMusic"); }
             DestroyVisuals();
         }
 
@@ -100,6 +101,29 @@ namespace GridSystem
             RefreshPath();
             if (IsServer) ServerTick();
             UpdateVisuals();
+            UpdateParadeSound();
+        }
+
+        // ── 행진곡(전 클라 로컬) — Running 동안 선두 카를 따라다니는 3D 루프 ──
+        // 매 프레임 폴링: PlayLoopAt은 이미 도는 중이면 위치만 갱신하므로, 행렬이 다가오면 커지고
+        // 멀어지면 작아진다. OnValueChanged 페이즈 이벤트에 안 얹는 이유는 수문과 동일(놓침 없음).
+        private bool m_MusicOn;
+
+        private void UpdateParadeSound()
+        {
+            if (Phase == ParadePhase.Running && m_Path.Count >= 2)
+            {
+                Vector3 src = m_Path[0];   // 아직 카가 안 나왔으면 출발점에서 (다가오는 소리)
+                for (int i = 0; i < m_Config.CarCount; i++)
+                    if (CarAt(i, out var pos, out _)) { src = pos; break; }   // 첫 번째로 보이는 카 = 남은 행렬의 선두
+                GridSoundBridge.PlayLoopAt("LotteParadeMusic", src);
+                m_MusicOn = true;
+            }
+            else if (m_MusicOn)
+            {
+                m_MusicOn = false;
+                GridSoundBridge.StopLoop("LotteParadeMusic");   // 행렬 통과 완료 — fade-out
+            }
         }
 
         private void ServerTick()
@@ -280,7 +304,7 @@ namespace GridSystem
             var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
             if (po != null)
                 GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🎉 퍼레이드 지나갑니다!", new Color(0.98f, 0.45f, 0.65f));
-            // TODO(사운드팀): 퍼레이드 예고 팡파레/행진곡 SFX — GridSoundBridge에 전용 이름 추가 후 여기서 호출
+            GridSoundBridge.PlaySFX("LotteParadeFanfare");   // 예고 팡파레(2D 전원) — 행진곡 루프는 UpdateParadeSound가 Running에 켠다
         }
 
         private void UpdateVisuals()
