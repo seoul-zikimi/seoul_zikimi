@@ -64,7 +64,10 @@ namespace GridSystem.EditorTools
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_GwangTongGyo.prefab", Ground = GroundKind.City,  Trees = false, Skirt = false,   // 청계천 = 완전 시티뷰
                              FloorY = 5.66f,                                       // 바닥 평면 y = FloorY-0.1 = 5.56 — 슬래브 윗면(5.42)과 4cm 간격도 원거리(수백 m) 깊이 정밀도에선 Z-파이팅 삼각형이 남았다(09/03). 14cm로 확실히 분리
                              StretchZ = new[] { "Cube", "Cube (1)", "Cube (2)" },   // 물길+둔치 40×200 → 1km (08/22 "알아서 커트" 승인)
-                             ChannelXMin = -12.2f, ChannelXMax = 12.6f },          // 옹벽 상단을 0.4m 덮어 벽-바닥 사이 흰 틈새 제거(09/03 스크린샷)
+                             // 카브를 슬래브(둔치 1km 큐브, x ±52.6~53) 전체 폭으로 — 좁게 파면 바닥 평면(y 5.56)이
+                             // 슬래브 윗면(5.42)의 보도+차도(Mat_GtgBoulevard)를 덮어버려 "도로 안 바뀜"(09/03).
+                             // 슬래브 가장자리를 0.1m 겹쳐 흰 틈새 가드는 유지.
+                             ChannelXMin = -52.5f, ChannelXMax = 52.9f },
             new MapProfile { Path = "Assets/Resources/MapPrefabs/MapBg_NamsanTower.prefab",  Ground = GroundKind.City,  Trees = false, Skirt = true,
                              RemoveObjects = new[] { "CityPlain" }, FloorY = -27.4f },                                                                          // 산 위에서 내려다본 도시. 회색 판은 치움(08/22 승인)
             // 공터 대결장 — 스커트 끔(09/03): 평지인데 펜스(가로 56m)를 '플랫폼'으로 잘못 잡아
@@ -531,13 +534,16 @@ namespace GridSystem.EditorTools
 
             string texPath = $"{kHorizonTexDir}/{texName}.png";
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            bool varcoTex = tex != null;   // VARCO 그림이 있으면 그걸 우선(Ground_Asphalt.png = 도시블록 ~5칸짜리 큰 타일)
             if (tex == null) tex = texName.Contains("Asphalt")
                 ? EnsureAsphaltRoadTexture("Ground_AsphaltRoads")   // 민짜 노이즈는 원거리에서 회색 판("텍스처 안 된 듯" 09/03) — 도로 골목 무늬로
                 : EnsureNoiseTexture("Ground_GrassNoise", new Color(0.52f, 0.66f, 0.40f), new Color(0.60f, 0.74f, 0.46f));
             else ApplyTileImportSettings(texPath);
 
             mat.SetTexture("_BaseMap", tex);
-            float tile = 10f;
+            // VARCO 아스팔트는 한 장 = 120m(도시블록 ~24m) — 작게 깔면 '패턴 매트'가 된다(09/03 피드백).
+            // Mirror 랩이라 반복 주기 240m — 1km 바닥에 4주기 정도라 반복감이 거의 없다.
+            float tile = varcoTex && texName.Contains("Asphalt") ? 120f : 10f;
             mat.SetTextureScale("_BaseMap", new Vector2(1000f / tile, 1000f / tile));   // ※ MaterialPropertyBlock은 SRP Batcher가 무시함
             mat.SetColor("_BaseColor", tex != null ? tint : kGroundColor);   // VARCO 텍스처가 쨍해서 틴트로 눌러줌
             mat.SetFloat("_Smoothness", 0f);
@@ -635,8 +641,9 @@ namespace GridSystem.EditorTools
         {
             var imp = AssetImporter.GetAtPath(path) as TextureImporter;
             if (imp == null) return;
-            // 도시 옥상 텍스처는 격자라 크로스페이드 이음새가 티 남 → Mirror 반복(대칭은 멀리서 티 안 남)
-            var wrap = Path.GetFileName(path).StartsWith("Ground_City") ? TextureWrapMode.Mirror : TextureWrapMode.Repeat;
+            // 도시 옥상·아스팔트 텍스처는 격자라 크로스페이드 이음새가 티 남 → Mirror 반복(대칭은 멀리서 티 안 남)
+            var fn = Path.GetFileName(path);
+            var wrap = fn.StartsWith("Ground_City") || fn == "Ground_Asphalt.png" ? TextureWrapMode.Mirror : TextureWrapMode.Repeat;
             if (imp.wrapMode == wrap && imp.mipmapEnabled && imp.filterMode == FilterMode.Trilinear && imp.maxTextureSize >= 1024) return;
             imp.wrapMode = wrap;
             imp.mipmapEnabled = true;
@@ -648,10 +655,16 @@ namespace GridSystem.EditorTools
         // ───────────────────────────── 빌딩 격자(도시 맵) ─────────────────────────────
         private const float kBlock = 26f, kStreet = 6f;   // 블록 26m(도로 6m 포함)
 
+        // [09/03] 구 VARCO 3종은 녹아내려 폐기 → 각진 서울풍 4종(KR_Office_02·Tower_01·Sangga_02·Officetel_01,
+        // 직각 박스 강제 프롬프트 + 실루엣 검증)으로 재생성해 다시 켬. 또 녹은 게 나오면 false로.
+        private static readonly bool kUseModelBuildings = true;   // const로 두면 CS0162/0429 경고 — readonly로
+
+        // [09/03 3차] 밝기는 원래대로(어둡게 하니 "불 꺼진 느낌" 반려), 색조만 죽인 중립 회색·베이지 —
+        // "배경인데 왜 알록달록" 피드백. 창문 색(텍스처)은 그대로 살린다.
         private static readonly Color[] kFacadeTints =
         {
-            new Color(0.93f, 0.90f, 0.84f), new Color(0.86f, 0.89f, 0.94f), new Color(0.90f, 0.86f, 0.82f),
-            new Color(0.84f, 0.88f, 0.86f), new Color(0.95f, 0.93f, 0.90f), new Color(0.80f, 0.84f, 0.90f),
+            new Color(0.90f, 0.89f, 0.87f), new Color(0.87f, 0.87f, 0.87f), new Color(0.91f, 0.90f, 0.88f),
+            new Color(0.85f, 0.85f, 0.86f), new Color(0.93f, 0.92f, 0.90f), new Color(0.83f, 0.83f, 0.84f),
         };
 
         private static void ScatterBuildings(GameObject root, Transform parent, Vector3 center, float groundY,
@@ -675,7 +688,8 @@ namespace GridSystem.EditorTools
             var grp = new GameObject("Buildings"); grp.transform.SetParent(parent, false);
             var rng = new System.Random(2024);
             var meshLib = LoadMeshLibrary();
-            var bldgPrefabs = LoadBuildingPrefabs();   // Assets/Map/Horizon/Buildings/ 의 VARCO 3D(glb/fbx/prefab). 있으면 박스 대신 이걸 배치
+            var bldgPrefabs = kUseModelBuildings ? LoadBuildingPrefabs()   // Assets/Map/Horizon/Buildings/ 의 VARCO 3D(glb/fbx/prefab)
+                                                 : new System.Collections.Generic.List<GameObject>();   // 기본: 파사드 박스(스위치 주석 참조)
             int made = 0;
             int cells = Mathf.CeilToInt(rMax / kBlock) + 1;
             for (int gz = -cells; gz <= cells; gz++)
@@ -722,6 +736,15 @@ namespace GridSystem.EditorTools
                                 go.transform.localScale = Vector3.one * sc;
                                 go.transform.position = new Vector3(cx, groundY, cz);
                                 go.transform.rotation = Quaternion.Euler(0f, 90f * rng.Next(4), 0f);
+                                {   // 피벗이 바닥이 아닌 모델(VARCO는 대개 중앙 피벗) 보정 — 실측 바운즈 밑면을 지면에 앉힌다
+                                    var rends = go.GetComponentsInChildren<Renderer>();
+                                    if (rends.Length > 0)
+                                    {
+                                        var b = rends[0].bounds;
+                                        foreach (var rr in rends) b.Encapsulate(rr.bounds);
+                                        go.transform.position += Vector3.up * (groundY - b.min.y);
+                                    }
+                                }
                                 foreach (var r in go.GetComponentsInChildren<Renderer>())
                                 { r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false; r.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); }
                                 foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);

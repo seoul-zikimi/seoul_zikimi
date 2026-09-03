@@ -53,13 +53,14 @@ namespace GridSystem.EditorTools
                 FixBushes(root, report);
                 int missingFixed = FillMissingMaterials(root, report);
                 int reskinned = ReskinBackgroundCity(root, report);
+                ApplySurfaceMaterials(root, report);
                 BuildExtras(root, report);
                 BuildBankFurniture(root, report);
 
                 PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath);
                 MapVisualPolishTool.ApplyHorizonFor(kPrefabPath);   // 물길 카브 폭이 바뀌면(흰 틈새 픽스) 바닥 평면도 같이 다시 깐다
                 foreach (var leftover in new[] { "Mat_GtgStreamWater", "Mat_GtgLeaf", "Mat_GtgTrunk",
-                                                 "Mat_GtgArchStone", "Mat_GtgTunnelMouth", "Mat_GtgWalkway" })   // 지난 버전들(워터·가로수·수문·보도) 잔재 정리
+                                                 "Mat_GtgArchStone", "Mat_GtgTunnelMouth", "Mat_GtgWalkway", "Mat_GtgWalkStone" })   // 지난 버전들(워터·가로수·수문·보도) 잔재 정리
                     AssetDatabase.DeleteAsset($"{kMatDir}/{leftover}.mat");
                 AssetDatabase.SaveAssets();
                 Debug.Log($"[광통교보강] 완료 ✔ Missing 슬롯 {missingFixed}개 채움 · 원경 빌딩 {reskinned}개 파사드 교체. " +
@@ -70,6 +71,51 @@ namespace GridSystem.EditorTools
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        // ───────────────────── ⓪ 표면 재질 배정(v19) ─────────────────────
+        // ① 옹벽/데크(Wall.glb 인스턴스 전부) — 임베디드 diffuse가 차가운 플라스틱 민짜(체커판 인상)라
+        //    터치업 PNG(Tex_GtgWall_Diffuse: 웜 아이보리+블록 변주)를 문 추출 머티리얼 Wall.mat로 교체.
+        //    프리팹 YAML 직접 수정은 에디터 자동실행이 재저장하며 계속 덮어써서(09/03) 툴 단계로 넣는다.
+        // ② 물길 양옆 1km 슬래브(Cube (1)/(2)) — URP 기본 Lit 회색 민짜 → 보도+차도 스트립(Mat_GtgBoulevard,
+        //    u=40m 폭 1장: 양끝 5m 보도블럭+연석, 가운데 차도. "체커판 위에 있는 기분" 피드백의 답).
+        //    물길 바닥 Cube는 화강암(Mat_GtgSlabStone), 다리옆 2×6×8 석재 큐브는 Mat_GtgStoneBlock.
+        private static void ApplySurfaceMaterials(GameObject root, StringBuilder report)
+        {
+            var wallMat    = AssetDatabase.LoadAssetAtPath<Material>("Assets/Map/01_GwangTongGyo/Background/Materials/Wall.mat");
+            var boulevard  = AssetDatabase.LoadAssetAtPath<Material>(kMatDir + "/Mat_GtgBoulevard.mat");
+            var bedStone   = AssetDatabase.LoadAssetAtPath<Material>(kMatDir + "/Mat_GtgSlabStone.mat");
+            var blockStone = AssetDatabase.LoadAssetAtPath<Material>(kMatDir + "/Mat_GtgStoneBlock.mat");
+            var floorTile  = AssetDatabase.LoadAssetAtPath<Material>("Assets/Map/01_GwangTongGyo/Background/Materials/FloorTile.mat");
+            int walls = 0, slabs = 0, beds = 0, blocks = 0, walks = 0;
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                bool dirty = false;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    string mp = AssetDatabase.GetAssetPath(m);
+                    if (wallMat != null && mp.EndsWith("Background/Wall.glb"))
+                    { mats[i] = wallMat; walls++; dirty = true; continue; }
+                    // 물길 산책로 줄무늬(FloorTile)는 원래 감성 — v21에서 돌바닥으로 바꿨다가 반려(09/03 "그건 유지해줘").
+                    // v22: 돌바닥이 발려 있으면 원본 FloorTile로 복원.
+                    if (floorTile != null && m.name.StartsWith("Mat_GtgWalkStone"))
+                    { mats[i] = floorTile; walks++; dirty = true; continue; }
+                    // URP 패키지 기본 Lit(회색 민짜)만 교체 대상 — 기획자가 다른 재질을 발라둔 건 안 건드린다
+                    if (m.name != "Lit" || !mp.Contains("com.unity.render-pipelines")) continue;
+                    var s = r.transform.lossyScale;
+                    if (s.z > 500f)   // 물길 축 1km 큐브 — 높이로 슬래브/물길바닥 구분
+                    {
+                        if (r.transform.position.y > 2f) { if (boulevard != null) { mats[i] = boulevard; slabs++; dirty = true; } }
+                        else if (bedStone != null)       { mats[i] = bedStone; beds++; dirty = true; }
+                    }
+                    else if (blockStone != null) { mats[i] = blockStone; blocks++; dirty = true; }
+                }
+                if (dirty) r.sharedMaterials = mats;
+            }
+            report.AppendLine($"[표면재질] 옹벽 {walls} · 슬래브(보도차도) {slabs} · 물길바닥 {beds} · 석재큐브 {blocks} · 산책로 줄무늬 복원 {walks}");
         }
 
         // ───────────────────── ① 덤불 진단 + 복구 ─────────────────────
@@ -247,25 +293,31 @@ namespace GridSystem.EditorTools
         }
 
         // ───────────────────── ③ 원경 도시(BackgroundCity) 파사드 ─────────────────────
+        // v21(09/03): 몸통색만 중립(밝은 회색·베이지 — "배경인데 알록달록" 반려), 창문 텍스처는
+        // 공용 타일 그대로(파란 유리 변주 + 드문 불켜진 창 유지 — "불 꺼진 느낌" 반려의 답).
+        // 창문은 타일링 3×3으로 촘촘하게(큰 건물 대형 유리창 방지).
         private static readonly Color[] kFacadeTints =
         {
-            new Color(0.93f, 0.90f, 0.84f), new Color(0.86f, 0.89f, 0.94f), new Color(0.90f, 0.86f, 0.82f),
-            new Color(0.84f, 0.88f, 0.86f), new Color(0.95f, 0.93f, 0.90f), new Color(0.80f, 0.84f, 0.90f),
+            new Color(0.90f, 0.89f, 0.87f), new Color(0.87f, 0.87f, 0.87f), new Color(0.91f, 0.90f, 0.88f),
+            new Color(0.85f, 0.85f, 0.86f), new Color(0.93f, 0.92f, 0.90f), new Color(0.83f, 0.83f, 0.84f),
         };
 
         private static int ReskinBackgroundCity(GameObject root, StringBuilder report)
         {
-            // 비주얼 정리 툴이 구워 둔 창문 파사드 타일(없으면 틴트만이라도)
+            // 비주얼 정리 툴이 구워 둔 공용 창문 타일(없으면 틴트만이라도)
             var facadeTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Map/Horizon/Bldg_Facade.png");
             var mats = new Material[kFacadeTints.Length];
             for (int i = 0; i < mats.Length; i++)
             {
                 mats[i] = EnsureLit($"Mat_GtgFacade{i}", kFacadeTints[i]);
-                if (mats[i] != null && facadeTex != null)
+                if (mats[i] == null) continue;
+                mats[i].SetColor("_BaseColor", kFacadeTints[i]);   // 기존 에셋에도 새 틴트를 매번 강제(EnsureLit은 기존 값을 안 고침)
+                if (facadeTex != null)
                 {
                     mats[i].SetTexture("_BaseMap", facadeTex);
-                    EditorUtility.SetDirty(mats[i]);
+                    mats[i].SetTextureScale("_BaseMap", new Vector2(3f, 3f));   // 창문 촘촘 — 큰 건물에서도 대형 유리창이 안 됨
                 }
+                EditorUtility.SetDirty(mats[i]);
             }
 
             int count = 0;
@@ -676,7 +728,11 @@ namespace GridSystem.EditorTools
     [InitializeOnLoad]
     public static class GwangTongGyoAutoSetup
     {
-        private const int kVersion = 18;   // 18: 덤불 주당 4주(생울타리 밀도) — 09/03 2차 "더 빽빽" 지시
+        private const int kVersion = 22;   // 22: 산책로 줄무늬(FloorTile) 복원 — 돌바닥 교체 반려(09/03 "원래걸로 유지해줘")
+                                           // 21: 몸통색 중립·창문 원복(불켜진 창 유지)·산책로 VARCO 보도블럭(09/03 3차 피드백)
+                                           // 20: 원경 파사드 유리색 통일·창문 3×3 촘촘·틴트 뮤트 + Wall.mat 메탈릭 0(09/03 "알록달록·꺼먼 벽" 반려)
+                                           // 19: 표면 재질 배정 — 옹벽 터치업 PNG + 슬래브 보도/차도 + 물길바닥·석재 큐브(09/03)
+                                           // 18: 덤불 주당 4주(생울타리 밀도) — 09/03 2차 "더 빽빽" 지시
         private const string kKey = "GwangTongGyo.PolishVersion";
 
         static GwangTongGyoAutoSetup()
