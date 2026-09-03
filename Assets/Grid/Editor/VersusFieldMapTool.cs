@@ -96,10 +96,11 @@ namespace GridSystem.EditorTools
             // "이미 대칭으로 만든 전용 맵" 표시 — 런타임 자동 복제(180° 회전 사본)를 끈다.
             new GameObject(VersusBackground.kSymmetricMarker).transform.SetParent(root.transform, false);
 
-            // 바닥을 울타리 밖까지 넓혀 장식 소품을 놓을 앞치마(apron) 확보(56x40 → 64x52).
-            var ground = AddBox(root, "Ground", new Vector3(16f, -0.5f, 8f), new Vector3(64f, 1f, 52f),
+            // 흙바닥은 울타리 '안'만(공사장). 울타리 밖은 아래 GrassApron이 초록으로 깐다.
+            var ground = AddBox(root, "Ground", new Vector3(16f, -0.5f, 8f), new Vector3(55.7f, 1f, 39.7f),
                 EnsureMaterial("Mat_FieldGround", new Color(0.72f, 0.66f, 0.52f)));   // 흙바닥 톤
             ground.isStatic = true;
+            AddGrassApron(root);
 
             // 울타리 — 밖으로 떨어지지 않게 낮은 경계벽(피벗 점대칭 배치).
             // 골판 철판+나무 지지대 텍스처(Tex_FieldFence, 16:9)를 씌운다.
@@ -259,6 +260,28 @@ namespace GridSystem.EditorTools
                 t.gameObject.isStatic = true;
         }
 
+        /// <summary>
+        /// 울타리 밖 초록 잔디. 흙바닥과 '겹치지 않는' 4장 링으로 깐다 —
+        /// 윗면 y를 똑같이 0에 두고 겹치면 z-파이팅이 나므로 면끼리 맞대기만 한다.
+        /// 바깥 300m까지 덮어서 저 멀리 지평선 평면(Horizon/HorizonGround, y=-1.05)과의
+        /// 단차가 나무 띠·원경 카드 뒤로 숨는다.
+        /// </summary>
+        private static void AddGrassApron(GameObject root)
+        {
+            var grass = EnsureMaterial("Mat_VersusGrass", new Color(0.55f, 0.68f, 0.42f));
+            const float xIn0 = -11.85f, xIn1 = 43.85f, zIn0 = -11.85f, zIn1 = 27.85f;   // 흙바닥(=울타리) 바깥면
+            const float xOut0 = -134f, xOut1 = 166f, zOut0 = -142f, zOut1 = 158f;
+
+            void Slab(string name, float x0, float x1, float z0, float z1)
+                => AddBox(root, name, new Vector3((x0 + x1) * 0.5f, -0.5f, (z0 + z1) * 0.5f),
+                          new Vector3(x1 - x0, 1f, z1 - z0), grass).isStatic = true;
+
+            Slab("GrassApron_W", xOut0, xIn0, zOut0, zOut1);
+            Slab("GrassApron_E", xIn1, xOut1, zOut0, zOut1);
+            Slab("GrassApron_S", xIn0, xIn1, zOut0, zIn0);
+            Slab("GrassApron_N", xIn0, xIn1, zIn1, zOut1);
+        }
+
         private static GameObject AddBox(GameObject root, string name, Vector3 pos, Vector3 scale, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -299,7 +322,9 @@ namespace GridSystem.EditorTools
             bigGround.isStatic = true;
 
             // 원경 = 넓은 흙바닥 + 울타리 밖 나무 벨트(빌보드 산포) — 실루엣/그림 카드는 부자연스러워 폐기.
-            AddTreeBelt(group);
+            // 나무 벨트는 ~Horizon이 아니라 '루트 직속'에 붙인다 — MapVisualPolishTool이 ~Horizon 그룹을
+            // 통째로 다시 깔면서 손으로 조정한 나무 339그루가 통째로 날아간 적이 있다(09/01).
+            AddTreeBelt(root);
 
             // 하늘 = 노을 그라데이션
             var sky = EnsureSunsetGradientSky();
