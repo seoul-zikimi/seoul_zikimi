@@ -154,17 +154,22 @@ namespace SeoulZikimi.UI.New
             if (keyboard == null ||
                 (!keyboard.enterKey.wasPressedThisFrame && !keyboard.numpadEnterKey.wasPressedThisFrame))
                 return;
-            SendChat();
-            StartCoroutine(RefocusChatInput());
+            // 한글 IME: 엔터 시점엔 마지막 글자가 아직 조합 중이라 text에 없다. 여기서 바로 보내면
+            // 끝 글자가 빠지고, 비운 칸에 조합 글자가 확정돼 남는다("끝 글자가 남아 엔터 두 번").
+            // InputField가 이번 프레임 이벤트 처리에서 조합을 확정한 '다음' 프레임에 보낸다.
+            if (!chatSendPending) StartCoroutine(SendChatAfterImeCommit());
         }
 
-        // InputField는 LateUpdate에서 엔터를 처리하며 포커스를 놓는다. 그 뒤인 다음 프레임에 되돌려야
-        // 연속 입력이 끊기지 않는다.
-        private IEnumerator RefocusChatInput()
+        private bool chatSendPending;
+
+        private IEnumerator SendChatAfterImeCommit()
         {
-            yield return null;
+            chatSendPending = true;
+            yield return null;   // IME 조합 확정 + InputField 엔터 처리(포커스 해제) 이후
+            chatSendPending = false;
+            SendChat();
             if (chatInput != null && chatInput.isActiveAndEnabled)
-                chatInput.ActivateInputField();
+                chatInput.ActivateInputField();   // 연속 입력이 끊기지 않게 포커스 복원
         }
 
         /// <summary>쿨타임 중이면 true. 쿨타임이 지났으면 연속 카운터를 초기화한다.</summary>

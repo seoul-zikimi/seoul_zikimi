@@ -58,9 +58,12 @@ namespace Player
             Vector3 dir;
             if (m_Carry != null && m_Carry.TryGetHelperFacing(out var helpDir))
                 dir = helpDir;                                                // 같이 들기(도우미) → 운반자와 같은 방향
-            else if (m_Move != null && m_Move.IsClimbing && m_Arm != null)
+            else if (m_Move != null && m_Move.IsClimbing)
             {
-                dir = Vector3.ProjectOnPlane(m_Arm.forward, Vector3.up);   // 기어오르기 → 벽 보기
+                // 기어오르기 → '붙은 벽' 보기(카메라 방향 아님 — 옆·뒤 벽을 타도 몸이 벽을 향한다)
+                dir = m_Move.ClimbDirection.sqrMagnitude > 0.01f
+                    ? m_Move.ClimbDirection
+                    : (m_Arm != null ? Vector3.ProjectOnPlane(m_Arm.forward, Vector3.up) : Vector3.forward);
                 if (m_Carry != null && m_Carry.HasMaterialHeld) dir = -dir;   // 재료 안고 있으면 등 돌리고(재료가 벽 반대쪽) 올라감
             }
             else

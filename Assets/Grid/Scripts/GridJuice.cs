@@ -136,6 +136,15 @@ namespace GridSystem
         public static void ScorePop(Vector3 pos, int amount, Color color)
             => WorldText(pos, amount > 0 ? $"+{amount}" : "+0", color, 48, 0.9f, 1.2f);
 
+        /// <summary>완성도 기여 팝업("완성도 +2%") — 점수 숫자보다 직관적. 잘 안 보인다는 피드백 반영: 크게·오래.</summary>
+        public static void PercentPop(Vector3 pos, float pct, Color color)
+        {
+            string t = pct <= 0f ? "완성도 +0%"
+                     : pct < 1f  ? $"완성도 +{pct:0.#}%"
+                                 : $"완성도 +{Mathf.RoundToInt(pct)}%";
+            WorldText(pos, t, color, 58, 1.7f, 1.1f);
+        }
+
         // 월드 토스트("앗! 무너졌어요!" 등): 대상 위치 바로 위에 떠오르는 안내 텍스트.
         // [08/27 피드백] 잘 안 보인다 → 크게·오래·두꺼운 외곽선으로 전면 보강.
         public static void WorldToast(Vector3 pos, string text, Color color)
@@ -161,14 +170,19 @@ namespace GridSystem
             tm.font = s_WorldFont;
             go.GetComponent<MeshRenderer>().material = s_WorldFont.material;   // 폰트 아틀라스 머티리얼 필수
 
-            // 외곽선 — 밝은 배경(하늘·눈밭)에서 연한 색 글자가 안 보여서, 검정 사본을 4방향으로 깐다.
-            // (~shadow 이름은 JuiceFloatText가 같이 페이드시키는 계약 — 첫 번째 것만 그 이름을 쓰고 전부 자식이라 함께 사라진다)
-            for (int i = 0; i < 4; i++)
+            // 외곽선 — 밝은 배경(하늘·눈밭)에서 연한 색 글자가 안 보여서 검정 사본을 두른다.
+            // 오프셋이 크면 글자가 이중으로 보여(따로 놂) 밀착 8방향 링으로: 두껍고 균일한 테두리.
+            const float d = 0.022f;
+            Vector2[] dirs =
             {
-                Vector2[] dirs = { new(0.04f, -0.04f), new(-0.04f, -0.04f), new(0.04f, 0.04f), new(-0.04f, 0.04f) };
-                var shadow = new GameObject(i == 0 ? "~shadow" : "~outline");
+                new(d, 0f), new(-d, 0f), new(0f, d), new(0f, -d),
+                new(d * 0.7f, d * 0.7f), new(-d * 0.7f, d * 0.7f), new(d * 0.7f, -d * 0.7f), new(-d * 0.7f, -d * 0.7f),
+            };
+            foreach (var dir in dirs)
+            {
+                var shadow = new GameObject("~shadow");   // JuiceFloatText가 이 이름의 자식을 전부 같이 페이드시킨다
                 shadow.transform.SetParent(go.transform, false);
-                shadow.transform.localPosition = new Vector3(dirs[i].x, dirs[i].y, 0.04f);
+                shadow.transform.localPosition = new Vector3(dir.x, dir.y, 0.04f);
                 var stm = shadow.AddComponent<TextMesh>();
                 stm.text = text;
                 stm.fontSize = fontSize;

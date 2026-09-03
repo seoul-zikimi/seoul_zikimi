@@ -364,7 +364,11 @@ namespace GridSystem
             Color c = amount <= 0 ? new Color(0.62f, 0.62f, 0.62f, 1f)          // 회색 = 자리 틀림
                     : kind == 1   ? new Color(0.35f, 0.60f, 1.00f, 1f)           // 파랑 = 공정 점수
                                   : new Color(0.25f, 0.80f, 0.35f, 1f);          // 초록 = 배치 점수
-            GridJuice.ScorePop(pos, amount, c);
+            // 점수 숫자(+1500) 대신 완성도 기여(%)로 — HUD 완성도와 같은 단위라 직관적.
+            int max = m_Score.Value.maxScore;
+            if (max <= 0) max = m_ScoreB.Value.maxScore;   // 혹시 팀A 스냅샷이 아직이면 B로
+            if (max > 0) GridJuice.PercentPop(pos, amount * 100f / max, c);
+            else GridJuice.ScorePop(pos, amount, c);       // 채점 전(스냅샷 없음) 폴백
         }
 
         [Rpc(SendTo.Server)]

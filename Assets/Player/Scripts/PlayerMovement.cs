@@ -152,6 +152,8 @@ namespace Player
         // ── 벽 기어오르기 ───────────────────────────────────────────
         // 붙어 있는 벽 방향(수평) — 카메라가 아니라 '입력으로 민 방향'으로 잡아서 옆·뒤 벽도 탄다.
         private Vector3 m_ClimbDir;
+        /// <summary>기어오르기 중 붙은 벽 방향(수평) — PlayerFacing이 모델을 벽 쪽으로 돌릴 때 사용.</summary>
+        public Vector3 ClimbDirection => m_ClimbDir;
 
         // 입력(카메라 상대)을 월드 수평 방향으로.
         private static Vector3 MoveDir(Vector2 input, Transform cameraArm)
