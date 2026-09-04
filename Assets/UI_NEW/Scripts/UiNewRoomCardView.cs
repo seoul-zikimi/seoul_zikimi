@@ -18,7 +18,7 @@ namespace SeoulZikimi.UI.New
         public void Apply(UiNewSessionRoom room)
         {
             if (roomName != null)
-                roomName.text = string.IsNullOrWhiteSpace(room.Name) ? "이름 없는 방" : room.Name;
+                roomName.text = string.IsNullOrWhiteSpace(room.Name) ? "이름 없는 방" : TrailerMode.DisplayName(room.Name);   // 촬영방 키워드는 평범한 제목으로
             if (peopleCount != null)
                 peopleCount.text = $"{room.Joined}/{room.MaxPlayers}";
             if (mapName != null)

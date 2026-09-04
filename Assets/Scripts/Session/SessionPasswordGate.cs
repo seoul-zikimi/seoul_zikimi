@@ -19,19 +19,25 @@ public static class SessionPasswordGate
     public static void SetExpectedPassword(string password)
         => s_ExpectedHash = string.IsNullOrEmpty(password) ? null : SessionPasswordHash.Of(password);
 
-    /// <summary>방을 떠날 때 호출 — 다음 방에 이전 방 비밀번호가 남지 않게.</summary>
-    public static void Clear() => s_ExpectedHash = null;
+    /// <summary>방을 떠날 때 호출 — 다음 방에 이전 방 비밀번호·관전자 명단이 남지 않게.</summary>
+    public static void Clear()
+    {
+        s_ExpectedHash = null;
+        TrailerMode.ClearSpectators();
+    }
 
-    /// <summary>[클라] 조인 직전에 보낼 비밀번호를 ConnectionData에 싣는다(공개방은 빈 페이로드).
+    /// <summary>[클라] 조인 직전에 보낼 비밀번호를 ConnectionData에 싣는다(공개방은 빈 해시).
+    /// 페이로드 = 해시 + (관전자면) "\n" + TrailerMode.PayloadFlag — 트레일러 관전자는 슬롯 배정 전에 서버가 알아야 한다.
     /// 재접속(ReconnectAsync)은 같은 NetworkConfig를 재사용하므로 자동으로 다시 실린다.</summary>
     public static void SetLocalPassword(string password)
     {
         var nm = NetworkManager.Singleton;
         if (nm == null)
             return;
-        nm.NetworkConfig.ConnectionData = string.IsNullOrEmpty(password)
-            ? Array.Empty<byte>()
-            : Encoding.UTF8.GetBytes(SessionPasswordHash.Of(password));
+        string payload = string.IsNullOrEmpty(password) ? "" : SessionPasswordHash.Of(password);
+        if (TrailerMode.LocalIsSpectator)
+            payload += "\n" + TrailerMode.PayloadFlag;
+        nm.NetworkConfig.ConnectionData = payload.Length == 0 ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(payload);
     }
 
     /// <summary>NetworkManager가 (재)등장할 때마다 승인 검증을 건다 — JobsnailSessionDisconnectWatcher가 부른다.</summary>
@@ -57,17 +63,26 @@ public static class SessionPasswordGate
             return;
         }
 
+        // 페이로드 = [비밀번호 해시][\n관전자 표식]. 첫 줄이 해시, 나머지 줄은 플래그.
+        string raw = request.Payload != null && request.Payload.Length > 0
+            ? Encoding.UTF8.GetString(request.Payload)
+            : "";
+        string[] lines = raw.Split('\n');
+        string sent = lines.Length > 0 ? lines[0] : "";
+        bool spectator = false;
+        for (int i = 1; i < lines.Length; i++)
+            if (lines[i] == TrailerMode.PayloadFlag) spectator = true;
+
         // 공개방 — 전원 통과
         if (string.IsNullOrEmpty(s_ExpectedHash))
         {
             response.Approved = true;
+            if (spectator) TrailerMode.MarkSpectator(request.ClientNetworkId);
             return;
         }
 
-        string sent = request.Payload != null && request.Payload.Length > 0
-            ? Encoding.UTF8.GetString(request.Payload)
-            : "";
         bool ok = string.Equals(sent, s_ExpectedHash, StringComparison.OrdinalIgnoreCase);
+        if (ok && spectator) TrailerMode.MarkSpectator(request.ClientNetworkId);
         response.Approved = ok;
         if (!ok)
         {
