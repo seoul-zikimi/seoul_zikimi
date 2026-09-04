@@ -31,6 +31,7 @@ namespace Player
         public static bool ProcessActionAvailable => Input != null && Input.ProcessActionAvailable;
         public static bool ProcessCancelAvailable => Input != null && Input.RevertActionAvailable;
         public static bool ThrowAvailable => Input != null && Input.ThrowActionAvailable;
+        public static bool RotateAvailable => Input != null && Input.RotateActionAvailable;
 
         public static void SetMove(Vector2 normalized) => Input?.SetMobileMove(normalized);
         public static void SetSprint(bool pressed) => Input?.SetMobileSprint(pressed);

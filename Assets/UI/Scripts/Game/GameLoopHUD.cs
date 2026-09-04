@@ -341,9 +341,13 @@ public sealed class GameLoopHUD : UIHUD
                     // 1줄 = 효과 설명(기획 문구), 2줄 = 조작 — 아이템 효과 학습은 '든 순간'이 최적(QA)
                     string hint = m_ItemNet != null ? m_ItemNet.LocalHeldHint() : "";
                     sub += $"\n<size=75%>[{held}] {hint}</size>";
+                    // 모바일은 키보드가 없다 — 화면 버튼 이름으로(아이템=아이템 버튼, 내려놓기=던지기 버튼)
+                    bool mobileKeys = MobileControlsHUD.ShouldUseMobileUI;
+                    string useKey = mobileKeys ? "아이템 버튼" : "E";
+                    string dropKey = mobileKeys ? "던지기 버튼" : "G";
                     sub += held == "대포"   // 기획서: 대포는 조준+꾹 발사
-                        ? "\n<size=65%>E 꾹 조준 발사 · G 내려놓기</size>"
-                        : "\n<size=65%>E 사용 · G 내려놓기</size>";
+                        ? $"\n<size=65%>{useKey} 꾹 조준 발사 · {dropKey} 내려놓기</size>"
+                        : $"\n<size=65%>{useKey} 사용 · {dropKey} 내려놓기</size>";
                 }
                 VsPctText().text = sub;
                 // 걸린 효과(날씨·버프·디버프)는 점수줄 아래 버프 아이콘 바가 담당 — UpdateBuffBar()

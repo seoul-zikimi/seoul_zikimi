@@ -47,6 +47,7 @@ namespace Player
         public bool ProcessActionAvailable => GetComponent<PlayerCarry>()?.CanProcessTarget == true;
         public bool RevertActionAvailable => GetComponent<PlayerCarry>()?.CanRevertTarget == true;
         public bool ThrowActionAvailable => GetComponent<PlayerCarry>()?.IsHolding == true;
+        public bool RotateActionAvailable => GetComponent<PlayerCarry>()?.IsHoldingMaterial == true;   // 회전은 블록을 들었을 때만
         public InputActionAsset ControlsAsset => m_Controls?.asset;
         // 튜토리얼 진척도 등 읽기 전용 호환 프로퍼티. 실제 카메라는 ConsumeCameraRotate로 모바일 delta를 1회 소비한다.
         public Vector2 CameraRotate => GameplayInputBlocker.Blocked ? Vector2.zero

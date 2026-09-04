@@ -410,6 +410,7 @@ namespace Player
         // 애니메이터/외부용 상태 노출
         public bool IsHolding     => HasMaterial || HasTool;
         public bool IsHoldingTool => HasTool;
+        public bool IsHoldingMaterial => HasMaterial;   // 모바일 회전 버튼 활성 조건(블록을 들었을 때만 회전이 의미 있음)
         public bool CanProcessTarget => IsOwner && HasTool && ToolReadyOnTarget();
         public bool CanRevertTarget => IsOwner && RevertReadyOnTarget();
         public bool IsProcessing  => m_ProcessHold > 0f;   // E 꾹 도구 작업 중
@@ -1180,13 +1181,50 @@ namespace Player
             cell = s_NoCell;
             if (!HasTool || m_Net == null) return false;
             if (m_Loop != null && !m_Loop.IsBuilding) return false;
-            return TryFindNearbyCell(c =>
+            return TryFindNearbyCell(CellNeedsHeldTool, out cell);
+        }
+
+        // 이 칸의 블록이 '지금 든 도구의 공정'을 다음 차례로 필요로 하는가(빈 칸·복제 대기 중은 false).
+        private bool CellNeedsHeldTool(Vector3Int c)
+        {
+            if (!m_Net.TryGetCell(c, out int matId, out int completed)) return false;   // 빈 칸이면 공정 없음
+            if (m_PendingCell == c && (completed & (int)m_PendingKind) == 0) return false;   // 복제 대기 중
+            var d = Catalog() != null ? Catalog().GetById(matId) : null;
+            return NextNeeded(d != null ? d.RequiredMask : 0, completed) == m_HeldTool;
+        }
+
+        // 모바일 공정 자동 조준(기획 2026-09-04): 커서가 없어 '블록을 정확히 가리키기'가 너무 빡세다는 피드백.
+        // 도구를 든 상태에서 조준 칸이 공정 불가면, 손 닿는 거리(kBuildReachCells) 안에서 '든 도구가 지금 필요한'
+        // 가장 가까운 블록을 대상으로 삼는다. 조준 칸이 이미 유효하면 그대로(의도한 블록 우선).
+        private static readonly int[] s_AutoAimFloors = { 0, 1, -1, 2, -2 };
+        private void TryAutoAimProcessTarget(int xMin, int xMax, Vector3Int size)
+        {
+            if (!HasTool || m_HeldTool == ProcessType.Bucket || m_Net == null) return;   // 양동이는 그리드 공정이 아님
+            if (m_HasTarget && TryAimProcessCell(out _)) return;
+
+            var pc = GridCoordinates.WorldToCell(transform.position);
+            int r = Mathf.CeilToInt(kBuildReachCells) + 1;   // 큰 블록은 가장자리 셀이 더 멀리 있을 수 있어 1칸 여유
+            float bestD2 = float.MaxValue;
+            Vector3Int best = s_NoCell;
+            foreach (int dy in s_AutoAimFloors)
+            {
+                int y = m_BuildHeight + dy;
+                if (y < 0 || y >= size.y) continue;
+                for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
                 {
-                    if (!m_Net.TryGetCell(c, out int matId, out int completed)) return false;   // 빈 칸이면 공정 없음
-                    if (m_PendingCell == c && (completed & (int)m_PendingKind) == 0) return false;   // 복제 대기 중
-                    var d = Catalog() != null ? Catalog().GetById(matId) : null;
-                    return NextNeeded(d != null ? d.RequiredMask : 0, completed) == m_HeldTool;
-                }, out cell);
+                    var c = new Vector3Int(pc.x + dx, y, pc.z + dz);
+                    if (c.x < xMin || c.x >= xMax || c.z < 0 || c.z >= size.z) continue;
+                    if (!CellNeedsHeldTool(c)) continue;
+                    if (!GridReach.InReach(transform.position, ReachCells(c), GridContract.Origin, GridContract.Unit, kBuildReachCells)) continue;
+                    var w = GridCoordinates.CellToWorld(c) + Vector3.one * (0.5f * GridContract.Unit) - transform.position;
+                    float d2 = w.x * w.x + w.z * w.z + w.y * w.y * 0.25f;   // 같은 층 우선(높이 차는 약하게만 반영)
+                    if (d2 < bestD2) { bestD2 = d2; best = c; }
+                }
+            }
+            if (best == s_NoCell) return;
+            m_Target = best;
+            m_HasTarget = true;
         }
 
         // 든 도구의 공정이 조준 블록의 '지금 필요한 다음 공정'과 일치하면 true. (서버 수락 조건과 동일 판단)
@@ -1216,7 +1254,7 @@ namespace Player
             if (HasTool && m_HeldTool == ProcessType.Bucket)   // 양동이는 그리드 공정이 아님 — 전용 안내
             {
                 m_ProcessHint = m_NetBucketFilled.Value
-                    ? "불타는 블록 근처에서 E 꾹 — 물 붓기"
+                    ? $"불타는 블록 근처에서 {ProcessKeyLabel} 꾹 — 물 붓기"
                     : "드므(청동 항아리) 근처로 가면 물이 채워져요";
                 return;
             }
@@ -1232,9 +1270,12 @@ namespace Player
                 m_ProcessHint = (req & (int)m_HeldTool) == 0
                     ? $"이 블록엔 {ProcName(m_HeldTool)} 공정이 필요 없어요"
                     : "이 블록은 공정이 다 됐어요";
-            else if (next == m_HeldTool)       m_ProcessHint = $"E 꾹 → {ProcName(next)}";
+            else if (next == m_HeldTool)       m_ProcessHint = $"{ProcessKeyLabel} 꾹 → {ProcName(next)}";
             else                               m_ProcessHint = $"먼저 {ProcName(next)} 차례 — 지금 든 건 {ProcName(m_HeldTool)}";
         }
+
+        /// <summary>공정 조작 안내에 쓰는 키 이름 — 데스크톱 "E", 모바일은 화면의 공정 버튼(키보드가 없다).</summary>
+        public static string ProcessKeyLabel => MobileControlsHUD.ShouldUseMobileUI ? "공정 버튼" : "E";
 
         private static string ProcName(ProcessType p)
             => p == ProcessType.Painted ? "페인트(페인트통/초록)"
@@ -1389,6 +1430,10 @@ namespace Player
                 if (m_HasTarget)
                     m_HasTarget = GridReach.InReach(transform.position, ReachCells(m_Target),
                                                     GridContract.Origin, GridContract.Unit, kBuildReachCells);
+
+                // 모바일: 조준이 빗나가도 근처의 '공정 필요한' 블록을 자동으로 잡아준다(데스크톱은 커서 조준 그대로).
+                if (MobileControlsHUD.ShouldUseMobileUI)
+                    TryAutoAimProcessTarget(xMin, xMax, s);
             }
         }
 
@@ -1633,6 +1678,12 @@ namespace Player
 
         private Vector3 AimDir()
         {
+            // 모바일: 마우스 커서가 없어 '마지막 탭 위치/화면 중앙'을 향하던 것을 카메라가 보는 방향으로(기획 2026-09-04).
+            if (MobileControlsHUD.ShouldUseMobileUI && m_Cam != null)
+            {
+                Vector3 camFlat = Vector3.ProjectOnPlane(m_Cam.transform.forward, Vector3.up);
+                if (camFlat.sqrMagnitude > 0.01f) return camFlat.normalized;
+            }
             Vector3 flat = AimWorldPoint() - transform.position; flat.y = 0f;
             return flat.sqrMagnitude > 0.01f ? flat.normalized : transform.forward;
         }

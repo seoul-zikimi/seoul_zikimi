@@ -54,7 +54,10 @@ namespace GridSystem
         public bool MustBeFixed => m_MustBeFixed;
         public bool Walkable => m_Walkable;
         public bool IsBreakable => m_IsBreakable;
-        public int  MaxSpawnCount => m_MaxSpawnCount;
+        /// <summary>주문 수량 제한(-1 = 무제한). 2026-09-04 기획: 한도 때문에 건축물을 못 끝내는 경우가 있어 전 재료 무제한.
+        /// 에셋의 m_MaxSpawnCount 값(8종에 2~8)은 남겨두고 여기서만 끈다 — 다시 켜려면 kOrderLimitsEnabled만 true로.</summary>
+        public int  MaxSpawnCount => kOrderLimitsEnabled ? m_MaxSpawnCount : -1;
+        private static readonly bool kOrderLimitsEnabled = false;   // const면 CS0429(도달 불가 식) 경고
         public bool IsHeavy => m_IsHeavy;
         /// <summary>비주얼이 칸을 꽉 채우지 않는 자유 형상(큰 모델을 잘라 만든 조각 등).
         /// 켜져 있으면 MaterialPrefabContractTests의 피벗·크기 검사를 건너뛴다.</summary>

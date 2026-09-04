@@ -22,6 +22,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
     private GameObject m_RevertButton;
     private GameObject m_ThrowButton;
     private GameObject m_ItemButton;
+    private GameObject m_RotateButton;
     private CanvasGroup m_AnswerToggleGroup;
     private GameLoopManager m_Loop;
     private float m_NextLoopFind;
@@ -92,6 +93,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
         m_RevertButton = Find("RevertButton");
         m_ThrowButton = Find("ThrowButton");
         m_ItemButton = Find("ItemButton");   // 2vs2 아이템 사용('든 채로 E'와 같은 경로) — 아이템 없으면 흐림
+        m_RotateButton = Find("RotateButton");   // 블록을 들었을 때만 선명(기획 2026-09-04) — 나머지엔 흐림
 
         var answerToggle = Find("AnswerToggleButton");
         m_AnswerToggleGroup = answerToggle != null ? answerToggle.GetComponent<CanvasGroup>() : null;
@@ -262,6 +264,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
         SetActionVisible(m_ProcessButton, force || MobileGameplayInput.ProcessActionAvailable);
         SetActionVisible(m_RevertButton, force || MobileGameplayInput.ProcessCancelAvailable);
         SetActionVisible(m_ThrowButton, force || MobileGameplayInput.ThrowAvailable);
+        SetActionVisible(m_RotateButton, force || MobileGameplayInput.RotateAvailable);
 
         UpdateAnswerToggleVisual();   // 눈 아이콘이 항상 실제 GhostPinned 상태를 보여주게(0.1s 스로틀 구간)
 
