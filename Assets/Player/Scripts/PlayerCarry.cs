@@ -1275,7 +1275,7 @@ namespace Player
         }
 
         /// <summary>공정 조작 안내에 쓰는 키 이름 — 데스크톱 "E", 모바일은 화면의 공정 버튼(키보드가 없다).</summary>
-        public static string ProcessKeyLabel => MobileControlsHUD.ShouldUseMobileUI ? "공정 버튼" : "E";
+        public static string ProcessKeyLabel => MobileControlsHUD.ShouldUseMobileUI ? InputHintText.MobileProcessKey : InputHintText.DesktopProcessKey;
 
         private static string ProcName(ProcessType p)
             => p == ProcessType.Painted ? "페인트(페인트통/초록)"

@@ -226,6 +226,7 @@ public sealed class MobileControlsHUD : MonoBehaviour
         {
             s_Instance = null;
             AnswerPreview.GhostPinControlled = false;   // 에디터 프리뷰 껐다 켤 때 데스크톱 TAB 동작 복원
+            InputHintText.ProcessKey = InputHintText.DesktopProcessKey;
         }
     }
 
@@ -236,6 +237,8 @@ public sealed class MobileControlsHUD : MonoBehaviour
         // 에디터 프리뷰 토글/터치 기기 연결로 플레이 중 모드가 바뀌면 Awake 값이 얼어붙어
         // TAB도 눈 버튼도 안 먹는 상태가 될 수 있었다.
         AnswerPreview.GhostPinControlled = ShouldUseMobileUI;
+        // 하위 어셈블리(GridSystem 등)의 조작 안내 문구용 키 이름 — "E" ↔ "공정 버튼"
+        InputHintText.ProcessKey = ShouldUseMobileUI ? InputHintText.MobileProcessKey : InputHintText.DesktopProcessKey;
 
         // 정산(크레인샷) 단계에선 컨트롤을 내려 하단 중앙의 '건축물 둘러보기' 버튼 등을 가리지 않는다.
         bool show = inGame && ShouldUseMobileUI && !m_PhoneOpen && InBuildPhase();
