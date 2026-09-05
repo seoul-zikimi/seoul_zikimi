@@ -33,6 +33,12 @@ public static class CharacterCatalog
         return id;
     }
 
+    /// <summary>id의 능력 소개(인트로 선택 카드용, 두 줄). 문구 원본은 CharacterAbility 표 — 화면마다 따로 쓰지 말 것.</summary>
+    public static string Description(string id) => CharacterAbility.For(id).Description;
+
+    /// <summary>id의 능력 소개(옷장 카드용, 짧은 한 줄).</summary>
+    public static string ShortDescription(string id) => CharacterAbility.For(id).ShortDescription;
+
     public static GameObject LoadPrefab(string id)
         => string.IsNullOrEmpty(id) ? null : Resources.Load<GameObject>("Characters/" + id);
 
