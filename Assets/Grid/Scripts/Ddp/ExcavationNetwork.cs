@@ -470,7 +470,7 @@ namespace GridSystem
             var tgo = new GameObject("prompt");
             tgo.transform.SetParent(m_Stake.transform.parent, false);
             m_Prompt = tgo.AddComponent<TextMesh>();
-            m_Prompt.text = $"{Player.PlayerCarry.ProcessKeyLabel} 꾹 — 발굴";   // 모바일은 '공정 버튼'
+            m_Prompt.text = $"{InputHintText.ProcessKey} 꾹 — 발굴";   // 모바일은 '공정 버튼'(MobileControlsHUD가 갱신)
             m_Prompt.fontSize = 48;
             m_Prompt.characterSize = 0.05f;
             m_Prompt.anchor = TextAnchor.MiddleCenter;

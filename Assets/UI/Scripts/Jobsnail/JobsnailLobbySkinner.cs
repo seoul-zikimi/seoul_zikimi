@@ -443,7 +443,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         {
             m_SessionCards.Add(new JobsnailSessionCardData
             {
-                Name = session.Name,
+                Name = TrailerMode.DisplayName(session.Name),
                 HasPassword = HasPassword(session),
                 Joined = Mathf.Max(0, session.MaxPlayers - session.AvailableSlots),
                 MaxPlayers = session.MaxPlayers,
@@ -465,7 +465,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         var session = m_Sessions[index];
         m_CurrentRoomMaxPlayers = Mathf.Clamp(session.MaxPlayers, 1, 4);
-        m_CurrentRoomName = string.IsNullOrWhiteSpace(session.Name) ? "이름 없는 방" : session.Name;
+        m_CurrentRoomName = string.IsNullOrWhiteSpace(session.Name) ? "이름 없는 방" : TrailerMode.DisplayName(session.Name);
 
         if (HasPassword(session))
         {
@@ -624,7 +624,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             SetActiveSession(session);
             if (session != null)
             {
-                m_CurrentRoomName = string.IsNullOrWhiteSpace(session.Name) ? m_CurrentRoomName : session.Name;
+                m_CurrentRoomName = string.IsNullOrWhiteSpace(session.Name) ? m_CurrentRoomName : TrailerMode.DisplayName(session.Name);
                 m_CurrentRoomMaxPlayers = Mathf.Clamp(session.MaxPlayers, 1, 4);
                 LobbyRoomNet.RequiredTotalPlayers = m_CurrentRoomMaxPlayers;
             }
