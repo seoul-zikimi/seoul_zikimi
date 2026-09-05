@@ -92,6 +92,15 @@ namespace Player
         private static PlayerCarry[] s_AllCarries;
         private static float s_AllCarriesTime = -1f;
 
+        private CharacterWearer m_Wearer;   // 캐릭터 능력 캐시 슬롯(CharacterAbility.Of가 채운다)
+        private CharacterAbility Ability => CharacterAbility.Of(gameObject, ref m_Wearer);
+
+        /// <summary>배치·회수·공정 사거리(칸) — 기본 2칸 + 캐릭터 보너스(소라게 +1).</summary>
+        private float BuildReachCells => kBuildReachCells + Ability.ReachBonusCells;
+
+        /// <summary>바닥 재료 줍기·도구 집기 거리(월드) — 캐릭터 보너스는 칸 단위라 Unit을 곱해 더한다.</summary>
+        private float GrabRange => m_GrabRange + Ability.ReachBonusCells * GridContract.Unit;
+
         /// <summary>이동속도 배율(owner) — 무거운 재료 혼자 들면 0.7, 동료가 붙으면 1.</summary>
         public float MoveMultiplier { get; private set; } = 1f;
         public bool IsStraining => m_NetStraining.Value;
@@ -1101,7 +1110,7 @@ namespace Player
                 return;
             }
 
-            float reach = kBuildReachCells * GridContract.Unit + 2.5f;   // [08/28] 진화 판정 후하게(+1칸)
+            float reach = BuildReachCells * GridContract.Unit + 2.5f;   // [08/28] 진화 판정 후하게(+1칸)
             if (!FireNetwork.TryGetNearestBurning(transform.position, reach, out var cell, out _))
             {
                 m_ProcessHold = 0f; m_ProcessCell = s_NoCell;
@@ -1203,7 +1212,7 @@ namespace Player
             if (m_HasTarget && TryAimProcessCell(out _)) return;
 
             var pc = GridCoordinates.WorldToCell(transform.position);
-            int r = Mathf.CeilToInt(kBuildReachCells) + 1;   // 큰 블록은 가장자리 셀이 더 멀리 있을 수 있어 1칸 여유
+            int r = Mathf.CeilToInt(BuildReachCells) + 1;   // 큰 블록은 가장자리 셀이 더 멀리 있을 수 있어 1칸 여유
             float bestD2 = float.MaxValue;
             Vector3Int best = s_NoCell;
             foreach (int dy in s_AutoAimFloors)
@@ -1216,7 +1225,7 @@ namespace Player
                     var c = new Vector3Int(pc.x + dx, y, pc.z + dz);
                     if (c.x < xMin || c.x >= xMax || c.z < 0 || c.z >= size.z) continue;
                     if (!CellNeedsHeldTool(c)) continue;
-                    if (!GridReach.InReach(transform.position, ReachCells(c), GridContract.Origin, GridContract.Unit, kBuildReachCells)) continue;
+                    if (!GridReach.InReach(transform.position, ReachCells(c), GridContract.Origin, GridContract.Unit, BuildReachCells)) continue;
                     var w = GridCoordinates.CellToWorld(c) + Vector3.one * (0.5f * GridContract.Unit) - transform.position;
                     float d2 = w.x * w.x + w.z * w.z + w.y * w.y * 0.25f;   // 같은 층 우선(높이 차는 약하게만 반영)
                     if (d2 < bestD2) { bestD2 = d2; best = c; }
@@ -1429,7 +1438,7 @@ namespace Player
                 // 중심점이 아니라 '블록이 차지한 셀 중 가장 가까운 셀'까지의 거리 — 큰 블록도 가장자리에 서면 닿는다.
                 if (m_HasTarget)
                     m_HasTarget = GridReach.InReach(transform.position, ReachCells(m_Target),
-                                                    GridContract.Origin, GridContract.Unit, kBuildReachCells);
+                                                    GridContract.Origin, GridContract.Unit, BuildReachCells);
 
                 // 모바일: 조준이 빗나가도 근처의 '공정 필요한' 블록을 자동으로 잡아준다(데스크톱은 커서 조준 그대로).
                 if (MobileControlsHUD.ShouldUseMobileUI)
@@ -1476,7 +1485,7 @@ namespace Player
             if (!HasMaterial && !HasTool && m_Cam != null && m_Input != null)
             {
                 var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
-                float reach2 = m_GrabRange * m_GrabRange;
+                float reach2 = GrabRange * GrabRange;
                 float best = float.MaxValue;
                 // 한 줄 레이 대신 굵은 구체 캐스트 — 커서가 콜라이더를 살짝 빗나가도 집힌다(판정 완화).
                 int hitCount = Physics.SphereCastNonAlloc(ray, kGrabCastRadius, s_GrabRayBuf, 100f, ~0, QueryTriggerInteraction.Collide);
@@ -1532,7 +1541,7 @@ namespace Player
                 if (m_Input != null && m_Input.RevertIsPressed && RevertReadyOnTarget())
                     hitGo = m_Net.VisualAt(m_AimedRevertCell);          // Z 되돌리기 대상
                 else if (HasTool && m_HeldTool == ProcessType.Bucket && m_NetBucketFilled.Value
-                         && FireNetwork.TryGetNearestBurning(transform.position, kBuildReachCells * GridContract.Unit + 2.5f, out var fc, out _))
+                         && FireNetwork.TryGetNearestBurning(transform.position, BuildReachCells * GridContract.Unit + 2.5f, out var fc, out _))
                     hitGo = m_Net.VisualAt(fc);                          // 물 붓기 대상(불타는 블록) — 다른 공정과 같은 초록 테두리
                 else if (HasTool && TryAimProcessCell(out var pc))
                     hitGo = m_Net.VisualAt(pc);                          // 공정 대상
@@ -1548,12 +1557,12 @@ namespace Player
         private PickupBody FindPickupNearCursor()
         {
             var aim = AimWorldPoint();
-            float reach2 = m_GrabRange * m_GrabRange;
+            float reach2 = GrabRange * GrabRange;
             float slack2 = kGrabAimSlack * kGrabAimSlack;
             PickupBody best = null;
             float bestD2 = float.MaxValue;
 
-            int n = Physics.OverlapSphereNonAlloc(transform.position, m_GrabRange + kGrabAimSlack,
+            int n = Physics.OverlapSphereNonAlloc(transform.position, GrabRange + kGrabAimSlack,
                                                   s_GrabNearBuf, ~0, QueryTriggerInteraction.Collide);
             for (int i = 0; i < n; i++)
             {
@@ -2166,8 +2175,9 @@ namespace Player
         {
             bool heavy = HasMaterial && m_HeldMaterial.IsHeavy;
             bool helped = heavy && IsSharedCarry;   // 동료가 화물을 클릭해 '같이 들기' 중이면 정상 속도
-            MoveMultiplier = heavy && !helped ? m_HeavySoloSpeed : 1f;
-            bool straining = heavy && !helped;
+            // 거북이는 무게 디버프 면역 — 혼자 들어도 안 느려지고 끙끙(땀)대지도 않는다.
+            bool straining = heavy && !helped && !Ability.HeavyImmune;
+            MoveMultiplier = straining ? m_HeavySoloSpeed : 1f;
             if (m_NetStraining.Value != straining) m_NetStraining.Value = straining;
         }
 

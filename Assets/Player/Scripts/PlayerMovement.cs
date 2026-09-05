@@ -12,6 +12,7 @@ namespace Player
         private const int kCastMask = ~(1 << 2);   // Ignore Raycast 제외 — 앞에 든 화물(PlayerCarry)이 벽/바닥으로 안 잡히게
         private Rigidbody m_Rb;
         private PlayerCarry m_Carry;
+        private CharacterWearer m_Wearer;   // 캐릭터 능력 캐시 슬롯(CharacterAbility.Of가 채운다)
         private PlayerConfigSO m_Config;
         private bool  m_IsClimbing;
         private float m_ClimbCooldown;    // 벽점프 직후 즉시 재부착 방지
@@ -182,8 +183,10 @@ namespace Player
         }
 
         // 일반 이동 전 호출: 어느 방향이든 벽으로 밀면 기어오르기 진입. (벽점프 직후 쿨다운 동안은 안 붙음)
+        // 벽타기는 달팽이 고유 능력 — 다른 캐릭터는 벽에 아예 안 붙는다(막히면 그냥 벽 앞에서 멈춤).
         public bool TryStartClimb(Vector2 input, Transform cameraArm)
         {
+            if (!CharacterAbility.Of(gameObject, ref m_Wearer).CanClimb) { m_IsClimbing = false; return false; }
             if (m_IsClimbing) return true;
             if (m_ClimbCooldown > 0f) { m_ClimbCooldown -= Time.fixedDeltaTime; return false; }
             Vector3 dir = MoveDir(input, cameraArm);

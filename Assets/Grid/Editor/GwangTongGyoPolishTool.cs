@@ -56,6 +56,7 @@ namespace GridSystem.EditorTools
                 ApplySurfaceMaterials(root, report);
                 BuildExtras(root, report);
                 BuildBankFurniture(root, report);
+                BuildRoadProps(root, report);
 
                 PrefabUtility.SaveAsPrefabAsset(root, kPrefabPath);
                 MapVisualPolishTool.ApplyHorizonFor(kPrefabPath);   // 물길 카브 폭이 바뀌면(흰 틈새 픽스) 바닥 평면도 같이 다시 깐다
@@ -116,6 +117,98 @@ namespace GridSystem.EditorTools
                 if (dirty) r.sharedMaterials = mats;
             }
             report.AppendLine($"[표면재질] 옹벽 {walls} · 슬래브(보도차도) {slabs} · 물길바닥 {beds} · 석재큐브 {blocks} · 산책로 줄무늬 복원 {walks}");
+        }
+
+        // ───────────────────── ⓪.5 석축 위 도로 소품(차·신호등) — v23 ─────────────────────
+        // "석축 위 도로에 자동차·신호등 있으면 더 현실적일 듯"(09/03). VARCO glb를
+        // Assets/Map/Horizon/RoadProps/에 두면(Car_*, TrafficLight_*) 슬래브 차도 차선을 따라
+        // 결정적 난수로 산포한다. 폴더가 비면 조용히 스킵(리포트에만 남김) — 멱등(~GtgRoadProps).
+        private const string kRoadPropsDir = "Assets/Map/Horizon/RoadProps";
+
+        private static void BuildRoadProps(GameObject root, StringBuilder report)
+        {
+            var old = root.transform.Find("~GtgRoadProps");
+            if (old != null) Object.DestroyImmediate(old.gameObject);
+
+            var cars = new System.Collections.Generic.List<GameObject>();
+            var lights = new System.Collections.Generic.List<GameObject>();
+            if (Directory.Exists(kRoadPropsDir))
+                foreach (var guid in AssetDatabase.FindAssets("t:GameObject", new[] { kRoadPropsDir }))
+                {
+                    var go = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (go == null || go.GetComponentInChildren<Renderer>() == null) continue;
+                    if (go.name.StartsWith("Car_")) cars.Add(go);
+                    else if (go.name.StartsWith("TrafficLight")) lights.Add(go);
+                }
+            if (cars.Count == 0 && lights.Count == 0) { report.AppendLine("[도로소품] RoadProps 폴더 비어 있음 — 스킵"); return; }
+
+            var grp = new GameObject("~GtgRoadProps");
+            grp.transform.SetParent(root.transform, false);
+            var rng = new System.Random(1123);
+            int carCount = 0, lightCount = 0;
+
+            // 슬래브 도로 스팬(보도 5m + 연석 0.5m 안쪽): 서쪽 x -47.1~-18.1, 동쪽 x 18.5~47.5
+            var roads = new (float x0, float x1)[] { (-47.1f, -18.1f), (18.5f, 47.5f) };
+            foreach (var (rx0, rx1) in roads)
+            {
+                float cx = (rx0 + rx1) * 0.5f, w = rx1 - rx0;
+                // 4차선: 도로폭의 1/8·3/8·5/8·7/8. 중앙선 기준 서쪽 두 차선은 -z, 동쪽 두 차선은 +z(우측통행 느낌)
+                for (int lane = 0; lane < 4; lane++)
+                {
+                    if (cars.Count == 0) break;
+                    float lx = rx0 + w * (0.125f + 0.25f * lane);
+                    float dirY = lane < 2 ? 180f : 0f;
+                    for (float z = -180f + (float)rng.NextDouble() * 30f; z < 180f; z += 34f + (float)rng.NextDouble() * 34f)
+                    {
+                        if (rng.Next(10) < 3) continue;   // 빈자리 — 도로가 주차장처럼 안 보이게
+                        var src = cars[rng.Next(cars.Count)];
+                        var car = (GameObject)PrefabUtility.InstantiatePrefab(src, grp.transform);
+                        car.name = $"Car{++carCount}";
+                        float len = src.name.Contains("Bus") ? 9f : 4.4f;   // 버스는 시내버스 길이
+                        PlaceProp(car, new Vector3(lx, kBankTopY, z), dirY, len, alongZ: true);
+                    }
+                }
+                // 신호등: 폴은 바깥 보도(연석 밖 0.4m), 가로대는 도로 위로 뻗게 — 실제 도로 배치(v24).
+                // TrafficLight_01.glb 실측: 가로대 = 로컬 +x, 폴 = 중심에서 로컬 x -0.32(정규화) → 높이 5m 스케일 시 -1.6m.
+                if (lights.Count > 0)
+                    for (float z = -150f; z <= 150f; z += 75f)
+                    {
+                        bool west = cx < 0f;
+                        float yaw = west ? 0f : 180f;                    // 팔(+x)이 도로 중앙을 향하게
+                        float poleX = west ? rx0 - 0.4f : rx1 + 0.4f;    // 연석 바깥 보도 위
+                        float centerOfs = 1.6f;                          // 폴→모델중심 수평거리(5m 스케일)
+                        float lx = west ? poleX + centerOfs : poleX - centerOfs;
+                        var src = lights[rng.Next(lights.Count)];
+                        var tl = (GameObject)PrefabUtility.InstantiatePrefab(src, grp.transform);
+                        tl.name = $"TrafficLight{++lightCount}";
+                        PlaceProp(tl, new Vector3(lx, kBankTopY, z), yaw, 5.0f, alongZ: false);
+                    }
+            }
+            report.AppendLine($"[도로소품] 차 {carCount}대 · 신호등 {lightCount}주");
+        }
+
+        /// <summary>VARCO 소품 규격화 배치 — targetSize: alongZ=true면 z축 길이(차), false면 높이(신호등).
+        /// 긴 축을 z로 돌리고, 실측 바운즈 밑면을 지면에 앉힌다. 콜라이더 제거 + 그림자 끔(원경 소품).</summary>
+        private static void PlaceProp(GameObject go, Vector3 pos, float yaw, float targetSize, bool alongZ)
+        {
+            foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+            var rends = go.GetComponentsInChildren<Renderer>();
+            if (rends.Length == 0) return;
+            var b = rends[0].bounds; foreach (var r in rends) b.Encapsulate(r.bounds);
+            // 차: 모델의 긴 수평축이 x면 90° 돌려 z를 진행축으로
+            float preYaw = (alongZ && b.size.x > b.size.z) ? 90f : 0f;
+            float basis = alongZ ? Mathf.Max(b.size.x, b.size.z) : b.size.y;
+            float sc = basis > 0.01f ? targetSize / basis : 1f;
+            go.transform.localScale = Vector3.one * sc;
+            go.transform.rotation = Quaternion.Euler(0f, yaw + preYaw, 0f);
+            go.transform.position = pos;
+            // 스케일·회전 반영된 실측 바운즈로 밑면 스냅
+            b = rends[0].bounds; foreach (var r in rends) b.Encapsulate(r.bounds);
+            go.transform.position += Vector3.up * (pos.y - b.min.y);
+            foreach (var r in rends)
+            { r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false; r.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); }
+            go.layer = LayerMask.NameToLayer("Ignore Raycast");
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
         }
 
         // ───────────────────── ① 덤불 진단 + 복구 ─────────────────────
@@ -298,8 +391,8 @@ namespace GridSystem.EditorTools
         // 창문은 타일링 3×3으로 촘촘하게(큰 건물 대형 유리창 방지).
         private static readonly Color[] kFacadeTints =
         {
-            new Color(0.90f, 0.89f, 0.87f), new Color(0.87f, 0.87f, 0.87f), new Color(0.91f, 0.90f, 0.88f),
-            new Color(0.85f, 0.85f, 0.86f), new Color(0.93f, 0.92f, 0.90f), new Color(0.83f, 0.83f, 0.84f),
+            new Color(0.93f, 0.90f, 0.85f), new Color(0.80f, 0.81f, 0.84f), new Color(0.88f, 0.85f, 0.79f),
+            new Color(0.72f, 0.73f, 0.76f), new Color(0.95f, 0.94f, 0.91f), new Color(0.66f, 0.68f, 0.71f),
         };
 
         private static int ReskinBackgroundCity(GameObject root, StringBuilder report)
@@ -320,7 +413,31 @@ namespace GridSystem.EditorTools
                 EditorUtility.SetDirty(mats[i]);
             }
 
-            int count = 0;
+            // v24: 민짜 틴트 박스가 "음영이 없어 어색" — 가까운 빌딩은 VARCO 모델(음영 구운 텍스처)로
+            // 실제 교체한다. 원본 박스는 렌더러만 끄고 보존(레이아웃 원본), 모델은 ~GtgCityModels 아래(멱등).
+            // 전부 바꾸면 403×5K 트라이 폭탄이라 가까운 kModelSwapRadius 안 + kModelSwapMax개까지만 — 먼 것은 안개가 가려준다.
+            var oldModels = root.transform.Find("~GtgCityModels");
+            if (oldModels != null) Object.DestroyImmediate(oldModels.gameObject);
+            var modelGrp = new GameObject("~GtgCityModels");
+            modelGrp.transform.SetParent(root.transform, false);
+            var bldgModels = new System.Collections.Generic.List<GameObject>();
+            foreach (var g in AssetDatabase.FindAssets("t:GameObject", new[] { "Assets/Map/Horizon/Buildings" }))
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(g));
+                if (go != null && go.GetComponentInChildren<Renderer>() != null) bldgModels.Add(go);
+            }
+
+            int count = 0, swapped = 0;
+            // v25: "여전히 남은 민짜 블록" — 반경 안은 풀 모델(5K), 그 밖은 전부 저폴리 LOD(1.5K, Remesh+재베이크)로
+            // 남김없이 교체. LOD 폴더가 비면 반경 밖은 기존 틴트 박스 유지(폴백).
+            const float kModelSwapRadius = 170f; const int kModelSwapMax = 140;
+            var lodModels = new System.Collections.Generic.List<GameObject>();
+            foreach (var g in AssetDatabase.FindAssets("t:GameObject", new[] { "Assets/Map/Horizon/BuildingsLod" }))
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(g));
+                if (go != null && go.GetComponentInChildren<Renderer>() != null) lodModels.Add(go);
+            }
+            var allBoxes = new System.Collections.Generic.List<MeshRenderer>();
             foreach (var t in root.transform.Cast<Transform>().Where(t => t.name.StartsWith("BackgroundCity")))
             foreach (var r in t.GetComponentsInChildren<MeshRenderer>(true))
             {
@@ -329,9 +446,42 @@ namespace GridSystem.EditorTools
                 r.sharedMaterials = Enumerable.Repeat(pick, r.sharedMaterials.Length).ToArray();
                 r.shadowCastingMode = ShadowCastingMode.Off;
                 r.receiveShadows = false;
+                r.enabled = true;   // 지난 실행이 꺼둔 것 복구(교체 대상은 아래서 다시 끔)
                 count++;
+                allBoxes.Add(r);
             }
-            report.AppendLine($"[원경도시] 파사드 교체 {count}개");
+            var nearSet = new System.Collections.Generic.HashSet<MeshRenderer>(
+                bldgModels.Count == 0 ? Enumerable.Empty<MeshRenderer>() :
+                allBoxes.Where(r => new Vector2(r.bounds.center.x, r.bounds.center.z).magnitude < kModelSwapRadius)
+                        .OrderBy(r => new Vector2(r.bounds.center.x, r.bounds.center.z).sqrMagnitude)
+                        .Take(kModelSwapMax));
+            var rng2 = new System.Random(517);
+            foreach (var r in allBoxes)
+            {
+                var srcList = nearSet.Contains(r) ? bldgModels : lodModels;
+                if (srcList.Count == 0) continue;   // LOD 없으면 틴트 박스 유지
+                var b = r.bounds;
+                var src = srcList[rng2.Next(srcList.Count)];
+                var inst = (GameObject)PrefabUtility.InstantiatePrefab(src, modelGrp.transform);
+                inst.name = $"CityM{swapped}";
+                // 모델 바운즈를 원본 박스 바운즈에 맞춤(비균등 스케일 — 박스형이라 창문 왜곡 미미)
+                var rends = inst.GetComponentsInChildren<Renderer>();
+                var mb = rends[0].bounds; foreach (var rr in rends) mb.Encapsulate(rr.bounds);
+                var sc = inst.transform.localScale;
+                sc.x *= b.size.x / Mathf.Max(mb.size.x, 0.01f);
+                sc.y *= b.size.y / Mathf.Max(mb.size.y, 0.01f);
+                sc.z *= b.size.z / Mathf.Max(mb.size.z, 0.01f);
+                inst.transform.localScale = sc;
+                mb = rends[0].bounds; foreach (var rr in rends) mb.Encapsulate(rr.bounds);
+                inst.transform.position += b.center - mb.center;
+                foreach (var rr in inst.GetComponentsInChildren<Renderer>())
+                { rr.shadowCastingMode = ShadowCastingMode.Off; rr.receiveShadows = false; rr.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); }
+                foreach (var c in inst.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                GameObjectUtility.SetStaticEditorFlags(inst, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
+                r.enabled = false;   // 원본 박스는 끄고 보존
+                swapped++;
+            }
+            report.AppendLine($"[원경도시] 파사드 교체 {count}개 · 근거리 VARCO 모델 교체 {swapped}개");
             return count;
         }
 
@@ -728,7 +878,10 @@ namespace GridSystem.EditorTools
     [InitializeOnLoad]
     public static class GwangTongGyoAutoSetup
     {
-        private const int kVersion = 22;   // 22: 산책로 줄무늬(FloorTile) 복원 — 돌바닥 교체 반려(09/03 "원래걸로 유지해줘")
+        private const int kVersion = 25;   // 25: 반경 밖 원경 박스도 전부 LOD 모델(1.5K)로 — 민짜 블록 전멸(09/03)
+                                           // 24: 근거리 원경빌딩 VARCO 모델 교체(음영) + 신호등 실제 도로식 배치(09/03)
+                                           // 23: 석축 위 도로 소품(차 4종·신호등) 산포 + 파사드 명도 다양화 + 차도 어둡게(09/03)
+                                           // 22: 산책로 줄무늬(FloorTile) 복원 — 돌바닥 교체 반려(09/03 "원래걸로 유지해줘")
                                            // 21: 몸통색 중립·창문 원복(불켜진 창 유지)·산책로 VARCO 보도블럭(09/03 3차 피드백)
                                            // 20: 원경 파사드 유리색 통일·창문 3×3 촘촘·틴트 뮤트 + Wall.mat 메탈릭 0(09/03 "알록달록·꺼먼 벽" 반려)
                                            // 19: 표면 재질 배정 — 옹벽 터치업 PNG + 슬래브 보도/차도 + 물길바닥·석재 큐브(09/03)

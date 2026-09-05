@@ -348,8 +348,14 @@ public class MyPageUI : UIHUD
             var entry = order[i];
             bool owned = SaveService.HasCharacter(entry.Id) || entry.Price <= 0;
             bool on = selected == entry.Id;
+            // 캐릭터마다 능력이 달라 이름 밑에 소개 한 줄. 카드가 좁아 짧은 쪽 문구를 쓰고,
+            // 색은 인트로 선택 카드와 같은 초록(#296642)으로 맞춘다. 문구 원본 = CharacterAbility 표.
+            string desc = CharacterCatalog.ShortDescription(entry.Id);
+            FitCharacterLabel(slot.label, desc != "");
+            string caption = desc == "" ? entry.DisplayName
+                                        : $"{entry.DisplayName}\n<size=85%><color=#296642>{desc}</color></size>";
             ShowSlot(slot, CharacterCatalog.LoadThumbnail(entry.Id), owned, on,
-                owned ? entry.DisplayName : $"{entry.DisplayName}\n{entry.Price:N0}코인");
+                owned ? caption : $"{caption}\n{entry.Price:N0}코인");
             string id = entry.Id; string dn = entry.DisplayName; int price = entry.Price;
             slot.btn.onClick.AddListener(() =>
             {
@@ -357,6 +363,17 @@ public class MyPageUI : UIHUD
                 OnClickCharacter(id, dn, price);
             });
         }
+    }
+
+    /// <summary>캐릭터 카드 라벨은 '이름 + 소개(+가격)' 3줄까지 들어간다 — 그만큼 키우고 더 작게 줄어들게 한다.
+    /// 섹션마다 자기 슬롯을 쓰므로 여기서 바꿔도 옷·트레일 카드엔 영향이 없다.</summary>
+    private static void FitCharacterLabel(TextMeshProUGUI label, bool hasDesc)
+    {
+        if (label == null) return;
+        label.richText = true;   // 소개는 <size>·<color> 태그로 이름과 구분
+        label.rectTransform.anchoredPosition = new Vector2(0f, hasDesc ? 25f : 21f);
+        label.rectTransform.sizeDelta = new Vector2(-6f, hasDesc ? 48f : 40f);
+        label.fontSizeMin = hasDesc ? 7 : 9;
     }
 
     // 아웃핏 섹션 — 0번 = 이 카테고리의 현재 상태(착용 중이면 그 아이템, 아니면 '기본'), 이후 아이템

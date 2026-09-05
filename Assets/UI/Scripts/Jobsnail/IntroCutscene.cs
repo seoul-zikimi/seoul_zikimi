@@ -55,6 +55,10 @@ public sealed class IntroCutscene : MonoBehaviour
 
     private const float kFadeSeconds = 0.4f;
 
+    /// <summary>능력 소개 글자색 — 이름(갈색)과 한눈에 구분되게 초록 계열(옷장 카드도 같은 #296642).</summary>
+    private static readonly Color kAbilityText = new(0.16f, 0.40f, 0.26f, 1f);
+    private static Color Dim(Color c) => new(c.r, c.g, c.b, 0.45f);
+
     private Action m_OnComplete;
     private int m_SlideIndex = -1;
     private bool m_Fading;
@@ -235,8 +239,9 @@ public sealed class IntroCutscene : MonoBehaviour
         m_CardFrames = new Image[kPicks.Length];
         for (int i = 0; i < kPicks.Length; i++)
         {
+            // 카드 밑에 능력 소개 두 줄이 들어가 예전(0.28~0.74)보다 길어졌다.
             float cx = 0.5f + (i - 1) * 0.24f;
-            BuildCard(root, i, new Vector2(cx - 0.10f, 0.28f), new Vector2(cx + 0.10f, 0.74f));
+            BuildCard(root, i, new Vector2(cx - 0.105f, 0.235f), new Vector2(cx + 0.105f, 0.765f));
         }
 
         m_ConfirmButton = JobsnailUiKit.Button("ConfirmButton", root, null, new Vector2(0.40f, 0.10f), new Vector2(0.60f, 0.20f), Vector2.zero, Vector2.zero, Confirm);
@@ -260,7 +265,7 @@ public sealed class IntroCutscene : MonoBehaviour
         var portraitSprite = JobsnailUiKit.Sprite(pick.PortraitPath);
         var portrait = JobsnailUiKit.Image("Portrait", frame.transform, portraitSprite);
         var portraitRt = portrait.rectTransform;
-        portraitRt.anchorMin = new Vector2(0.05f, 0.16f);
+        portraitRt.anchorMin = new Vector2(0.05f, 0.36f);   // 이름띠가 소개 두 줄만큼 높아져 그만큼 밀어올림
         portraitRt.anchorMax = new Vector2(0.95f, 0.96f);
         portraitRt.offsetMin = Vector2.zero;
         portraitRt.offsetMax = Vector2.zero;
@@ -268,8 +273,27 @@ public sealed class IntroCutscene : MonoBehaviour
         if (!available)
             portrait.color = new Color(0.55f, 0.55f, 0.6f, 1f);
 
-        var nameBand = JobsnailUiKit.Box("NameBand", frame.transform, new Vector2(0f, 0f), new Vector2(1f, 0.15f), Vector2.zero, Vector2.zero, new Color(1f, 0.79f, 0.46f, available ? 1f : 0.5f));
-        JobsnailUiKit.Label("Name", nameBand.transform, available ? pick.DisplayName : pick.DisplayName + " (준비 중)", 26, JobsnailUiKit.Brown, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
+        // 이름띠 = 이름(갈색) + 그 아래 능력 소개. 소개는 주황 띠 위에서 잘 안 보여
+        // 밝은 크림색 판을 따로 깔고 그 위에 초록 글씨를 얹는다(두 줄).
+        var nameBand = JobsnailUiKit.Box("NameBand", frame.transform, new Vector2(0f, 0f), new Vector2(1f, 0.35f), Vector2.zero, Vector2.zero, new Color(1f, 0.79f, 0.46f, available ? 1f : 0.5f));
+        JobsnailUiKit.Label("Name", nameBand.transform, available ? pick.DisplayName : pick.DisplayName + " (준비 중)", 26, JobsnailUiKit.Brown, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero)
+            .rectTransform.SetAnchors(new Vector2(0f, 0.63f), new Vector2(1f, 1f));
+
+        // 능력 소개 — 문구 원본은 CharacterAbility 표(수치와 설명이 갈라지지 않게).
+        string desc = CharacterCatalog.Description(pick.Id);
+        if (desc != "")
+        {
+            var plate = JobsnailUiKit.Box("DescPlate", nameBand.transform, new Vector2(0.05f, 0.06f), new Vector2(0.95f, 0.58f),
+                                          Vector2.zero, Vector2.zero, new Color(1f, 0.97f, 0.86f, available ? 1f : 0.5f));
+            var descLabel = JobsnailUiKit.Label("Desc", plate.transform, desc, 19,
+                                                available ? kAbilityText : Dim(kAbilityText),
+                                                TextAlignmentOptions.Center, Vector2.zero, Vector2.zero);
+            descLabel.rectTransform.SetAnchors(new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.95f));
+            descLabel.enableAutoSizing = true;   // 두 줄이 기본, 넘치면 판 안에서 조금 줄어든다
+            descLabel.fontSizeMin = 14;
+            descLabel.fontSizeMax = 19;
+            descLabel.lineSpacing = 6f;
+        }
 
         if (!available)
             return;

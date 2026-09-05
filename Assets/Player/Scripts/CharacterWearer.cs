@@ -12,6 +12,13 @@ public class CharacterWearer : NetworkBehaviour
     private readonly NetworkVariable<FixedString64Bytes> m_Character = new(
         default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
+    /// <summary>복제된 캐릭터 id(빈 문자열 = 달팽이).</summary>
+    public string CharacterId { get; private set; } = "";
+
+    /// <summary>이 캐릭터의 특수 능력 — 이동/운반 코드가 매 틱 읽는다.
+    /// FixedString.ToString()은 호출마다 문자열을 할당하므로 값이 바뀔 때만 여기서 캐시한다.</summary>
+    public CharacterAbility Ability { get; private set; } = CharacterAbility.Snail;
+
     public override void OnNetworkSpawn()
     {
         m_Character.OnValueChanged += OnChanged;
@@ -19,11 +26,18 @@ public class CharacterWearer : NetworkBehaviour
             m_Character.Value = new FixedString64Bytes(SaveService.EquippedCharacter ?? "");
         else
             ApplyCurrent();
+        CacheAbility();   // 오너는 위 대입이 콜백을 안 태울 수도 있어 여기서 한 번 맞춰둔다
     }
 
     public override void OnNetworkDespawn() => m_Character.OnValueChanged -= OnChanged;
 
-    private void OnChanged(FixedString64Bytes _, FixedString64Bytes __) => ApplyCurrent();
+    private void OnChanged(FixedString64Bytes _, FixedString64Bytes __) { CacheAbility(); ApplyCurrent(); }
+
+    private void CacheAbility()
+    {
+        CharacterId = m_Character.Value.ToString();
+        Ability = CharacterAbility.For(CharacterId);
+    }
 
     private Coroutine m_Pending;
 

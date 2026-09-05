@@ -393,7 +393,11 @@ namespace GridSystem.EditorTools
 
                 // 5) 도시 맵: 도로 격자 위 입체 빌딩(창문 텍스처 박스). 맵에서 멀수록 높아져 스카이라인이 생긴다.
                 if (profile.Ground == GroundKind.City)
+                {
                     ScatterBuildings(root, group.transform, center, groundY, playR + 12f, cityR + 20f, profile);
+                    // 5.5) 격자 도로에 차 산포 — "DDP 도로에도 자동차"(09/03). RoadProps 폴더 비면 스킵.
+                    ScatterCars(root, group.transform, center, groundY, playR + 12f, cityR + 20f, profile);
+                }
 
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 Debug.Log($"[비주얼정리] ~Horizon ✔ {Path.GetFileNameWithoutExtension(prefabPath)} (바닥 y={groundY:F1}, 플레이R={playR:F0}, 스커트 {drop:F1}m, 카드 r={cityR:F0}/{mountR:F0})");
@@ -663,8 +667,8 @@ namespace GridSystem.EditorTools
         // "배경인데 왜 알록달록" 피드백. 창문 색(텍스처)은 그대로 살린다.
         private static readonly Color[] kFacadeTints =
         {
-            new Color(0.90f, 0.89f, 0.87f), new Color(0.87f, 0.87f, 0.87f), new Color(0.91f, 0.90f, 0.88f),
-            new Color(0.85f, 0.85f, 0.86f), new Color(0.93f, 0.92f, 0.90f), new Color(0.83f, 0.83f, 0.84f),
+            new Color(0.93f, 0.90f, 0.85f), new Color(0.80f, 0.81f, 0.84f), new Color(0.88f, 0.85f, 0.79f),
+            new Color(0.72f, 0.73f, 0.76f), new Color(0.95f, 0.94f, 0.91f), new Color(0.66f, 0.68f, 0.71f),
         };
 
         private static void ScatterBuildings(GameObject root, Transform parent, Vector3 center, float groundY,
@@ -766,6 +770,76 @@ namespace GridSystem.EditorTools
                         }
                 }
             Debug.Log($"[비주얼정리] {root.name}: 빌딩 {made}개 (r {rMin:F0}~{rMax:F0})");
+        }
+
+
+        // ───────────────────────────── 격자 도로 차 산포(도시 맵) ─────────────────────────────
+        // Assets/Map/Horizon/RoadProps/의 Car_* glb를 빌딩 격자 사이 도로(남북 방향 차선)에 결정적 난수로 놓는다.
+        // 광통교 슬래브 위 차는 GwangTongGyoPolishTool.BuildRoadProps 담당 — 여기는 ~Horizon 격자 도로 전용.
+        private static void ScatterCars(GameObject root, Transform parent, Vector3 center, float groundY,
+                                        float rMin, float rMax, MapProfile profile)
+        {
+            var cars = new System.Collections.Generic.List<GameObject>();
+            const string dir = "Assets/Map/Horizon/RoadProps";
+            if (Directory.Exists(dir))
+                foreach (var guid in AssetDatabase.FindAssets("t:GameObject", new[] { dir }))
+                {
+                    var go = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (go != null && go.name.StartsWith("Car_") && go.GetComponentInChildren<Renderer>() != null) cars.Add(go);
+                }
+            if (cars.Count == 0) return;
+
+            // 빌딩 회피용 점유 사각형(ScatterBuildings와 같은 기준) — 호수·광장 등 기획 오브젝트 위 주차 방지
+            var occupied = new System.Collections.Generic.List<Rect>();
+            foreach (var r in MeshRenderers(root))
+            {
+                var b = r.bounds;
+                bool keepClear = profile.KeepClear != null && System.Array.IndexOf(profile.KeepClear, r.gameObject.name) >= 0;
+                if (!keepClear && b.size.x * b.size.z > 2500f) continue;
+                occupied.Add(Rect.MinMaxRect(b.min.x - 1f, b.min.z - 1f, b.max.x + 1f, b.max.z + 1f));
+            }
+
+            var grp = new GameObject("RoadCars"); grp.transform.SetParent(parent, false);
+            var rng = new System.Random(777);
+            int made = 0; const int kMaxCars = 110;
+            int cells = Mathf.CeilToInt(rMax / kBlock) + 1;
+            for (int gx = -cells; gx <= cells && made < kMaxCars; gx++)
+            {
+                float sx = center.x + gx * kBlock;   // 남북 도로 중심선
+                if (profile.ChannelXMin.HasValue && sx > profile.ChannelXMin.Value - 3f && sx < profile.ChannelXMax.Value + 3f) continue;
+                foreach (float laneOfs in new[] { -1.5f, 1.5f })
+                {
+                    float dirY = laneOfs < 0f ? 180f : 0f;   // 우측통행 느낌
+                    for (float z = -rMax + (float)rng.NextDouble() * 40f; z < rMax && made < kMaxCars; z += 55f + (float)rng.NextDouble() * 40f)
+                    {
+                        float cx = sx + laneOfs;
+                        float dist = Vector2.Distance(new Vector2(cx, z), new Vector2(center.x, center.z));
+                        if (dist < rMin || dist > rMax) continue;
+                        bool blocked = false;
+                        foreach (var o in occupied) if (o.Contains(new Vector2(cx, z))) { blocked = true; break; }
+                        if (blocked) continue;
+                        var src = cars[rng.Next(cars.Count)];
+                        var car = (GameObject)PrefabUtility.InstantiatePrefab(src, grp.transform);
+                        car.name = $"RC{++made}";
+                        float len = src.name.Contains("Bus") ? 9f : 4.4f;
+                        // 규격화: 긴 축을 z로, 길이 len, 바닥 스냅(빌딩 배치와 같은 요령)
+                        foreach (var c in car.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                        var rends = car.GetComponentsInChildren<Renderer>();
+                        var b = rends[0].bounds; foreach (var rr in rends) b.Encapsulate(rr.bounds);
+                        float preYaw = b.size.x > b.size.z ? 90f : 0f;
+                        float basis = Mathf.Max(b.size.x, b.size.z);
+                        car.transform.localScale = Vector3.one * (basis > 0.01f ? len / basis : 1f);
+                        car.transform.rotation = Quaternion.Euler(0f, dirY + preYaw, 0f);
+                        car.transform.position = new Vector3(cx, groundY, z);
+                        b = rends[0].bounds; foreach (var rr in rends) b.Encapsulate(rr.bounds);
+                        car.transform.position += Vector3.up * (groundY - b.min.y);
+                        foreach (var rr in rends)
+                        { rr.shadowCastingMode = ShadowCastingMode.Off; rr.receiveShadows = false; rr.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); }
+                        GameObjectUtility.SetStaticEditorFlags(car, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
+                    }
+                }
+            }
+            Debug.Log($"[비주얼정리] {root.name}: 격자 도로 차 {made}대");
         }
 
         private const string kMeshLibPath = kHorizonTexDir + "/BldgMeshes.asset";

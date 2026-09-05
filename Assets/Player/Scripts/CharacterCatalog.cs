@@ -20,18 +20,24 @@ public static class CharacterCatalog
     {
         new("", "달팽이"),
         new("char_turtle", "거북이"),
-        new("char_crab", "게"),
+        new("char_crab", "소라게"),
     };
 
     /// <summary>id의 화면 표시 이름(모르는 id면 id 그대로).
     /// 표시 이름은 이 카탈로그가 유일한 원본 — 화면마다 따로 하드코딩하지 말 것
-    /// (인트로는 "소라게", 옷장은 "게"로 갈렸던 적이 있다).</summary>
+    /// (인트로는 "소라게", 옷장은 "게"로 갈렸던 적이 있다. 지금은 일러스트에 맞춰 "소라게"로 통일).</summary>
     public static string DisplayName(string id)
     {
         foreach (var entry in All)
             if (entry.Id == id) return entry.DisplayName;
         return id;
     }
+
+    /// <summary>id의 능력 소개(인트로 선택 카드용, 두 줄). 문구 원본은 CharacterAbility 표 — 화면마다 따로 쓰지 말 것.</summary>
+    public static string Description(string id) => CharacterAbility.For(id).Description;
+
+    /// <summary>id의 능력 소개(옷장 카드용, 짧은 한 줄).</summary>
+    public static string ShortDescription(string id) => CharacterAbility.For(id).ShortDescription;
 
     public static GameObject LoadPrefab(string id)
         => string.IsNullOrEmpty(id) ? null : Resources.Load<GameObject>("Characters/" + id);
