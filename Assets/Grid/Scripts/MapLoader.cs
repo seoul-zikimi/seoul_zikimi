@@ -23,6 +23,8 @@ namespace GridSystem
         private void Awake() => Pending = true;
         private void OnDestroy() => Pending = false;   // 씬 전환 시 대기 해제
 
+        private const int kFreeBuildMinHeight = 20;   // 자유 건축 최소 층수(맵 그리드가 더 높으면 그 값)
+
         private void Update()
         {
             if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
@@ -70,13 +72,25 @@ namespace GridSystem
                     var combined = catalog.VersusZoneGridSize(idx);
                     if (combined != default) size = combined;
                 }
+                // 자유 건축: 평면 경계는 없애고(땅만 있으면 어디든), 높이는 낮은 맵(DDP 6층)에서도 넉넉히 쌓게 최소 20층.
+                if (m_Loop.IsFreeBuild)
+                {
+                    if (size == default) size = bgDef.HasGridSize ? bgDef.GridSize : new Vector3Int(16, 10, 16);
+                    size.y = Mathf.Max(size.y, kFreeBuildMinHeight);
+                }
                 var gm = FindFirstObjectByType<GridManager>();
-                if (gm != null) gm.ApplyMapGridSize(size);
+                if (gm != null)
+                {
+                    gm.ApplyMapGridSize(size);
+                    gm.ConfigureUnbounded(m_Loop.IsFreeBuild);
+                }
             }
 
             // 이 맵에서 주문할 수 있는 재료(비면 카탈로그 전체) — 주문 HUD가 이 목록만 보여준다.
+            // 자유 건축 모드는 맵에 매이지 않고 모든 맵의 건축 에셋을 주문할 수 있다(전 클라 동일 호출 → 서버 IsOrderable도 같은 목록).
             var depot = FindFirstObjectByType<MaterialDepot>();
-            if (depot != null) depot.SetAvailableMaterials(def.AvailableMaterials);
+            if (depot != null)
+                depot.SetAvailableMaterials(m_Loop.IsFreeBuild ? catalog.CollectFreeBuildMaterials() : def.AvailableMaterials);
 
             ApplySpots(m_Spawned, m_Loop.IsVersus);   // 맵 마커(Spot_*)대로 배치/스폰 — 후처리·플레이어 배치보다 먼저
 

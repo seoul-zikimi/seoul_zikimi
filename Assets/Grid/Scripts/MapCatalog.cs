@@ -31,6 +31,23 @@ namespace GridSystem
             return def != null && !def.IsVersusArena && !def.IsTutorial;
         }
 
+        /// <summary>자유 건축 모드 주문 목록 — 고를 수 있는 모든 맵(공터·튜토리얼 제외)의 AvailableMaterials 합집합(맵 순서, 중복 제거).
+        /// 어느 한 맵이라도 목록을 비워 뒀으면(=카탈로그 전체 허용) null을 돌려 호출부가 카탈로그 전체로 폴백하게 한다.
+        /// 카탈로그 전체를 그냥 쓰지 않는 이유: 기믹 전용(경복궁 석상 등)·미사용 조각이 카탈로그에 섞여 있다.</summary>
+        public List<MaterialDef> CollectFreeBuildMaterials()
+        {
+            var result = new List<MaterialDef>();
+            for (int i = 0; i < m_Maps.Count; i++)
+            {
+                if (!IsSelectable(i)) continue;
+                var mats = m_Maps[i].AvailableMaterials;
+                if (mats == null || mats.Count == 0) return null;
+                foreach (var m in mats)
+                    if (m != null && !result.Contains(m)) result.Add(m);
+            }
+            return result;
+        }
+
         /// <summary>'랜덤' 선택 시 실제로 플레이할 맵을 뽑는다(공터·튜토리얼 제외). 후보가 없으면 0.</summary>
         public int PickRandomPlayable()
         {

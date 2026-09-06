@@ -116,7 +116,16 @@ namespace GridSystem
             m_Manager = GetComponent<GridManager>();
             m_DropField = GetComponent<MaterialDropField>();
             m_Loop = GetComponent<GameLoopManager>();
+            // 자유 건축 경계 해제는 MapLoader가 배경 스폰 때 정한다(서버 그리드 생성보다 늦을 수 있음) → 바뀌면 따라간다.
+            m_Manager.UnboundedChanged += on => { if (m_ServerGrid != null) m_ServerGrid.Unbounded = on; };
         }
+
+        /// <summary>서버 판정 그리드 생성 — 환경 지지 훅과 자유 건축 경계 해제 플래그를 항상 함께 단다.</summary>
+        private RuntimeGrid NewServerGrid(Vector3Int size) => new RuntimeGrid(size)
+        {
+            ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit),   // 환경 바닥·스캐폴드도 지지로 인정
+            Unbounded = m_Manager.Unbounded,
+        };
 
         // 이 판에 쓸 건축 영역 크기 — 호스트가 고른 맵이 전용 크기를 갖고 있으면 그걸, 아니면 씬 값.
         // 2vs2는 공터(경기장) 맵 크기와 선택한 맵의 정답 크기를 합성한 값을 쓴다(MapLoader와 정합) —
@@ -144,8 +153,7 @@ namespace GridSystem
                 bool versus = GameLoopManager.HostSelectedMode == (int)SeoulZikimi.Gameplay.GameModeKind.TeamVersus;
                 var size = ServerGridSize();
                 if (versus) size.x *= 2;
-                m_ServerGrid = new RuntimeGrid(size);
-                m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);   // 환경 바닥·스캐폴드도 지지로 인정
+                m_ServerGrid = NewServerGrid(size);
             }
 
             m_VisualRoot = new GameObject("~GridVisuals");
@@ -345,12 +353,16 @@ namespace GridSystem
             PlacedFxRpc(CellWorld(anchor));   // 놓기 먼지(모든 클라)
 
             // 점수 팝업: 정답 칸과 일치한 셀 수 × 200 (틀린 자리는 +0 회색 — 즉각 피드백)
-            int gained = 0;
-            var ans = m_Manager.Answer;
-            if (ans != null)
-                foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
-                    if (ans.TryGet(c, out var ac) && ac.materialId == materialId) gained += 200;
-            ScorePopRpc(CellWorld(anchor) + Vector3.up * (GridContract.Unit * 1.2f), gained, 0);
+            // 자유 건축은 정답이 없으므로 팝업 자체를 띄우지 않는다(+0 회색이 계속 뜨면 "틀렸다"로 읽힌다).
+            if (m_Loop == null || !m_Loop.IsFreeBuild)
+            {
+                int gained = 0;
+                var ans = m_Manager.Answer;
+                if (ans != null)
+                    foreach (var c in GridFootprint.EnumerateFootprintCells(anchor, mat.Footprint, rot))
+                        if (ans.TryGet(c, out var ac) && ac.materialId == materialId) gained += 200;
+                ScorePopRpc(CellWorld(anchor) + Vector3.up * (GridContract.Unit * 1.2f), gained, 0);
+            }
 
             // 트리거②: 미고정 오브젝트 위에 놓임 → 그 미고정 지지물(+연쇄) 무너짐
             foreach (var t in m_ServerGrid.FindUnfixedSupportsUnder(owner))
@@ -696,8 +708,7 @@ namespace GridSystem
             var catalog = m_Manager.Catalog;
             if (ans == null || catalog == null) return;
 
-            m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 그리드 리셋(2vs2면 2배 폭 유지)
-            m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
+            m_ServerGrid = NewServerGrid(m_Manager.EffectiveSize);   // 그리드 리셋(2vs2면 2배 폭 유지)
             m_OwnerCounter = 0;
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);
 
@@ -784,7 +795,7 @@ namespace GridSystem
 
             // 공정 점수 팝업: 요구 공정이 '방금 완성'됐고 정답 자리에 있는 셀 수 × 100
             int req = mat != null ? mat.RequiredMask : 0;
-            if (apply && req != 0 && (newMask & req) == req)
+            if (apply && req != 0 && (newMask & req) == req && (m_Loop == null || !m_Loop.IsFreeBuild))   // 자유 건축: 점수 팝업 없음
             {
                 int gained = 0;
                 var ans = m_Manager.Answer;
@@ -852,8 +863,7 @@ namespace GridSystem
         public void ServerResetGrid()
         {
             if (!IsServer) return;
-            m_ServerGrid = new RuntimeGrid(m_Manager.EffectiveSize);   // 2vs2면 2배 폭 유지
-            m_ServerGrid.ExternalSupportBelow = c => GridSupport.ExternalSolidAt(c, GridContract.Unit);
+            m_ServerGrid = NewServerGrid(m_Manager.EffectiveSize);   // 2vs2면 2배 폭 유지
             m_OwnerCounter = 0;
             m_ServerBonus = m_ServerBonusB = 0;   // 보너스도 라운드마다 초기화
             for (int i = m_Cells.Count - 1; i >= 0; i--) m_Cells.RemoveAt(i);

@@ -20,10 +20,13 @@ namespace GridSystem
         /// 호스트(GridNetwork)가 주입한다. null이면 순수 그리드 규칙만(유닛테스트 기본). 배치·무너짐이 함께 본다.</summary>
         public System.Func<Vector3Int, bool> ExternalSupportBelow;
 
+        /// <summary>자유 건축: X·Z 경계를 없앤다(음수 칸 포함 어디든). 높이(Y)는 그대로 [0, Size.y).
+        /// 지지 규칙은 변함없다 — y=0(그리드 바닥 높이)이거나 아래에 블록/환경 솔리드가 있어야 놓인다("땅만 있으면").</summary>
+        public bool Unbounded;
+
         public bool IsInBounds(Vector3Int cell)
-            => cell.x >= 0 && cell.x < Size.x
-            && cell.y >= 0 && cell.y < Size.y
-            && cell.z >= 0 && cell.z < Size.z;
+            => cell.y >= 0 && cell.y < Size.y
+            && (Unbounded || (cell.x >= 0 && cell.x < Size.x && cell.z >= 0 && cell.z < Size.z));
 
         public CellState GetCell(Vector3Int cell)
             => m_Cells.TryGetValue(cell, out var s) ? s : CellState.Empty;

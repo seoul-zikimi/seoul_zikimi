@@ -110,6 +110,7 @@ public class GameHudDriver : MonoBehaviour
         if (m_Net == null)  m_Net  = FindFirstObjectByType<GridNetwork>();
         if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
         if (m_Net == null) return;
+        if (m_Loop != null && m_Loop.IsFreeBuild) return;   // 자유 건축: 정답·채점 없음 — 배지는 모드 라벨
         float pct = (m_Loop != null && m_Loop.IsVersus) ? m_Net.ScoreFor(Mathf.Max(0, m_Loop.LocalTeam)).Percent : m_Net.ScorePercent;
         m_OrderHud.SetCompletion(Mathf.RoundToInt(pct));
     }
@@ -124,23 +125,78 @@ public class GameHudDriver : MonoBehaviour
     }
 
     private AnswerPanelHUD m_OrderHud;   // '시공도면 폰'(정답+주문 통합). 잔량 배지 갱신용 참조 유지
+    private readonly List<MapDef> m_PageMaps = new();   // 자유 건축: 폰 건물 페이지 ↔ 맵(3D 뷰 전환용)
+
+    private static AnswerPanelHUD.OrderEntry ToEntry(MaterialDef d) => new AnswerPanelHUD.OrderEntry
+    {
+        Id = d.Id, Name = d.name, Prefab = d.Prefab, Limit = d.MaxSpawnCount,
+        Sub = AnswerHudDriver.ProcLine(d),
+    };
 
     private void OnDepotSpawned(MaterialDepot depot)
     {
         if (UIManager.Instance == null || depot.Catalog == null) return;
-
-        // 맵이 정한 주문 목록(MapDef.AvailableMaterials). 비어 있으면 카탈로그 전체가 온다.
-        var items = new List<AnswerPanelHUD.OrderEntry>();
-        foreach (var d in depot.OrderableMaterials)
-            if (d != null) items.Add(new AnswerPanelHUD.OrderEntry
-            {
-                Id = d.Id, Name = d.name, Prefab = d.Prefab, Limit = d.MaxSpawnCount,
-                Sub = AnswerHudDriver.ProcLine(d),
-            });
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
 
         m_OrderHud = UIManager.Instance.ShowHUDUI<AnswerPanelHUD>();
-        m_OrderHud.BuildOrders(items, depot.RequestOrder);
+        m_OrderHud.PageChanged -= OnOrderPageChanged;   // 재구독(중복 방지)
+        m_OrderHud.PageChanged += OnOrderPageChanged;
+
+        bool freeBuild = m_Loop != null && m_Loop.IsFreeBuild;
+        m_PageMaps.Clear();
+        if (freeBuild && BuildFreeBuildPages(depot, out var pages))
+        {
+            // 자유 건축: 건물(맵)마다 한 페이지 — 그 건물의 파츠만. 처음 페이지는 지금 서 있는 맵.
+            int start = 0;
+            var current = MapCatalog.Instance != null ? MapCatalog.Instance.Get(m_Loop.MapIndex) : null;
+            for (int i = 0; i < m_PageMaps.Count; i++) if (m_PageMaps[i] == current) { start = i; break; }
+            m_OrderHud.SetFreeBuildLook(true);
+            m_OrderHud.BuildOrderPages(pages, depot.RequestOrder, start);   // PageChanged → OnOrderPageChanged(3D 뷰 전환)
+        }
+        else
+        {
+            // 맵이 정한 주문 목록(MapDef.AvailableMaterials). 비어 있으면 카탈로그 전체가 온다.
+            var items = new List<AnswerPanelHUD.OrderEntry>();
+            foreach (var d in depot.OrderableMaterials)
+                if (d != null) items.Add(ToEntry(d));
+            m_OrderHud.SetFreeBuildLook(freeBuild);
+            m_OrderHud.BuildOrders(items, depot.RequestOrder);
+        }
         OnOrdersChanged(depot);   // 재접속/맵 교체 시 이미 복제된 누적치 즉시 반영
+    }
+
+    // 자유 건축 페이지: 고를 수 있는 맵(공터·튜토리얼 제외) 순서대로, 각 맵의 AvailableMaterials 중 실제 주문 가능한 것만.
+    // (목록을 비워 둔 맵은 카탈로그 전체 = 창고 목록 전체를 그 페이지에 싣는다.)
+    private bool BuildFreeBuildPages(MaterialDepot depot, out List<AnswerPanelHUD.OrderPage> pages)
+    {
+        pages = new List<AnswerPanelHUD.OrderPage>();
+        var catalog = MapCatalog.Instance;
+        if (catalog == null) return false;
+        var orderable = new HashSet<int>();
+        foreach (var d in depot.OrderableMaterials) if (d != null) orderable.Add(d.Id);
+
+        for (int i = 0; i < catalog.Count; i++)
+        {
+            if (!catalog.IsSelectable(i)) continue;
+            var def = catalog.Get(i);
+            var source = (def.AvailableMaterials != null && def.AvailableMaterials.Count > 0)
+                ? def.AvailableMaterials : depot.OrderableMaterials;
+            var items = new List<AnswerPanelHUD.OrderEntry>();
+            foreach (var d in source)
+                if (d != null && orderable.Contains(d.Id)) items.Add(ToEntry(d));
+            if (items.Count == 0) continue;
+            pages.Add(new AnswerPanelHUD.OrderPage { Title = def.DisplayName, Items = items });
+            m_PageMaps.Add(def);
+        }
+        return pages.Count > 0;
+    }
+
+    // 건물 페이지가 바뀌면 폰 3D 뷰(AnswerPreview 미니씬)를 그 건물의 정답으로 바꾼다.
+    private void OnOrderPageChanged(int page)
+    {
+        if (page < 0 || page >= m_PageMaps.Count) return;
+        var preview = FindFirstObjectByType<AnswerPreview>();
+        if (preview != null) preview.ShowMapAnswer(m_PageMaps[page]);
     }
 
     private void OnOrdersChanged(MaterialDepot depot)
@@ -153,6 +209,8 @@ public class GameHudDriver : MonoBehaviour
 
     private void OnDepotDespawned(MaterialDepot depot)
     {
+        if (m_OrderHud != null) m_OrderHud.PageChanged -= OnOrderPageChanged;
+        m_PageMaps.Clear();
         m_OrderHud = null;
         if (UIManager.Instance != null) UIManager.Instance.HideHUDUI<AnswerPanelHUD>();
     }

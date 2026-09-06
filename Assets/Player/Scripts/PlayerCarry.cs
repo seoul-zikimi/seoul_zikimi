@@ -1405,10 +1405,12 @@ namespace Player
                 c.y = m_BuildHeight;
                 var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배 — GridSize(한 팀 폭)로 재면 팀B 구역이 그리드 밖 판정
                 var (xMin, xMax) = PlaceableXRange(s);
+                // 자유 건축: X·Z 경계 없음(땅만 있으면 어디든) — 높이만 본다. 서버(RuntimeGrid.Unbounded)와 같은 규칙.
+                bool unbounded = m_Grid.Unbounded;
                 // 조준 관용: 그리드를 2칸 이내로 벗어난 커서는 가장 가까운 유효 칸으로 스냅.
                 // 정답이 그리드 구석에 붙은 맵(튜토리얼)에서 살짝 빗나가면 프리뷰가 안 떠 배치가 빡빡하던 문제.
                 const int kSnapCells = 2;
-                if (HasMaterial)
+                if (HasMaterial && !unbounded)
                 {
                     if (c.x < xMin && xMin - c.x <= kSnapCells) c.x = xMin;
                     else if (c.x >= xMax && c.x - (xMax - 1) <= kSnapCells) c.x = xMax - 1;
@@ -1416,7 +1418,7 @@ namespace Player
                     else if (c.z >= s.z && c.z - (s.z - 1) <= kSnapCells) c.z = s.z - 1;
                 }
                 m_Target = c;
-                m_HasTarget = c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z
+                m_HasTarget = (unbounded || (c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z))
                            && m_BuildHeight >= 0 && m_BuildHeight < s.y;
 
                 // 빈손(회수/공정): 평면 교차점 대신 '마우스 레이가 실제로 맞는 배치 블록'의 셀을 우선 — 블록 윗면을 보거나
@@ -1834,11 +1836,13 @@ namespace Player
             GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
             // 거부 사유를 말해준다 — 프리뷰 초록(=정답 자리)이어도 규칙상 못 놓는 경우가 있어
             // 흔들림만으론 "왜 안 놔지지?"가 안 보인다(광통교 다리 상판 허공 배치 등).
+            bool unbounded = m_Grid.Unbounded;   // 자유 건축: X·Z 경계 없음(서버 RuntimeGrid.Unbounded와 동일)
             for (int i = 0; i < m_PreviewCells.Count; i++)
             {
                 var cell = m_PreviewCells[i];
-                if (cell.x < xMin || cell.x >= xMax || cell.y < 0 || cell.y >= s.y || cell.z < 0 || cell.z >= s.z)
-                { RejectPlace("여기엔 놓을 수 없어요"); return; }
+                bool outXZ = !unbounded && (cell.x < xMin || cell.x >= xMax || cell.z < 0 || cell.z >= s.z);
+                if (outXZ || cell.y < 0 || cell.y >= s.y)
+                { RejectPlace(cell.y >= s.y ? "더 높이는 쌓을 수 없어요" : "여기엔 놓을 수 없어요"); return; }
                 if (!m_Net.IsCellFree(cell)) { RejectPlace("자리가 차 있어요"); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
@@ -2344,13 +2348,15 @@ namespace Player
                 if (!m_Preview.activeSelf) m_Preview.SetActive(true);
 
                 // 정답 자리(초록)/오답 자리(빨강) 틴트 — 원색만으론 정답 고스트와 구분이 어렵다는 피드백.
-                var judge = IsAnswerPlacement(cells) ? kPreviewOk : kPreviewBad;
+                // 자유 건축은 정답이 없다 — 틴트 없이 원색 고스트로 '어디에 놓일지'만 보여준다.
+                bool freeBuild = m_Loop != null && m_Loop.IsFreeBuild;
+                var judge = freeBuild ? Color.white : IsAnswerPlacement(cells) ? kPreviewOk : kPreviewBad;
                 float pa = 0.82f + 0.08f * Mathf.Abs(Mathf.Sin(Time.time * 3.5f));   // 숨쉬기는 유지
                 for (int i = 0; i < m_PreviewGhostMats.Count; i++)
                     if (m_PreviewGhostMats[i] != null)
                     {
                         var baseCol = i < m_PreviewGhostCols.Count ? m_PreviewGhostCols[i] : Color.white;
-                        var c = Color.Lerp(baseCol, judge, 0.7f); c.a = pa;   // 원색 기운을 살짝 남긴 초록/빨강
+                        var c = freeBuild ? baseCol : Color.Lerp(baseCol, judge, 0.7f); c.a = pa;   // 원색 기운을 살짝 남긴 초록/빨강
                         m_PreviewGhostMats[i].SetColor(s_PvBase, c);
                         m_PreviewGhostMats[i].SetColor(s_PvCol, c);
                     }
@@ -2369,9 +2375,10 @@ namespace Player
 
             Vector3 center, size; Color col;
             HeldPlacementBox(out center, out size);
-            // 박스 폴백도 정답/오답 색을 따른다(프리팹 고스트와 같은 언어).
+            // 박스 폴백도 정답/오답 색을 따른다(프리팹 고스트와 같은 언어). 자유 건축은 중립 흰색.
             GridFootprint.EnumerateFootprintCells(m_Target, m_HeldMaterial.Footprint, m_Rotation, m_PreviewCells);
-            col = IsAnswerPlacement(m_PreviewCells)
+            col = (m_Loop != null && m_Loop.IsFreeBuild) ? new Color(1f, 1f, 1f, 0.32f)
+                : IsAnswerPlacement(m_PreviewCells)
                 ? new Color(kPreviewOk.r, kPreviewOk.g, kPreviewOk.b, 0.32f)
                 : new Color(kPreviewBad.r, kPreviewBad.g, kPreviewBad.b, 0.32f);
             m_Preview.transform.SetPositionAndRotation(center, Quaternion.identity);

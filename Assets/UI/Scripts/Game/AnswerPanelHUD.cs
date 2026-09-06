@@ -19,6 +19,28 @@ public class AnswerPanelHUD : UIHUD
         public string Sub;    // 필요 공정 리치텍스트(드라이버가 계산 — 이 클래스는 GridSystem을 모른다)
     }
 
+    /// <summary>자유 건축 모드의 '건물 페이지' — 건물(맵) 하나에 딸린 파츠 목록. ◀ ▶(Polygon 스프라이트)로 넘긴다.</summary>
+    public struct OrderPage
+    {
+        public string Title;                       // 건물 이름(맵 표시 이름)
+        public IReadOnlyList<OrderEntry> Items;    // 그 건물과 관련된 파츠
+    }
+
+    // ── 건물 페이지(자유 건축) ──
+    private IReadOnlyList<OrderPage> m_Pages;   // null = 단일 목록(기존 모드)
+    private int m_PageIndex;
+    private GameObject m_NavRoot;               // ◀ 건물이름 n/N ▶ 줄(카드 그리드와 별개로 재생성)
+    private Text m_PageLabel;
+    private bool m_FreeBuild;                   // 완성도 배지 자리에 '자유 건축' 표기(정답·채점 없음)
+    private GameObject m_FreeBuildCover;        // 데스크톱: 배경에 구워진 '현재 완성도' 배지를 덮는 라벨
+    private const float kNavH = 22f;            // 데스크톱 페이지 줄 높이(피그마 px)
+    private const string kArrowSprite = "UI_NEW/Common/Polygon_2";   // 세션 화면 맵 화살표와 같은 삼각형(왼쪽 향함)
+
+    /// <summary>건물 페이지가 바뀜(인덱스) — GameHudDriver가 폰 3D 뷰를 그 건물 정답으로 바꾼다.</summary>
+    public event Action<int> PageChanged;
+    public int PageIndex => m_PageIndex;
+    public bool HasPages => m_Pages != null && m_Pages.Count > 0;
+
     private const string kIdleName = "블럭을 골라 주문하세요";
     private const string kIdleSub = "화면 블럭 클릭 = 선택 · 우클릭 회전 · 휠 줌";
 
@@ -105,6 +127,7 @@ public class AnswerPanelHUD : UIHUD
     {
         int clamped = Mathf.Clamp(percent, 0, 100);
         m_LastPct = clamped;
+        if (m_FreeBuild) return;             // 자유 건축: 배지 자리는 모드 라벨(SetFreeBuildLook)이 차지한다
         if (clamped == m_ShownPct) return;   // 매 프레임 호출됨 — 값이 그대로면 문자열 조립부터 스킵
         m_ShownPct = clamped;
         string s = clamped.ToString();
@@ -129,6 +152,7 @@ public class AnswerPanelHUD : UIHUD
         m_Phone = null; m_GridRoot = null; m_Surface = null; m_Tip = null;
         m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
         m_BlockBanner = null; m_BlockText = null;
+        m_NavRoot = null; m_PageLabel = null; m_FreeBuildCover = null;
         m_SelName = m_SelSub = m_CompletionText = null;
         m_PctText = null; m_OrderBtn = null; m_OrderBtnImg = null;
         m_ShownPct = -1;   // 텍스트를 새로 지었으니 다음 SetCompletion이 반드시 다시 채우게
@@ -192,7 +216,46 @@ public class AnswerPanelHUD : UIHUD
 
         BuildCollapseTab();
         BuildBlockBanner();
+        ApplyFreeBuildLook();
         BuildTip();   // 마지막에 만들어 항상 위에 그려진다
+    }
+
+    // ── 자유 건축 모드 표기 ─────────────────────────────────────────
+    /// <summary>자유 건축 모드 — 완성도 배지 자리에 모드 라벨(정답·채점이 없으니 % 대신). GameHudDriver가 주문 목록과 함께 지정.</summary>
+    public void SetFreeBuildLook(bool on)
+    {
+        if (m_FreeBuild == on) { ApplyFreeBuildLook(); return; }
+        m_FreeBuild = on;
+        m_ShownPct = -1;   // 모드가 바뀌면 다음 SetCompletion이 숫자를 다시 채우게
+        ApplyFreeBuildLook();
+        if (!on) SetCompletion(m_LastPct);
+    }
+
+    private void ApplyFreeBuildLook()
+    {
+        if (m_Phone == null) return;
+        if (m_MobileLayout)
+        {
+            // 가로 폰: 주황 배지 텍스트만 바꾼다(배지는 코드로 그린 것).
+            if (m_CompletionText != null && m_FreeBuild) m_CompletionText.text = "자유 건축 모드";
+            return;
+        }
+        // 세로 폰: '현재 완성도 : [ ]%' 배지가 배경 스프라이트에 구워져 있어 같은 주황 둥근 사각형으로 덮는다.
+        if (m_PctText != null) m_PctText.gameObject.SetActive(!m_FreeBuild);
+        if (m_FreeBuild && m_FreeBuildCover == null)
+        {
+            var cover = NewRect("FreeBuildBadge", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+            Local((RectTransform)cover.transform, 33f, 91f, 101f, 21f);   // 구워진 배지(≈35,93 · 98x17)보다 한 px씩 크게
+            var img = cover.AddComponent<Image>();
+            img.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+            img.type = Image.Type.Sliced;
+            img.color = InGameUiSkin.Orange;
+            img.raycastTarget = false;
+            var t = MakeText(cover.transform, "자유 건축 모드", Vector2.zero, new Vector2(101f, 21f), Px(10), TextAnchor.MiddleCenter);
+            t.fontStyle = FontStyle.Bold;
+            m_FreeBuildCover = cover;
+        }
+        if (m_FreeBuildCover != null) m_FreeBuildCover.SetActive(m_FreeBuild);
     }
 
     // ── 폰 접기/펴기 손잡이 — 조작법 툴팁처럼 화살표 클릭으로 여닫는다(TAB은 고스트 전용) ──
@@ -320,6 +383,8 @@ public class AnswerPanelHUD : UIHUD
     {
         int selected = m_SelectedId;
         var items = m_CachedItems;
+        var pages = m_Pages;
+        int pageIndex = m_PageIndex;
         var onOrder = m_OnOrder;
 
         for (int i = transform.childCount - 1; i >= 0; i--)
@@ -332,13 +397,15 @@ public class AnswerPanelHUD : UIHUD
         m_SelName = null; m_SelSub = null; m_OrderBtn = null; m_OrderBtnImg = null;
         m_GridRoot = null; m_Tip = null; m_HelpTip = null; m_CollapseTab = null; m_CollapseLabel = null; m_LandscapeClose = null;
         m_BlockBanner = null; m_BlockText = null;
+        m_NavRoot = null; m_PageLabel = null; m_FreeBuildCover = null;
         m_Cards.Clear();
         m_SelectedId = -1;
         ChromeHovered = false;
 
         Init();
         if (m_Texture != null) SetTexture(m_Texture);
-        if (items != null) BuildOrders(items, onOrder);
+        if (pages != null) BuildOrderPages(pages, onOrder, pageIndex);   // 건물 페이지(자유 건축)는 보던 페이지 그대로
+        else if (items != null) BuildOrders(items, onOrder);
         if (m_CachedRemaining.Count > 0)
         {
             var snapshot = new List<KeyValuePair<int, int>>(m_CachedRemaining);   // SetRemaining이 캐시를 다시 쓰므로 사본으로 순회
@@ -443,6 +510,7 @@ public class AnswerPanelHUD : UIHUD
         orderLabel.fontStyle = FontStyle.Bold;
         UpdateOrderButton();
         BuildBlockBanner();
+        ApplyFreeBuildLook();
 
         GameObject closeGo;
         if (m_ExpandedView)
@@ -521,26 +589,172 @@ public class AnswerPanelHUD : UIHUD
     }
 
     // ── 주문 그리드 (GameHudDriver가 depot 목록으로 호출) ──────────────
+    /// <summary>단일 목록(타임어택·대전) — 이 맵의 주문 가능 재료 전부.</summary>
     public void BuildOrders(IReadOnlyList<OrderEntry> items, Action<int> onOrder)
+    {
+        m_Pages = null; m_PageIndex = 0;
+        m_CachedItems = items;
+        BuildOrdersInternal(items, onOrder);
+    }
+
+    /// <summary>건물 페이지 목록(자유 건축) — 페이지마다 '건물 이름 + 그 건물의 파츠'. ◀ ▶로 넘기며 각 페이지에서 주문한다.</summary>
+    public void BuildOrderPages(IReadOnlyList<OrderPage> pages, Action<int> onOrder, int startPage = 0)
+    {
+        if (pages == null || pages.Count == 0) { BuildOrders(Array.Empty<OrderEntry>(), onOrder); return; }
+        m_Pages = pages;
+        m_CachedItems = null;
+        m_PageIndex = Mathf.Clamp(startPage, 0, pages.Count - 1);
+        BuildOrdersInternal(pages[m_PageIndex].Items ?? Array.Empty<OrderEntry>(), onOrder);
+    }
+
+    /// <summary>건물 페이지 이동(순환). 카드만 다시 깔고 잔량·선택을 정리한 뒤 PageChanged 통지.</summary>
+    public void SetPage(int index)
+    {
+        if (!HasPages) return;
+        int n = m_Pages.Count;
+        index = ((index % n) + n) % n;
+        if (index == m_PageIndex && m_GridRoot != null) return;
+        m_PageIndex = index;
+        BuildOrdersInternal(m_Pages[index].Items ?? Array.Empty<OrderEntry>(), m_OnOrder);
+        if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
+    }
+
+    public void StepPage(int step) => SetPage(m_PageIndex + step);
+
+    private void BuildOrdersInternal(IReadOnlyList<OrderEntry> items, Action<int> onOrder)
     {
         if (m_Phone == null) return;
         m_OnOrder = onOrder;
-        m_CachedItems = items;
         if (m_GridRoot != null) Destroy(m_GridRoot);
+        if (m_NavRoot != null) { Destroy(m_NavRoot); m_NavRoot = null; m_PageLabel = null; }
         m_Cards.Clear();
         m_SelectedId = -1;
+        m_LastClickId = -1;
+        SelectionChanged?.Invoke(-1);   // 페이지가 바뀌면 3D 뷰 테두리도 해제
+        if (m_MobileLayout) SetSelBar(null, null);
         UpdateOrderButton();
 
         if (m_MobileLayout)
         {
             BuildMobileOrders(items);
-            return;
+            if (HasPages) BuildMobileNav();
+        }
+        else
+        {
+            BuildDesktopOrders(items, HasPages ? kNavH + 4f : 0f);
+            if (HasPages) BuildDesktopNav();
         }
 
+        // 페이지를 바꿔 새로 깐 카드에 이미 복제된 잔량을 다시 입힌다(SetRemaining이 캐시를 갱신하므로 사본 순회).
+        if (m_CachedRemaining.Count > 0)
+        {
+            var snapshot = new List<KeyValuePair<int, int>>(m_CachedRemaining);
+            foreach (var kv in snapshot) SetRemaining(kv.Key, kv.Value);
+        }
+        if (m_BlockBanner != null) m_BlockBanner.transform.SetAsLastSibling();   // 주문 차단 배너는 새 카드 위로
+        if (HasPages) PageChanged?.Invoke(m_PageIndex);
+    }
+
+    // ── 건물 페이지 넘김 줄: [◀] 건물 이름 n/N [▶] ──────────────────
+    // 화살표는 세션 화면 맵 화살표와 같은 Polygon 스프라이트(글리프 ◀▶는 SUITE 폰트에 없어 네모로 깨진다).
+    private void BuildDesktopNav()
+    {
+        m_NavRoot = NewRect("PageNav", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        Local((RectTransform)m_NavRoot.transform, kGridX, kGridY, kGridW, kNavH);
+
+        var prev = MakeArrowButton(m_NavRoot.transform, -1, InGameUiSkin.TextGray);
+        Local((RectTransform)prev.transform, 0f, 0f, 24f, kNavH);
+        var next = MakeArrowButton(m_NavRoot.transform, +1, InGameUiSkin.TextGray);
+        Local((RectTransform)next.transform, kGridW - 24f, 0f, 24f, kNavH);
+
+        m_PageLabel = MakeText(m_NavRoot.transform, "", new Vector2(26f, 0f), new Vector2(kGridW - 52f, kNavH), Px(11), TextAnchor.MiddleCenter);
+        m_PageLabel.fontStyle = FontStyle.Bold;
+        m_PageLabel.color = InGameUiSkin.TextGray;
+        m_PageLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+        m_PageLabel.verticalOverflow = VerticalWrapMode.Truncate;
+        RefreshPageLabel();
+    }
+
+    private void BuildMobileNav()
+    {
+        // '재료 카탈로그' 제목 줄 오른쪽(1368~1756)에 배치 — 카드 그리드(y -120)와 안 겹친다.
+        var ink = new Color(0.16f, 0.16f, 0.15f, 1f);
+        m_NavRoot = NewRect("PageNav", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
+            new Vector2(1368f, -48f), new Vector2(388f, 56f));
+
+        var prev = MakeArrowButton(m_NavRoot.transform, -1, ink);
+        var prt = (RectTransform)prev.transform;
+        prt.anchorMin = prt.anchorMax = prt.pivot = new Vector2(0, 1);
+        prt.anchoredPosition = Vector2.zero; prt.sizeDelta = new Vector2(44f, 56f);
+        var next = MakeArrowButton(m_NavRoot.transform, +1, ink);
+        var nrt = (RectTransform)next.transform;
+        nrt.anchorMin = nrt.anchorMax = nrt.pivot = new Vector2(0, 1);
+        nrt.anchoredPosition = new Vector2(388f - 44f, 0f); nrt.sizeDelta = new Vector2(44f, 56f);
+
+        m_PageLabel = MakeTextPx(m_NavRoot.transform, "", new Vector2(48f, 0f), new Vector2(388f - 96f, 56f), 24, TextAnchor.MiddleCenter);
+        m_PageLabel.fontStyle = FontStyle.Bold;
+        m_PageLabel.color = ink;
+        m_PageLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+        m_PageLabel.verticalOverflow = VerticalWrapMode.Truncate;
+        RefreshPageLabel();
+    }
+
+    private void RefreshPageLabel()
+    {
+        if (m_PageLabel == null || !HasPages) return;
+        m_PageLabel.text = $"{m_Pages[m_PageIndex].Title}  ({m_PageIndex + 1}/{m_Pages.Count})";
+    }
+
+    /// <summary>화살표 버튼 — 투명 히트 영역(버튼) 안에 Polygon 스프라이트를 비율 유지로 넣는다. dir&gt;0 = 오른쪽(좌우 반전).</summary>
+    private GameObject MakeArrowButton(Transform parent, int dir, Color tint)
+    {
+        var go = NewRect(dir < 0 ? "PrevPage" : "NextPage", parent, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        var hit = go.AddComponent<Image>();
+        hit.color = new Color(1f, 1f, 1f, 0f);   // 완전 투명 — 클릭만 받는다
+        hit.raycastTarget = true;
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = hit;
+        btn.transition = Selectable.Transition.None;
+        btn.onClick.AddListener(() => StepPage(dir));
+        if (!m_MobileLayout) JuicyButton.Attach(btn);
+        else go.AddComponent<NoJuicyButtonMotion>();
+
+        var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image)) { layer = 5 };
+        var irt = (RectTransform)iconGo.transform;
+        irt.SetParent(go.transform, false);
+        irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one;   // 히트 영역에 꽉 채우고 비율 유지로 축소
+        irt.pivot = new Vector2(0.5f, 0.5f);
+        irt.offsetMin = irt.offsetMax = Vector2.zero;
+        if (dir > 0) irt.localRotation = Quaternion.Euler(0f, 180f, 0f);   // 오른쪽 = 같은 삼각형 좌우 반전(스케일은 버튼 정책이 되돌릴 수 있어 회전 사용)
+        var icon = iconGo.GetComponent<Image>();
+        icon.sprite = JobsnailUiKit.Sprite(kArrowSprite);
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        icon.color = tint;
+        if (icon.sprite == null)
+        {
+            // 스프라이트가 없으면 글리프 대신 바 2개로 꺾쇠(‹ ›)를 그린다 — 폰트 의존 없음.
+            Destroy(iconGo);
+            for (int i = 0; i < 2; i++)
+            {
+                var bar = NewRect("ChevronBar", go.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(0f, i == 0 ? 5f : -5f), new Vector2(14f, 3f));
+                ((RectTransform)bar.transform).pivot = new Vector2(0.5f, 0.5f);
+                var b = bar.AddComponent<Image>(); b.color = tint; b.raycastTarget = false;
+                bar.transform.localRotation = Quaternion.Euler(0f, 0f, (i == 0 ? 45f : -45f) * (dir < 0 ? 1f : -1f));
+            }
+        }
+        return go;
+    }
+
+    // 세로 폰 카드 그리드. topPad = 카드 원점 아래로 밀 만큼(건물 페이지 줄이 위에 들어올 때).
+    private void BuildDesktopOrders(IReadOnlyList<OrderEntry> items, float topPad)
+    {
+        float gridY = kGridY + topPad;
         // 뷰포트 = 그리드 원점 ~ 실제 화면 하단(폰이 아래로 잠겨 있어 그 아래 카드는 안 보임 → 스크롤)
-        float viewH = kDisplayBottom - kGridY - 4f;
+        float viewH = kDisplayBottom - gridY - 4f;
         m_GridRoot = NewRect("Orders", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1),
-                             new Vector2(kGridX * InGameUiSkin.S, -kGridY * InGameUiSkin.S),
+                             new Vector2(kGridX * InGameUiSkin.S, -gridY * InGameUiSkin.S),
                              new Vector2(kGridW * InGameUiSkin.S, viewH * InGameUiSkin.S));
         m_GridRoot.AddComponent<RectMask2D>();
 

@@ -295,29 +295,53 @@ namespace SeoulZikimi.UI.New
 
         private Button mapPrevArrow, mapNextArrow;
 
-        // 맵 썸네일 좌우 화살표(피그마 '맵 화살표' 18x56) — 드롭다운 없이 이전/다음 맵으로. 방장만 보인다.
+        // 좌우 화살표 공용 삼각형(피그마 Polygon, 18x56, 왼쪽을 향함). 오른쪽은 X축 반전으로 쓴다.
+        // '맵 화살표 왼쪽/오른쪽.png'는 한글 파일명이 macOS에서 NFD로 저장돼 Resources.Load(NFC 리터럴)가 null을 돌려주고,
+        // 스프라이트 없는 Image가 흰 네모로 그려졌다 — ASCII 경로의 단일 스프라이트로 교체.
+        public const string ArrowSpritePath = "UI_NEW/Common/Polygon_2";
+
+        // 맵 썸네일 좌우 화살표(18x56) — 드롭다운 없이 이전/다음 맵으로. 방장만 보인다.
         private void BuildMapArrows()
         {
             if (mapThumbnail == null) return;
-            mapPrevArrow = MakeArrow("MapArrow_L", "UI_NEW/02_세션 화면/맵 화살표 왼쪽", new Vector2(0f, 0.5f), new Vector2(-24f, 0f), -1);
-            mapNextArrow = MakeArrow("MapArrow_R", "UI_NEW/02_세션 화면/맵 화살표 오른쪽", new Vector2(1f, 0.5f), new Vector2(24f, 0f), +1);
+            mapPrevArrow = MakeArrow("MapArrow_L", new Vector2(0f, 0.5f), new Vector2(-24f, 0f), -1);
+            mapNextArrow = MakeArrow("MapArrow_R", new Vector2(1f, 0.5f), new Vector2(24f, 0f), +1);
         }
 
-        private Button MakeArrow(string name, string spritePath, Vector2 anchor, Vector2 offset, int step)
+        private Button MakeArrow(string name, Vector2 anchor, Vector2 offset, int step)
         {
-            var sprite = Resources.Load<Sprite>(spritePath);
+            var sprite = Resources.Load<Sprite>(ArrowSpritePath);
+            if (sprite == null) Debug.LogWarning($"[LobbyPanel] 화살표 스프라이트 없음: Resources/{ArrowSpritePath}");
+            var size = sprite != null ? new Vector2(sprite.rect.width, sprite.rect.height) : new Vector2(18f, 56f);
+
+            // 버튼(히트 영역)은 뒤집지 않는다 — Y축 180° 회전한 그래픽은 GraphicRaycaster가 '카메라를 등진 그래픽'으로
+            // 보고 클릭을 무시한다(ignoreReversedGraphics). localScale(-1)은 UiNewButtonVisualPolicy가 (1,1,1)로 되돌린다.
+            // → 버튼은 투명 히트 이미지만 갖고, 삼각형은 raycast를 안 받는 자식 아이콘으로 넣어 그 아이콘만 뒤집는다.
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(mapThumbnail.transform, false);
             var rt = (RectTransform)go.transform;
             rt.anchorMin = rt.anchorMax = anchor;
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = offset;
-            rt.sizeDelta = sprite != null ? new Vector2(sprite.rect.width, sprite.rect.height) : new Vector2(18f, 56f);
-            var img = go.GetComponent<Image>();
+            rt.sizeDelta = size + new Vector2(12f, 8f);   // 삼각형보다 살짝 넓은 터치/클릭 영역
+            var hit = go.GetComponent<Image>();
+            hit.color = new Color(1f, 1f, 1f, 0f);        // 완전 투명 — 클릭만 받는다
+            hit.raycastTarget = true;
+
+            var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+            var irt = (RectTransform)iconGo.transform;
+            irt.SetParent(go.transform, false);
+            irt.anchorMin = irt.anchorMax = irt.pivot = new Vector2(0.5f, 0.5f);
+            irt.anchoredPosition = Vector2.zero;
+            irt.sizeDelta = size;
+            if (step > 0) irt.localRotation = Quaternion.Euler(0f, 180f, 0f);   // 오른쪽 = 같은 삼각형 좌우 반전(아이콘만)
+            var img = iconGo.GetComponent<Image>();
             img.sprite = sprite;
             img.preserveAspect = true;
+            img.raycastTarget = false;
+
             var btn = go.GetComponent<Button>();
-            btn.targetGraphic = img;
+            btn.targetGraphic = img;   // 호버/눌림 색 틴트는 아이콘에(UiNewButtonVisualPolicy가 ColorTint로 바꾼다)
             btn.onClick.AddListener(() => { mapOptionsRoot?.SetActive(false); MapStepRequested?.Invoke(step); });
             JuicyButton.Attach(btn);
             return btn;

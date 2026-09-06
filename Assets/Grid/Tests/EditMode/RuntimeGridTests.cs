@@ -77,6 +77,23 @@ namespace GridSystem.Tests
         }
 
         [Test]
+        public void Unbounded_AllowsAnyXZ_ButKeepsHeightLimit()
+        {
+            // 자유 건축: X·Z 경계 없음(음수 칸 포함), 높이는 그대로 [0, Size.y). 지지 규칙(y=0 바닥)도 그대로.
+            var g = Grid8();
+            g.Unbounded = true;
+            var pillar = MakeDef(1, new Vector3Int(1, 1, 3));
+            Assert.IsTrue(g.CanPlace(new Vector3Int(0, 0, 7), pillar, 0), "Z 경계 밖도 허용");
+            Assert.IsTrue(g.CanPlace(new Vector3Int(-5, 0, -9), pillar, 0), "음수 칸도 허용");
+            Assert.IsTrue(g.WouldBeSupported(new Vector3Int(-5, 0, -9), pillar, 0), "y=0은 어디서나 바닥");
+            Assert.IsFalse(g.CanPlace(new Vector3Int(-5, -1, -9), pillar, 0), "지하는 불가");
+            var tall = MakeDef(2, new Vector3Int(1, g.Size.y + 1, 1));
+            Assert.IsFalse(g.CanPlace(new Vector3Int(3, 0, 3), tall, 0), "높이 제한 유지");
+            Assert.IsTrue(g.Place(new Vector3Int(-5, 0, -9), pillar, 0, 9));
+            Assert.IsFalse(g.CanPlace(new Vector3Int(-5, 0, -9), pillar, 0), "겹침 거부는 그대로");
+        }
+
+        [Test]
         public void Place_OutOfBounds_ReturnsFalse_AndNoChange()
         {
             var g = Grid8();

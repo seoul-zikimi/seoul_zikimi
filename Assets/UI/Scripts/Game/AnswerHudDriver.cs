@@ -140,7 +140,7 @@ public class AnswerHudDriver : MonoBehaviour
         if (m_Hud == null || !m_Visible || Time.unscaledTime < m_NextCompletion) return;
         m_NextCompletion = Time.unscaledTime + 0.25f;
         if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
-        if (m_Loop == null) return;
+        if (m_Loop == null || m_Loop.IsFreeBuild) return;   // 자유 건축: 배지 자리에 모드 표시(GameHudDriver.SetFreeBuildLook)
         if (m_Loop.IsVersus && m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();
         var score = m_Loop.IsVersus && m_Net != null ? m_Net.ScoreFor(m_Loop.LocalTeam) : m_Loop.Score;
         m_Hud.SetCompletion(Mathf.RoundToInt(score.Percent));

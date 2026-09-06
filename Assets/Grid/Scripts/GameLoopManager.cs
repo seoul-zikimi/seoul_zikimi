@@ -96,6 +96,18 @@ namespace GridSystem
         public GameModeDefinition ModeDef => (m_Modes ??= GameModeCatalog.CreateDefault()).Get(Mode);
         public bool IsVersus => Mode == GameModeKind.TeamVersus;
 
+        /// <summary>자유 건축 모드(로비 '자유 건축 모드') — 시간 무제한·채점 없음·전 맵 건축 에셋 주문 가능·정답 고스트/정오답 틴트 없음.
+        /// 튜토리얼은 시간제한을 없애려고 같은 FreeBuild 모드를 빌려 쓰지만(TutorialFlowController) 정답 안내가 핵심이라 제외한다.</summary>
+        public bool IsFreeBuild
+        {
+            get
+            {
+                if (Mode != GameModeKind.FreeBuild) return false;
+                var def = MapCatalog.Instance != null ? MapCatalog.Instance.Get(m_MapIndex.Value) : null;
+                return def == null || !def.IsTutorial;
+            }
+        }
+
         /// <summary>clientId의 팀(0=A, 1=B). 미배정/협동 모드는 -1.</summary>
         public int GetTeam(ulong clientId)
         {

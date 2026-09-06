@@ -40,6 +40,23 @@ namespace GridSystem
             Rebuild();
         }
 
+        // ── 자유 건축: 건축 영역 X·Z 경계 해제("땅만 있으면 어디든") ──
+        private bool m_Unbounded;
+        /// <summary>X·Z 경계 없이 배치 허용(자유 건축). 높이 제한과 지지 규칙은 유지. PlayerCarry(클라 사전검사)·GridNetwork(서버 판정)가 함께 본다.</summary>
+        public bool Unbounded => m_Unbounded;
+        /// <summary>경계 해제 상태가 바뀜 — 서버 그리드(GridNetwork)가 자기 RuntimeGrid에 반영한다.</summary>
+        public event System.Action<bool> UnboundedChanged;
+
+        /// <summary>MapLoader가 맵 크기 적용과 함께 전 클라에서 호출. 크기와 달리 그리드를 다시 만들지 않고 플래그만 바꾼다.</summary>
+        public void ConfigureUnbounded(bool on)
+        {
+            if (m_Unbounded == on) return;
+            m_Unbounded = on;
+            if (Grid != null) Grid.Unbounded = on;
+            UnboundedChanged?.Invoke(on);
+            if (on) Debug.Log("[Grid] 자유 건축: 건축 영역 경계 해제(땅 위 어디든 배치)");
+        }
+
         /// <summary>그리드 원점/크기가 바뀐 뒤 정답 비주얼(고스트·미리보기) 재생성 통지.
         /// 고스트는 생성 시점의 GridContract.Origin으로 그려지므로, 맵 마커로 그리드가 이동하면 반드시 다시 그려야 한다.</summary>
         public void NotifyAnswerVisualsDirty() => OnAnswerChanged?.Invoke();
@@ -58,7 +75,7 @@ namespace GridSystem
         // 크기·모드가 바뀌면 그리드·바닥·분할벽을 현재 값으로 다시 만든다.
         private void Rebuild()
         {
-            Grid = new RuntimeGrid(EffectiveSize);
+            Grid = new RuntimeGrid(EffectiveSize) { Unbounded = m_Unbounded };
             RebuildGround();
             var oldWall = transform.Find("~VersusWall");
             if (oldWall != null) Destroy(oldWall.gameObject);
@@ -157,7 +174,7 @@ namespace GridSystem
 
         public void EnsureGrid()
         {
-            Grid ??= new RuntimeGrid(m_GridSize);
+            Grid ??= new RuntimeGrid(m_GridSize) { Unbounded = m_Unbounded };
         }
 
         private void OnDrawGizmos()

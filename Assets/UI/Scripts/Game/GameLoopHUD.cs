@@ -796,7 +796,7 @@ public sealed class GameLoopHUD : UIHUD
     // 정확히 만점(모든 칸 배치+공정 완료). Percent 반올림(99.6→100) 오발화 방지용.
     private bool IsComplete()
     {
-        if (m_Loop == null) return false;
+        if (m_Loop == null || m_Loop.IsFreeBuild) return false;   // 자유 건축: 정답이 없으니 '완공' 축하도 없다
         var s = m_Loop.Score;
         return s.maxScore > 0 && s.score >= s.maxScore;
     }

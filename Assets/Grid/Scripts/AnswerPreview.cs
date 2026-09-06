@@ -74,6 +74,12 @@ namespace GridSystem
         private const int kPreviewLayer = 30;   // 정답 미리보기 전용 레이어(메인 씬과 분리)
         private bool m_MainExcluded;             // 메인 카메라 cullingMask에서 1회 제외
 
+        // 자유 건축 모드: 폰 '건물 페이지'가 고른 맵(현재 맵과 다를 수 있음). null이면 현재 맵의 정답을 그린다.
+        // 이 모드는 정답이 없으므로 인월드 고스트는 만들지 않고 미니씬(폰 3D 뷰)만 페이지 건물로 채운다.
+        private MapDef m_PageDef;
+        private bool m_BuiltWithGhost;           // 마지막 Build가 인월드 고스트를 만들었는지(모드 확정 전 지은 고스트 정리용)
+        private bool FreeBuild => m_Loop != null && m_Loop.IsFreeBuild;
+
         private void Awake()
         {
             m_Manager = GetComponent<GridManager>();
@@ -111,6 +117,10 @@ namespace GridSystem
         private void Update()
         {
             bool show = HudVisible;
+
+            // Start()의 첫 Build는 GameLoopManager 스폰(모드 복제) 전에 돌 수 있다 — 자유 건축으로 확정된 뒤
+            // 고스트가 남아 있으면 한 번 다시 짓는다(정답 인덱스가 0→0이면 OnAnswerChanged가 안 와서 스스로 정리).
+            if (m_Built && m_BuiltWithGhost && FreeBuild) Rebuild();
 
             // 2vs2: 팀B의 인월드 고스트는 자기 구역(x+구역폭)에 보여야 한다 — 채점 오프셋(GridNetwork.ScoreAgainst)과 동일 기준.
             // 팀 배정(NetworkList)이 Build보다 늦게 복제될 수 있어 재생성 대신 루트 이동으로 매 프레임 반영한다.
@@ -251,9 +261,27 @@ namespace GridSystem
         /// <summary>TAB — 인월드 정답 고스트만 켜고 끈다(폰 HUD는 별도 탭 버튼).</summary>
         public void ToggleVisibility() => m_Visible = !m_Visible;
 
+        /// <summary>자유 건축 모드 — 폰 3D 뷰에 보여줄 건물(맵)을 바꾼다. 폰의 건물 페이지 넘김이 호출(GameHudDriver 경유).
+        /// null = 현재 맵. 미니씬만 다시 짓는다(인월드 고스트는 이 모드에서 애초에 없음).</summary>
+        public void ShowMapAnswer(MapDef def)
+        {
+            if (m_PageDef == def) return;
+            m_PageDef = def;
+            Rebuild();
+        }
+
+        /// <summary>맵의 대표 정답(첫 번째 세트). 자유 건축 페이지 뷰는 세트가 여럿이어도 첫 것만 보여준다.</summary>
+        private static MapAnswerData FirstAnswer(MapDef def)
+            => (def != null && def.Answers != null && def.Answers.Count > 0) ? def.Answers[0] : null;
+
         private void Build()
         {
-            var answer = m_Manager.Answer;
+            // 자유 건축: 폰 페이지가 고른 맵의 대표 정답을 미니씬에만 그린다(인월드 고스트 없음).
+            // 그 외: 현재 맵의 선택된 정답 + 인월드 고스트.
+            bool freeBuild = FreeBuild;
+            var currentDef = MapDefOrNull();
+            var mapDef = (freeBuild && m_PageDef != null) ? m_PageDef : currentDef;
+            var answer = (freeBuild && m_PageDef != null) ? FirstAnswer(m_PageDef) : m_Manager.Answer;
             if (answer == null || answer.Cells.Count == 0) return;
             var catalog = m_Manager.Catalog;
 
@@ -261,30 +289,37 @@ namespace GridSystem
             var objects = GroupAnswer(answer, catalog);   // 펼쳐 저장된 칸 → 오브젝트(프리팹) 단위 재구성
 
             // 맵별 고스트 가시성 설정(미설정 = 0이면 공통 기본값). 바닥이 밝은 맵만 여기서 올린다.
-            var mapDef = MapDefOrNull();
             m_GhostAlphaBase = (mapDef != null && mapDef.GhostAlpha > 0f) ? mapDef.GhostAlpha : kGhostAlphaBase;
             m_GhostTintMul   = (mapDef != null && mapDef.GhostTintMul > 0f) ? mapDef.GhostTintMul : 1f;
 
-            // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨
-            m_GhostRoot = new GameObject("~AnswerGhost");
+            // 완성체 통짜 모델은 '현재 맵'일 때만 — 다른 맵의 완성체는 빌드에서 Resources 지연 로드라
+            // 페이지를 넘길 때마다 수 십 MB 모델을 끌어오게 된다(iOS 메모리). 다른 맵은 조각 그대로.
+            bool useWhole = mapDef != null && mapDef == currentDef && mapDef.CompletedModel != null;
+
+            // ① 실제 그리드 위 = 진짜 블록 프리팹의 '반투명 고스트'(공정색 X) + 공정 숫자 라벨 — 자유 건축은 생략
             m_GhostFloors.Clear();
-            bool useWhole = mapDef != null && mapDef.CompletedModel != null;
-            foreach (var o in objects)
+            m_BuiltWithGhost = !freeBuild;
+            if (!freeBuild)
             {
-                Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
-                Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
-                int matStart = m_GhostMats.Count;
-                var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
-                if (useWhole) HideRenderers(go);        // 통짜 고스트를 대신 세운다(아래) — 층 필터 파편화 방지
-                var fcells = GridFootprint.EnumerateFootprintCells(o.minCell, o.def != null ? o.def.Footprint : Vector3Int.one, o.rot);
-                m_GhostFloors.Add((go, o.minCell.y, fcells, o.def != null ? o.def.Id : -1,
-                                   o.def != null ? o.def.RequiredMask : 0,
-                                   matStart, m_GhostMats.Count - matStart));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
+                m_GhostRoot = new GameObject("~AnswerGhost");
+                foreach (var o in objects)
+                {
+                    Vector3 pos = GridCoordinates.CellToWorld(o.minCell);
+                    Quaternion rot = Quaternion.Euler(0f, 90f * o.rot, 0f);
+                    int matStart = m_GhostMats.Count;
+                    var go = MakeBlockVisual(o, m_GhostRoot.transform, pos, rot, u, ghost: true);
+                    if (useWhole) HideRenderers(go);        // 통짜 고스트를 대신 세운다(아래) — 층 필터 파편화 방지
+                    var fcells = GridFootprint.EnumerateFootprintCells(o.minCell, o.def != null ? o.def.Footprint : Vector3Int.one, o.rot);
+                    m_GhostFloors.Add((go, o.minCell.y, fcells, o.def != null ? o.def.Id : -1,
+                                       o.def != null ? o.def.RequiredMask : 0,
+                                       matStart, m_GhostMats.Count - matStart));   // 기준층 = 그 블록을 놓을 때 플레이어가 서는 층
+                }
+                // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
+                m_UseWholeGhost = useWhole;
+                m_GhostPieceMatCount = m_GhostMats.Count;   // 여기까지가 조각 구간 — 통짜 머티리얼은 이 뒤에 붙는다
+                if (useWhole) ShowCompletedModelInstead(mapDef, m_GhostRoot.transform, ghost: true);
             }
-            // 완성체가 있는 맵은 배치 가이드도 통짜 반투명 하나로. 층 필터를 안 타므로 항상 온전히 보인다.
-            m_UseWholeGhost = useWhole;
-            m_GhostPieceMatCount = m_GhostMats.Count;   // 여기까지가 조각 구간 — 통짜 머티리얼은 이 뒤에 붙는다
-            ShowCompletedModelInstead(m_GhostRoot.transform, ghost: true);
+            else { m_UseWholeGhost = false; m_GhostPieceMatCount = 0; }
 
             // ② 우하단 3D 미리보기 = 진짜 블록 프리팹 솔리드(멀리 떨어진 미니씬 → RenderTexture)
             m_Root = new GameObject("~AnswerPreview");
@@ -305,7 +340,7 @@ namespace GridSystem
             // 완성체가 지정된 맵(DDP처럼 통짜를 잘라 짓는 맵)은 계획도를 '자르기 전 원본'으로 보여준다.
             // 조각을 그대로 그리면 잘린 단면이 드러나 완성 모습이 매끈하게 안 보이기 때문.
             // 조각 오브젝트는 렌더러만 끄고 남겨 둔다 — 픽킹 AABB와 호버 테두리가 그걸 쓰기 때문.
-            if (ShowCompletedModelInstead(m_Root.transform, ghost: false) != null)
+            if (useWhole && ShowCompletedModelInstead(mapDef, m_Root.transform, ghost: false) != null)
                 foreach (var t in m_PickTargets) HideRenderers(t.go);
 
             m_RT = new RenderTexture(512, 512, 16);
@@ -639,9 +674,8 @@ namespace GridSystem
         /// <para><paramref name="ghost"/>=true면 인월드 배치 가이드용 반투명. 조각을 그대로 두면
         /// '내가 선 층'만 골라 보여주는 층 필터(m_GhostFloors) 때문에 곡면 껍데기가 파편처럼 보인다 —
         /// 통짜 하나로 세우면 어디에 무엇을 짓는지가 한눈에 들어온다.</para></summary>
-        private GameObject ShowCompletedModelInstead(Transform parent, bool ghost)
+        private GameObject ShowCompletedModelInstead(MapDef mapDef, Transform parent, bool ghost)
         {
-            var mapDef = MapDefOrNull();
             if (mapDef == null || mapDef.CompletedModel == null) return null;
 
             var whole = Instantiate(mapDef.CompletedModel, parent);

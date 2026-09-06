@@ -41,7 +41,10 @@ namespace SeoulZikimi.UI.New.Editor
             // 로비 '랜덤' 맵 선택 썸네일(JobsnailLobbySkinner)
             "Assets/Resources/UI_pngs/MapThumb_Random.png",
             // 드롭다운 스크롤바 핸들(UiNewDropdownList)
-            "Assets/Resources/UI_NEW/02_세션 화면/드롭박스 - 스크롤바.png"
+            "Assets/Resources/UI_NEW/02_세션 화면/드롭박스 - 스크롤바.png",
+            // 좌우 화살표 공용 삼각형(피그마 Polygon) — 세션 화면 맵 화살표·주문 폰 건물 페이지 넘김.
+            // 한글 경로(맵 화살표 왼쪽.png)는 macOS에서 파일명이 NFD로 저장돼 Resources.Load(NFC 리터럴)가 실패하므로 ASCII 경로에 둔다.
+            "Assets/Resources/UI_NEW/Common/Polygon_2.png"
         };
 
         private static bool s_IsRunning;
