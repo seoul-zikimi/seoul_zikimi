@@ -11,8 +11,8 @@ namespace SeoulZikimi.UI.New
     /// </summary>
     public static class UiNewRoomClosedNotice
     {
-        private const string BackgroundPath = "UI_NEW/03_팝업 화면들/방 폭파 안내 팝업/팀원-방폭파 안내 배경";
-        private const string YesButtonPath = "UI_NEW/03_팝업 화면들/방장 방 나갈때 경고 팝업/예 버튼";
+        private const string BackgroundPath = "UI_NEW/Common/RoomClosedFrame";   // 한글 경로는 macOS(NFD 파일명)에서 Resources.Load가 실패해 ASCII 경로로 이동
+        private const string YesButtonPath = "UI_NEW/Common/YesButton";
         private const string CanvasName = "@UiNewRoomClosedNotice";
 
         private static bool s_Pending;

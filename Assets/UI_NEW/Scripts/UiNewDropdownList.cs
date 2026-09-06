@@ -133,7 +133,7 @@ namespace SeoulZikimi.UI.New
                 handleT.SetParent(sbT, false);
                 handleT.sizeDelta = Vector2.zero;
                 var handleImg = handleT.GetComponent<Image>();
-                handleImg.sprite = Resources.Load<Sprite>("UI_NEW/02_세션 화면/드롭박스 - 스크롤바");
+                handleImg.sprite = Resources.Load<Sprite>("UI_NEW/Common/DropdownScrollbar");   // 한글 경로는 macOS(NFD 파일명)에서 Resources.Load가 실패해 ASCII 경로로 이동
                 handleImg.color = handleImg.sprite != null ? Color.white : new Color(0.75f, 0.75f, 0.75f, 1f);
                 handleImg.raycastTarget = true;
 

@@ -11,7 +11,7 @@ namespace SeoulZikimi.UI.New
     /// </summary>
     public static class UiNewNetworkNotice
     {
-        private const string FramePath = "UI_NEW/03_팝업 화면들/공통 안내 팝업/안내 팝업 배경";
+        private const string FramePath = "UI_NEW/Common/NoticeFrame";   // 한글 경로는 macOS(NFD 파일명)에서 Resources.Load가 실패해 ASCII 경로로 이동
         private const string CanvasName = "@UiNewNetworkNotice";
         private const string DefaultMessage = "서버와의 통신이\n원활하지 않습니다.";
 
