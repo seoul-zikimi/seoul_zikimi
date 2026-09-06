@@ -515,6 +515,9 @@ namespace Player
 
         // ── 캐릭터 위 닉네임(월드 텍스트) ──
         private TextMesh m_Nametag;
+
+        /// <summary>촬영 카메라(TrailerCamera, N키)가 머리 위 이름표를 전부 숨기는 중인가. 모든 클라의 이름표가 읽는다.</summary>
+        public static bool HideNametags;
         private GridSystem.GameLoopManager m_LoopForName;
 
         private void CreateNametag()
@@ -544,7 +547,7 @@ namespace Player
             if (m_Nametag == null) return;
             if (m_LoopForName == null) m_LoopForName = FindFirstObjectByType<GridSystem.GameLoopManager>();
             string nm = m_LoopForName != null ? m_LoopForName.GetNameFor(OwnerClientId) : "";
-            bool show = !string.IsNullOrEmpty(nm);
+            bool show = !string.IsNullOrEmpty(nm) && !HideNametags;   // 촬영 중 이름표 숨김
             m_Nametag.gameObject.SetActive(show);
             if (!show) return;
             if (m_Nametag.text != nm) m_Nametag.text = nm;
