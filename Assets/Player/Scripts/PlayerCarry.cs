@@ -1697,12 +1697,20 @@ namespace Player
             return flat.sqrMagnitude > 0.01f ? flat.normalized : transform.forward;
         }
 
+        // 던지기 목표점 — 실제 던지기(Throw)와 조준 미리보기(ShowThrowAim)가 같은 값을 써야 선 그대로 날아간다.
+        // 예전엔 y=0.5 고정이라 지면이 y=0이 아닌 맵에서 미리보기와 실제 착지 높이가 어긋났다.
+        private Vector3 ThrowTarget(Vector3 dir, float dist)
+        {
+            Vector3 to = transform.position + dir * dist;
+            to.y = MaterialDropField.RestYAt(to.x, to.z, transform.position.y);
+            return to;
+        }
+
         // 오버쿡드식 던지기: 조준 '방향'으로 붕~ 포물선 로브. 거리 = 충전량(탭=최소 3, 풀차지=사거리).
         private void Throw(Vector3 dir, float dist)
         {
             if (m_Drop == null || (!HasMaterial && !HasTool)) return;
-            Vector3 to = transform.position + dir * dist;
-            to.y = 0.5f;
+            Vector3 to = ThrowTarget(dir, dist);
             Vector3 from = transform.position + Vector3.up * 1.2f;
             if (HasMaterial) m_Drop.RequestThrow(m_HeldMaterial.Id, from, to);
             else             m_Drop.RequestThrowTool((int)m_HeldTool, from, to);
@@ -1725,8 +1733,8 @@ namespace Player
             }
             m_ThrowAim.SetActive(true);
 
-            Vector3 from = transform.position + Vector3.up * 1.2f;              // Throw()의 출발점과 동일
-            Vector3 to = transform.position + dir * dist; to.y = 0.5f;          // Throw()의 목표점과 동일
+            Vector3 from = transform.position + Vector3.up * 1.2f;   // Throw()의 출발점과 동일
+            Vector3 to = ThrowTarget(dir, dist);                     // Throw()의 목표점과 동일
             PickupBody.SampleArc(from, to, m_ArcPts);
 
             var c = Color.Lerp(new Color(1f, 0.75f, 0.2f, 0.9f), new Color(1f, 0.3f, 0.15f, 0.95f), charge);

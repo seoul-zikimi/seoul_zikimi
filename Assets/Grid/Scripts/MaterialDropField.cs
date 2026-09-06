@@ -26,6 +26,10 @@ namespace GridSystem
 
         private const float kKickDistance = 1.6f;
 
+        public const float RestHeight = 0.5f;          // 지면 위 안착 높이(픽업 홀더 원점 기준)
+        private const float kGroundProbeUp = 2f;       // 지면 탐침 시작(기준점 위) — 더 높이면 다리·회랑 밑면을 지면으로 오인한다
+        private const float kGroundProbeLength = 40f;  // 탐침 길이
+
         private readonly NetworkList<PickupEntry> m_Pickups = new();
         private GridManager m_Grid;
         private ulong m_Counter;                                   // 서버 전용 pickupId 발급
@@ -49,15 +53,29 @@ namespace GridSystem
             if (m_Root != null) Destroy(m_Root);
         }
 
+        /// <summary>월드 (x,z)의 픽업 안착 높이 = 실제 지면 + RestHeight.
+        /// referenceY 살짝 위에서 아래로 훑어 지면을 찾는다(탐침을 더 높이면 다리·회랑 밑면을 지면으로 오인).
+        /// 예전엔 y=0.5 고정이라 지면이 y=0이 아닌 맵·경사·구조물 위에서 픽업이 공중에 떴다.
+        /// 지면을 못 찾으면 그리드 바닥 높이로 폴백. 조준 미리보기(PlayerCarry)도 같은 값을 쓰려고 공개.</summary>
+        public static float RestYAt(float x, float z, float referenceY)
+        {
+            var probe = new Vector3(x, referenceY + kGroundProbeUp, z);
+            if (Physics.Raycast(probe, Vector3.down, out var hit, kGroundProbeUp + kGroundProbeLength,
+                                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                return hit.point.y + RestHeight;
+            return GridCoordinates.CellToWorld(Vector3Int.zero).y + RestHeight;
+        }
+
         // ── 서버: 재료를 바닥에 떨군다(fromPos에서 그 XZ 바닥에 안착, 약간 흩어짐) ──
         public void ServerDrop(int materialId, Vector3 fromPos)
         {
             if (!IsServer || materialId < 0) return;
             var rest = new Vector3(
                 Mathf.Floor(fromPos.x) + 0.5f + Random.Range(-0.3f, 0.3f),
-                0.5f,
+                0f,
                 Mathf.Floor(fromPos.z) + 0.5f + Random.Range(-0.3f, 0.3f));
             ClampToFloor(ref rest);
+            rest.y = RestYAt(rest.x, rest.z, fromPos.y);   // 흩어진 뒤의 XZ에서 지면을 찾는다
             m_Pickups.Add(new PickupEntry
             {
                 pickupId = ++m_Counter, materialId = materialId, pos = rest, fromPos = fromPos
@@ -75,8 +93,9 @@ namespace GridSystem
         public void ServerThrow(int materialId, Vector3 fromPos, Vector3 toPos)
         {
             if (!IsServer || materialId < 0) return;
-            var rest = new Vector3(toPos.x, 0.5f, toPos.z);
+            var rest = new Vector3(toPos.x, 0f, toPos.z);
             ClampToFloor(ref rest);
+            rest.y = RestYAt(rest.x, rest.z, Mathf.Max(fromPos.y, toPos.y));
             m_Pickups.Add(new PickupEntry
             {
                 pickupId = ++m_Counter, materialId = materialId, pos = rest, fromPos = fromPos
@@ -84,11 +103,13 @@ namespace GridSystem
         }
 
         /// <summary>배송(보급소 주문): 던지기와 같지만 착지 높이를 배송 지점 높이로 존중한다(높은 곳에 배송 지점을 둘 수 있게).
+        /// 여기만 지면 스냅(RestYAt)을 하지 않는다 — 케이블카가 공중 곤돌라 '안'에 화물을 앉히고
+        /// 그 안착 지점(toPos.y + RestHeight)으로 하역 여부를 판정하기 때문(CableCarNetwork.Docked).
         /// 반환: 발급된 pickupId(추적용 — 케이블카가 미수령 회수에 쓴다). 실패 시 0.</summary>
         public ulong ServerDeliver(int materialId, Vector3 fromPos, Vector3 toPos)
         {
             if (!IsServer || materialId < 0) return 0;
-            var rest = new Vector3(toPos.x, toPos.y + 0.5f, toPos.z);
+            var rest = new Vector3(toPos.x, toPos.y + RestHeight, toPos.z);
             ClampToFloor(ref rest);
             m_Pickups.Add(new PickupEntry
             {
@@ -135,8 +156,9 @@ namespace GridSystem
         private void ThrowToolRpc(int toolBit, Vector3 fromPos, Vector3 toPos)
         {
             if (!IsServer || toolBit == 0) return;
-            var rest = new Vector3(toPos.x, 0.5f, toPos.z);
+            var rest = new Vector3(toPos.x, 0f, toPos.z);
             ClampToFloor(ref rest);
+            rest.y = RestYAt(rest.x, rest.z, Mathf.Max(fromPos.y, toPos.y));
             m_Pickups.Add(new PickupEntry
             {
                 pickupId = ++m_Counter, materialId = -1, toolBit = toolBit, pos = rest, fromPos = fromPos
@@ -157,8 +179,8 @@ namespace GridSystem
                 {
                     var p = m_Pickups[i];
                     var np = p.pos + d * kKickDistance;
-                    np.y = 0.5f;
                     ClampToFloor(ref np, 6f);   // 킥 폭주 방지(그리드 주변으로 제한)
+                    np.y = RestYAt(np.x, np.z, p.pos.y);   // 차인 곳의 지면에 다시 안착(예전엔 y=0.5 고정)
                     p.pos = np;
                     m_Pickups[i] = p;   // 값 변경 → 복제 → 클라가 그 위치로 굴림
                     return;
@@ -315,6 +337,23 @@ namespace GridSystem
             bc.size = size;
         }
 
+        // 안착 지점(pos)은 '지면 + RestHeight'라, 비주얼 바닥이 홀더 로컬 -RestHeight에 와야 지면에 닿는다.
+        // 모델 피벗이 제각각이라(도구 glb는 바닥 피벗, 블록 프리팹은 min-corner) 실제 렌더러 Bounds로 맞춘다 —
+        // 예전엔 보정이 없어 도구·작은 모델이 반칸 떠 보였다. 홀더가 아직 원점·무회전일 때 호출할 것(월드 y = 로컬 y).
+        private static void GroundVisual(Transform vis)
+        {
+            var bounds = new Bounds();
+            bool any = false;
+            foreach (var r in vis.GetComponentsInChildren<Renderer>())
+            {
+                if (r is ParticleSystemRenderer || r is TrailRenderer) continue;   // 이펙트는 실제 부피가 아님
+                if (!any) { bounds = r.bounds; any = true; }
+                else bounds.Encapsulate(r.bounds);
+            }
+            if (!any) return;
+            vis.position += new Vector3(0f, -RestHeight - bounds.min.y, 0f);
+        }
+
         private GameObject MakeVisual(PickupEntry p, bool animate)
         {
             GameObject go;
@@ -330,6 +369,7 @@ namespace GridSystem
                     var vis = Instantiate(model, go.transform);
                     vis.transform.localPosition = Vector3.zero;
                     go.transform.localScale = Vector3.one * m_ToolModelScale;
+                    GroundVisual(vis.transform);   // 도구 모델은 바닥 피벗 — 스케일 적용 후 바닥을 지면에 맞춘다
                     foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
                 }
                 else
@@ -362,6 +402,7 @@ namespace GridSystem
                 go = new GameObject($"~Pickup{p.pickupId}");
                 var vis = Instantiate(def.Prefab, go.transform);
                 vis.transform.localPosition = new Vector3(-fp.x * 0.5f, -fp.y * 0.5f, -fp.z * 0.5f);   // 피벗(min-corner) 보정
+                GroundVisual(vis.transform);   // 높이만 실제 Bounds로 재보정(모델이 칸보다 작거나 크면 뜨거나 묻혔다)
                 foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
             }
             else                                     // 프리팹 없음 → 공정색 큐브(폴백)
