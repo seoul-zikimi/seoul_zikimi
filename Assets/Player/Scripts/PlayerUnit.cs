@@ -50,14 +50,6 @@ namespace Player
 
         public float FacingYaw => m_NetFacingYaw.Value;
 
-        // 트레일러 촬영 관전자(닉네임 !관전!, 에디터/개발 빌드) — owner가 스폰 시 한 번 쓰고, 모든 클라가 읽어
-        // 몸·이름표·콜라이더를 숨긴다. 서버 인원 계산 제외는 TrailerMode(접속 승인 페이로드)가 따로 담당.
-        private readonly NetworkVariable<bool> m_NetSpectator = new(
-            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-        private bool  m_IsSpectator;
-        private float m_NextGhostSweep;
-        public bool IsSpectator => m_IsSpectator;
-
         // 0.5° 격자로만 복제 — 원격은 Slerp로 따라와 시각 차이가 없고, 직진 중 속도 미세 떨림이
         // 만드는 소수점 yaw 변화가 매 틱 델타를 전송하던 것을 막는다.
         public void ReportFacingYaw(float yaw)
@@ -84,11 +76,6 @@ namespace Player
 
             CreateSlimeTrail();   // 민달팽이 점액 트레일(트레이드마크). 더스트트레일(발먼지)과 별개 공존.
             CreateNametag();      // 캐릭터 위 닉네임(월드 텍스트, 모든 클라)
-
-            // 트레일러 관전자: owner가 표식을 올리면 모든 클라(늦참 포함)가 유령 처리
-            m_NetSpectator.OnValueChanged += (_, on) => { if (on) ApplySpectatorGhost(); };
-            if (IsOwner && TrailerMode.LocalIsSpectator) m_NetSpectator.Value = true;
-            if (m_NetSpectator.Value) ApplySpectatorGhost();
 
             if (GetComponent<PlayerSplat>() == null)   // 착지 철푸덕(래퍼 스케일 — 리깅과 무관하게 적용)
                 gameObject.AddComponent<PlayerSplat>();
@@ -161,7 +148,6 @@ namespace Player
         private void FixedUpdate()
         {
             if (!IsOwner) return;
-            if (m_IsSpectator) return;   // 관전자 몸은 제자리 고정(카메라는 TrailerCamera가 따로 움직인다)
             if (m_Rb != null && m_Rb.isKinematic)
             {
                 // 스폰 대기는 GridManager 찾으면 곧 끝남(보통 <1s). 코루틴이 씬전환/비활성으로 죽어
@@ -558,7 +544,7 @@ namespace Player
             if (m_Nametag == null) return;
             if (m_LoopForName == null) m_LoopForName = FindFirstObjectByType<GridSystem.GameLoopManager>();
             string nm = m_LoopForName != null ? m_LoopForName.GetNameFor(OwnerClientId) : "";
-            bool show = !string.IsNullOrEmpty(nm) && !m_IsSpectator && !TrailerMode.HideNametags;   // 관전자·촬영 중 이름표 숨김
+            bool show = !string.IsNullOrEmpty(nm);
             m_Nametag.gameObject.SetActive(show);
             if (!show) return;
             if (m_Nametag.text != nm) m_Nametag.text = nm;
@@ -569,35 +555,9 @@ namespace Player
         private int m_TrailHierarchyCount = -1;   // 커스텀 트레일 착용 감지 캐시
         private bool m_HasCustomTrail;
 
-        // ── 트레일러 관전자 유령 처리(모든 클라) ──
-        // 렌더러·콜라이더를 끄고 몸을 고정한다. 캐릭터 모델(CharacterSwap)·트레일 등은 스폰 뒤에 붙으므로
-        // LateUpdate에서 0.5초마다 다시 훑는다(관전자 1명뿐이라 비용 무시 가능).
-        private void ApplySpectatorGhost()
-        {
-            m_IsSpectator = true;
-            gameObject.tag = "Untagged";   // PlayerBounce 등 'Player' 태그 판정에서 제외
-            var rb = GetComponent<Rigidbody>();
-            if (rb != null) { rb.useGravity = false; rb.linearVelocity = Vector3.zero; rb.constraints = RigidbodyConstraints.FreezeAll; }
-            SweepSpectatorGhost();
-            if (IsOwner) GameplayInputBlocker.TrailerBlocked = true;   // 내 캐릭터가 WASD·클릭에 반응하지 않게
-        }
-
-        private void SweepSpectatorGhost()
-        {
-            foreach (var r in GetComponentsInChildren<Renderer>(true)) if (r.enabled) r.enabled = false;
-            foreach (var c in GetComponentsInChildren<Collider>(true)) if (c.enabled) c.enabled = false;
-            var rb = GetComponent<Rigidbody>();
-            if (rb != null && rb.useGravity) { rb.useGravity = false; rb.constraints = RigidbodyConstraints.FreezeAll; }
-        }
-
         private void LateUpdate()
         {
             UpdateNametag();
-            if (m_IsSpectator && Time.unscaledTime >= m_NextGhostSweep)
-            {
-                m_NextGhostSweep = Time.unscaledTime + 0.5f;
-                SweepSpectatorGhost();
-            }
 
             if (m_SlimeTrail == null) return;
             if (m_MoveForTrail == null) m_MoveForTrail = GetComponent<PlayerMovement>();

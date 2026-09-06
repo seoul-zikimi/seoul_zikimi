@@ -217,7 +217,7 @@ namespace SeoulZikimi.UI.New
         public void SetRoomName(string value)
         {
             if (roomTitle != null)
-                roomTitle.text = string.IsNullOrWhiteSpace(value) ? "이름 없는 방" : TrailerMode.DisplayName(value);   // 촬영방 키워드는 평범한 제목으로
+                roomTitle.text = string.IsNullOrWhiteSpace(value) ? "이름 없는 방" : value;
         }
 
         public void SetSlot(int index, bool occupied, string nickname, bool isHost, bool isLocal, bool ready,

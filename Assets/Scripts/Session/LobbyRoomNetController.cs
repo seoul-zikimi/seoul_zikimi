@@ -492,7 +492,6 @@ public class LobbyRoomNet : NetworkBehaviour
     private void SetReadyStatusServerRpc(bool isReady, RpcParams rpc = default)
     {
         ulong clientId = rpc.Receive.SenderClientId;
-        if (TrailerMode.IsSpectator(clientId)) return;   // 관전자의 준비는 시작 조건에 안 들어간다
         if (isReady)
             m_ReadyClients.Add(clientId);
         else
@@ -533,8 +532,6 @@ public class LobbyRoomNet : NetworkBehaviour
     private void OccupySlotForClient(ulong clientId)
     {
         if (!IsServer)
-            return;
-        if (TrailerMode.IsSpectator(clientId))   // 트레일러 관전자는 자리를 차지하지 않는다(정원 4 그대로)
             return;
         if (FindSlotByClient(clientId) >= 0)
             return;
@@ -702,8 +699,6 @@ public class LobbyRoomNet : NetworkBehaviour
 
         // 현재 서버에 접속한 총 인원수 (호스트 포함)
         int totalConnected = NetworkManager.Singleton != null ? NetworkManager.Singleton.ConnectedClients.Count : 1;
-        if (NetworkManager.Singleton != null)
-            totalConnected -= TrailerMode.CountIn(NetworkManager.Singleton.ConnectedClientsIds);   // 트레일러 관전자 제외
         m_ConnectedCount.Value = Mathf.Clamp(totalConnected, 1, RoomCapacity);
 
         // 더 이상 방 정원 기준으로 기다리지 않는다. "지금 방에 들어와 있는 팀원(호스트 제외)"이
@@ -799,7 +794,6 @@ public class LobbyRoomNet : NetworkBehaviour
             m_ReadyClients.Remove(clientId);
         }
         m_ChatQuotas.Remove(clientId);   // 나간 클라의 도배 기록은 남기지 않는다
-        TrailerMode.UnmarkSpectator(clientId);   // 관전자 명단 정리(같은 id가 재발급될 일은 없지만 누수 방지)
         ClearSlotForClient(clientId);   // 슬롯을 비워 구멍을 남긴다(재정렬 없음)
         CheckAllPlayersReady();
     }

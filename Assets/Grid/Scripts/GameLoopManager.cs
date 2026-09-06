@@ -60,7 +60,6 @@ namespace GridSystem
         private readonly NetworkVariable<int> m_LoadedCount =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);      // 로딩 완료 인원(로딩바용)
         private readonly System.Collections.Generic.HashSet<ulong> m_LoadedClients = new();             // 서버 전용
-        private readonly System.Collections.Generic.List<ulong> m_PlayerIdsBuf = new();                 // 관전자 제외 접속자 목록(서버 Update 스크래치)
         private float m_ServerSpawnedAt;                                                                // 서버 전용(타임아웃 기준)
 
         private float NowNet => NetworkManager != null ? (float)NetworkManager.ServerTime.Time : Time.time;
@@ -357,8 +356,7 @@ namespace GridSystem
             if (!IsServer) return;
 
             // 접속 인원 갱신 + 끊긴 클라 동의 정리 + 전원동의 검사(건축→종료 / 종료→재시작)
-            // 트레일러 관전자(!관전!)는 인원·동의·팀·로딩 게이트 전부에서 제외 — 아래 ids만 걸러도 다 빠진다.
-            var ids = TrailerMode.FilterPlayers(NetworkManager.Singleton.ConnectedClientsIds, m_PlayerIdsBuf);
+            var ids = NetworkManager.Singleton.ConnectedClientsIds;
             m_PlayerCount.Value = ids.Count;
             for (int i = m_Consents.Count - 1; i >= 0; i--)
                 if (!Contains(ids, m_Consents[i])) m_Consents.RemoveAt(i);
@@ -534,7 +532,6 @@ namespace GridSystem
         private void ToggleConsentRpc(RpcParams rpc = default)
         {
             ulong sender = rpc.Receive.SenderClientId;
-            if (TrailerMode.IsSpectator(sender)) return;   // 관전자는 동의 인원이 아니다
             for (int i = 0; i < m_Consents.Count; i++)
                 if (m_Consents[i] == sender)
                 {
@@ -562,7 +559,6 @@ namespace GridSystem
         private void SubmitNameRpc(FixedString32Bytes name, RpcParams rpc = default)
         {
             ulong sender = rpc.Receive.SenderClientId;
-            if (TrailerMode.IsSpectator(sender)) return;   // 관전자는 명단(정산서·이름표)에 안 오른다
             for (int i = 0; i < m_Names.Count; i++)
                 if (m_Names[i].Id == sender) { var e = m_Names[i]; e.Name = name; m_Names[i] = e; return; }
             m_Names.Add(new NameEntry { Id = sender, Name = name });
@@ -685,7 +681,6 @@ namespace GridSystem
         private void ReturnToRoomVoteRpc(RpcParams rpc = default)
         {
             ulong sender = rpc.Receive.SenderClientId;
-            if (TrailerMode.IsSpectator(sender)) return;   // 관전자는 방 복귀 투표 인원이 아니다
             for (int i = 0; i < m_RoomVotes.Count; i++)
                 if (m_RoomVotes[i] == sender) return;   // 이미 누름(취소는 없다)
             m_RoomVotes.Add(sender);
