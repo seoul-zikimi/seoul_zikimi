@@ -340,6 +340,8 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             new Vector2(0.315f, 0.17f), new Vector2(0.685f, 0.83f), Vector2.zero, Vector2.zero,
             new Color(1f, 0.965f, 0.88f, 1f));
         StyleRounded(panelImage, panelImage.color);
+        // 패널 안쪽 클릭(슬라이더 조작 등)이 오버레이 버튼까지 올라가 팝업이 닫히는 것을 막는다.
+        panelImage.gameObject.AddComponent<JobsnailClickBlocker>();
         var panel = panelImage.transform;
 
         var header = JobsnailUiKit.Box("Header", panel, new Vector2(0.035f, 0.83f), new Vector2(0.965f, 0.965f),
