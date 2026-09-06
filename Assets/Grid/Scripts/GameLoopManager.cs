@@ -25,6 +25,8 @@ namespace GridSystem
             new(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<int> m_PlayerCount =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<float> m_CompletedElapsed =
+            new(-1f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);   // 협동: 100% 찍은 순간의 경과 초(-1=미완공)
         private readonly NetworkVariable<int> m_AnswerIndex =
             new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<int> m_MapIndex =
@@ -133,6 +135,11 @@ namespace GridSystem
             }
         }
         public float Elapsed => Mathf.Max(0f, TimeLimit - TimeLeft);
+
+        /// <summary>정산서·최고기록에 쓸 소요시간. 협동에서 100%를 찍었으면 '찍은 그 순간'의 시간으로 고정된다.
+        /// 완공해도 판은 안 끝난다(기획 09/07) — 기념사진 등으로 남아 있을 수 있게 남은 시간은 종료벨 역할만 하고,
+        /// 기록만 완공 시점에서 멈춘다. 미완공이면 평소대로 경과 시간.</summary>
+        public float RecordTime => m_CompletedElapsed.Value >= 0f ? m_CompletedElapsed.Value : Elapsed;
         public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";
 
         /// <summary>현재 맵(MapCatalog 인덱스). 서버가 정하고 전 클라 동기화 — MapLoader가 이걸 보고 배경 스폰.</summary>
@@ -316,6 +323,7 @@ namespace GridSystem
             else t = (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.TimeLimitSeconds : 180f;
             m_ServerTimeLeft = Mathf.Max(1f, t);
             m_TimeLeft.Value = m_ServerTimeLeft;
+            m_CompletedElapsed.Value = -1f;   // 새 라운드 → 완공 시각 기록 초기화
             m_Phase.Value = (int)GamePhase.Building;
             for (int i = m_Consents.Count - 1; i >= 0; i--) m_Consents.RemoveAt(i);
             for (int i = m_RoomVotes.Count - 1; i >= 0; i--) m_RoomVotes.RemoveAt(i);   // 새 라운드 → 방 복귀 표도 초기화
@@ -389,6 +397,7 @@ namespace GridSystem
                 if (!Contains(ids, m_Teams[i].Id)) m_Teams.RemoveAt(i);
             AssignTeams(ids);   // 2vs2: 새 접속자 팀 배정(협동 모드는 no-op)
             ServerTickMatchGate(ids);   // 전원 로딩 완료 → 카운트다운 예약
+            ServerStampCompletion();    // 협동: 100% 찍은 순간의 시간을 기록용으로 고정(판은 계속 진행)
             if (IsBuilding && IsVersus)
             {
                 if (TryEarlyVictory()) return;   // [기획 09/02] 먼저 100% 찍은 팀 즉시 승리
@@ -432,6 +441,19 @@ namespace GridSystem
                     if (q < m_TimeLeft.Value) m_TimeLeft.Value = q;
                 }
             }
+        }
+
+        // 서버(협동): 만점(모든 칸 배치+공정 완료)을 처음 찍은 순간의 경과 시간을 박아 둔다.
+        // 조기 종료는 하지 않는다 — 완공 후에도 기념사진 등으로 남고 싶을 수 있어 남은 시간은 '종료벨'로만 쓰고,
+        // 정산서·최고기록에 들어가는 시간만 여기서 멈춘다(QA: 완공했는데 시간이 계속 흘러 기록이 늘어남).
+        // 반올림 100%(99.6% 표시 100)에 속지 않게 score>=maxScore 원값으로 판정.
+        private void ServerStampCompletion()
+        {
+            if (IsVersus || !IsBuilding || !MatchStarted) return;
+            if (m_CompletedElapsed.Value >= 0f || m_Net == null) return;
+            var s = m_Net.Score;
+            if (s.maxScore > 0 && s.score >= s.maxScore)
+                m_CompletedElapsed.Value = Mathf.Max(0f, TimeLimit - m_ServerTimeLeft);
         }
 
         private float m_ServerTimeLeft;   // 서버 권위 타이머 원본 — m_TimeLeft는 이 값의 0.1초 격자 복제본

@@ -538,7 +538,7 @@ public sealed class GameLoopHUD : UIHUD
             string map = !string.IsNullOrEmpty(m_Loop.AnswerName) ? m_Loop.AnswerName
                        : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             int players = m_PlayersAtStart > 0 ? m_PlayersAtStart : Mathf.Clamp(m_Loop.NameCount, 1, 4);
-            bool newBest = SaveService.ReportRecord(map, players, pct, m_Loop.Elapsed);
+            bool newBest = SaveService.ReportRecord(map, players, pct, m_Loop.RecordTime);
             int coins = SaveService.TimeAttackReward(pct, pct > 0 ? StarCount(pct) : 0);
             if (coins > 0) SaveService.AddCoins(coins);
             if (m_CoinRewardText != null)
@@ -576,7 +576,7 @@ public sealed class GameLoopHUD : UIHUD
             var dig0 = GridSystem.ExcavationNetwork.Instance;
             int artifacts0 = dig0 != null ? dig0.ArtifactsFound : 0;
             int enemyPct0 = versus && m_Net != null ? Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent) : -1;
-            int elapsed0 = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
+            int elapsed0 = Mathf.Max(0, Mathf.RoundToInt(m_Loop.RecordTime));
             if (!firstShow && pct == m_RpPct && enemyPct0 == m_RpEnemyPct && elapsed0 == m_RpElapsed
                 && artifacts0 == m_RpArtifacts && score.bonus == m_RpBonus && m_ResultIntroPlaying == m_RpIntro
                 && m_Loop.NameCount == m_RpNames && m_Loop.WinnerTeam == m_RpWinner)
@@ -608,7 +608,7 @@ public sealed class GameLoopHUD : UIHUD
 
         if (m_ResultTimeText != null)
         {
-            int e = Mathf.Max(0, Mathf.RoundToInt(m_Loop.Elapsed));
+            int e = Mathf.Max(0, Mathf.RoundToInt(m_Loop.RecordTime));   // 완공했으면 100% 찍은 순간의 시간
             m_ResultTimeText.text = $"{e / 60} : {e % 60:00}";   // 라벨은 영수증 배경이 담당 — 숫자만
 
             // DDP 유구 발굴 보너스 — 그 맵에서 유물을 캤을 때만 한 줄 덧붙인다.
