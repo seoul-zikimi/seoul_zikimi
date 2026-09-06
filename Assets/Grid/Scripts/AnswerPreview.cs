@@ -44,6 +44,9 @@ namespace GridSystem
         private readonly List<Color> m_GhostMatCols = new();   // m_GhostMats와 1:1 — 원본 색(강조 초록에서 복귀용)
         private static readonly Color kGhostHighlight = new Color(1f, 1f, 1f);   // 강조: 흰색. 초록은 커서 프리뷰의 '정답' 색과 겹쳐 헷갈렸다
         private float m_NextDoneCheck;
+        // 프리셋 블럭이 실제 그리드에 깔린 걸 한 번이라도 확인했는지(RefreshGhostDone).
+        // 프리셋을 스폰하지 않는 맵(SpawnPresetBlocks=false, 광통교류)에선 계속 false라 기존 동작 그대로.
+        private bool m_PresetSpawnSeen;
         private GridNetwork m_Net;
         private bool m_Visible = true;
         private bool m_Built;
@@ -102,6 +105,7 @@ namespace GridSystem
             m_SelectedDef = null; m_SelOutlines.Clear();
             m_GhostFloors.Clear();
             m_GhostDone.Clear();
+            m_PresetSpawnSeen = false;   // 라운드 재시작 = 프리셋 재스폰 — 다시 확인부터
             m_GhostActive.Clear();
             m_GhostShown.Clear();
             m_LastGaQ = -1; m_LastHlId = int.MinValue;   // 재구성 후 첫 프레임 강제 재도색
@@ -232,9 +236,16 @@ namespace GridSystem
                 if (done)
                     foreach (var c in it.cells)
                     {
-                        if (answer.IsPreset(c)) continue;   // 기본 제공 블럭 칸은 지을 필요 없음
-                        if (!m_Net.TryGetCell(c + offset, out int matId, out int completedMask)
-                            || matId != it.materialId
+                        bool preset = answer.IsPreset(c);
+                        if (!m_Net.TryGetCell(c + offset, out int matId, out int completedMask))
+                        {
+                            // 빈 칸. 프리셋 칸은 '아직 안 깔림(라운드 시작 직후)'과 '불타 사라짐'을 구분해야 한다 —
+                            // 한 번이라도 깔린 걸 본 뒤에만 소실로 보고 고스트를 되살린다(경복궁 화마 복구 안내).
+                            if (preset && !m_PresetSpawnSeen) continue;
+                            done = false; break;
+                        }
+                        if (preset) { m_PresetSpawnSeen = true; continue; }   // 기본 제공 블럭 칸은 지을 필요 없음
+                        if (matId != it.materialId
                             || (completedMask & it.reqMask) != it.reqMask) { done = false; break; }
                     }
                 m_GhostDone[i] = done;
