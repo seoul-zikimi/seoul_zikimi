@@ -121,3 +121,7 @@ InitTestScene*.unity*
 /[Aa]ssets/ThirdParty/TransitionBlocks.meta
 /[Aa]ssets/ThirdParty/ARTnGAME/
 /[Aa]ssets/ThirdParty/ARTnGAME.meta
+
+# 빌드 시 자동 생성되는 넷코드 빌드 지문(BuildFingerprintWriter) — 커밋하지 않는다
+/Assets/Resources/BuildFingerprint.txt
+/Assets/Resources/BuildFingerprint.txt.meta

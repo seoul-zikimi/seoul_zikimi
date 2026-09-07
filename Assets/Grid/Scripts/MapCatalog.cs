@@ -20,8 +20,19 @@ namespace GridSystem
         public IReadOnlyList<MapDef> Maps => m_Maps;
         public int Count => m_Maps.Count;
 
-        public MapDef Get(int index) =>
-            (index >= 0 && index < m_Maps.Count) ? m_Maps[index] : (m_Maps.Count > 0 ? m_Maps[0] : null);
+        public MapDef Get(int index)
+        {
+            if (index >= 0 && index < m_Maps.Count) return m_Maps[index];
+            // 범위 밖은 0번(튜토리얼)으로 떨어뜨리되 조용히 넘기지 않는다 — 넷코드 상태가 깨져 쓰레기 인덱스가 온 것을
+            // "그냥 튜토리얼 맵"으로 오해한 실사고가 있었다. '랜덤' 센티널은 정상 호출이라 제외.
+            if (index != RandomMapIndex && index != s_LastWarnedIndex)
+            {
+                s_LastWarnedIndex = index;
+                Debug.LogWarning($"[MapCatalog] 맵 인덱스 {index}가 범위 밖(0~{m_Maps.Count - 1}) — 0번으로 폴백. 서버·클라 빌드가 다른지 확인하세요.");
+            }
+            return m_Maps.Count > 0 ? m_Maps[0] : null;
+        }
+        private static int s_LastWarnedIndex = int.MinValue;
 
         /// <summary>플레이어가 직접 고를 수 있는 맵인지 — 2vs2 공터(대전 모드가 자동으로 씀)와
         /// 튜토리얼(설정창의 "튜토리얼 다시보기" 전용)은 목록에서 뺀다.</summary>

@@ -158,7 +158,8 @@ public class JobsnailSessionManager
         }
     }
 
-    public async Task EndSessionBecauseHostLeftAsync(string reason)
+    /// <param name="userMessage">지정하면 '방 폭파' 그림 팝업 대신 이 문구를 안내 팝업으로 보여 준다(사유가 방장 이탈이 아닐 때).</param>
+    public async Task EndSessionBecauseHostLeftAsync(string reason, string userMessage = null)
     {
         if (m_IsLeaving)
             return;
@@ -204,7 +205,7 @@ public class JobsnailSessionManager
             m_IsLeaving = false;
             SessionPasswordGate.Clear();
             // 방이 터진 팀원은 메인 메뉴가 아니라 세션 목록으로 돌아가야 한다(QA 요구).
-            SeoulZikimi.UI.New.UiNewRoomClosedNotice.ShowOnRoomList();   // 목록 화면 위 안내 팝업 예약
+            SeoulZikimi.UI.New.UiNewRoomClosedNotice.ShowOnRoomList(userMessage);   // 목록 화면 위 안내 팝업 예약
             ShowRoomListScene();
         }
     }
@@ -226,6 +227,16 @@ public class JobsnailSessionManager
             // 서버가 사유를 밝히고 거부한 경우(비번 불일치 = 구버전 빌드 혼용이 대표적)는
             // 재접속해도 똑같이 거부된다 — 60초 헛시도 없이 바로 정리한다.
             string reason = NetworkManager.Singleton.DisconnectReason;
+            if (!string.IsNullOrEmpty(reason) && reason.StartsWith(SessionPasswordGate.BuildMismatchReason))
+            {
+                // 방장과 코드가 다른 빌드 — 붙여 봐야 NetworkVariable이 어긋나 엉뚱한 맵/상태가 된다(실사고: 팀원만 튜토리얼 맵).
+                int bar = reason.IndexOf('|');
+                string hostFp = bar >= 0 ? reason.Substring(bar + 1) : "?";
+                Debug.LogWarning($"[JobsnailSessionManager] 빌드 불일치로 접속 거부 — 내 지문 {BuildFingerprint.Current}, 방장 지문 {hostFp}.");
+                _ = EndSessionBecauseHostLeftAsync("빌드 불일치로 서버가 접속 거부",
+                    $"방장과 게임 빌드 버전이 달라 입장할 수 없습니다.\n내 빌드 {BuildFingerprint.Current} / 방장 빌드 {hostFp}\n같은 커밋으로 다시 빌드해 주세요.");
+                return;
+            }
             if (reason == "wrong_password")
             {
                 Debug.LogWarning("[JobsnailSessionManager] 서버가 비밀번호 불일치로 접속 거부 — 구버전 빌드이거나 개조 클라일 수 있음.");

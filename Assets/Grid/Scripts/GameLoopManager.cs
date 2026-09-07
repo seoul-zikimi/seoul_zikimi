@@ -144,6 +144,16 @@ namespace GridSystem
 
         /// <summary>현재 맵(MapCatalog 인덱스). 서버가 정하고 전 클라 동기화 — MapLoader가 이걸 보고 배경 스폰.</summary>
         public int MapIndex => m_MapIndex.Value;
+
+        // GridSystem 어셈블리는 Assembly-CSharp(BuildFingerprint)를 참조 못 하므로 Resources에서 직접 읽는다(로그 표기용).
+        private static string BuildFingerprintTag
+        {
+            get
+            {
+                var asset = Resources.Load<TextAsset>("BuildFingerprint");
+                return asset != null ? asset.text.Trim() : "editor/unknown";
+            }
+        }
         private static int s_HostSelectedMap = 0;
         private static int s_RandomMapPick = -1;   // '랜덤'일 때 이번 판에 뽑힌 실제 맵(선택이 바뀌면 무효)
 
@@ -227,6 +237,7 @@ namespace GridSystem
             m_Phase.OnValueChanged += OnPhaseChanged;
             m_AnswerIndex.OnValueChanged += OnAnswerIndexChanged;
             if (IsServer) m_MapIndex.Value = ResolvedHostMap;   // 배경 맵 확정('랜덤'이면 여기서 실제 맵으로, 전원 동기화)
+            Debug.Log($"[GameLoopManager] 맵 인덱스 확정: {m_MapIndex.Value} (IsServer={IsServer}, 빌드 {BuildFingerprintTag})");   // 크로스빌드 진단용
             if (IsServer) m_Mode.Value = Mathf.Clamp(HostSelectedMode, 0, 2);   // 모드 확정(전원 동기화)
             ApplyMapAnswers();                         // 맵 전용 정답 세트가 있으면 교체(서버 랜덤픽 전에!)
             m_Grid.ConfigureVersus(IsVersus);          // 2vs2: 그리드 X 2배 + 분할벽(전 피어, 블록 배치 전)
