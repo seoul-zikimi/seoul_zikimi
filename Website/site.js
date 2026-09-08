@@ -22,3 +22,26 @@
   var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.1});
   els.forEach(function(e){io.observe(e)});
 })();
+
+// 갤러리 태그 필터 (video.html) — URL 해시(#경복궁)로 초기 선택 가능
+(function(){
+  var bar=document.querySelector('.filters');if(!bar)return;
+  var items=Array.prototype.slice.call(document.querySelectorAll('.gallery .g'));
+  var btns=Array.prototype.slice.call(bar.querySelectorAll('button'));
+  var empty=document.querySelector('.g-empty');
+  function tags(el){return (el.dataset.tags||'').split(/\s+/)}
+  btns.forEach(function(b){
+    var f=b.dataset.filter,n=f==='all'?items.length:items.filter(function(i){return tags(i).indexOf(f)>-1}).length;
+    var s=document.createElement('small');s.textContent=n;b.appendChild(s);
+    b.addEventListener('click',function(){apply(f);if(history.replaceState)history.replaceState(null,'',f==='all'?location.pathname:'#'+f)});
+  });
+  function apply(f){
+    var shown=0;
+    btns.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.filter===f)});
+    items.forEach(function(i){var on=f==='all'||tags(i).indexOf(f)>-1;i.hidden=!on;if(on)shown++;
+      var v=i.querySelector('video');if(v){if(on)v.play&&v.play().catch(function(){});else v.pause()}});
+    if(empty)empty.hidden=shown>0;
+  }
+  var h=decodeURIComponent(location.hash.replace('#',''));
+  if(h&&btns.some(function(b){return b.dataset.filter===h}))apply(h);
+})();

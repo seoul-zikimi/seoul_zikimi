@@ -15,7 +15,7 @@
   <div class="wrap">
     <span class="eyebrow">Media</span>
     <h1>트레일러 · 스크린샷</h1>
-    <p>2분 15초짜리 트레일러로 게임을 먼저 보고, 맵별 기믹 클립과 실제 플레이 장면을 둘러보세요.</p>
+    <p>2분 15초짜리 트레일러로 게임을 먼저 보고, 아래 갤러리에서 맵별로 골라 보세요.</p>
   </div>
 </header>
 
@@ -27,74 +27,68 @@
   </div>
 </section>
 
-<section>
+<section id="gallery">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="eyebrow">Map Gimmicks</span>
-      <h2>맵마다 다른 사건</h2>
-      <p>명소의 이야기에서 따온 기믹. 케이블카는 재료를 실어 오고, 화마는 불을 지르고, 퍼레이드는 길을 막습니다.</p>
+      <span class="eyebrow">Gallery</span>
+      <h2>맵별로 골라 보기</h2>
+      <p>태그를 누르면 그 맵의 기믹 클립과 플레이 장면만 남습니다. 움직이는 카드는 실제 플레이 클립입니다.</p>
     </div>
-    <div class="clips rv">
-      <figure class="clip"><video src="assets/namsan_cable.mp4" poster="assets/namsan_cable.jpg" autoplay muted loop playsinline></video><figcaption>남산타워 · 케이블카 배송</figcaption></figure>
-      <figure class="clip"><video src="assets/namsan_wind.mp4" poster="assets/namsan_wind.jpg" autoplay muted loop playsinline></video><figcaption>남산타워 · 돌풍에 날아가기</figcaption></figure>
-      <figure class="clip"><video src="assets/lotte_parade.mp4" poster="assets/lotte_parade.jpg" autoplay muted loop playsinline></video><figcaption>롯데월드 · 퍼레이드와 놀이기구</figcaption></figure>
-      <figure class="clip"><video src="assets/gbg_fire.mp4" poster="assets/gbg_fire.jpg" autoplay muted loop playsinline></video><figcaption>경복궁 · 화마가 불을 지른다</figcaption></figure>
-      <figure class="clip"><video src="assets/gbg_guardian.mp4" poster="assets/gbg_guardian.jpg" autoplay muted loop playsinline></video><figcaption>경복궁 · 사방신 석상 배치</figcaption></figure>
-      <figure class="clip"><video src="assets/collapse.mp4" poster="assets/collapse.jpg" autoplay muted loop playsinline></video><figcaption>고정 안 한 블록은 와르르</figcaption></figure>
-      <figure class="clip"><video src="assets/versus_field.mp4" poster="assets/map_versus.jpg" autoplay muted loop playsinline></video><figcaption>2vs2 · 두 팀이 동시에 건축</figcaption></figure>
-      <figure class="clip"><video src="assets/versus_cannon.mp4" poster="assets/versus_cannon.jpg" autoplay muted loop playsinline></video><figcaption>2vs2 · 대포로 상대 건물 격파</figcaption></figure>
-      <figure class="clip"><video src="assets/emote_voice.mp4" poster="assets/emote_voice.jpg" autoplay muted loop playsinline></video><figcaption>퀵챗 · "망치 갖다줘!"</figcaption></figure>
+    <div class="filters rv" role="group" aria-label="갤러리 필터">
+      <button type="button" data-filter="all" aria-pressed="true">전체</button>
+      <button type="button" data-filter="광통교">광통교</button>
+      <button type="button" data-filter="남산타워">남산타워</button>
+      <button type="button" data-filter="롯데월드">롯데월드</button>
+      <button type="button" data-filter="DDP">DDP</button>
+      <button type="button" data-filter="경복궁">경복궁</button>
+      <button type="button" data-filter="2vs2">2vs2</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" data-filter="기믹">기믹</button>
+      <button type="button" data-filter="계절">계절</button>
+      <button type="button" data-filter="UI">UI · 로비</button>
     </div>
-  </div>
-</section>
-
-<section style="background:var(--cream-2)">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="eyebrow">In-Game</span>
-      <h2>현장은 이렇게 생겼다</h2>
+    <div class="gallery rv">
+      <!-- 경복궁 -->
+      <figure class="g" data-tags="경복궁 기믹"><video src="assets/gbg_fire.mp4" poster="assets/gbg_fire.jpg" autoplay muted loop playsinline></video><figcaption><b>경복궁</b>화마가 불을 지른다</figcaption></figure>
+      <figure class="g" data-tags="경복궁 기믹"><video src="assets/gbg_guardian.mp4" poster="assets/gbg_guardian.jpg" autoplay muted loop playsinline></video><figcaption><b>경복궁</b>사방신 석상 배치</figcaption></figure>
+      <figure class="g" data-tags="경복궁"><img src="assets/map_gbg.jpg" alt="경복궁 근정전 현장, 화마가 지붕에 불을 지르는 장면" loading="lazy"><figcaption><b>경복궁</b>근정전 현장, 화마 출현</figcaption></figure>
+      <!-- 남산타워 -->
+      <figure class="g" data-tags="남산타워 기믹"><video src="assets/namsan_cable.mp4" poster="assets/namsan_cable.jpg" autoplay muted loop playsinline></video><figcaption><b>남산타워</b>케이블카 배송</figcaption></figure>
+      <figure class="g" data-tags="남산타워 기믹"><video src="assets/namsan_wind.mp4" poster="assets/namsan_wind.jpg" autoplay muted loop playsinline></video><figcaption><b>남산타워</b>돌풍에 날아가기</figcaption></figure>
+      <figure class="g" data-tags="남산타워"><img src="assets/play_namsan_phone.jpg" alt="남산타워 현장에서 휴대폰으로 재료 주문" loading="lazy"><figcaption><b>남산타워</b>휴대폰으로 재료 주문</figcaption></figure>
+      <figure class="g" data-tags="남산타워"><img src="assets/play_namsan_city.jpg" alt="남산에서 내려다본 서울" loading="lazy"><figcaption><b>남산타워</b>남산에서 내려다본 서울</figcaption></figure>
+      <figure class="g" data-tags="남산타워"><img src="assets/play_namsan_heart.jpg" alt="전망대 층, 하트 앞 공사" loading="lazy"><figcaption><b>남산타워</b>전망대 층, 하트 앞 공사</figcaption></figure>
+      <figure class="g" data-tags="남산타워 계절"><img src="assets/play_snow.jpg" alt="눈 내리는 남산" loading="lazy"><figcaption><b>남산타워 · 겨울</b>눈 내리는 날의 공사</figcaption></figure>
+      <figure class="g" data-tags="남산타워 계절"><img src="assets/play_winter.jpg" alt="겨울의 남산, 강풍" loading="lazy"><figcaption><b>남산타워 · 겨울</b>강풍 경보</figcaption></figure>
+      <!-- 롯데월드 -->
+      <figure class="g" data-tags="롯데월드 기믹"><video src="assets/lotte_parade.mp4" poster="assets/lotte_parade.jpg" autoplay muted loop playsinline></video><figcaption><b>롯데월드</b>퍼레이드와 놀이기구</figcaption></figure>
+      <figure class="g" data-tags="롯데월드"><img src="assets/play_lotte_free.jpg" alt="롯데월드 매직아일랜드 현장" loading="lazy"><figcaption><b>롯데월드</b>매직아일랜드 현장</figcaption></figure>
+      <figure class="g" data-tags="롯데월드 계절"><img src="assets/play_lotte_spring.jpg" alt="봄의 롯데월드, 벚꽃" loading="lazy"><figcaption><b>롯데월드 · 봄</b>벚꽃 날리는 매직아일랜드</figcaption></figure>
+      <figure class="g" data-tags="롯데월드 UI"><video src="assets/emote_voice.mp4" poster="assets/emote_voice.jpg" autoplay muted loop playsinline></video><figcaption><b>퀵챗</b>"망치 갖다줘!" — VARCO Voice</figcaption></figure>
+      <!-- DDP -->
+      <figure class="g" data-tags="DDP"><img src="assets/map_ddp.jpg" alt="밤의 DDP 현장, LED 장미 정원" loading="lazy"><figcaption><b>DDP</b>LED 장미 정원의 밤</figcaption></figure>
+      <!-- 광통교 -->
+      <figure class="g" data-tags="광통교"><video src="assets/loop_order.mp4" poster="assets/loop_order.jpg" autoplay muted loop playsinline></video><figcaption><b>광통교</b>휴대폰으로 재료 주문</figcaption></figure>
+      <figure class="g" data-tags="광통교"><video src="assets/loop_carry.mp4" poster="assets/loop_carry.jpg" autoplay muted loop playsinline></video><figcaption><b>광통교</b>운반 · 배치</figcaption></figure>
+      <figure class="g" data-tags="광통교"><video src="assets/loop_process.mp4" poster="assets/loop_process.jpg" autoplay muted loop playsinline></video><figcaption><b>광통교</b>망치질 · 페인트칠</figcaption></figure>
+      <figure class="g" data-tags="광통교 기믹"><video src="assets/collapse.mp4" poster="assets/collapse.jpg" autoplay muted loop playsinline></video><figcaption><b>광통교</b>고정 안 한 블록은 와르르</figcaption></figure>
+      <figure class="g" data-tags="광통교"><img src="assets/play_gwang_time.jpg" alt="광통교 타임어택" loading="lazy"><figcaption><b>광통교</b>타임어택</figcaption></figure>
+      <figure class="g" data-tags="광통교"><img src="assets/play_gwang_hud.jpg" alt="정답 도면과 주문 UI" loading="lazy"><figcaption><b>광통교</b>완공 계획도 · 배송 구역 · 주문 폰</figcaption></figure>
+      <figure class="g" data-tags="광통교 계절"><img src="assets/play_gwang_top.jpg" alt="여름의 광통교" loading="lazy"><figcaption><b>광통교 · 여름</b>돌다리를 쌓는 중</figcaption></figure>
+      <figure class="g" data-tags="광통교 계절"><img src="assets/play_autumn.jpg" alt="단풍이 날리는 광통교" loading="lazy"><figcaption><b>광통교 · 가을</b>단풍 날리는 청계천</figcaption></figure>
+      <figure class="g" data-tags="광통교 계절"><img src="assets/play_spring.jpg" alt="봄의 광통교" loading="lazy"><figcaption><b>광통교 · 봄</b>벚꽃</figcaption></figure>
+      <!-- 2vs2 -->
+      <figure class="g" data-tags="2vs2"><video src="assets/versus_field.mp4" poster="assets/map_versus.jpg" autoplay muted loop playsinline></video><figcaption><b>2vs2</b>두 팀이 동시에 건축</figcaption></figure>
+      <figure class="g" data-tags="2vs2 기믹"><video src="assets/versus_cannon.mp4" poster="assets/versus_cannon.jpg" autoplay muted loop playsinline></video><figcaption><b>2vs2</b>대포로 상대 건물 격파</figcaption></figure>
+      <!-- UI · 로비 -->
+      <figure class="g" data-tags="UI"><img src="assets/ui_room.jpg" alt="방 리스트" loading="lazy"><figcaption><b>로비</b>구인 건설 현장 리스트</figcaption></figure>
+      <figure class="g" data-tags="UI"><img src="assets/ui_create.jpg" alt="방 생성" loading="lazy"><figcaption><b>로비</b>방 만들기 — 맵 · 모드 · 날씨</figcaption></figure>
+      <figure class="g" data-tags="UI"><img src="assets/ui_session.jpg" alt="세션 대기방" loading="lazy"><figcaption><b>로비</b>세션 대기방 — 퀵챗 · 팀 · 맵 선택</figcaption></figure>
+      <figure class="g" data-tags="UI"><img src="assets/ui_closet.jpg" alt="옷장" loading="lazy"><figcaption><b>마이페이지</b>옷장 — 등껍질 · 옷 · 머리띠</figcaption></figure>
+      <figure class="g" data-tags="UI"><img src="assets/ui_record.jpg" alt="기록책" loading="lazy"><figcaption><b>마이페이지</b>기록책 — 맵별 최고 완성도</figcaption></figure>
+      <figure class="g" data-tags="UI"><img src="assets/ui_freemode.jpg" alt="자유 모드 스크랩북" loading="lazy"><figcaption><b>마이페이지</b>자유 모드 스크랩북</figcaption></figure>
     </div>
-    <div class="mosaic rv">
-      <figure class="shot s-a"><img src="assets/map_gbg.jpg" alt="경복궁 근정전 현장, 화마가 지붕에 불을 지르는 장면"><figcaption class="lbl">경복궁 근정전, 화마 출현<small>GYEONGBOKGUNG · FIRE</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/map_ddp.jpg" alt="밤의 DDP 현장, LED 장미 정원"><figcaption class="lbl">DDP, LED 장미 정원의 밤<small>DDP · NIGHT</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_lotte_free.jpg" alt="롯데월드 매직아일랜드 현장"><figcaption class="lbl">롯데월드, 매직아일랜드<small>LOTTE WORLD</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_namsan_phone.jpg" alt="남산타워 현장에서 휴대폰으로 재료 주문"><figcaption class="lbl">남산타워, 휴대폰으로 재료 주문<small>NAMSAN · ORDER</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_gwang_time.jpg" alt="광통교 타임어택"><figcaption class="lbl">광통교, 타임어택<small>GWANGTONGGYO</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_namsan_city.jpg" alt="남산에서 본 서울"><figcaption class="lbl">남산에서 내려다본 서울<small>NAMSAN · VIEW</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_snow.jpg" alt="눈 내리는 남산"><figcaption class="lbl">눈 내리는 날의 공사<small>WINTER · SNOW</small></figcaption></figure>
-    </div>
-  </div>
-</section>
-
-<section style="padding-top:0;background:var(--cream-2)">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="eyebrow">Seasons</span>
-      <h2>같은 현장, 다른 계절</h2>
-    </div>
-    <div class="seasons rv">
-      <figure class="season"><img src="assets/play_lotte_spring.jpg" alt="봄"><img class="ic" src="assets/w_CherryBlossom.png" alt=""><figcaption class="lbl">봄<small>벚꽃 · 화창함 · 비</small></figcaption></figure>
-      <figure class="season"><img src="assets/play_gwang_top.jpg" alt="여름"><img class="ic" src="assets/w_Typhoon.png" alt=""><figcaption class="lbl">여름<small>화창함 · 비 · 태풍</small></figcaption></figure>
-      <figure class="season"><img src="assets/play_autumn.jpg" alt="가을"><img class="ic" src="assets/w_AutumnLeaves.png" alt=""><figcaption class="lbl">가을<small>단풍 · 화창함 · 비</small></figcaption></figure>
-      <figure class="season"><img src="assets/play_winter.jpg" alt="겨울"><img class="ic" src="assets/w_Snow.png" alt=""><figcaption class="lbl">겨울<small>눈 · 강풍 · 화창함</small></figcaption></figure>
-    </div>
-  </div>
-</section>
-
-<section class="mypage">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="eyebrow">Lobby &amp; My Page</span>
-      <h2>방 만들고, 친구 부르고, 출근</h2>
-    </div>
-    <div class="grid rv">
-      <img src="assets/ui_session.jpg" alt="세션 대기방">
-      <div class="col"><img src="assets/ui_room.jpg" alt="방 리스트"><img src="assets/ui_create.jpg" alt="방 생성"></div>
-    </div>
-    <div class="grid rv" style="margin-top:16px">
-      <img src="assets/ui_closet.jpg" alt="옷장">
-      <div class="col"><img src="assets/ui_record.jpg" alt="기록책"><img src="assets/ui_freemode.jpg" alt="자유 모드 스크랩북"></div>
-    </div>
+    <p class="g-empty" hidden>이 태그에는 아직 장면이 없습니다.</p>
   </div>
 </section>
 
