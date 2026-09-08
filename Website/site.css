@@ -237,3 +237,41 @@ footer a:hover{color:var(--helmet)}
 .rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
 .rv.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.panel,.char,.btn,.shot img{transition:none}}
+
+/* v3 (2026-09): 클립 그리드 · 맵 6칸 · AI · 로드맵 */
+.shot video{width:100%;height:100%;object-fit:cover}
+.frame video{background:#000}
+.clips{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.clip{border-radius:16px;overflow:hidden;background:var(--navy-2);box-shadow:0 10px 30px rgba(42,34,22,.1);margin:0}
+.clip video{width:100%;aspect-ratio:16/9;object-fit:cover}
+.clip figcaption{padding:10px 14px;font-family:var(--display);font-size:1rem;background:#fff;color:var(--ink)}
+.dark .clip figcaption{background:var(--navy-2);color:#F4EEDF}
+@media(max-width:860px){.clips{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.clips{grid-template-columns:1fr}}
+.maps .grid.six{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.maps .grid.six{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.maps .grid.six{grid-template-columns:1fr}}
+.ai-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.ai{background:var(--navy-2);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);overflow:hidden}
+.ai img,.ai video{width:100%;aspect-ratio:16/10;object-fit:cover}
+.ai h3{font-size:1.3rem;margin:14px 18px 4px}
+.ai p{font-size:.86rem;color:#C9C2B0;margin:0 18px 18px}
+@media(max-width:900px){.ai-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.ai-grid{grid-template-columns:1fr}}
+.ai-rows{display:grid;gap:22px}
+.ai-row{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:center;background:#fff;border:1px solid #F0E2C4;border-radius:var(--r);padding:22px}
+.ai-row.alt{grid-template-columns:1fr 1.1fr}
+.ai-row.alt>:first-child{order:2}
+.ai-row img,.ai-row video{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:14px}
+.ai-row h3{font-size:1.6rem;margin:6px 0 8px}
+.ai-row p{font-size:.92rem;color:var(--ink-soft)}
+@media(max-width:760px){.ai-row,.ai-row.alt{grid-template-columns:1fr}.ai-row.alt>:first-child{order:0}}
+.roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.rm{background:var(--navy-2);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:22px 24px}
+.rm.done{background:rgba(255,255,255,.06);border-style:dashed}
+.rm .when{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--display);font-size:1.4rem;color:#fff;margin-bottom:12px}
+.rm .when em{font-style:normal;font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;background:var(--coral);color:#fff;padding:3px 10px;border-radius:999px}
+.rm ul{list-style:none;display:grid;gap:8px;font-size:.92rem;color:#C9C2B0}
+.rm li::before{content:"•";color:var(--helmet);margin-right:8px}
+.rm.done li::before{content:"✓";color:#9FE0BF}
+@media(max-width:860px){.roadmap{grid-template-columns:1fr}}

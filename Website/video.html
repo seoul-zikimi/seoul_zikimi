@@ -14,20 +14,18 @@
 <header class="page-hero">
   <div class="wrap">
     <span class="eyebrow">Media</span>
-    <h1>영상 · 스크린샷</h1>
-    <p>시연 영상은 새로 촬영 중입니다. 그동안 실제 플레이 장면을 먼저 보세요.</p>
+    <h1>트레일러 · 스크린샷</h1>
+    <p>2분 15초짜리 트레일러로 게임을 먼저 보고, 맵별 기믹 클립과 실제 플레이 장면을 둘러보세요.</p>
   </div>
 </header>
 
 <section class="dark" style="padding-top:0">
   <div class="wrap">
     <div class="frame" style="margin-top:-8px">
-      <!-- 시연 영상 준비되면: assets/trailer.mp4 로 넣고 아래 <source> 주석을 풀고 .play / .soon 두 div를 지우세요 -->
-      <video poster="assets/play_gwang_hud.jpg" controls preload="none" playsinline>
-        <!-- <source src="assets/trailer.mp4" type="video/mp4"> -->
+      <!-- 유튜브에 올리면 아래 <video>를 iframe 임베드로 바꿔도 됩니다 -->
+      <video poster="assets/hero_trio.jpg" controls preload="metadata" playsinline>
+        <source src="assets/trailer.mp4" type="video/mp4">
       </video>
-      <div class="play"><span>▶</span></div>
-      <div class="soon">TRAILER · COMING SOON</div>
     </div>
   </div>
 </section>
@@ -35,28 +33,50 @@
 <section>
   <div class="wrap">
     <div class="sec-head rv">
+      <span class="eyebrow">Map Gimmicks</span>
+      <h2>맵마다 다른 사건</h2>
+      <p>명소의 이야기에서 따온 기믹. 케이블카는 재료를 실어 오고, 화마는 불을 지르고, 퍼레이드는 길을 막습니다.</p>
+    </div>
+    <div class="clips rv">
+      <figure class="clip"><video src="assets/namsan_cable.mp4" poster="assets/namsan_cable.jpg" autoplay muted loop playsinline></video><figcaption>남산타워 · 케이블카 배송</figcaption></figure>
+      <figure class="clip"><video src="assets/namsan_wind.mp4" poster="assets/namsan_wind.jpg" autoplay muted loop playsinline></video><figcaption>남산타워 · 돌풍에 날아가기</figcaption></figure>
+      <figure class="clip"><video src="assets/lotte_parade.mp4" poster="assets/lotte_parade.jpg" autoplay muted loop playsinline></video><figcaption>롯데월드 · 퍼레이드와 놀이기구</figcaption></figure>
+      <figure class="clip"><video src="assets/gbg_fire.mp4" poster="assets/gbg_fire.jpg" autoplay muted loop playsinline></video><figcaption>경복궁 · 화마가 불을 지른다</figcaption></figure>
+      <figure class="clip"><video src="assets/gbg_guardian.mp4" poster="assets/gbg_guardian.jpg" autoplay muted loop playsinline></video><figcaption>경복궁 · 사방신 석상 배치</figcaption></figure>
+      <figure class="clip"><video src="assets/collapse.mp4" poster="assets/collapse.jpg" autoplay muted loop playsinline></video><figcaption>고정 안 한 블록은 와르르</figcaption></figure>
+      <figure class="clip"><video src="assets/versus_field.mp4" poster="assets/map_versus.jpg" autoplay muted loop playsinline></video><figcaption>2vs2 · 두 팀이 동시에 건축</figcaption></figure>
+      <figure class="clip"><video src="assets/versus_cannon.mp4" poster="assets/versus_cannon.jpg" autoplay muted loop playsinline></video><figcaption>2vs2 · 대포로 상대 건물 격파</figcaption></figure>
+      <figure class="clip"><video src="assets/emote_voice.mp4" poster="assets/emote_voice.jpg" autoplay muted loop playsinline></video><figcaption>퀵챗 · "망치 갖다줘!"</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--cream-2)">
+  <div class="wrap">
+    <div class="sec-head rv">
       <span class="eyebrow">In-Game</span>
       <h2>현장은 이렇게 생겼다</h2>
     </div>
     <div class="mosaic rv">
-      <figure class="shot s-a"><img src="assets/play_namsan_phone.jpg" alt="남산타워 현장에서 휴대폰으로 재료 주문"><figcaption class="lbl">남산타워 현장, 휴대폰으로 재료 주문<small>NAMSAN · ORDER</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_gwang_top.jpg" alt="광통교 부감"><figcaption class="lbl">광통교, 돌다리를 쌓는 중<small>GWANGTONGGYO</small></figcaption></figure>
+      <figure class="shot s-a"><img src="assets/map_gbg.jpg" alt="경복궁 근정전 현장, 화마가 지붕에 불을 지르는 장면"><figcaption class="lbl">경복궁 근정전, 화마 출현<small>GYEONGBOKGUNG · FIRE</small></figcaption></figure>
+      <figure class="shot s-2"><img src="assets/map_ddp.jpg" alt="밤의 DDP 현장, LED 장미 정원"><figcaption class="lbl">DDP, LED 장미 정원의 밤<small>DDP · NIGHT</small></figcaption></figure>
+      <figure class="shot s-2"><img src="assets/play_lotte_free.jpg" alt="롯데월드 매직아일랜드 현장"><figcaption class="lbl">롯데월드, 매직아일랜드<small>LOTTE WORLD</small></figcaption></figure>
+      <figure class="shot s-2"><img src="assets/play_namsan_phone.jpg" alt="남산타워 현장에서 휴대폰으로 재료 주문"><figcaption class="lbl">남산타워, 휴대폰으로 재료 주문<small>NAMSAN · ORDER</small></figcaption></figure>
+      <figure class="shot s-2"><img src="assets/play_gwang_time.jpg" alt="광통교 타임어택"><figcaption class="lbl">광통교, 타임어택<small>GWANGTONGGYO</small></figcaption></figure>
       <figure class="shot s-2"><img src="assets/play_namsan_city.jpg" alt="남산에서 본 서울"><figcaption class="lbl">남산에서 내려다본 서울<small>NAMSAN · VIEW</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_namsan_heart.jpg" alt="전망대 하트 앞" style="object-position:left"><figcaption class="lbl">전망대 층, 하트 앞 공사<small>NAMSAN · DECK</small></figcaption></figure>
-      <figure class="shot s-2"><img src="assets/play_gwang_hud.jpg" alt="정답 도면과 주문 UI"><figcaption class="lbl">정답 도면 · 배송 구역 · 주문 폰<small>HUD</small></figcaption></figure>
       <figure class="shot s-2"><img src="assets/play_snow.jpg" alt="눈 내리는 남산"><figcaption class="lbl">눈 내리는 날의 공사<small>WINTER · SNOW</small></figcaption></figure>
     </div>
   </div>
 </section>
 
-<section style="background:var(--cream-2);padding-top:0">
+<section style="padding-top:0;background:var(--cream-2)">
   <div class="wrap">
-    <div class="sec-head rv" style="padding-top:88px">
+    <div class="sec-head rv">
       <span class="eyebrow">Seasons</span>
       <h2>같은 현장, 다른 계절</h2>
     </div>
     <div class="seasons rv">
-      <figure class="season"><img src="assets/play_spring.jpg" alt="봄"><img class="ic" src="assets/w_CherryBlossom.png" alt=""><figcaption class="lbl">봄<small>벚꽃 · 화창함 · 비</small></figcaption></figure>
+      <figure class="season"><img src="assets/play_lotte_spring.jpg" alt="봄"><img class="ic" src="assets/w_CherryBlossom.png" alt=""><figcaption class="lbl">봄<small>벚꽃 · 화창함 · 비</small></figcaption></figure>
       <figure class="season"><img src="assets/play_gwang_top.jpg" alt="여름"><img class="ic" src="assets/w_Typhoon.png" alt=""><figcaption class="lbl">여름<small>화창함 · 비 · 태풍</small></figcaption></figure>
       <figure class="season"><img src="assets/play_autumn.jpg" alt="가을"><img class="ic" src="assets/w_AutumnLeaves.png" alt=""><figcaption class="lbl">가을<small>단풍 · 화창함 · 비</small></figcaption></figure>
       <figure class="season"><img src="assets/play_winter.jpg" alt="겨울"><img class="ic" src="assets/w_Snow.png" alt=""><figcaption class="lbl">겨울<small>눈 · 강풍 · 화창함</small></figcaption></figure>
