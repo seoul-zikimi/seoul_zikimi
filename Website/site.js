@@ -1,7 +1,7 @@
 // 공용 내비게이션 · 푸터 · 스크롤 등장
 (function(){
   var page=document.body.dataset.page||'';
-  var links=[['index.html','게임 소개','home'],['video.html','영상 · 스크린샷','video'],['download.html','빌드 다운로드','download'],['team.html','팀 소개','team']];
+  var links=[['index.html','게임 소개','home'],['video.html','영상 · 스크린샷','video'],['team.html','팀 소개','team']];
   var nav=document.createElement('nav');nav.className='top';
   nav.innerHTML='<div class="wrap"><a class="brand" href="index.html"><i></i>건축 레인저: 서울</a>'+
     '<button class="menu" aria-label="메뉴 열기" aria-expanded="false">☰</button><ul>'+
