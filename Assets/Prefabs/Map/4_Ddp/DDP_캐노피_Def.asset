@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "DDP_\uCE90\uB178\uD53C_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 37
+  m_DisplayNameEn: "Canopy"
   m_Footprint: {x: 3, y: 1, z: 3}
   m_Prefab: {fileID: 2745078303477084271, guid: ac630727935764945a8cd994f6fe7d61, type: 3}
   m_RequiredProcesses: 

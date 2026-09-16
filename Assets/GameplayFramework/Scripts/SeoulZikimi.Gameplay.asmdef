@@ -2,6 +2,7 @@
     "name": "SeoulZikimi.Gameplay",
     "rootNamespace": "SeoulZikimi.Gameplay",
     "references": [
+        "Core",
         "SeoulZikimi.Weather"
     ],
     "includePlatforms": [],

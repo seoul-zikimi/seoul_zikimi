@@ -31,13 +31,15 @@ namespace GridSystem
         [SerializeField] private Vector3 m_StartPilePosition;
         [SerializeField] private float m_TimeLimitSeconds = 180f;
         [SerializeField] private Sprite m_AnswerImage;
-        [SerializeField] private string m_DisplayName;   // 정산서에 표시할 구조물 이름(비우면 에셋 파일명)
+        [SerializeField] private string m_DisplayName;   // 정산서에 표시할 구조물 이름(비우면 에셋 파일명) — 세이브 키로도 쓰이므로 한글 고정
+        [SerializeField] private string m_DisplayNameEn; // 영어 표시 이름(비우면 한글 그대로)
 
         public Vector3Int GridSize => m_GridSize;
         public Vector3 StartPilePosition => m_StartPilePosition;
         public float TimeLimitSeconds => m_TimeLimitSeconds;
         public Sprite AnswerImage => m_AnswerImage;
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
+        public string LocalizedName => L.T(DisplayName, m_DisplayNameEn);
         public IReadOnlyList<AnswerCell> Cells => m_Cells;
         public bool SpawnPresetBlocks => m_SpawnPresetBlocks;
 

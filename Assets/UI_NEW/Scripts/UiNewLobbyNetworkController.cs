@@ -10,10 +10,10 @@ namespace SeoulZikimi.UI.New
 {
     public sealed class UiNewLobbyNetworkController : MonoBehaviour
     {
-        private static readonly string[] ModeNames =
-        {
-            "타임어택 모드", "대전 모드(아이템전)", "대전 모드", "자유 건축 모드"
-        };
+        private static readonly LocCache<string[]> s_ModeNames = new();
+        private static string[] ModeNames => s_ModeNames.Get(() => new string[]{
+            L.T("타임어택 모드", "Time Attack Mode"), L.T("대전 모드(아이템전)", "Versus Mode (Items)"), L.T("대전 모드", "Versus Mode"), L.T("자유 건축 모드", "Free Build Mode")
+        });
 
         [SerializeField] private LobbyPanel view;
         [SerializeField] private UiNewSessionState sessionState;
@@ -169,7 +169,7 @@ namespace SeoulZikimi.UI.New
             GridSystem.MapDef map = (!randomMap && GridSystem.MapCatalog.Instance != null)
                 ? GridSystem.MapCatalog.Instance.Get(mapIndex) : null;
             bool isHost = spawned && lobbyNet.IsHost;
-            view.SetSettings(randomMap ? UiNewMapOptions.RandomLabel : (map != null ? map.DisplayName : "맵 없음"),
+            view.SetSettings(randomMap ? UiNewMapOptions.RandomLabel : (map != null ? map.LocalizedName : L.T("맵 없음", "No map")),
                 ModeNames[Mathf.Clamp(modeIndex, 0, ModeNames.Length - 1)],
                 map != null ? map.Thumbnail : (randomMap ? UiNewMapOptions.RandomThumbnail : null), weather,
                 spawned && lobbyNet.CanHostEditSettings);
@@ -251,12 +251,12 @@ namespace SeoulZikimi.UI.New
         private static string BuildRecordText(int modeIndex, GridSystem.MapDef map, int players)
         {
             if (map == null || modeIndex == 3)
-                return "없음";
+                return L.T("없음", "None");
 
             if (modeIndex == 1 || modeIndex == 2)
             {
                 SaveService.GetVersus(map.DisplayName, out int wins, out int losses);
-                return wins == 0 && losses == 0 ? "없음" : $"{wins}승 {losses}패";
+                return wins == 0 && losses == 0 ? L.T("없음", "None") : L.T($"{wins}승 {losses}패", $"{wins}W {losses}L");
             }
 
             int bestPercent = -1;
@@ -277,9 +277,9 @@ namespace SeoulZikimi.UI.New
                 foreach (GridSystem.MapAnswerData answer in map.Answers)
                     if (answer != null) Consider(answer.DisplayName);
 
-            if (bestPercent < 0) return "없음";
+            if (bestPercent < 0) return L.T("없음", "None");
             int rounded = Mathf.RoundToInt(bestSeconds);
-            return $"{bestPercent}% {rounded / 60}분 {rounded % 60}초 ({players}인)";
+            return L.T($"{bestPercent}% {rounded / 60}분 {rounded % 60}초 ({players}인)", $"{bestPercent}% {rounded / 60}m {rounded % 60}s ({players}P)");
         }
     }
 }

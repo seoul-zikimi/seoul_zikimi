@@ -149,9 +149,9 @@ namespace GridSystem
                 if (!TryGetDoors(lane, out var d)) continue;
 
                 // 개통 연출(전 클라 로컬) — 두 문 동시에.
-                GridJuice.WorldToast(d.lowerPos + Vector3.up * 2.2f, "엘리베이터 개통!", new Color(0.4f, 1f, 0.55f));
+                GridJuice.WorldToast(d.lowerPos + Vector3.up * 2.2f, L.T("엘리베이터 개통!", "Elevator open!"), new Color(0.4f, 1f, 0.55f));
                 GridJuice.PlacePuff(d.lowerPos, 1f);
-                GridJuice.WorldToast(d.upperPos + Vector3.up * 2.2f, "엘리베이터 개통!", new Color(0.4f, 1f, 0.55f));
+                GridJuice.WorldToast(d.upperPos + Vector3.up * 2.2f, L.T("엘리베이터 개통!", "Elevator open!"), new Color(0.4f, 1f, 0.55f));
                 GridJuice.PlacePuff(d.upperPos, 1f);
                 if (lane < m_DoorAnim.Length) m_DoorAnim[lane] = 1.2f;   // 개통 순간에도 한 번 열렸다 닫힘
             }
@@ -523,7 +523,7 @@ namespace GridSystem
             tgo.transform.SetParent(root.transform, false);
             tgo.transform.localPosition = new Vector3(0f, 2.15f, 0f);
             prompt = tgo.AddComponent<TextMesh>();
-            prompt.text = "E 탑승";
+            prompt.text = L.T("E 탑승", "E Board");
             prompt.fontSize = 48;
             prompt.characterSize = 0.05f;
             prompt.anchor = TextAnchor.MiddleCenter;

@@ -18,7 +18,8 @@ namespace GridSystem
         public static GuardianNetwork Instance { get; private set; }
 
         private static readonly string[] kPedestalNames = { "Pedestal_East", "Pedestal_West", "Pedestal_South", "Pedestal_North" };
-        private static readonly string[] kKindNames = { "청룡", "백호", "주작", "현무" };
+        private static readonly LocCache<string[]> s_kKindNames = new();
+        private static string[] kKindNames => s_kKindNames.Get(() => new string[]{ L.T("청룡", "Azure Dragon"), L.T("백호", "White Tiger"), L.T("주작", "Vermilion Bird"), L.T("현무", "Black Tortoise") });
         private static readonly Color[] kKindColors =
         {
             new Color(0.30f, 0.55f, 1.00f),   // 동 청룡 靑
@@ -251,10 +252,10 @@ namespace GridSystem
         private void StatueDropFxRpc(Vector3 pos, int kind)
         {
             LightPillar(pos, kKindColors[kind]);
-            GridJuice.WorldToast(pos + Vector3.up * 2.5f, $"사방신 석상이 내려왔다! ({kKindNames[kind]})", new Color(1f, 0.92f, 0.5f));
+            GridJuice.WorldToast(pos + Vector3.up * 2.5f, L.T($"사방신 석상이 내려왔다! ({kKindNames[kind]})", $"A guardian statue has descended! ({kKindNames[kind]})"), new Color(1f, 0.92f, 0.5f));
             GridSoundBridge.PlaySFXAt("HolyChime", pos);   // 신 내려오는 소리(08/28 사운드 적용)
             // 화면 전체 연출(방위색 비네트 + 배너) — 화마 등장과 같은 문법(08/28 피드백)
-            StatueArrived?.Invoke($"앞마당에 {kKindNames[kind]} 석상이 도착했다..!", kKindColors[kind]);
+            StatueArrived?.Invoke(L.T($"앞마당에 {kKindNames[kind]} 석상이 도착했다..!", $"The {kKindNames[kind]} statue has arrived in the front yard..!"), kKindColors[kind]);
         }
 
         [Rpc(SendTo.Everyone)]
@@ -264,12 +265,12 @@ namespace GridSystem
             ZoneFlash(kind);   // 이 방위가 지키는 그리드 절반을 잠깐 발광 — 어디가 화재 면역인지 보여준다(08/28 피드백)
             SpawnApparition(kind, pos + Vector3.up * kPedestalTopY);   // 사방신 환영 — 떠올랐다 사라진다
             GridJuice.GroundHit(pos, 1.1f);
-            GridJuice.WorldToast(pos + Vector3.up * 2.2f, $"{kKindNames[kind]}이(가) 깨어났다!", kKindColors[kind]);
+            GridJuice.WorldToast(pos + Vector3.up * 2.2f, L.T($"{kKindNames[kind]}이(가) 깨어났다!", $"The {kKindNames[kind]} has awakened!"), kKindColors[kind]);
             GridSoundBridge.PlaySFXAt("HolyChime", pos);   // 안착·정령 강림(08/28 사운드 적용)
             if (sealedNow)
             {
                 GridJuice.FovPunch(Camera.main, -4f);
-                GridJuice.WorldToast(pos + Vector3.up * 3.4f, "사방신의 힘이 화마를 억누른다!", new Color(0.55f, 0.9f, 1f));
+                GridJuice.WorldToast(pos + Vector3.up * 3.4f, L.T("사방신의 힘이 화마를 억누른다!", "The guardians' power holds back the fire!"), new Color(0.55f, 0.9f, 1f));
                 StartCoroutine(SealSlayCo());   // 클라이맥스: 4색 빛살 → 화마 처치
             }
         }
@@ -284,7 +285,7 @@ namespace GridSystem
             yield return new WaitForSeconds(0.95f);
             GridJuice.FovPunch(Camera.main, 5f);
             FireNetwork.DemonSlain();
-            StatueArrived?.Invoke("사방신이 화마를 물리쳤다!!", new Color(1f, 0.85f, 0.3f));   // 금색 배너+비네트
+            StatueArrived?.Invoke(L.T("사방신이 화마를 물리쳤다!!", "The guardians drove off the fire demon!!"), new Color(1f, 0.85f, 0.3f));   // 금색 배너+비네트
         }
 
         // 봉인 빛살 — 화마 위치를 매 프레임 추적하며 가속 유도, 잔광을 흘린다. 수명 끝나면 자멸.
@@ -324,7 +325,7 @@ namespace GridSystem
         [Rpc(SendTo.Everyone)]
         private void RejectFxRpc(Vector3 pos, int kindOnPedestal)
         {
-            GridJuice.WorldToast(pos + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
+            GridJuice.WorldToast(pos + Vector3.up * 2f, L.T("방위가 다르다…!", "Wrong direction…!"), new Color(1f, 0.55f, 0.35f));
             GridSoundBridge.PlaySFXAt("BumpPlayers", pos);
         }
 

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uB0A8\uC0B0_\uC804\uB9DD\uB300\uBC1B\uCE68_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 16
+  m_DisplayNameEn: "Deck Support"
   m_Footprint: {x: 3, y: 1, z: 3}
   m_Prefab: {fileID: 3863609936607874897, guid: 2c2d8f8268a21ec42b1bfbbbea5be3b3, type: 3}
   m_RequiredProcesses: 

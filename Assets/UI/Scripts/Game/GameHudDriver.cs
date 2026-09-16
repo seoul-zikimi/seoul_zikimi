@@ -129,7 +129,7 @@ public class GameHudDriver : MonoBehaviour
 
     private static AnswerPanelHUD.OrderEntry ToEntry(MaterialDef d) => new AnswerPanelHUD.OrderEntry
     {
-        Id = d.Id, Name = d.name, Prefab = d.Prefab, Limit = d.MaxSpawnCount,
+        Id = d.Id, Name = d.LocalizedName, Prefab = d.Prefab, Limit = d.MaxSpawnCount,
         Sub = AnswerHudDriver.ProcLine(d),
     };
 
@@ -185,7 +185,7 @@ public class GameHudDriver : MonoBehaviour
             foreach (var d in source)
                 if (d != null && orderable.Contains(d.Id)) items.Add(ToEntry(d));
             if (items.Count == 0) continue;
-            pages.Add(new AnswerPanelHUD.OrderPage { Title = def.DisplayName, Items = items });
+            pages.Add(new AnswerPanelHUD.OrderPage { Title = def.LocalizedName, Items = items });
             m_PageMaps.Add(def);
         }
         return pages.Count > 0;

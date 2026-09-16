@@ -18,20 +18,20 @@ public static class TrailCatalog
         { Id = id; DisplayName = display; PrefabName = prefab; Price = price; Scale = scale; }
     }
 
-    public static readonly Entry[] All =
-    {
-        new Entry("trail_fire",     "불꽃",   "VFX_Trail_Fire",     500),
-        new Entry("trail_ice",      "얼음",   "VFX_Trail_Ice",      500),
-        new Entry("trail_water",    "물결",   "VFX_Trail_Water",    500),
-        new Entry("trail_nature",   "새싹",   "VFX_Trail_Nature",   500),
-        new Entry("trail_earth",    "대지",   "VFX_Trail_Earth",    500),
-        new Entry("trail_electric", "번개",   "VFX_Trail_Electric", 800),
-        new Entry("trail_sound",    "음표",   "VFX_Trail_Sound",    800),
-        new Entry("trail_dark",     "어둠",   "VFX_Trail_Dark",     1000),
-        new Entry("trail_cosmos",   "우주",   "VFX_Trail_Cosmos",   1200),
-        new Entry("trail_void",     "공허",   "VFX_Trail_Void",     1200),
-        new Entry("trail_rainbow",  "무지개", "__builtin_rainbow", 1500),   // 자체 제작 리본(에셋은 연출용이라 부적합)
-    };
+    private static readonly LocCache<Entry[]> s_All = new();
+    public static Entry[] All => s_All.Get(() => new Entry[]{
+        new Entry("trail_fire",     L.T("불꽃", "Flame"),   "VFX_Trail_Fire",     500),
+        new Entry("trail_ice",      L.T("얼음", "Ice"),   "VFX_Trail_Ice",      500),
+        new Entry("trail_water",    L.T("물결", "Wave"),   "VFX_Trail_Water",    500),
+        new Entry("trail_nature",   L.T("새싹", "Sprout"),   "VFX_Trail_Nature",   500),
+        new Entry("trail_earth",    L.T("대지", "Earth"),   "VFX_Trail_Earth",    500),
+        new Entry("trail_electric", L.T("번개", "Lightning"),   "VFX_Trail_Electric", 800),
+        new Entry("trail_sound",    L.T("음표", "Music Note"),   "VFX_Trail_Sound",    800),
+        new Entry("trail_dark",     L.T("어둠", "Darkness"),   "VFX_Trail_Dark",     1000),
+        new Entry("trail_cosmos",   L.T("우주", "Cosmos"),   "VFX_Trail_Cosmos",   1200),
+        new Entry("trail_void",     L.T("공허", "Void"),   "VFX_Trail_Void",     1200),
+        new Entry("trail_rainbow",  L.T("무지개", "Rainbow"), "__builtin_rainbow", 1500),   // 자체 제작 리본(에셋은 연출용이라 부적합)
+    });
 
     public static bool TryFind(string id, out Entry entry)
     {

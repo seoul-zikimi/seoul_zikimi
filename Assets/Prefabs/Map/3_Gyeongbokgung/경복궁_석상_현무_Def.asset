@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uACBD\uBCF5\uAD81_\uC11D\uC0C1_\uD604\uBB34_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 53
+  m_DisplayNameEn: "Black Tortoise Statue"
   m_Footprint: {x: 2, y: 2, z: 2}
   m_Prefab: {fileID: 2254175383620350333, guid: a08c7c7dcf0457a4783ed0c40bd35f26, type: 3}
   m_RequiredProcesses: 

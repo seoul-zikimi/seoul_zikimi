@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uD558\uD2B8 \uBA38\uB9AC\uB760"
+  DisplayNameEn: "Heart Headband"
   Price: 400
   TargetCharacter: char_turtle
   Thumbnail: {fileID: 0}

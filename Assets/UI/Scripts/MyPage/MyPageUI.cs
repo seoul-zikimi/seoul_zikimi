@@ -50,7 +50,7 @@ public class MyPageUI : UIHUD
         Bind<Button>(typeof(Btns));
 
         Wire(Btns.BookButton, () => UIManager.Instance.ShowPopupUI<RecordBookUI>());   // 책 = 팝업
-        Wire(Btns.ApplyButton, () => SetClosetList("아이템을 누르면 바로 착용/해제돼요."));
+        Wire(Btns.ApplyButton, () => SetClosetList(L.T("아이템을 누르면 바로 착용/해제돼요.", "Tap an item to equip or unequip it.")));
         Wire(Btns.RevertButton, RefreshCloset);
         Wire(Btns.CloseButton, Close);
 
@@ -132,7 +132,7 @@ public class MyPageUI : UIHUD
         var clone = Instantiate(last.gameObject, last.parent);
         clone.name = "Cat7";
         var lbl = clone.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
-        if (lbl != null) lbl.text = "트레일";
+        if (lbl != null) lbl.text = L.T("트레일", "Trail");
         var ico = clone.transform.Find("Icon")?.GetComponent<Image>();
         if (ico != null)
         {
@@ -211,7 +211,7 @@ public class MyPageUI : UIHUD
             var clone = Instantiate(src.gameObject, src.parent);
             clone.name = "Sec4";
             var header = clone.transform.Find("Header")?.GetComponent<TextMeshProUGUI>();
-            if (header != null) header.text = "트레일";
+            if (header != null) header.text = L.T("트레일", "Trail");
 
             // 트레일은 11종 — 슬롯 줄을 2줄 더 복제해 15칸(단독 표시라 패널을 다 쓸 수 있음)
             int baseCount = 0;
@@ -326,7 +326,7 @@ public class MyPageUI : UIHUD
             else FillOutfitSection(sec);
         }
 
-        SetClosetList(anyVisible ? "" : "이 카테고리엔 아이템이 없어요.");
+        SetClosetList(anyVisible ? "" : L.T("이 카테고리엔 아이템이 없어요.", "No items in this category."));
     }
 
     // 캐릭터 섹션 — 0번 = 선택 중인 캐릭터(체크), 이후 나머지(카탈로그 순)
@@ -355,7 +355,7 @@ public class MyPageUI : UIHUD
             string caption = desc == "" ? entry.DisplayName
                                         : $"{entry.DisplayName}\n<size=85%><color=#296642>{desc}</color></size>";
             ShowSlot(slot, CharacterCatalog.LoadThumbnail(entry.Id), owned, on,
-                owned ? caption : $"{caption}\n{entry.Price:N0}코인");
+                owned ? caption : L.T($"{caption}\n{entry.Price:N0}코인", $"{caption}\n{entry.Price:N0} coins"));
             string id = entry.Id; string dn = entry.DisplayName; int price = entry.Price;
             slot.btn.onClick.AddListener(() =>
             {
@@ -398,10 +398,10 @@ public class MyPageUI : UIHUD
             {
                 // 현재 카드: 착용 중 아이템 또는 기본 모습. 클릭 = 벗기
                 if (wearing != null)
-                    ShowSlot(slot, wearing.ResolveThumbnail(), true, true, $"{wearing.DisplayName}");
+                    ShowSlot(slot, wearing.ResolveThumbnail(), true, true, $"{wearing.LocalizedName}");
                 else
                     // 기본 카드 = 현재 선택한 캐릭터의 맨몸 썸네일
-                    ShowSlot(slot, CharacterCatalog.LoadThumbnail(charId), true, true, sec.prefix == "shell_" ? "기본 모양" : "기본");
+                    ShowSlot(slot, CharacterCatalog.LoadThumbnail(charId), true, true, sec.prefix == "shell_" ? L.T("기본 모양", "Default") : L.T("기본", "Default"));
                 slot.btn.onClick.AddListener(() =>
                 {
                     if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
@@ -421,7 +421,7 @@ public class MyPageUI : UIHUD
             var item = list[idx];
             bool owned = SaveService.HasCodiItem(item.name) || item.Price <= 0;
             ShowSlot(slot, item.ResolveThumbnail(), owned, false,
-                owned ? item.DisplayName : $"해금 조건\n{item.Price:N0}코인");
+                owned ? item.LocalizedName : L.T($"해금 조건\n{item.Price:N0}코인", $"Unlock\n{item.Price:N0} coins"));
             var captured = item;
             slot.btn.onClick.AddListener(() => { if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick); OnClickItem(captured); });
         }
@@ -442,7 +442,7 @@ public class MyPageUI : UIHUD
                 if (TrailCatalog.TryFind(equipped, out var cur))
                     ShowSlot(slot, TrailCatalog.LoadThumbnail(cur.Id), true, true, cur.DisplayName);
                 else
-                    ShowSlot(slot, CharacterCatalog.LoadThumbnail(SaveService.EquippedCharacter), true, true, "없음");
+                    ShowSlot(slot, CharacterCatalog.LoadThumbnail(SaveService.EquippedCharacter), true, true, L.T("없음", "None"));
                 slot.btn.onClick.AddListener(() =>
                 {
                     if (SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);
@@ -461,7 +461,7 @@ public class MyPageUI : UIHUD
             var item = list[idx];
             bool owned = SaveService.HasCodiItem(item.Id) || item.Price <= 0;
             ShowSlot(slot, TrailCatalog.LoadThumbnail(item.Id), owned, false,
-                owned ? item.DisplayName : $"해금 조건\n{item.Price:N0}코인");
+                owned ? item.DisplayName : L.T($"해금 조건\n{item.Price:N0}코인", $"Unlock\n{item.Price:N0} coins"));
             var captured = item;
             slot.btn.onClick.AddListener(() =>
             {
@@ -477,11 +477,11 @@ public class MyPageUI : UIHUD
         {
             if (SaveService.BuyCodiItem(item.Id, item.Price))
             {
-                SetClosetList($"'{item.DisplayName}' 트레일 구매 완료! (-{item.Price}코인)");
+                SetClosetList(L.T($"'{item.DisplayName}' 트레일 구매 완료! (-{item.Price}코인)", $"Bought the '{item.DisplayName}' trail! (-{item.Price} coins)"));
                 SaveService.EquippedTrail = item.Id;   // 구매 즉시 착용
                 MyPageSceneController.RefreshEquip();
             }
-            else { SetClosetList("코인이 부족해요."); return; }
+            else { SetClosetList(L.T("코인이 부족해요.", "Not enough coins.")); return; }
         }
         else
         {
@@ -523,7 +523,7 @@ public class MyPageUI : UIHUD
         var chars = CharacterCatalog.All;
         var owned = new System.Collections.Generic.List<string>();
         foreach (var e in chars) if (SaveService.HasCharacter(e.Id) || e.Price <= 0) owned.Add(e.Id);
-        if (owned.Count <= 1) { SetClosetList("보유한 다른 캐릭터가 없어요."); return; }
+        if (owned.Count <= 1) { SetClosetList(L.T("보유한 다른 캐릭터가 없어요.", "You don't own any other characters.")); return; }
         int cur = owned.IndexOf(SaveService.EquippedCharacter);
         int next = ((cur < 0 ? 0 : cur) + dir + owned.Count) % owned.Count;
         SaveService.EquippedCharacter = owned[next];
@@ -538,13 +538,13 @@ public class MyPageUI : UIHUD
         {
             if (SaveService.BuyCharacter(id, price))
             {
-                message = $"'{displayName}' 영입 완료! (-{price}코인)";
+                message = L.T($"'{displayName}' 영입 완료! (-{price}코인)", $"Recruited '{displayName}'! (-{price} coins)");
                 SaveService.EquippedCharacter = id;   // 영입 즉시 선택
                 MyPageSceneController.RefreshCharacter();
             }
             else
             {
-                SetClosetList("코인이 부족해요.");
+                SetClosetList(L.T("코인이 부족해요.", "Not enough coins."));
                 return;
             }
         }
@@ -565,11 +565,11 @@ public class MyPageUI : UIHUD
         {
             if (SaveService.BuyCodiItem(id, item.Price))
             {
-                SetClosetList($"'{item.DisplayName}' 구매 완료! (-{item.Price}코인)");
+                SetClosetList(L.T($"'{item.LocalizedName}' 구매 완료! (-{item.Price}코인)", $"Bought '{item.LocalizedName}'! (-{item.Price} coins)"));
                 SaveService.EquippedOutfit = id;               // 구매 즉시 착용
                 MyPageSceneController.RefreshEquip();
             }
-            else SetClosetList("코인이 부족해요.");
+            else SetClosetList(L.T("코인이 부족해요.", "Not enough coins."));
         }
         else
         {

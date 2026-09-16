@@ -126,9 +126,9 @@ public sealed class MobileLayoutCustomizer : MonoBehaviour
         brt.anchoredPosition = new Vector2(0f, -24f);
         brt.sizeDelta = new Vector2(900f, 150f);
 
-        MakeLabel(brt, "버튼을 드래그해 원하는 위치로 옮기세요", new Vector2(0f, -8f), new Vector2(900f, 44f), 30);
-        MakePill(brt, "초기화", new Vector2(-130f, -92f), () => ResetToDefaults());
-        MakePill(brt, "완료",  new Vector2(130f, -92f), () => EndEdit(save: true));
+        MakeLabel(brt, L.T("버튼을 드래그해 원하는 위치로 옮기세요", "Drag the buttons where you want them"), new Vector2(0f, -8f), new Vector2(900f, 44f), 30);
+        MakePill(brt, L.T("초기화", "Reset"), new Vector2(-130f, -92f), () => ResetToDefaults());
+        MakePill(brt, L.T("완료", "Done"),  new Vector2(130f, -92f), () => EndEdit(save: true));
     }
 
     private static void MakeLabel(Transform parent, string text, Vector2 pos, Vector2 size, int fontSize)

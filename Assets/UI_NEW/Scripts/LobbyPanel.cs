@@ -8,10 +8,10 @@ namespace SeoulZikimi.UI.New
 {
     public sealed class LobbyPanel : MonoBehaviour, ILobbyActions
     {
-        private static readonly string[] QuickMessages =
-        {
-            "준비해!", "준비완료!", "맵 바꾸자!", "타임어택!", "대전 모드!", "자유 모드!"
-        };
+        private static readonly LocCache<string[]> s_QuickMessages = new();
+        private static string[] QuickMessages => s_QuickMessages.Get(() => new string[]{
+            L.T("준비해!", "Ready up!"), L.T("준비완료!", "Ready!"), L.T("맵 바꾸자!", "Change map!"), L.T("타임어택!", "Time attack!"), L.T("대전 모드!", "Versus!"), L.T("자유 모드!", "Free mode!")
+        });
 
         [Header("Navigation / primary action")]
         [SerializeField] private UiNewScreenRouter router;
@@ -191,7 +191,7 @@ namespace SeoulZikimi.UI.New
         {
             if (IsChatOnCooldown(out float remaining))
             {
-                AppendSystemNotice($"도배 방지 — {Mathf.CeilToInt(remaining)}초 뒤에 다시 보낼 수 있어요.");
+                AppendSystemNotice(L.T($"도배 방지 — {Mathf.CeilToInt(remaining)}초 뒤에 다시 보낼 수 있어요.", $"Slow down — you can send again in {Mathf.CeilToInt(remaining)}s."));
                 return false;
             }
             chatBurstCount++;
@@ -204,7 +204,7 @@ namespace SeoulZikimi.UI.New
         {
             if (Time.unscaledTime - lastChatNoticeAt < 1f) return;   // 연타해도 안내가 도배되지 않도록
             lastChatNoticeAt = Time.unscaledTime;
-            AppendNetworkChat("안내", message);
+            AppendNetworkChat(L.T("안내", "Notice"), message);
         }
 
         private void SetChatButtonsInteractable(bool interactable)
@@ -217,7 +217,7 @@ namespace SeoulZikimi.UI.New
         public void SetRoomName(string value)
         {
             if (roomTitle != null)
-                roomTitle.text = string.IsNullOrWhiteSpace(value) ? "이름 없는 방" : value;
+                roomTitle.text = string.IsNullOrWhiteSpace(value) ? L.T("이름 없는 방", "Unnamed room") : value;
         }
 
         public void SetSlot(int index, bool occupied, string nickname, bool isHost, bool isLocal, bool ready,
@@ -290,7 +290,7 @@ namespace SeoulZikimi.UI.New
         public void SetBestRecord(string value)
         {
             if (bestRecordValue != null)
-                bestRecordValue.text = string.IsNullOrWhiteSpace(value) ? "없음" : value;
+                bestRecordValue.text = string.IsNullOrWhiteSpace(value) ? L.T("없음", "None") : value;
         }
 
         private Button mapPrevArrow, mapNextArrow;

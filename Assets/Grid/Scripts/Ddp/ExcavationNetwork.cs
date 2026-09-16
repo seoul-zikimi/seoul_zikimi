@@ -63,7 +63,8 @@ namespace GridSystem
         public int ArtifactsFound => m_State.Value.artifacts;
 
         // 유물 3종(Resources/Ddp/Artifact0~2). 이름은 토스트 문구에 그대로 쓴다.
-        private static readonly string[] kArtifactNames = { "백자 조각", "엽전", "수막새" };
+        private static readonly LocCache<string[]> s_kArtifactNames = new();
+        private static string[] kArtifactNames => s_kArtifactNames.Get(() => new string[]{ L.T("백자 조각", "Porcelain Shard"), L.T("엽전", "Old Coin"), L.T("수막새", "Roof-end Tile") });
 
         private readonly List<Vector3> m_Sites = new();
         private float m_NextExposeAt;    // 서버 전용: 다음 말뚝이 솟을 시각
@@ -314,7 +315,7 @@ namespace GridSystem
         [Rpc(SendTo.Everyone)]
         private void UnearthedMaterialRpc(Vector3 site)
         {
-            GridJuice.WorldToast(site + Vector3.up * 1.6f, "유구 출토!", new Color(0.90f, 0.78f, 0.45f));
+            GridJuice.WorldToast(site + Vector3.up * 1.6f, L.T("유구 출토!", "Relic found!"), new Color(0.90f, 0.78f, 0.45f));
             GridJuice.GroundHit(site, 1.0f);
             GridSoundBridge.PlaySFXAt("LandObject", site);
         }
@@ -322,8 +323,8 @@ namespace GridSystem
         [Rpc(SendTo.Everyone)]
         private void UnearthedArtifactRpc(Vector3 site, int kind, int points)
         {
-            string name = kind >= 0 && kind < kArtifactNames.Length ? kArtifactNames[kind] : "유물";
-            GridJuice.WorldToast(site + Vector3.up * 1.9f, $"{name} 발굴!  +{points}점", kGold);
+            string name = kind >= 0 && kind < kArtifactNames.Length ? kArtifactNames[kind] : L.T("유물", "Artifact");
+            GridJuice.WorldToast(site + Vector3.up * 1.9f, L.T($"{name} 발굴!  +{points}점", $"{name} excavated!  +{points} pts"), kGold);
             GridJuice.GroundHit(site, 1.3f);
             GridJuice.PlacePuff(site, 1.2f);
             GridSoundBridge.PlaySFXAt("LandObject", site);
@@ -470,7 +471,7 @@ namespace GridSystem
             var tgo = new GameObject("prompt");
             tgo.transform.SetParent(m_Stake.transform.parent, false);
             m_Prompt = tgo.AddComponent<TextMesh>();
-            m_Prompt.text = $"{InputHintText.ProcessKey} 꾹 — 발굴";   // 모바일은 '공정 버튼'(MobileControlsHUD가 갱신)
+            m_Prompt.text = L.T($"{InputHintText.ProcessKey} 꾹 — 발굴", $"Hold {InputHintText.ProcessKey} — Dig");   // 모바일은 '공정 버튼'(MobileControlsHUD가 갱신)
             m_Prompt.fontSize = 48;
             m_Prompt.characterSize = 0.05f;
             m_Prompt.anchor = TextAnchor.MiddleCenter;

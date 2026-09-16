@@ -204,7 +204,7 @@ public static class SaveService
     public static string FormatVersus(string map)
     {
         GetVersus(map, out int w, out int l);
-        return $"{w}승 {l}패";
+        return L.T($"{w}승 {l}패", $"{w}W {l}L");
     }
 
     // ── 타임어택 보상표(커스터마이징 기획 문서 기준) ──

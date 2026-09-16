@@ -17,7 +17,6 @@ using UnityEngine.SceneManagement;
 public class TutorialFlowController : MonoBehaviour
 {
     private const string kDismissedKey = "TutorialPopupDismissed";
-    private const string kTutorialMapDisplayName = "튜토리얼";
     // 0 = OS가 비어있는 포트를 알아서 골라줌. 7777 등 고정 포트는 이전 세션이 안 놓아주면
     // "address already in use"로 호스트 시작 자체가 실패함 — 솔로 튜토리얼은 굳이 고정 포트가 필요 없음.
     private const ushort kLocalHostPort = 0;
@@ -76,7 +75,7 @@ public class TutorialFlowController : MonoBehaviour
 
         var popup = UIManager.Instance.ShowPopupUI<ConfirmPopup>();
         popup.Setup(
-            "처음이시군요!\n조작법을 익힌 후 플레이하는 것을 권장합니다.\n튜토리얼을 플레이하시겠습니까?",
+            L.T("처음이시군요!\n조작법을 익힌 후 플레이하는 것을 권장합니다.\n튜토리얼을 플레이하시겠습니까?", "First time here!\nWe recommend learning the controls before playing.\nPlay the tutorial?"),
             onYes: BeginTutorial,
             onNo: null,
             showCheckbox: true,
@@ -201,10 +200,10 @@ public class TutorialFlowController : MonoBehaviour
         for (int i = 0; i < catalog.Count; i++)
         {
             var def = catalog.Get(i);
-            if (def != null && def.DisplayName == kTutorialMapDisplayName)
+            if (def != null && def.IsTutorial)
                 return i;
         }
-        Debug.LogWarning($"[TutorialFlowController] MapCatalog에서 '{kTutorialMapDisplayName}' 맵을 찾지 못해 0번 맵으로 대체합니다.");
+        Debug.LogWarning($"[TutorialFlowController] MapCatalog에서 'Map_Tutorial' 맵을 찾지 못해 0번 맵으로 대체합니다.");
         return 0;
     }
 }

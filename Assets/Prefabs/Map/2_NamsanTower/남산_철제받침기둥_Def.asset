@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uB0A8\uC0B0_\uCCA0\uC81C\uBC1B\uCE68\uAE30\uB465_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 14
+  m_DisplayNameEn: "Steel Support Column"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 196484574217856194, guid: ff34b8332a8bd824aa1156a59375f1b4, type: 3}
   m_RequiredProcesses: 

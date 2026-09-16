@@ -23,7 +23,7 @@ namespace SeoulZikimi.UI.New
             if (nickname != null)
             {
                 nickname.gameObject.SetActive(occupied);
-                nickname.text = occupied ? (isLocal ? $"(나) {displayName}" : displayName) : string.Empty;
+                nickname.text = occupied ? (isLocal ? L.T($"(나) {displayName}", $"(me) {displayName}") : displayName) : string.Empty;
             }
             if (hostBadge != null) hostBadge.SetActive(occupied && isHost);
             if (readyState != null)

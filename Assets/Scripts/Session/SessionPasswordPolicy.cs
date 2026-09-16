@@ -12,7 +12,7 @@ public static class SessionPasswordPolicy
     private const string kAllowedSpecials = "!@#$%^&*()_-+=,./";
 
     /// <summary>입력창 밑 안내 문구 — 허용 문자가 바뀌면 여기 하나만 고치면 된다.</summary>
-    public const string HintText = "사용 가능: 한글 · 영문 · 숫자 · " + kAllowedSpecials;
+    public static string HintText => L.T("사용 가능: 한글 · 영문 · 숫자 · ", "Allowed: Korean · letters · numbers · ") + kAllowedSpecials;
 
     public static bool IsAllowedChar(char c)
         => (c >= '가' && c <= '힣')      // 완성형 한글

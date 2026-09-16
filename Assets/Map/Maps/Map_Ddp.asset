@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Map_Ddp
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: "DDP \uB3D9\uB300\uBB38\uB514\uC790\uC778\uD50C\uB77C\uC790"
+  m_DisplayNameEn: "DDP (Dongdaemun Design Plaza)"
   m_BackgroundPrefab: {fileID: 5043123174559805067, guid: 2800bfd9b0dbf4ce9a983bc32939be2e, type: 3}
   m_BackgroundPrefabPath: MapPrefabs/MapBg_Ddp
   m_Answers:

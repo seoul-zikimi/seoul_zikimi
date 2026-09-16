@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uACBD\uBCF5\uAD81_\uC11D\uC0C1_\uC8FC\uC791_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 52
+  m_DisplayNameEn: "Vermilion Bird Statue"
   m_Footprint: {x: 2, y: 2, z: 2}
   m_Prefab: {fileID: 6223986820457700082, guid: 1ea860b939cd54b4a9599a5efa20e089, type: 3}
   m_RequiredProcesses: 

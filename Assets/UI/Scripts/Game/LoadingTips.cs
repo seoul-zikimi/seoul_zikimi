@@ -15,6 +15,7 @@ public static class LoadingTips
         public string Category;   // MAP / MODE
         public string TargetKey;  // MapDef 에셋 이름(Map_Ddp…) 또는 GameModeKind 이름(TeamVersus…)
         public string Text;
+        public string TextEn;     // 비어 있으면 한글 그대로
         public int Weight;
     }
 
@@ -40,9 +41,9 @@ public static class LoadingTips
         foreach (var t in pool)
         {
             roll -= t.Weight;
-            if (roll < 0) return t.Text;
+            if (roll < 0) return L.T(t.Text, t.TextEn);
         }
-        return pool[pool.Count - 1].Text;
+        return L.T(pool[pool.Count - 1].Text, pool[pool.Count - 1].TextEn);
     }
 
     private static void Load()
@@ -70,6 +71,7 @@ public static class LoadingTips
                 Category = cols[1].Trim().ToUpperInvariant(),
                 TargetKey = cols[2].Trim(),
                 Text = cols[3].Trim(),
+                TextEn = cols.Length > 6 ? cols[6].Trim() : "",
                 Weight = int.TryParse(cols[4], out var w) && w > 0 ? w : 1,
             });
         }

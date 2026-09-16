@@ -104,7 +104,7 @@ namespace GridSystem
                 Object.Destroy(poof, 4f);
             }
             if (label != "")   // 종류색은 흰 계열(눈·안개)이 많아 안 보임 — 항상 진한 금색
-                GridJuice.WorldToast(pos + Vector3.up * 1.1f, $"{label} 사용!", new Color(1f, 0.8f, 0.1f));
+                GridJuice.WorldToast(pos + Vector3.up * 1.1f, L.T($"{label} 사용!", $"{label} used!"), new Color(1f, 0.8f, 0.1f));
 
             for (int i = 0; i < 14; i++)   // 링(수평 확산)
             {

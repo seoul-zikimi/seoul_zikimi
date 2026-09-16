@@ -20,7 +20,7 @@ namespace SeoulZikimi.UI.New
     public static class UiNewMapOptions
     {
         /// <summary>'랜덤' 항목의 로비 표시 이름.</summary>
-        public const string RandomLabel = "랜덤";
+        public static string RandomLabel => L.T("랜덤", "Random");
 
         /// <summary>'랜덤' 전용 썸네일(노랑 물음표 카드) — 실제 MapDef가 없어 카탈로그 밖 리소스에서 로드.</summary>
         private static Sprite s_RandomThumb;
@@ -51,7 +51,7 @@ namespace SeoulZikimi.UI.New
             if (catalogIndex == GridSystem.MapCatalog.RandomMapIndex) return RandomLabel;
             var catalog = GridSystem.MapCatalog.Instance;
             var def = catalog != null ? catalog.Get(catalogIndex) : null;
-            return def != null ? def.DisplayName : $"맵 {catalogIndex + 1}";
+            return def != null ? def.LocalizedName : L.T($"맵 {catalogIndex + 1}", $"Map {catalogIndex + 1}");
         }
 
         /// <summary>

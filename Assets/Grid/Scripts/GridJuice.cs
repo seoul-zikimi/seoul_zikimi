@@ -139,9 +139,9 @@ namespace GridSystem
         /// <summary>완성도 기여 팝업("완성도 +2%") — 점수 숫자보다 직관적. 잘 안 보인다는 피드백 반영: 크게·오래.</summary>
         public static void PercentPop(Vector3 pos, float pct, Color color)
         {
-            string t = pct <= 0f ? "완성도 +0%"
-                     : pct < 1f  ? $"완성도 +{pct:0.#}%"
-                                 : $"완성도 +{Mathf.RoundToInt(pct)}%";
+            string t = pct <= 0f ? L.T("완성도 +0%", "Progress +0%")
+                     : pct < 1f  ? L.T($"완성도 +{pct:0.#}%", $"Progress +{pct:0.#}%")
+                                 : L.T($"완성도 +{Mathf.RoundToInt(pct)}%", $"Progress +{Mathf.RoundToInt(pct)}%");
             WorldText(pos, t, color, 58, 1.7f, 1.1f);
         }
 

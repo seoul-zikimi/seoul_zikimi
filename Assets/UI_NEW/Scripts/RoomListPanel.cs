@@ -192,7 +192,7 @@ namespace SeoulZikimi.UI.New
             emptyLabel.alignment = TextAnchor.MiddleCenter;
             emptyLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
             emptyLabel.verticalOverflow = VerticalWrapMode.Overflow;
-            emptyLabel.text = "조건에 맞는 방이 없어요";
+            emptyLabel.text = L.T("조건에 맞는 방이 없어요", "No rooms match the filter");
             emptyLabel.raycastTarget = false;
             emptyLabel.gameObject.SetActive(false);
         }

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Map_Gyeongbokgung
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: "\uACBD\uBCF5\uAD81 \uADFC\uC815\uC804"
+  m_DisplayNameEn: "Gyeongbokgung Palace"
   m_BackgroundPrefab: {fileID: 8507847005581591266, guid: 20762e5f7c74c614fbf70b3a7097647f, type: 3}
   m_BackgroundPrefabPath: MapPrefabs/MapBg_Gyeongbokgung
   m_Answers:

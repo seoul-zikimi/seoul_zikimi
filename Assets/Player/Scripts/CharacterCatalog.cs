@@ -16,12 +16,12 @@ public static class CharacterCatalog
     }
 
     // 새 캐릭터 추가 시 여기에 한 줄 + Resources/Characters 프리팹만 만들면 옷장에 뜬다.
-    public static readonly Entry[] All =
-    {
-        new("", "달팽이"),
-        new("char_turtle", "거북이"),
-        new("char_crab", "소라게"),
-    };
+    private static readonly LocCache<Entry[]> s_All = new();
+    public static Entry[] All => s_All.Get(() => new Entry[]{
+        new("", L.T("달팽이", "Snail")),
+        new("char_turtle", L.T("거북이", "Turtle")),
+        new("char_crab", L.T("소라게", "Hermit Crab")),
+    });
 
     /// <summary>id의 화면 표시 이름(모르는 id면 id 그대로).
     /// 표시 이름은 이 카탈로그가 유일한 원본 — 화면마다 따로 하드코딩하지 말 것

@@ -83,7 +83,7 @@ namespace SeoulZikimi.UI.New
             if (index == GridSystem.MapCatalog.RandomMapIndex) return UiNewMapOptions.RandomLabel;
             GridSystem.MapCatalog catalog = GridSystem.MapCatalog.Instance;
             var definition = catalog != null ? catalog.Get(index) : null;
-            return definition != null ? definition.DisplayName : string.Empty;
+            return definition != null ? definition.LocalizedName : string.Empty;
         }
     }
 }

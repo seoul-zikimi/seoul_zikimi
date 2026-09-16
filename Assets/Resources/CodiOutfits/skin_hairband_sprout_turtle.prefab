@@ -154,6 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uC0C8\uC2F9 \uBA38\uB9AC\uB760"
+  DisplayNameEn: "Sprout Headband"
   Price: 400
   TargetCharacter: char_turtle
   Thumbnail: {fileID: 0}

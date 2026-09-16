@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "DDP_LED\uC7A5\uBBF8_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 38
+  m_DisplayNameEn: "LED Rose"
   m_Footprint: {x: 1, y: 1, z: 1}
   m_Prefab: {fileID: 5673505980065914611, guid: a536c394ab3395744b500fc14a54edd1, type: 3}
   m_RequiredProcesses: 02000000

@@ -1340,3 +1340,4 @@ MonoBehaviour:
   m_TimeLimitSeconds: 600
   m_AnswerImage: {fileID: 0}
   m_DisplayName: "DDP \uBCF8\uAD00"
+  m_DisplayNameEn: "DDP Main Hall"

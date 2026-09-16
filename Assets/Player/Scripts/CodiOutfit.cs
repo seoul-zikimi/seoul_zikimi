@@ -8,6 +8,8 @@ using UnityEngine;
 public class CodiOutfit : MonoBehaviour
 {
     [Tooltip("옷장에 표시될 이름")] public string DisplayName = "의상";
+    [Tooltip("옷장 영어 이름(비우면 한글 그대로)")] public string DisplayNameEn = "";
+    public string LocalizedName => L.T(DisplayName, DisplayNameEn);
     [Tooltip("가격(코인). 0 = 무료")] public int Price = 100;
     [Tooltip("대상 캐릭터 id — 빈 문자열 = 달팽이, char_turtle / char_crab 등")] public string TargetCharacter = "";
     [Tooltip("옷장 슬롯 바닥에 깔릴 썸네일(비면 UI_pngs/MyPage/Thumb_<id> 자동 탐색)")] public Sprite Thumbnail;

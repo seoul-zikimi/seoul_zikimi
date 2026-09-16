@@ -24,16 +24,18 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private const string CreateOverlayPrefabPath = "UI/Jobsnail/Prefabs/JobsnailCreateOverlay";
     private const string LobbyRoomOverlayPrefabPath = "UI/Jobsnail/Prefabs/JobsnailLobbyRoomOverlay";
 
-    private const string DefaultRoomName = "신체 건강한 달팽이 구합니다";
+    private static string DefaultRoomName => L.T("신체 건강한 달팽이 구합니다", "Healthy snails wanted");
     private const string DefaultPassword = "abcdefgh";
 
-    private static readonly string[] kModeLabels = { "모드 · 타임어택", "모드 · 2vs2 대결", "모드 · 자유 건축" };
+    private static readonly LocCache<string[]> s_kModeLabels = new();
+    private static string[] kModeLabels => s_kModeLabels.Get(() => new string[]{ L.T("모드 · 타임어택", "Mode · Time Attack"), L.T("모드 · 2vs2 대결", "Mode · 2vs2 Versus"), L.T("모드 · 자유 건축", "Mode · Free Build") });
     // 세션 목록 카드에 뿌릴 짧은 모드 이름(kModeLabels와 인덱스 동일).
-    private static readonly string[] kModeShortLabels = { "타임어택", "2vs2 대결", "자유 건축" };
+    private static readonly LocCache<string[]> s_kModeShortLabels = new();
+    private static string[] kModeShortLabels => s_kModeShortLabels.Get(() => new string[]{ L.T("타임어택", "Time Attack"), L.T("2vs2 대결", "2vs2 Versus"), L.T("자유 건축", "Free Build") });
 
     // 로비 우측 패널에 표시할 4종 모드 라벨(LobbyRoomNet.SelectedLobbyMode 인덱스와 동일).
-    private static readonly string[] kLobbyModeLabels =
-        { "타임어택", "2VS2 대전(아이템)", "2VS2 대전(타임어택)", "자유건축" };
+    private static readonly LocCache<string[]> s_kLobbyModeLabels = new();
+    private static string[] kLobbyModeLabels => s_kLobbyModeLabels.Get(() => new string[]{ L.T("타임어택", "Time Attack"), L.T("2VS2 대전(아이템)", "2VS2 Versus (Items)"), L.T("2VS2 대전(타임어택)", "2VS2 Versus (Time Attack)"), L.T("자유건축", "Free Build") });
 
     // 세션 프로퍼티 키 — 목록 카드/필터가 읽는 값.
     private const string kMapPropertyKey = "Map";
@@ -301,7 +303,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             var def = catalog.Get(i);
             if (def != null && def.IsVersusArena) continue;
             m_CreateMapOptionIndices.Add(i);
-            mapLabels.Add(def != null ? def.DisplayName : $"맵 {i + 1}");
+            mapLabels.Add(def != null ? def.LocalizedName : L.T($"맵 {i + 1}", $"Map {i + 1}"));
         }
         if (mapCount > 0 && !m_CreateMapOptionIndices.Contains(m_SelectedMap) && m_CreateMapOptionIndices.Count > 0)
             m_SelectedMap = m_CreateMapOptionIndices[0];   // 저장된 선택이 공터였다면 첫 일반 맵으로
@@ -312,7 +314,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
                 OnCreateMapSelected(m_CreateMapOptionIndices[optionIndex]);
         });
         var selectedDef = mapCount > 0 ? catalog.Get(m_SelectedMap) : null;
-        view.SetMapLabel(selectedDef != null ? selectedDef.DisplayName : "맵 없음");
+        view.SetMapLabel(selectedDef != null ? selectedDef.LocalizedName : L.T("맵 없음", "No map"));
 
         view.BuildModeOptions(new List<string>(kModeLabels), OnCreateModeSelected);
         view.SetModeLabel(kModeLabels[m_SelectedMode]);
@@ -332,7 +334,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         var def = catalog.Get(m_SelectedMap);
         if (m_CreateView != null)
         {
-            m_CreateView.SetMapLabel(def != null ? def.DisplayName : $"맵 {m_SelectedMap + 1}");
+            m_CreateView.SetMapLabel(def != null ? def.LocalizedName : L.T($"맵 {m_SelectedMap + 1}", $"Map {m_SelectedMap + 1}"));
             m_CreateView.SetMapOptionsOpen(false);
         }
     }
@@ -395,7 +397,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return;
 
         view.ClearSessionCards();
-        view.SetSessionStatus("방 목록을 불러오는 중...");
+        view.SetSessionStatus(L.T("방 목록을 불러오는 중...", "Loading rooms..."));
 
         try
         {
@@ -421,7 +423,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
         catch (System.Exception ex)
         {
-            view.SetSessionStatus($"방 목록 불러오기 실패: {ex.Message}");
+            view.SetSessionStatus(L.T($"방 목록 불러오기 실패: {ex.Message}", $"Failed to load rooms: {ex.Message}"));
         }
     }
 
@@ -434,7 +436,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (m_Sessions.Count == 0)
         {
             view.ClearSessionCards();
-            view.SetSessionStatus("현재 열린 방이 없어요. 방 만들기를 눌러 새 방을 만들어줘!");
+            view.SetSessionStatus(L.T("현재 열린 방이 없어요. 방 만들기를 눌러 새 방을 만들어줘!", "No open rooms right now. Press Create Room to make one!"));
             return;
         }
 
@@ -465,7 +467,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         var session = m_Sessions[index];
         m_CurrentRoomMaxPlayers = Mathf.Clamp(session.MaxPlayers, 1, 4);
-        m_CurrentRoomName = string.IsNullOrWhiteSpace(session.Name) ? "이름 없는 방" : session.Name;
+        m_CurrentRoomName = string.IsNullOrWhiteSpace(session.Name) ? L.T("이름 없는 방", "Unnamed room") : session.Name;
 
         if (HasPassword(session))
         {
@@ -506,10 +508,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             return string.Empty;
 
         if (mapIndex == GridSystem.MapCatalog.RandomMapIndex)
-            return "랜덤";
+            return L.T("랜덤", "Random");
         var catalog = GridSystem.MapCatalog.Instance;
         var mapDef = catalog != null ? catalog.Get(mapIndex) : null;
-        return mapDef != null ? mapDef.DisplayName : string.Empty;
+        return mapDef != null ? mapDef.LocalizedName : string.Empty;
     }
 
     // '랜덤' 선택 전용 썸네일(물음표 카드) — 실제 MapDef가 없어 카탈로그 밖 리소스에서 로드.
@@ -603,7 +605,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (string.IsNullOrEmpty(sessionId))
             return;
 
-        SetSessionStatus("방 입장 중...");
+        SetSessionStatus(L.T("방 입장 중...", "Joining room..."));
 
         try
         {
@@ -643,7 +645,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
         catch (System.Exception ex)
         {
-            SetSessionStatus($"방 입장 실패: {ex.Message}");
+            SetSessionStatus(L.T($"방 입장 실패: {ex.Message}", $"Failed to join: {ex.Message}"));
         }
     }
 
@@ -660,13 +662,13 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (string.IsNullOrEmpty(roomName))
         {
-            view.SetCreateStatus("방 이름을 입력해줘!");
+            view.SetCreateStatus(L.T("방 이름을 입력해줘!", "Enter a room name!"));
             return;
         }
 
         if (m_IsPrivateRoom && string.IsNullOrWhiteSpace(password))
         {
-            view.SetCreateStatus("비밀방 비밀번호를 입력해줘.");
+            view.SetCreateStatus(L.T("비밀방 비밀번호를 입력해줘.", "Enter the private room password."));
             return;
         }
 
@@ -676,7 +678,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (createSession == null)
         {
-            view.SetCreateStatus("CreateSession 스크립트를 못 찾았어.");
+            view.SetCreateStatus(L.T("CreateSession 스크립트를 못 찾았어.", "CreateSession script not found."));
             return;
         }
 
@@ -688,7 +690,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         GridSystem.GameLoopManager.HostSelectedMap = m_SelectedMap;
         GridSystem.GameLoopManager.HostWeatherEnabled = m_SelectedWeatherEnabled;
 
-        view.SetCreateStatus("방 생성 중...");
+        view.SetCreateStatus(L.T("방 생성 중...", "Creating room..."));
         m_CurrentRoomName = roomName;
         createSession.RequestCreateSession(roomName, m_IsPrivateRoom, m_IsPrivateRoom ? password : "");
     }
@@ -739,7 +741,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
     private void OnCreateSessionFailed(string message)
     {
         if (m_CreateView != null)
-            m_CreateView.SetCreateStatus(string.IsNullOrEmpty(message) ? "방 생성에 실패했어." : message);
+            m_CreateView.SetCreateStatus(string.IsNullOrEmpty(message) ? L.T("방 생성에 실패했어.", "Failed to create the room.") : message);
     }
 
     private void OnSessionCreated(ISession session)
@@ -900,8 +902,8 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
             ShowModeButton = isHost,
             ModeLabel = kLobbyModeLabels[lobbyMode],
             // '랜덤'(센티널 -1)은 카탈로그에 MapDef가 없다 — 전용 물음표 썸네일과 이름으로 표시
-            MapName = mapDef != null ? mapDef.DisplayName
-                : mapIndex == GridSystem.MapCatalog.RandomMapIndex ? "랜덤" : string.Empty,
+            MapName = mapDef != null ? mapDef.LocalizedName
+                : mapIndex == GridSystem.MapCatalog.RandomMapIndex ? L.T("랜덤", "Random") : string.Empty,
             MapThumbnail = mapDef != null ? mapDef.Thumbnail
                 : mapIndex == GridSystem.MapCatalog.RandomMapIndex ? RandomMapThumb() : null,
             ShowMapArrows = isHost && isNetworkServer && mapCount > 1,
@@ -921,35 +923,35 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         bool allReady, int joinedCount, int maxPlayers)
     {
         if (!hasReadyNet)
-            return "레디 시스템 연결 중...";
+            return L.T("레디 시스템 연결 중...", "Connecting ready system...");
 
         if (isHost && !isNetworkServer)
-            return "방장 권한 복구 중...";
+            return L.T("방장 권한 복구 중...", "Restoring host authority...");
 
         // 2vs2: 양 팀 인원이 안 맞으면(1v2 등) 시작 자체가 불가.
         if (readyNet.IsVersusMode && !readyNet.TeamsBalancedForStart())
-            return "양 팀 인원을 같게 맞춰야 시작할 수 있어요 (1v1 또는 2v2)";
+            return L.T("양 팀 인원을 같게 맞춰야 시작할 수 있어요 (1v1 또는 2v2)", "Both teams need equal players to start (1v1 or 2v2)");
 
         if (isHost)
         {
             if (joinedCount <= 1)
-                return "혼자서도 바로 시작할 수 있어요!";
-            return allReady ? "모든 팀원 준비 완료!" : "팀원들이 준비하길 기다리는 중";
+                return L.T("혼자서도 바로 시작할 수 있어요!", "You can start solo right away!");
+            return allReady ? L.T("모든 팀원 준비 완료!", "All teammates ready!") : L.T("팀원들이 준비하길 기다리는 중", "Waiting for teammates to ready up");
         }
 
-        return readyNet.IsLocallyReady ? "방장이 시작하기를 기다리는 중" : "준비 완료를 눌러줘";
+        return readyNet.IsLocallyReady ? L.T("방장이 시작하기를 기다리는 중", "Waiting for the host to start") : L.T("준비 완료를 눌러줘", "Press Ready");
     }
 
     private static string BuildReadyStatus(bool hasReadyNet, int targetReadyCount,
         int joinedCount, int maxPlayers, int readyCount)
     {
         if (!hasReadyNet)
-            return "준비 상태를 불러오는 중...";
+            return L.T("준비 상태를 불러오는 중...", "Loading ready status...");
 
         if (targetReadyCount <= 0)
-            return $"입장 {joinedCount}/{maxPlayers} · 바로 시작 가능";
+            return L.T($"입장 {joinedCount}/{maxPlayers} · 바로 시작 가능", $"Joined {joinedCount}/{maxPlayers} · Can start now");
 
-        return $"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{targetReadyCount}";
+        return L.T($"입장 {joinedCount}/{maxPlayers} · 준비 {readyCount}/{targetReadyCount}", $"Joined {joinedCount}/{maxPlayers} · Ready {readyCount}/{targetReadyCount}");
     }
 
     // 로비 우측 패널 기록: 타임어택=개인 N인 최고기록, 2vs2=맵 승패, 자유건축=없음.
@@ -959,10 +961,10 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         switch (lobbyMode)
         {
             case 0: // 타임어택
-                return $"({players}인) 최고 기록 : {BestAcrossAnswers(mapDef, players)}";
+                return L.T($"({players}인) 최고 기록 : {BestAcrossAnswers(mapDef, players)}", $"({players}P) Best record : {BestAcrossAnswers(mapDef, players)}");
             case 1:
             case 2: // 2VS2 대전
-                return mapDef != null ? $"전적 : {SaveService.FormatVersus(mapDef.DisplayName)}" : "전적 : 0승 0패";
+                return mapDef != null ? L.T($"전적 : {SaveService.FormatVersus(mapDef.DisplayName)}", $"Record : {SaveService.FormatVersus(mapDef.DisplayName)}") : L.T("전적 : 0승 0패", "Record : 0W 0L");
             default: // 자유건축
                 return string.Empty;
         }
@@ -990,7 +992,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
 
         if (bestPct < 0) return "-";
         int s = Mathf.RoundToInt(bestSec);
-        return $"{bestPct}%  {s / 60}분 {s % 60:00}초";
+        return L.T($"{bestPct}%  {s / 60}분 {s % 60:00}초", $"{bestPct}%  {s / 60}m {s % 60:00}s");
     }
 
     // ────────────────────────── 준비 / 게임 시작 ──────────────────────────
@@ -1017,7 +1019,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         }
 
         if (m_LobbyRoomView != null)
-            m_LobbyRoomView.SetLobbyStartHint("레디 시스템 연결 후 시작할 수 있어요.");
+            m_LobbyRoomView.SetLobbyStartHint(L.T("레디 시스템 연결 후 시작할 수 있어요.", "You can start once the ready system connects."));
     }
 
     // ────────────────────────── View → 컨트롤러 (프리팹 버튼 바인딩 대상) ──────────────────────────
@@ -1109,7 +1111,7 @@ public sealed class JobsnailLobbySkinner : MonoBehaviour
         if (readyNet != null && readyNet.IsSpawned && !IsLocalSessionHost() && readyNet.IsLocallyReady)
         {
             if (m_LobbyRoomView != null)
-                m_LobbyRoomView.SetLobbyStartHint("준비 상태에서는 나갈 수 없어요. '준비'를 먼저 해제해줘.");
+                m_LobbyRoomView.SetLobbyStartHint(L.T("준비 상태에서는 나갈 수 없어요. '준비'를 먼저 해제해줘.", "Can't leave while ready. Un-ready first."));
             return;
         }
 

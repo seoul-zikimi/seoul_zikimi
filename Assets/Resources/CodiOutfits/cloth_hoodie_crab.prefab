@@ -155,6 +155,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uD6C4\uB4DC\uD2F0"
+  DisplayNameEn: "Hoodie"
   Price: 100
   TargetCharacter: char_crab
   Thumbnail: {fileID: 0}

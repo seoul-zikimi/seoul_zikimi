@@ -316,7 +316,7 @@ namespace GridSystem
             var po = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClient?.PlayerObject : null;
             Vector3 pos = po != null ? po.transform.position + Vector3.up * 1.6f
                                      : ZonePos + Vector3.up * 1f;
-            GridJuice.WorldToast(pos, "품절! 더는 주문할 수 없어요", new Color(0.95f, 0.45f, 0.15f));
+            GridJuice.WorldToast(pos, L.T("품절! 더는 주문할 수 없어요", "Sold out! No more orders"), new Color(0.95f, 0.45f, 0.15f));
         }
 
         /// <summary>상대의 '주문 해킹'으로 거절 — 주문자에게만 이유 + 남은 시간 토스트.</summary>
@@ -326,7 +326,7 @@ namespace GridSystem
             var po = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClient?.PlayerObject : null;
             Vector3 pos = po != null ? po.transform.position + Vector3.up * 1.6f
                                      : ZonePos + Vector3.up * 1f;
-            string msg = seconds > 0 ? $"주문 해킹! {seconds}초 뒤 주문 가능" : "주문 해킹! 잠시 뒤 주문 가능";
+            string msg = seconds > 0 ? L.T($"주문 해킹! {seconds}초 뒤 주문 가능", $"Order hacked! Orders back in {seconds}s") : L.T("주문 해킹! 잠시 뒤 주문 가능", "Order hacked! Orders back soon");
             GridJuice.WorldToast(pos, msg, new Color(0.72f, 0.35f, 0.95f));
         }
 

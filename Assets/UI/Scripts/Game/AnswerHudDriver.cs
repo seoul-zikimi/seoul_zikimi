@@ -168,7 +168,7 @@ public class AnswerHudDriver : MonoBehaviour
         var uv = ToViewportUV(rect, screenPos);
         if (m_Preview.TryHover(uv, out var def))
         {
-            string name = def != null ? def.name : "블럭";
+            string name = def != null ? def.LocalizedName : L.T("블럭", "Block");
             // 말풍선: 주문 카드와 같은 썸네일 렌더 재사용 → "정답의 이 블럭 = 저 카드" 매칭이 눈에 보인다
             m_Hud.ShowTip(screenPos, name, ProcLine(def),
                           def != null && def.Prefab != null ? BlockThumbnail.Get(def.Prefab, 256) : null);
@@ -193,8 +193,8 @@ public class AnswerHudDriver : MonoBehaviour
         foreach (var p in def.RequiredProcesses)
             s += (s.Length > 0 ? "  " : "")
                + (p == ProcessType.Fixed
-                    ? "<color=#5C9AFF>망치로 고정 필요</color>"
-                    : "<color=#4DD966>페인트칠 필요</color>");
-        return s.Length > 0 ? s : "놓기만 하면 완성";
+                    ? L.T("<color=#5C9AFF>망치로 고정 필요</color>", "<color=#5C9AFF>Needs hammering</color>")
+                    : L.T("<color=#4DD966>페인트칠 필요</color>", "<color=#4DD966>Needs painting</color>"));
+        return s.Length > 0 ? s : L.T("놓기만 하면 완성", "Just place it");
     }
 }

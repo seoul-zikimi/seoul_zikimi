@@ -41,8 +41,8 @@ public class AnswerPanelHUD : UIHUD
     public int PageIndex => m_PageIndex;
     public bool HasPages => m_Pages != null && m_Pages.Count > 0;
 
-    private const string kIdleName = "블럭을 골라 주문하세요";
-    private const string kIdleSub = "화면 블럭 클릭 = 선택 · 우클릭 회전 · 휠 줌";
+    private static string kIdleName => L.T("블럭을 골라 주문하세요", "Pick a block to order");
+    private static string kIdleSub => L.T("화면 블럭 클릭 = 선택 · 우클릭 회전 · 휠 줌", "Click block = select · right-drag rotate · wheel zoom");
 
     // ── 피그마 '완성본 모습' 좌표(px · 폰 좌상단 원점) ──
     private const float kPhoneX = 1029f, kPhoneY = 217f, kPhoneW = 304f, kPhoneH = 625f;   // 프레임 기준(아래로 89px 잠김 = 디자인)
@@ -134,7 +134,7 @@ public class AnswerPanelHUD : UIHUD
         if (m_PctText != null && m_PctText.text != s) m_PctText.text = s;
         if (m_CompletionText != null)
         {
-            string mobile = $"현재 완성도 : {clamped}%";
+            string mobile = L.T($"현재 완성도 : {clamped}%", $"Progress : {clamped}%");
             if (m_CompletionText.text != mobile) m_CompletionText.text = mobile;
         }
     }
@@ -237,7 +237,7 @@ public class AnswerPanelHUD : UIHUD
         if (m_MobileLayout)
         {
             // 가로 폰: 주황 배지 텍스트만 바꾼다(배지는 코드로 그린 것).
-            if (m_CompletionText != null && m_FreeBuild) m_CompletionText.text = "자유 건축 모드";
+            if (m_CompletionText != null && m_FreeBuild) m_CompletionText.text = L.T("자유 건축 모드", "Free Build Mode");
             return;
         }
         // 세로 폰: '현재 완성도 : [ ]%' 배지가 배경 스프라이트에 구워져 있어 같은 주황 둥근 사각형으로 덮는다.
@@ -251,7 +251,7 @@ public class AnswerPanelHUD : UIHUD
             img.type = Image.Type.Sliced;
             img.color = InGameUiSkin.Orange;
             img.raycastTarget = false;
-            var t = MakeText(cover.transform, "자유 건축 모드", Vector2.zero, new Vector2(101f, 21f), Px(10), TextAnchor.MiddleCenter);
+            var t = MakeText(cover.transform, L.T("자유 건축 모드", "Free Build Mode"), Vector2.zero, new Vector2(101f, 21f), Px(10), TextAnchor.MiddleCenter);
             t.fontStyle = FontStyle.Bold;
             m_FreeBuildCover = cover;
         }
@@ -320,13 +320,13 @@ public class AnswerPanelHUD : UIHUD
         ol.effectColor = InGameUiSkin.CardGray;
         ol.effectDistance = new Vector2(3f, 3f);
 
-        var title = MakeTextPx(tip.transform, "완공 계획도 보는 법", new Vector2(24f, -18f), new Vector2(612f, 38f), 30, TextAnchor.MiddleLeft);
+        var title = MakeTextPx(tip.transform, L.T("완공 계획도 보는 법", "How to read the blueprint"), new Vector2(24f, -18f), new Vector2(612f, 38f), 30, TextAnchor.MiddleLeft);
         title.color = InGameUiSkin.Orange;
         title.fontStyle = FontStyle.Bold;
 
         var body = MakeTextPx(tip.transform, m_IsMobileDevice
-                ? "· 한 손가락 드래그 : 카메라 회전\n· 두 손가락 : 확대 / 축소\n· 블럭을 누르면 그 재료가 바로 선택돼요"
-                : "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 카메라 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭을 클릭하면 그 재료가 바로 선택돼요",
+                ? L.T("· 한 손가락 드래그 : 카메라 회전\n· 두 손가락 : 확대 / 축소\n· 블럭을 누르면 그 재료가 바로 선택돼요", "· One-finger drag : rotate camera\n· Two fingers : zoom in / out\n· Tap a block to select that material")
+                : L.T("· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 카메라 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭을 클릭하면 그 재료가 바로 선택돼요", "· Left-drag : move\n· Right-drag : rotate camera\n· Mouse wheel : zoom in / out\n· Click a block to select that material"),
             new Vector2(24f, -62f), new Vector2(612f, 166f), 25, TextAnchor.UpperLeft);
         body.color = InGameUiSkin.TextGray;
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -348,12 +348,12 @@ public class AnswerPanelHUD : UIHUD
         ol.effectColor = InGameUiSkin.CardGray;
         ol.effectDistance = new Vector2(2f, 2f);
 
-        var title = MakeText(tip.transform, "완공 계획도 보는 법", new Vector2(10f, 6f), new Vector2(244f, 20f), Px(13), TextAnchor.MiddleLeft);
+        var title = MakeText(tip.transform, L.T("완공 계획도 보는 법", "How to read the blueprint"), new Vector2(10f, 6f), new Vector2(244f, 20f), Px(13), TextAnchor.MiddleLeft);
         title.color = InGameUiSkin.Orange;
         title.fontStyle = FontStyle.Bold;
 
         var body = MakeText(tip.transform,
-            "· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 카메라 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭에 커서를 올리면 이름이 뜨고,\n  클릭하면 그 재료가 바로 선택돼요",
+            L.T("· 좌클릭 드래그 : 위치 이동\n· 우클릭 드래그 : 카메라 회전\n· 마우스 휠 : 확대 / 축소\n· 블럭에 커서를 올리면 이름이 뜨고,\n  클릭하면 그 재료가 바로 선택돼요", "· Left-drag : move\n· Right-drag : rotate camera\n· Mouse wheel : zoom in / out\n· Hover a block to see its name,\n  click to select that material"),
             new Vector2(10f, 30f), new Vector2(244f, 104f), Px(11), TextAnchor.UpperLeft);
         body.color = InGameUiSkin.TextGray;
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -450,7 +450,7 @@ public class AnswerPanelHUD : UIHUD
 
         var ink = new Color(0.16f, 0.16f, 0.15f, 1f);
 
-        var planTitle = MakeTextPx(m_Phone.transform, "완공 계획도",
+        var planTitle = MakeTextPx(m_Phone.transform, L.T("완공 계획도", "Blueprint"),
             new Vector2(64f, -48f), new Vector2(360f, 56f), 34, TextAnchor.MiddleLeft);
         planTitle.fontStyle = FontStyle.Bold;
         planTitle.color = ink;
@@ -477,7 +477,7 @@ public class AnswerPanelHUD : UIHUD
         badgeImg.type = Image.Type.Sliced;
         badgeImg.color = new Color(1f, 0.44f, 0.08f, 1f);
         badgeImg.raycastTarget = false;
-        m_CompletionText = MakeTextPx(badge.transform, "현재 완성도 :  - %",
+        m_CompletionText = MakeTextPx(badge.transform, L.T("현재 완성도 :  - %", "Progress :  - %"),
             Vector2.zero, new Vector2(296f, 48f), 23, TextAnchor.MiddleCenter);
         m_CompletionText.fontStyle = FontStyle.Bold;
 
@@ -489,11 +489,11 @@ public class AnswerPanelHUD : UIHUD
             new Vector2(64f, -786f), new Vector2(620f, 36f), 24, TextAnchor.MiddleLeft);
         m_SelName.fontStyle = FontStyle.Bold;
         m_SelName.color = ink;
-        m_SelSub = MakeTextPx(m_Phone.transform, "오른쪽 재료를 골라 주문하세요",
+        m_SelSub = MakeTextPx(m_Phone.transform, L.T("오른쪽 재료를 골라 주문하세요", "Pick a material on the right to order"),
             new Vector2(64f, -824f), new Vector2(720f, 30f), 19, TextAnchor.MiddleLeft);
         m_SelSub.color = new Color(0.45f, 0.45f, 0.44f, 1f);
 
-        var catalogTitle = MakeTextPx(m_Phone.transform, "재료 카탈로그",
+        var catalogTitle = MakeTextPx(m_Phone.transform, L.T("재료 카탈로그", "Material Catalog"),
             new Vector2(920f, -48f), new Vector2(420f, 56f), 34, TextAnchor.MiddleLeft);
         catalogTitle.fontStyle = FontStyle.Bold;
         catalogTitle.color = ink;
@@ -506,7 +506,7 @@ public class AnswerPanelHUD : UIHUD
         m_OrderBtn = btnGo.AddComponent<Button>();
         m_OrderBtn.targetGraphic = m_OrderBtnImg;
         m_OrderBtn.onClick.AddListener(() => { if (m_SelectedId >= 0) m_OnOrder?.Invoke(m_SelectedId); });
-        var orderLabel = MakeTextPx(btnGo.transform, "주문!", Vector2.zero, new Vector2(836f, 76f), 30, TextAnchor.MiddleCenter);
+        var orderLabel = MakeTextPx(btnGo.transform, L.T("주문!", "Order!"), Vector2.zero, new Vector2(836f, 76f), 30, TextAnchor.MiddleCenter);
         orderLabel.fontStyle = FontStyle.Bold;
         UpdateOrderButton();
         BuildBlockBanner();
@@ -526,7 +526,7 @@ public class AnswerPanelHUD : UIHUD
             var close = closeGo.AddComponent<Button>();
             close.targetGraphic = closeImg;
             close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
-            var closeLabel = MakeTextPx(closeGo.transform, "작게 보기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
+            var closeLabel = MakeTextPx(closeGo.transform, L.T("작게 보기 ▾", "Minimize ▾"), Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
             closeLabel.color = ink;
             closeLabel.fontStyle = FontStyle.Bold;
         }
@@ -866,7 +866,7 @@ public class AnswerPanelHUD : UIHUD
             bimg.type = Image.Type.Sliced;
             bimg.color = new Color(0.30f, 0.30f, 0.29f, 0.95f);
             bimg.raycastTarget = false;
-            badge = MakeTextPx(bg.transform, $"재고: {e.Limit}개", Vector2.zero, new Vector2(152f, 38f), 19, TextAnchor.MiddleCenter);
+            badge = MakeTextPx(bg.transform, L.T($"재고: {e.Limit}개", $"Stock: {e.Limit}"), Vector2.zero, new Vector2(152f, 38f), 19, TextAnchor.MiddleCenter);
             badge.fontStyle = FontStyle.Bold;
         }
 
@@ -905,7 +905,7 @@ public class AnswerPanelHUD : UIHUD
             badgeBg = NewRect("BadgeBg", img.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
             Local((RectTransform)badgeBg.transform, kBadgeX, kBadgeY, kBadgeW, kBadgeH);
             var bimg = badgeBg.AddComponent<Image>(); bimg.color = InGameUiSkin.Orange; bimg.raycastTarget = false;
-            badge = MakeText(badgeBg.transform, $"재고: {e.Limit}개", Vector2.zero, new Vector2(kBadgeW, kBadgeH), Px(8), TextAnchor.MiddleCenter);
+            badge = MakeText(badgeBg.transform, L.T($"재고: {e.Limit}개", $"Stock: {e.Limit}"), Vector2.zero, new Vector2(kBadgeW, kBadgeH), Px(8), TextAnchor.MiddleCenter);
         }
 
         m_Cards[id] = new Card { Bg = img, Frame = frame, Thumb = ri, Badge = badge, BadgeBg = badgeBg,
@@ -974,7 +974,7 @@ public class AnswerPanelHUD : UIHUD
         bool sold = remaining == 0;
         if (c.Badge != null)
         {
-            c.Badge.text = sold ? "품절" : $"재고: {remaining}개";
+            c.Badge.text = sold ? L.T("품절", "Sold out") : L.T($"재고: {remaining}개", $"Stock: {remaining}");
             c.Badge.color = sold ? new Color(1f, 0.55f, 0.45f) : Color.white;
         }
         if (c.Thumb != null && c.Thumb.texture != null)
@@ -988,14 +988,14 @@ public class AnswerPanelHUD : UIHUD
     }
 
     private static string RemainSuffix(Card c) =>
-        c.Remaining < 0 ? "" : c.Remaining == 0 ? "  <color=#FF8C73>품절</color>" : $"  ({c.Remaining}개 남음)";
+        c.Remaining < 0 ? "" : c.Remaining == 0 ? L.T("  <color=#FF8C73>품절</color>", "  <color=#FF8C73>Sold out</color>") : L.T($"  ({c.Remaining}개 남음)", $"  ({c.Remaining} left)");
 
     private void SetSelBar(string name, string sub)
     {
         bool has = !string.IsNullOrEmpty(name);
         if (m_SelName != null) m_SelName.text = has ? name : kIdleName;
         // 모바일엔 우클릭·휠 안내 대신 터치 문구
-        if (m_SelSub != null)  m_SelSub.text  = has ? sub : m_MobileLayout ? "오른쪽 재료를 골라 주문하세요" : kIdleSub;
+        if (m_SelSub != null)  m_SelSub.text  = has ? sub : m_MobileLayout ? L.T("오른쪽 재료를 골라 주문하세요", "Pick a material on the right to order") : kIdleSub;
     }
 
     private void UpdateOrderButton()
@@ -1085,7 +1085,7 @@ public class AnswerPanelHUD : UIHUD
         bool on = m_BlockSecs > 0;
         if (on)
         {
-            if (m_BlockText != null) m_BlockText.text = $"주문 해킹! {m_BlockSecs}초 뒤 주문 가능";
+            if (m_BlockText != null) m_BlockText.text = L.T($"주문 해킹! {m_BlockSecs}초 뒤 주문 가능", $"Order hacked! Orders back in {m_BlockSecs}s");
             m_BlockBanner.transform.SetAsLastSibling();   // 나중에 지어진 카드 그리드보다 위로
         }
         if (m_BlockIcon != null)

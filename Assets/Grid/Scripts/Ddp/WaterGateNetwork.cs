@@ -248,7 +248,7 @@ namespace GridSystem
                 var nm = NetworkManager.Singleton;
                 var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
                 if (po != null)
-                    GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "🌊 수문이 열립니다!", kWarnColor);
+                    GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, L.T("🌊 수문이 열립니다!", "🌊 The sluice is opening!"), kWarnColor);
                 // 개방 경보음은 쓰지 않기로 함(토스트만) — 물 콸콸 루프는 UpdateFloodSound가 Flowing에 켠다
             }
             else if (phase == FloodPhase.Flowing && m_Splash != null)

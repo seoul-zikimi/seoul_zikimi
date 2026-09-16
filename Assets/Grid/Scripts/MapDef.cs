@@ -35,7 +35,8 @@ namespace GridSystem
     [CreateAssetMenu(menuName = "Jobsnail/Map Def", fileName = "Map_")]
     public class MapDef : ScriptableObject
     {
-        [SerializeField] private string m_DisplayName;         // 로비 표시 이름(비우면 에셋 파일명)
+        [SerializeField] private string m_DisplayName;         // 로비 표시 이름(비우면 에셋 파일명) — 세이브 키로도 쓰이므로 한글 고정
+        [SerializeField] private string m_DisplayNameEn;       // 영어 표시 이름(비우면 한글 그대로)
 #if UNITY_EDITOR
         // 에디터 전용 직접 참조 — 빌드에선 이 필드가 직렬화되지 않아 카탈로그→맵 모델 의존이 끊긴다.
         // (직접 참조를 빌드에 남기면 로비에서 카탈로그를 여는 순간 모든 맵의 모델·텍스처 수 GB가
@@ -81,6 +82,8 @@ namespace GridSystem
         [SerializeField] private Vector3Int m_CompletedModelAnchor;
 
         public string DisplayName => string.IsNullOrEmpty(m_DisplayName) ? name : m_DisplayName;
+        /// <summary>화면 표시용 이름(현재 언어). 세이브/세션 키에는 DisplayName을 쓸 것.</summary>
+        public string LocalizedName => L.T(DisplayName, m_DisplayNameEn);
         public IReadOnlyList<MapAnswerData> Answers => m_Answers;
 
         [System.NonSerialized] private GameObject m_BgCache, m_CompletedCache;
@@ -107,7 +110,7 @@ namespace GridSystem
 
         /// <summary>튜토리얼 전용 맵 여부 — 일반 맵 선택지/랜덤 후보에서 제외된다(TutorialFlowController가 직접 지정해서 들어간다).
         /// IsVersusArena와 같은 방식(에셋 이름 기준)이되, 표시 이름도 함께 본다 — 튜토리얼 진입점이 표시 이름으로 맵을 찾기 때문.</summary>
-        public bool IsTutorial => name == "Map_Tutorial" || DisplayName == "튜토리얼";
+        public bool IsTutorial => name == "Map_Tutorial" || m_DisplayName == "튜토리얼";
 
         /// <summary>이 맵에서 주문 가능한 재료(비면 카탈로그 전체). 카탈로그 자체는 전역 그대로다.</summary>
         public IReadOnlyList<MaterialDef> AvailableMaterials => m_AvailableMaterials;

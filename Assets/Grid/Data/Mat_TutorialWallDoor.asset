@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Mat_TutorialWallDoor
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 11
+  m_DisplayNameEn: "Wall with Door"
   m_Footprint: {x: 1, y: 1, z: 1}
   m_Prefab: {fileID: 2494540147268937254, guid: 313cd8e69ea4af342832daf4155e6b24, type: 3}
   m_RequiredProcesses: 

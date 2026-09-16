@@ -387,7 +387,7 @@ namespace GridSystem
             if (m_Demon != null) m_Demon.Dive(center);   // 화마 급강하(불씨 버스트 포함)
             GridJuice.FovPunch(Camera.main, -3f);
             Ignited?.Invoke();   // 매 발화 빨간 비네트 펄스(첫 발화 대형 시네마틱과는 HUD 쪽에서 중복 방지)
-            GridJuice.WorldToast(center + Vector3.up * 1.6f, "화마가 나타났다!", new Color(1f, 0.35f, 0.1f));
+            GridJuice.WorldToast(center + Vector3.up * 1.6f, L.T("화마가 나타났다!", "A fire demon appeared!"), new Color(1f, 0.35f, 0.1f));
             GridSoundBridge.PlaySFXAt("FireIgnite", center);   // 발화 SFX(08/28 사운드 적용) — 타는 루프는 화염 그룹이 담당
         }
 
@@ -403,7 +403,7 @@ namespace GridSystem
                 fx.gravity = -7f; fx.life = 0.5f;
             }
             GridSoundBridge.PlaySFXAt("WaterPour", center);   // 물 붓기 SFX(08/28 사운드 적용)
-            GridJuice.WorldToast(center + Vector3.up * 1.4f, "진화 성공!", new Color(0.45f, 0.8f, 1f));
+            GridJuice.WorldToast(center + Vector3.up * 1.4f, L.T("진화 성공!", "Fire put out!"), new Color(0.45f, 0.8f, 1f));
             if (m_Demon != null) m_Demon.Flee(center);   // 화마 비명·도망 — 물 부을 맛
         }
 
@@ -643,7 +643,7 @@ namespace GridSystem
             m_Mode = Mode.Flee;
             m_FleeDir = ((transform.position - from).normalized + Vector3.up * 0.6f).normalized;
             m_FleeUntil = Time.time + 1.1f;
-            GridJuice.WorldToast(transform.position + Vector3.up * 1.2f, "캬아악!", new Color(1f, 0.5f, 0.2f));
+            GridJuice.WorldToast(transform.position + Vector3.up * 1.2f, L.T("캬아악!", "Screech!"), new Color(1f, 0.5f, 0.2f));
         }
 
         /// <summary>봉인 처치 — 폭발 소멸(사방신 빛살 명중 순간 GuardianNetwork가 호출).</summary>
@@ -657,7 +657,7 @@ namespace GridSystem
                 fx.vel = UnityEngine.Random.onUnitSphere * UnityEngine.Random.Range(3f, 7f);
                 fx.gravity = -3f; fx.life = 0.9f; fx.spinDeg = 300f; fx.spinAxis = UnityEngine.Random.onUnitSphere;
             }
-            GridJuice.WorldToast(transform.position + Vector3.up * 1.5f, "화마 소멸!!", new Color(1f, 0.9f, 0.4f));
+            GridJuice.WorldToast(transform.position + Vector3.up * 1.5f, L.T("화마 소멸!!", "Fire demon vanquished!!"), new Color(1f, 0.9f, 0.4f));
             Destroy(gameObject);
         }
 

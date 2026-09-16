@@ -262,7 +262,7 @@ namespace SeoulZikimi.Gameplay
                     if (buildingTimeLimitSeconds <= 0f)
                         throw new ArgumentOutOfRangeException(
                             nameof(buildingTimeLimitSeconds),
-                            "타임어택 건축물에는 제한시간이 필요합니다.");
+                            L.T("타임어택 건축물에는 제한시간이 필요합니다.", "Time-attack structures need a time limit."));
                     return buildingTimeLimitSeconds;
                 default:
                     return 0f;
@@ -275,7 +275,7 @@ namespace SeoulZikimi.Gameplay
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(count),
-                    $"{mode.Kind} 모드는 {mode.MinimumPlayers}~{mode.MaximumPlayers}명이 필요합니다.");
+                    L.T($"{mode.Kind} 모드는 {mode.MinimumPlayers}~{mode.MaximumPlayers}명이 필요합니다.", $"{mode.Kind} mode needs {mode.MinimumPlayers}~{mode.MaximumPlayers} players."));
             }
         }
 
@@ -297,7 +297,7 @@ namespace SeoulZikimi.Gameplay
                 if (pair.Value != _mode.PlayersPerTeam)
                 {
                     throw new ArgumentException(
-                        $"{pair.Key} 팀은 {_mode.PlayersPerTeam}명이어야 합니다.",
+                        L.T($"{pair.Key} 팀은 {_mode.PlayersPerTeam}명이어야 합니다.", $"Team {pair.Key} must have {_mode.PlayersPerTeam} players."),
                         nameof(_roster));
                 }
             }

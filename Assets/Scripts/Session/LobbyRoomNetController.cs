@@ -477,7 +477,7 @@ public class LobbyRoomNet : NetworkBehaviour
         if (readyButton != null)
         {
             var textText = readyButton.GetComponentInChildren<TMP_Text>();
-            if (textText != null) textText.text = "준비";
+            if (textText != null) textText.text = L.T("준비", "Ready");
         }
 
         // 서버(방장)에게 내 무전(ServerRpc)으로 준비 상태를 전송
@@ -598,7 +598,7 @@ public class LobbyRoomNet : NetworkBehaviour
     {
         string nick = PlayerPrefs.GetString("PlayerNickname", "");
         if (string.IsNullOrEmpty(nick))
-            nick = $"플레이어{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}";
+            nick = L.T($"플레이어{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}", $"Player{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}");
         if (nick.Length > 12) nick = nick.Substring(0, 12);
         while (System.Text.Encoding.UTF8.GetByteCount(nick) > 28 && nick.Length > 0)
             nick = nick.Substring(0, nick.Length - 1);
@@ -847,13 +847,13 @@ public class LobbyRoomNet : NetworkBehaviour
             if (JobsnailUiKit.TmpFont != null)
                 readyStatusText.font = JobsnailUiKit.TmpFont;
             if (m_JoinInProgress.Value)
-                readyStatusText.text = "팀원이 방에 들어오는 중입니다...";
+                readyStatusText.text = L.T("팀원이 방에 들어오는 중입니다...", "Teammates are joining the room...");
             else if (m_TargetReadyCount.Value <= 0)
-                readyStatusText.text = "바로 시작할 수 있어요. (대기 중인 팀원 없음)";
+                readyStatusText.text = L.T("바로 시작할 수 있어요. (대기 중인 팀원 없음)", "You can start right away. (No teammates waiting)");
             else if (isAllReady)
-                readyStatusText.text = "모든 플레이어가 준비되었습니다! 시작 가능.";
+                readyStatusText.text = L.T("모든 플레이어가 준비되었습니다! 시작 가능.", "All players are ready! You can start.");
             else
-                readyStatusText.text = $"다른 플레이어의 준비를 기다리는 중... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})";
+                readyStatusText.text = L.T($"다른 플레이어의 준비를 기다리는 중... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})", $"Waiting for other players to ready up... ({m_ReadyCount.Value}/{m_TargetReadyCount.Value})");
         }
         StateChanged?.Invoke();
     }

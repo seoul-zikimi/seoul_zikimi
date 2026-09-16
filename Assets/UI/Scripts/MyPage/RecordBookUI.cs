@@ -70,7 +70,7 @@ public class RecordBookUI : UIPopup
         {
             var def = catalog.Get(i);
             if (def == null || def.IsVersusArena) continue;
-            if (def.DisplayName.Contains("튜토리얼")) continue;
+            if (def.IsTutorial) continue;
             m_Maps.Add(def);
         }
     }
@@ -134,8 +134,8 @@ public class RecordBookUI : UIPopup
             SetActive(slot, "TrophyIcon", has);
             SetActive(slot, "Lock", !has);
             SetActive(slot, "Soon", !has);
-            SetText(slot, "NamePill/Name", has ? def.DisplayName : "");
-            SetText(slot, "Pct", has ? $"완성도 {BestPct(def)}%" : "");
+            SetText(slot, "NamePill/Name", has ? def.LocalizedName : "");
+            SetText(slot, "Pct", has ? L.T($"완성도 {BestPct(def)}%", $"Progress {BestPct(def)}%") : "");
             var btn = slot.GetComponent<Button>();
             if (btn != null) btn.interactable = has;
         }
@@ -150,7 +150,7 @@ public class RecordBookUI : UIPopup
         if (d == null) return;
 
         SetImage(d, "BigCard/BookThumb", def.Thumbnail);
-        SetText(d, "BookMapName", def.DisplayName);
+        SetText(d, "BookMapName", def.LocalizedName);
         SetText(d, "MapDesc", "");   // 맵 설명 데이터가 생기면 연결
 
         for (int p = 1; p <= 4; p++)
@@ -159,7 +159,7 @@ public class RecordBookUI : UIPopup
             {
                 int s = Mathf.RoundToInt(sec);
                 SetText(d, $"TaPct{p - 1}", $"{pct}%");
-                SetText(d, $"TaTime{p - 1}", $"{s / 60}분 {s % 60:00}초");
+                SetText(d, $"TaTime{p - 1}", L.T($"{s / 60}분 {s % 60:00}초", $"{s / 60}m {s % 60:00}s"));
             }
             else
             {
@@ -169,7 +169,7 @@ public class RecordBookUI : UIPopup
         }
 
         SaveService.GetVersus(def.DisplayName, out int w, out int l);
-        SetText(d, "VsItem", $"{w}승 {l}패");
+        SetText(d, "VsItem", L.T($"{w}승 {l}패", $"{w}W {l}L"));
     }
 
     // ── 데이터 ───────────────────────────────────────────────────────

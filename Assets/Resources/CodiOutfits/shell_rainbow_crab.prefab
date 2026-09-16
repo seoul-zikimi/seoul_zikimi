@@ -154,6 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uBB34\uC9C0\uAC1C \uC18C\uB77C"
+  DisplayNameEn: "Rainbow Conch"
   Price: 100
   TargetCharacter: char_crab
   Thumbnail: {fileID: 0}

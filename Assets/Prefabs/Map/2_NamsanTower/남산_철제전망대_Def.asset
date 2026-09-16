@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uB0A8\uC0B0_\uCCA0\uC81C\uC804\uB9DD\uB300_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 15
+  m_DisplayNameEn: "Steel Observation Deck"
   m_Footprint: {x: 3, y: 2, z: 3}
   m_Prefab: {fileID: 8845601170992163750, guid: 468501adad3a3cd4c8d785dde7f0a17a, type: 3}
   m_RequiredProcesses: 01000000

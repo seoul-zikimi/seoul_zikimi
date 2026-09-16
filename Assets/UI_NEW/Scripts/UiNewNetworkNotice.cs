@@ -13,7 +13,7 @@ namespace SeoulZikimi.UI.New
     {
         private const string FramePath = "UI_NEW/Common/NoticeFrame";   // 한글 경로는 macOS(NFD 파일명)에서 Resources.Load가 실패해 ASCII 경로로 이동
         private const string CanvasName = "@UiNewNetworkNotice";
-        private const string DefaultMessage = "서버와의 통신이\n원활하지 않습니다.";
+        private static string DefaultMessage => L.T("서버와의 통신이\n원활하지 않습니다.", "Having trouble\nreaching the server.");
 
         // 원본 팝업(405x297) 안에서의 자리 — 비밀번호 팝업과 같은 규격.
         private static readonly Vector2 FrameSize = new(405f, 297f);
@@ -49,7 +49,7 @@ namespace SeoulZikimi.UI.New
             }
 
             // 헤더 — 배경에 그려진 경고 아이콘 오른쪽에 제목만 얹는다.
-            JobsnailUiKit.Label("Title", frame, "안내", 20, TitleColor,
+            JobsnailUiKit.Label("Title", frame, L.T("안내", "Notice"), 20, TitleColor,
                 TextAlignmentOptions.Left, new Vector2(-46.5f, 121.5f), new Vector2(200f, 34f));
 
             JobsnailUiKit.Label("Message", frame, string.IsNullOrEmpty(message) ? DefaultMessage : message,

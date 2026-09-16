@@ -141,6 +141,7 @@ namespace GridSystem
         /// 기록만 완공 시점에서 멈춘다. 미완공이면 평소대로 경과 시간.</summary>
         public float RecordTime => m_CompletedElapsed.Value >= 0f ? m_CompletedElapsed.Value : Elapsed;
         public string AnswerName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.DisplayName : "";
+        public string AnswerLocalizedName => (m_Grid != null && m_Grid.Answer != null) ? m_Grid.Answer.LocalizedName : "";
 
         /// <summary>현재 맵(MapCatalog 인덱스). 서버가 정하고 전 클라 동기화 — MapLoader가 이걸 보고 배경 스폰.</summary>
         public int MapIndex => m_MapIndex.Value;
@@ -593,7 +594,7 @@ namespace GridSystem
         {
             string nick = PlayerPrefs.GetString("PlayerNickname", "");
             if (string.IsNullOrEmpty(nick))
-                nick = $"플레이어{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}";
+                nick = L.T($"플레이어{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}", $"Player{(NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0)}");
             if (nick.Length > 12) nick = nick.Substring(0, 12);                              // UI 길이 제한
             while (System.Text.Encoding.UTF8.GetByteCount(nick) > 28 && nick.Length > 0)     // FixedString32Bytes(≤29byte) 오버플로 방지(이모지 등)
                 nick = nick.Substring(0, nick.Length - 1);

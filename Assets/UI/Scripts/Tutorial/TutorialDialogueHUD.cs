@@ -53,7 +53,7 @@ public class TutorialDialogueHUD : UIHUD
         m_ClickHint = go.AddComponent<TextMeshProUGUI>();
         var line = Get<TextMeshProUGUI>((int)Texts.Line);
         if (line != null) m_ClickHint.font = line.font;   // 한글 글리프 있는 폰트 계승
-        m_ClickHint.text = "클릭해서 다음 ▶";
+        m_ClickHint.text = L.T("클릭해서 다음 ▶", "Click for next ▶");
         m_ClickHint.fontSize = 16f;
         m_ClickHint.alignment = TextAlignmentOptions.BottomRight;
         m_ClickHint.raycastTarget = false;

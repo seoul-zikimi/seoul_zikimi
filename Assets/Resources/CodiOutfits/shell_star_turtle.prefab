@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uBCC4 \uB4F1\uB531\uC9C0"
+  DisplayNameEn: "Star Carapace"
   Price: 100
   TargetCharacter: char_turtle
   Thumbnail: {fileID: 0}

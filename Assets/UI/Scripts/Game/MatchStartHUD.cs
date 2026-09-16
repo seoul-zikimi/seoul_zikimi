@@ -162,7 +162,7 @@ public sealed class MatchStartHUD : MonoBehaviour
         if (def == null)
             return null;   // 맵 미확정('랜덤' 등) — GameLoopManager 스폰 후(TickLoading) 실제 맵으로 재시도
         if (def.IsTutorial)
-            return "서울에 오신 것을 환영합니다!";
+            return L.T("서울에 오신 것을 환영합니다!", "Welcome to Seoul!");
         return LoadingTips.Pick(def.name, mode) ?? "";   // 확정됐는데 팁이 없으면 ""로 캐시(박스 숨김 확정)
     }
 

@@ -38,13 +38,16 @@ namespace SeoulZikimi.UI.New
 
         // 방 이름 비워두고 만들면 쓰는 기본 이름(플레이스홀더에도 표시) — 열 때마다 랜덤.
         // 동물은 게임에 실제 나오는 넷만(QA — 아무 동물이나 나오면 세계관 밖), 수식어는 구인공고풍 일솜씨 표현.
-        private static readonly string[] DefaultNameAdjectives =
-            { "재료 잘 나르는", "망치질 잘하는", "손이 빠른", "튼튼한", "집 잘 짓는", "부지런한", "성실한", "야무진" };
-        private static readonly string[] DefaultNameNouns = { "거북이", "달팽이", "소라게", "레인저" };
+        private static readonly LocCache<string[]> s_DefaultNameAdjectives = new();
+        private static string[] DefaultNameAdjectives => s_DefaultNameAdjectives.Get(() => new string[]{ L.T("재료 잘 나르는", "Hard-carrying"), L.T("망치질 잘하는", "Hammer-happy"), L.T("손이 빠른", "Quick-handed"), L.T("튼튼한", "Sturdy"), L.T("집 잘 짓는", "House-building"), L.T("부지런한", "Diligent"), L.T("성실한", "Reliable"), L.T("야무진", "Sharp") });
+        private static readonly LocCache<string[]> s_DefaultNameNouns = new();
+        private static string[] DefaultNameNouns => s_DefaultNameNouns.Get(() => new string[]{ L.T("거북이", "Turtle"), L.T("달팽이", "Snail"), L.T("소라게", "Hermit Crab"), L.T("레인저", "Ranger") });
         private string defaultRoomName = "";
 
-        private static readonly string[] MapFallbacks = { "(001) 광통교", "(002) 남산타워", "(003) 서울광장" };
-        private static readonly string[] Modes = { "타임어택 모드", "대전 모드(아이템전)", "대전 모드", "자유 건축 모드" };
+        private static readonly LocCache<string[]> s_MapFallbacks = new();
+        private static string[] MapFallbacks => s_MapFallbacks.Get(() => new string[]{ L.T("(001) 광통교", "(001) Gwangtonggyo"), L.T("(002) 남산타워", "(002) Namsan Tower"), L.T("(003) 서울광장", "(003) Seoul Plaza") });
+        private static readonly LocCache<string[]> s_Modes = new();
+        private static string[] Modes => s_Modes.Get(() => new string[]{ L.T("타임어택 모드", "Time Attack Mode"), L.T("대전 모드(아이템전)", "Versus Mode (Items)"), L.T("대전 모드", "Versus Mode"), L.T("자유 건축 모드", "Free Build Mode") });
 
         private RoomVisibility visibility = RoomVisibility.Public;
 
@@ -108,7 +111,7 @@ namespace SeoulZikimi.UI.New
         private void ResetForm()
         {
             roomNameInput.text = string.Empty;
-            defaultRoomName = $"{DefaultNameAdjectives[UnityEngine.Random.Range(0, DefaultNameAdjectives.Length)]} {DefaultNameNouns[UnityEngine.Random.Range(0, DefaultNameNouns.Length)]} 구합니다";
+            defaultRoomName = L.T($"{DefaultNameAdjectives[UnityEngine.Random.Range(0, DefaultNameAdjectives.Length)]} {DefaultNameNouns[UnityEngine.Random.Range(0, DefaultNameNouns.Length)]} 구합니다", $"Wanted: {DefaultNameAdjectives[UnityEngine.Random.Range(0, DefaultNameAdjectives.Length)]} {DefaultNameNouns[UnityEngine.Random.Range(0, DefaultNameNouns.Length)]}");
             if (roomNameInput.placeholder is Text placeholder) placeholder.text = defaultRoomName;
             passwordInput.text = string.Empty;
             mapIndex = DefaultMapIndex();   // 첫 실제 맵(목록 맨 앞의 '랜덤'은 기본값으로 쓰지 않는다)
@@ -259,7 +262,7 @@ namespace SeoulZikimi.UI.New
             if (GridSystem.MapCatalog.Instance != null)
             {
                 GridSystem.MapDef definition = GridSystem.MapCatalog.Instance.Get(index);
-                if (definition != null) return definition.DisplayName;
+                if (definition != null) return definition.LocalizedName;
             }
             return MapFallbacks[Mathf.Clamp(index, 0, MapFallbacks.Length - 1)];
         }

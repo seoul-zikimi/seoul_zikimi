@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Map_LotteWorld
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: "\uB86F\uB370\uC6D4\uB4DC"
+  m_DisplayNameEn: "Lotte World"
   m_BackgroundPrefab: {fileID: 2006527475874833567, guid: a1497fd60c1d21746a67750f6b4754a4, type: 3}
   m_BackgroundPrefabPath: MapPrefabs/MapBg_LotteWorld
   m_Answers:

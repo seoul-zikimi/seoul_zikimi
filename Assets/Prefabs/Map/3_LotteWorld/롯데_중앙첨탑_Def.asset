@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uB86F\uB370_\uC911\uC559\uCCA8\uD0D1_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 24
+  m_DisplayNameEn: "Central Spire"
   m_Footprint: {x: 1, y: 3, z: 1}
   m_Prefab: {fileID: 4115004918552229187, guid: 9150cc98c44425c46bdeb6343a2b4fab, type: 3}
   m_RequiredProcesses: 02000000

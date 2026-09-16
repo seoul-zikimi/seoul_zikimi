@@ -161,20 +161,20 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var nickImage = nick.gameObject.AddComponent<Image>();
         nickImage.sprite = JobsnailUiKit.Sprite("UI_pngs/1.main/UserNicknameTextbox");
         nickImage.preserveAspect = true;
-        m_NicknameInput = MakeInput(nick, "닉네임을 입력하세요", SaveService.Nickname);
+        m_NicknameInput = MakeInput(nick, L.T("닉네임을 입력하세요", "Enter a nickname"), SaveService.Nickname);
         SyncNicknameLegacyKey();
         HookNicknameInput();
 
-        MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", "게임 시작",
+        MakeMainButton(root, "GameStart_Btn", "UI_pngs/1.main/GameStart_Btn", L.T("게임 시작", "Game Start"),
             new Vector2(0.70f, 0.41f), new Vector2(0.88f, 0.49f), StartGame);
 
-        MakeMainButton(root, "MyPage_Btn", "UI_pngs/1.main/MyPage_Btn", "마이페이지",
+        MakeMainButton(root, "MyPage_Btn", "UI_pngs/1.main/MyPage_Btn", L.T("마이페이지", "My Page"),
             new Vector2(0.70f, 0.31f), new Vector2(0.88f, 0.39f), OpenMyPage);
 
-        MakeMainButton(root, "Settings_Btn", "UI_pngs/1.main/Settings_Btn", "설정",
+        MakeMainButton(root, "Settings_Btn", "UI_pngs/1.main/Settings_Btn", L.T("설정", "Settings"),
             new Vector2(0.70f, 0.21f), new Vector2(0.88f, 0.29f), ToggleSettings);
 
-        MakeMainButton(root, "QuitGame_Btn", "UI_pngs/1.main/QuitGame_Btn", "게임 종료",
+        MakeMainButton(root, "QuitGame_Btn", "UI_pngs/1.main/QuitGame_Btn", L.T("게임 종료", "Quit Game"),
             new Vector2(0.70f, 0.11f), new Vector2(0.88f, 0.19f), Quit);
 
         BuildSettingsPopup(root);
@@ -281,7 +281,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
     {
         CommitNickname();
         if (string.IsNullOrEmpty(SaveService.Nickname))
-            SaveService.Nickname = "달팽이";
+            SaveService.Nickname = L.T("달팽이", "Snail");
         SceneManager.LoadScene(SceneNames.Lobby);
     }
 
@@ -347,16 +347,16 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var header = JobsnailUiKit.Box("Header", panel, new Vector2(0.035f, 0.83f), new Vector2(0.965f, 0.965f),
             Vector2.zero, Vector2.zero, new Color(1f, 0.57f, 0.16f, 1f));
         StyleRounded(header, header.color);
-        MakeText(header.transform, "환경 설정", 28, Color.white, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
+        MakeText(header.transform, L.T("환경 설정", "Settings"), 28, Color.white, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
 
-        MakeText(panel, "소리와 조작 환경을 편하게 맞춰보세요", 17, new Color(0.40f, 0.31f, 0.25f, 1f),
+        MakeText(panel, L.T("소리와 조작 환경을 편하게 맞춰보세요", "Adjust sound and controls to your liking"), 17, new Color(0.40f, 0.31f, 0.25f, 1f),
             new Vector2(0, 208), new Vector2(520, 40), TextAnchor.MiddleCenter);
 
         var audioCardImage = JobsnailUiKit.Box("AudioCard", panel, new Vector2(0.06f, 0.53f), new Vector2(0.94f, 0.77f),
             Vector2.zero, Vector2.zero, new Color(1f, 0.91f, 0.75f, 0.72f));
         StyleRounded(audioCardImage, audioCardImage.color);
         var audioCard = audioCardImage.transform;
-        MakeText(audioCard, "사운드", 18, new Color(0.31f, 0.22f, 0.17f, 1f),
+        MakeText(audioCard, L.T("사운드", "Sound"), 18, new Color(0.31f, 0.22f, 0.17f, 1f),
             new Vector2(-225, 57), new Vector2(100, 32), TextAnchor.MiddleLeft);
 
         MakeVolumeSlider(audioCard, "BGM", new Vector2(0, 18), PlayerPrefs.GetFloat("BGMVolume", 0.8f), value =>
@@ -374,13 +374,19 @@ public sealed class JobsnailMainMenu : MonoBehaviour
             new Vector2(0.06f, 0.385f), new Vector2(0.94f, 0.49f), Vector2.zero, Vector2.zero,
             OpenKeySettings);
         StyleFlatButton(keySettings, new Color(1f, 0.78f, 0.42f, 1f));
-        MakeButtonText(keySettings.transform, "키 설정", 20, new Color(0.24f, 0.16f, 0.11f, 1f));
+        MakeButtonText(keySettings.transform, L.T("키 설정", "Key Bindings"), 20, new Color(0.24f, 0.16f, 0.11f, 1f));
 
         var tutorialBtn = JobsnailUiKit.Button("TutorialReplayButton", panel, null,
-            new Vector2(0.06f, 0.255f), new Vector2(0.94f, 0.36f), Vector2.zero, Vector2.zero,
+            new Vector2(0.06f, 0.255f), new Vector2(0.47f, 0.36f), Vector2.zero, Vector2.zero,
             () => TutorialFlowController.ReplayTutorial());
         StyleFlatButton(tutorialBtn, new Color(0.82f, 0.88f, 0.86f, 1f));
-        MakeButtonText(tutorialBtn.transform, "튜토리얼 다시 보기", 18, new Color(0.24f, 0.22f, 0.19f, 1f));
+        MakeButtonText(tutorialBtn.transform, L.T("튜토리얼 다시 보기", "Replay Tutorial"), 18, new Color(0.24f, 0.22f, 0.19f, 1f));
+
+        // 언어(LANGUAGE) — 한국어 ↔ English 토글. 이미 만들어진 UI는 갱신하지 않으므로 바꾼 뒤 이 씬을 다시 로드한다.
+        var langBtn = JobsnailUiKit.Button("LanguageButton", panel, null,
+            new Vector2(0.53f, 0.255f), new Vector2(0.94f, 0.36f), Vector2.zero, Vector2.zero, ToggleLanguage);
+        StyleFlatButton(langBtn, new Color(0.80f, 0.86f, 0.95f, 1f));
+        MakeButtonText(langBtn.transform, "LANGUAGE : " + L.DisplayName(L.Lang), 18, new Color(0.16f, 0.22f, 0.36f, 1f));
 
         var close = JobsnailUiKit.Button("SettingsCloseButton", panel, null,
             new Vector2(0.89f, 0.86f), new Vector2(0.95f, 0.935f), Vector2.zero, Vector2.zero, ToggleSettings);
@@ -390,12 +396,12 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var leave = JobsnailUiKit.Button("SettingsLeaveButton", panel, null,
             new Vector2(0.06f, 0.075f), new Vector2(0.47f, 0.19f), Vector2.zero, Vector2.zero, Quit);
         StyleFlatButton(leave, new Color(0.92f, 0.76f, 0.70f, 1f));
-        MakeButtonText(leave.transform, "게임 나가기", 18, new Color(0.38f, 0.18f, 0.14f, 1f));
+        MakeButtonText(leave.transform, L.T("게임 나가기", "Quit Game"), 18, new Color(0.38f, 0.18f, 0.14f, 1f));
 
         var done = JobsnailUiKit.Button("SettingsDoneButton", panel, null,
             new Vector2(0.53f, 0.075f), new Vector2(0.94f, 0.19f), Vector2.zero, Vector2.zero, ToggleSettings);
         StyleFlatButton(done, new Color(1f, 0.57f, 0.16f, 1f));
-        MakeButtonText(done.transform, "완료", 19, Color.white);
+        MakeButtonText(done.transform, L.T("완료", "Done"), 19, Color.white);
 
         BuildDemoTools();
     }
@@ -414,17 +420,17 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         var wipe = JobsnailUiKit.Button("DemoResetButton", strip, null,
             new Vector2(0.025f, 0.16f), new Vector2(0.32f, 0.84f), Vector2.zero, Vector2.zero, DemoResetSave);
         StyleFlatButton(wipe, new Color(0.92f, 0.76f, 0.70f, 1f));
-        MakeButtonText(wipe.transform, "캐시 삭제", 16, new Color(0.38f, 0.18f, 0.14f, 1f));
+        MakeButtonText(wipe.transform, L.T("캐시 삭제", "Clear Cache"), 16, new Color(0.38f, 0.18f, 0.14f, 1f));
 
         var coins = JobsnailUiKit.Button("DemoCoinsButton", strip, null,
             new Vector2(0.3525f, 0.16f), new Vector2(0.6475f, 0.84f), Vector2.zero, Vector2.zero, DemoGrantCoins);
         StyleFlatButton(coins, new Color(1f, 0.85f, 0.5f, 1f));
-        MakeButtonText(coins.transform, "코인 +10000", 16, new Color(0.35f, 0.24f, 0.10f, 1f));
+        MakeButtonText(coins.transform, L.T("코인 +10000", "Coins +10000"), 16, new Color(0.35f, 0.24f, 0.10f, 1f));
 
         var intro = JobsnailUiKit.Button("DemoIntroButton", strip, null,
             new Vector2(0.68f, 0.16f), new Vector2(0.975f, 0.84f), Vector2.zero, Vector2.zero, DemoPlayIntro);
         StyleFlatButton(intro, new Color(0.75f, 0.84f, 0.93f, 1f));
-        MakeButtonText(intro.transform, "처음부터 시작", 16, new Color(0.16f, 0.26f, 0.38f, 1f));
+        MakeButtonText(intro.transform, L.T("처음부터 시작", "Start Over"), 16, new Color(0.16f, 0.26f, 0.38f, 1f));
 
         // 보유 코인 확인용 캡션 — 코인 지급이 실제로 됐는지 시연 중 바로 보이게
         m_DemoCoinLabel = MakeText(m_SettingsPopup.transform, "", 15, new Color(1f, 0.95f, 0.85f, 0.95f),
@@ -436,7 +442,7 @@ public sealed class JobsnailMainMenu : MonoBehaviour
     private void RefreshDemoCoinLabel()
     {
         if (m_DemoCoinLabel != null)
-            m_DemoCoinLabel.text = $"보유 코인 {SaveService.Coins:N0}";
+            m_DemoCoinLabel.text = L.T($"보유 코인 {SaveService.Coins:N0}", $"Coins {SaveService.Coins:N0}");
     }
 
     private void DemoGrantCoins()
@@ -479,6 +485,13 @@ public sealed class JobsnailMainMenu : MonoBehaviour
         colors.selectedColor = colors.highlightedColor;
         colors.colorMultiplier = 1f;
         button.colors = colors;
+    }
+
+    /// <summary>언어 토글(한국어 ↔ English) 후 메인 메뉴 씬을 다시 로드해 모든 문구·이미지를 새 언어로 다시 만든다.</summary>
+    private void ToggleLanguage()
+    {
+        L.Lang = L.Lang == GameLanguage.Korean ? GameLanguage.English : GameLanguage.Korean;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     private void OpenKeySettings()

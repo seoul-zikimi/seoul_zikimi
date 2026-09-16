@@ -130,11 +130,11 @@ namespace GridSystem
 
             bool tie = WinnerTeam < 0;
             bool win = tie || WinnerTeam == MyTeam;
-            string main = tie ? (ByCompletion ? "동시 완공?!" : "무승부!")
-                : ByCompletion ? (win ? "완공!!" : "상대팀 완공...")
-                : win ? "시간 종료 — 승리!" : "시간 종료 — 패배...";
-            string sub = tie ? (ByCompletion ? "총점으로 승부를 가립니다" : "완성도가 똑같다!")
-                : win ? (ByCompletion ? "우리 팀 승리!" : "우리가 더 지었다!") : "다음 판엔 더 빠르게!";
+            string main = tie ? (ByCompletion ? L.T("동시 완공?!", "Finished together?!") : L.T("무승부!", "Draw!"))
+                : ByCompletion ? (win ? L.T("완공!!", "Complete!!") : L.T("상대팀 완공...", "Enemy team finished..."))
+                : win ? L.T("시간 종료 — 승리!", "Time's up — Victory!") : L.T("시간 종료 — 패배...", "Time's up — Defeat...");
+            string sub = tie ? (ByCompletion ? L.T("총점으로 승부를 가립니다", "Decided by total score") : L.T("완성도가 똑같다!", "Same progress!"))
+                : win ? (ByCompletion ? L.T("우리 팀 승리!", "Our team wins!") : L.T("우리가 더 지었다!", "We built more!")) : L.T("다음 판엔 더 빠르게!", "Faster next time!");
             var mainColor = win ? new Color(1f, 0.82f, 0.1f) : new Color(0.75f, 0.78f, 0.85f);
 
             m_Main = MakeText(canvasGo.transform, main, win ? 172 : 120, mainColor, new Vector2(0f, 86f));

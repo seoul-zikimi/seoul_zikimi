@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uB86F\uB370_\uAE43\uBC1C_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 28
+  m_DisplayNameEn: "Flag"
   m_Footprint: {x: 1, y: 1, z: 1}
   m_Prefab: {fileID: 5879475433862671266, guid: 669a1ea5d3e595d4bbbf737f8ffb4b04, type: 3}
   m_RequiredProcesses: 02000000

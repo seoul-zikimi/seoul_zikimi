@@ -55,7 +55,7 @@ public static class ReconnectingOverlay
         hint.fontSize = 22;
         hint.color = new Color(1f, 1f, 1f, 0.75f);
         hint.alignment = TextAnchor.MiddleCenter;
-        hint.text = "연결이 불안정해요. 잠시만 기다려 주세요";
+        hint.text = L.T("연결이 불안정해요. 잠시만 기다려 주세요", "Connection is unstable. Please wait a moment");
         hint.raycastTarget = false;
 
         s_Root.AddComponent<DotsAnimator>().Label = label;
@@ -82,7 +82,7 @@ public static class ReconnectingOverlay
                 return;
             m_Next = Time.unscaledTime + 0.4f;
             m_Dots = (m_Dots + 1) % 4;
-            Label.text = "재접속 중" + new string('.', m_Dots);
+            Label.text = L.T("재접속 중", "Reconnecting") + new string('.', m_Dots);
         }
     }
 }

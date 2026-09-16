@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uBCC4 \uC18C\uB77C"
+  DisplayNameEn: "Star Conch"
   Price: 100
   TargetCharacter: char_crab
   Thumbnail: {fileID: 0}

@@ -67,7 +67,7 @@ public class OrderHUD : UIHUD
         var crt = content.GetComponent<RectTransform>();
         crt.pivot = new Vector2(0.5f, 1f); crt.anchoredPosition = Vector2.zero;
 
-        MakeText(content.transform, "재료 주문 (카드 클릭 = 주문)",
+        MakeText(content.transform, L.T("재료 주문 (카드 클릭 = 주문)", "Order materials (click card = order)"),
                  new Vector2(8, -6), new Vector2(kPanelW - 16, titleH), 17, TextAnchor.MiddleLeft);
 
         for (int i = 0; i < items.Count; i++)
@@ -178,7 +178,7 @@ public class OrderHUD : UIHUD
         bool sold = remaining == 0;
         if (c.Badge != null)
         {
-            c.Badge.text = sold ? "품절" : $"×{remaining}";
+            c.Badge.text = sold ? L.T("품절", "Sold out") : $"×{remaining}";
             c.Badge.color = sold ? new Color(1f, 0.55f, 0.45f) : Color.white;
         }
         if (c.Btn != null) c.Btn.interactable = !sold;

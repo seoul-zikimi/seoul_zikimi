@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uBCC4 \uB4F1\uAECD\uC9C8"
+  DisplayNameEn: "Star Shell"
   Price: 100
   Thumbnail: {fileID: 0}
   ScaleMargin: 1.06

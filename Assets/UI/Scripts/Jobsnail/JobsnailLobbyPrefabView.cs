@@ -488,7 +488,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
 
     public void ApplyWeather(bool enabled)
     {
-        SetText(m_WeatherToggleLabel, enabled ? "날씨 ON" : "날씨 OFF");
+        SetText(m_WeatherToggleLabel, enabled ? L.T("날씨 ON", "Weather ON") : L.T("날씨 OFF", "Weather OFF"));
         if (m_WeatherToggleImage != null)
             m_WeatherToggleImage.color = enabled ? kPublic : kNeutral;
     }
@@ -513,8 +513,8 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
 
     public void ApplyLobbyRoomState(in JobsnailLobbyRoomState state)
     {
-        SetText(m_LobbySubtitle, string.IsNullOrWhiteSpace(state.RoomName) ? "이름 없는 방" : state.RoomName);
-        SetText(m_LobbyStatusBadgeText, state.RoomIsFull ? "모집 완료" : "모집중");
+        SetText(m_LobbySubtitle, string.IsNullOrWhiteSpace(state.RoomName) ? L.T("이름 없는 방", "Unnamed room") : state.RoomName);
+        SetText(m_LobbyStatusBadgeText, state.RoomIsFull ? L.T("모집 완료", "Full") : L.T("모집중", "Recruiting"));
 
         if (m_LobbyStatusBadgeImage != null)
             m_LobbyStatusBadgeImage.color = state.RoomIsFull ? kReady : kAccent;
@@ -531,7 +531,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         {
             m_LobbyWeatherButton.interactable = state.ShowWeatherToggle;   // 방장만 토글
             if (m_LobbyWeatherLabel != null)
-                m_LobbyWeatherLabel.text = state.WeatherOn ? "날씨 ON" : "날씨 OFF";
+                m_LobbyWeatherLabel.text = state.WeatherOn ? L.T("날씨 ON", "Weather ON") : L.T("날씨 OFF", "Weather OFF");
         }
         if (m_LobbyRecordText != null)
             m_LobbyRecordText.text = state.RecordText ?? string.Empty;
@@ -544,7 +544,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         {
             m_LobbyStartButton.gameObject.SetActive(state.ShowStartButton);
             m_LobbyStartButton.interactable = state.StartInteractable;
-            SetButtonLabel(m_LobbyStartButton, "게임 시작");
+            SetButtonLabel(m_LobbyStartButton, L.T("게임 시작", "Game Start"));
             SetButtonColor(m_LobbyStartButton, state.AllReady ? kAccent : kDisabled);
         }
 
@@ -552,7 +552,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
         {
             m_LobbyReadyButton.gameObject.SetActive(state.ShowReadyButton);
             m_LobbyReadyButton.interactable = state.ReadyInteractable;
-            SetButtonLabel(m_LobbyReadyButton, "준비");
+            SetButtonLabel(m_LobbyReadyButton, L.T("준비", "Ready"));
             SetButtonColor(m_LobbyReadyButton,
                 !state.ReadyInteractable ? kDisabled : state.IsLocallyReady ? kReady : kNotReady);
         }
@@ -768,7 +768,7 @@ public sealed class JobsnailLobbyPrefabView : MonoBehaviour
 
             SetSlotDimmed(i, false);
             SetText(m_LobbySlotNames[i], name ?? string.Empty);            // 각자 닉네임(없으면 공백)
-            SetText(m_LobbySlotStatuses[i], (!isHost && ready) ? "준비" : "대기중");  // 방장·미준비=대기중, 팀원 준비=준비
+            SetText(m_LobbySlotStatuses[i], (!isHost && ready) ? L.T("준비", "Ready") : L.T("대기중", "Waiting"));  // 방장·미준비=대기중, 팀원 준비=준비
             SetSlotCrown(i, isHost);
             SetSlotCharacter(i, true, charId, outfitId);
             SetSlotTeam(i, state.ShowTeamSelect, team);   // 팀 색은 2vs2 모드에서만 표시

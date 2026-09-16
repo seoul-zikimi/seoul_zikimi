@@ -155,6 +155,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uC548\uC804\uBCF5"
+  DisplayNameEn: "Safety Outfit"
   Price: 100
   Thumbnail: {fileID: 0}
   ScaleMargin: 1.06

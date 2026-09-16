@@ -12,6 +12,7 @@ namespace GridSystem
     {
         [Header("식별")]
         [SerializeField] private int m_Id = -1;                 // 재료 ID — (A)정답·(B)런타임 공통 키. -1 = 미설정
+        [SerializeField] private string m_DisplayNameEn;        // 영어 표시 이름(비우면 에셋 파일명). 한글 표시 이름 = 에셋 파일명
 
         [Header("그리드 점유 (메시 모양과 무관)")]
         [SerializeField] private Vector3Int m_Footprint = Vector3Int.one;
@@ -48,6 +49,8 @@ namespace GridSystem
         [SerializeField] private bool m_IntentionalOverfill;
 
         public int Id => m_Id;
+        /// <summary>화면 표시용 이름(현재 언어). 한글은 에셋 파일명, 영어는 m_DisplayNameEn.</summary>
+        public string LocalizedName => L.T(name, m_DisplayNameEn);
         public Vector3Int Footprint => m_Footprint;
         public GameObject Prefab => m_Prefab;
         public IReadOnlyList<ProcessType> RequiredProcesses => m_RequiredProcesses;

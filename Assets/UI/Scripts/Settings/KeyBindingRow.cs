@@ -31,7 +31,7 @@ public sealed class KeyBindingRow : MonoBehaviour
     public void SetWaiting(bool waiting)
     {
         Cache();
-        m_BindingLabel.text = waiting ? "키를 누르세요…  (ESC 취소)" : KeyBindingPopup.BindingLabel(m_Info);
+        m_BindingLabel.text = waiting ? L.T("키를 누르세요…  (ESC 취소)", "Press a key…  (ESC to cancel)") : KeyBindingPopup.BindingLabel(m_Info);
         if (m_RebindButton != null) m_RebindButton.interactable = !waiting;
         if (m_ResetButton != null) m_ResetButton.interactable = !waiting;
     }

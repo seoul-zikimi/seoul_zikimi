@@ -21,10 +21,10 @@ public sealed class JobsnailSessionCardView : MonoBehaviour
     public void Apply(in JobsnailSessionCardData data, int index, Action<int> onSelect)
     {
         if (m_NameText != null)
-            m_NameText.text = string.IsNullOrWhiteSpace(data.Name) ? "이름 없는 방" : data.Name;
+            m_NameText.text = string.IsNullOrWhiteSpace(data.Name) ? L.T("이름 없는 방", "Unnamed room") : data.Name;
 
         if (m_TagText != null)
-            m_TagText.text = data.HasPassword ? "🔒 비밀방" : "공개방";
+            m_TagText.text = data.HasPassword ? L.T("🔒 비밀방", "🔒 Private") : L.T("공개방", "Public");
 
         if (m_TagBackground != null)
             m_TagBackground.color = data.HasPassword ? kLockedTag : kOpenTag;
@@ -38,7 +38,7 @@ public sealed class JobsnailSessionCardView : MonoBehaviour
         }
 
         if (m_CountText != null)
-            m_CountText.text = $"인원 {data.Joined} / {data.MaxPlayers}";
+            m_CountText.text = L.T($"인원 {data.Joined} / {data.MaxPlayers}", $"Players {data.Joined} / {data.MaxPlayers}");
 
         // 인원 표시 아래 → 게임 모드
         if (m_ModeText != null)

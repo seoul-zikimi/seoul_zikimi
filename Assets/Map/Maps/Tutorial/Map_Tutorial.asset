@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Map_Tutorial
   m_EditorClassIdentifier: GridSystem::GridSystem.MapDef
   m_DisplayName: "\uD29C\uD1A0\uB9AC\uC5BC"
+  m_DisplayNameEn: "Tutorial"
   m_BackgroundPrefab: {fileID: 5495699232571850440, guid: d24983d0c3a5b65488bf7e8841fc2f2e, type: 3}
   m_BackgroundPrefabPath: MapPrefabs/MapBg_Tutorial
   m_Answers:

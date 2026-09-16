@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uB625 \uBA38\uB9AC\uB760"
+  DisplayNameEn: "Poop Headband"
   Price: 400
   TargetCharacter: char_crab
   Thumbnail: {fileID: 0}

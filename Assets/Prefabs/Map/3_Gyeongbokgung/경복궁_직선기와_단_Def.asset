@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uACBD\uBCF5\uAD81_\uC9C1\uC120\uAE30\uC640_\uB2E8_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 57
+  m_DisplayNameEn: "Straight Tiles (Short)"
   m_Footprint: {x: 6, y: 3, z: 3}
   m_Prefab: {fileID: 8345929815035406525, guid: bbf205a5759dfbe4baaae9f13231af4d, type: 3}
   m_RequiredProcesses: 01000000

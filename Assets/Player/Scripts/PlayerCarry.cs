@@ -568,7 +568,7 @@ namespace Player
                         }
                         else if (m_AimPedIndex != statueKind)
                         {
-                            GridJuice.WorldToast(m_AimPedPos + Vector3.up * 2f, "방위가 다르다…!", new Color(1f, 0.55f, 0.35f));
+                            GridJuice.WorldToast(m_AimPedPos + Vector3.up * 2f, L.T("방위가 다르다…!", "Wrong direction…!"), new Color(1f, 0.55f, 0.35f));
                             PlaySFX(SFXType.BumpPlayers);
                         }
                     }
@@ -723,7 +723,7 @@ namespace Player
             if (aimPickup || (aimBlock && m_Net.IsPickupable(m_Target)))
             {
                 GridJuice.WorldToast(transform.position + Vector3.up * 2.2f,
-                                     "손에 도구가 있어요!", new Color(1f, 0.65f, 0.2f));
+                                     L.T("손에 도구가 있어요!", "You're holding a tool!"), new Color(1f, 0.65f, 0.2f));
                 return;
             }
             if (aimStation || aimBlock) return;
@@ -1100,7 +1100,7 @@ namespace Player
             {
                 m_NetBucketFilled.Value = true;
                 PlaySFX(SFXType.WaterFill);   // 물 뜨기 SFX(08/28 사운드 적용)
-                GridJuice.WorldToast(dm + Vector3.up * 1.6f, "물을 채웠다!", new Color(0.45f, 0.8f, 1f));
+                GridJuice.WorldToast(dm + Vector3.up * 1.6f, L.T("물을 채웠다!", "Water filled!"), new Color(0.45f, 0.8f, 1f));
                 RebuildHeldVisual();   // 물 표시 갱신(오너 즉시 — 원격은 복제 콜백)
             }
 
@@ -1263,13 +1263,13 @@ namespace Player
             if (HasTool && m_HeldTool == ProcessType.Bucket)   // 양동이는 그리드 공정이 아님 — 전용 안내
             {
                 m_ProcessHint = m_NetBucketFilled.Value
-                    ? $"불타는 블록 근처에서 {ProcessKeyLabel} 꾹 — 물 붓기"
-                    : "드므(청동 항아리) 근처로 가면 물이 채워져요";
+                    ? L.T($"불타는 블록 근처에서 {ProcessKeyLabel} 꾹 — 물 붓기", $"Hold {ProcessKeyLabel} near a burning block — pour water")
+                    : L.T("드므(청동 항아리) 근처로 가면 물이 채워져요", "Go near a deumu (bronze jar) to refill water");
                 return;
             }
             if (!HasTool || !m_HasTarget || m_Net == null) return;
             if (m_Loop != null && !m_Loop.IsBuilding) return;
-            if (!m_Net.TryGetCell(m_Target, out int matId, out int completed)) { m_ProcessHint = "빈 칸 — 블록을 가리키세요"; return; }
+            if (!m_Net.TryGetCell(m_Target, out int matId, out int completed)) { m_ProcessHint = L.T("빈 칸 — 블록을 가리키세요", "Empty cell — aim at a block"); return; }
 
             var def = Catalog() != null ? Catalog().GetById(matId) : null;
             int req = def != null ? def.RequiredMask : 0;
@@ -1277,19 +1277,19 @@ namespace Player
             if (next == ProcessType.None)
                 // 다음 필요 공정이 없음 — 든 도구가 애초에 필요 없는 공정이면 그렇게 알려준다(혼동 방지).
                 m_ProcessHint = (req & (int)m_HeldTool) == 0
-                    ? $"이 블록엔 {ProcName(m_HeldTool)} 공정이 필요 없어요"
-                    : "이 블록은 공정이 다 됐어요";
-            else if (next == m_HeldTool)       m_ProcessHint = $"{ProcessKeyLabel} 꾹 → {ProcName(next)}";
-            else                               m_ProcessHint = $"먼저 {ProcName(next)} 차례 — 지금 든 건 {ProcName(m_HeldTool)}";
+                    ? L.T($"이 블록엔 {ProcName(m_HeldTool)} 공정이 필요 없어요", $"This block doesn't need {ProcName(m_HeldTool)}")
+                    : L.T("이 블록은 공정이 다 됐어요", "This block is all done");
+            else if (next == m_HeldTool)       m_ProcessHint = L.T($"{ProcessKeyLabel} 꾹 → {ProcName(next)}", $"Hold {ProcessKeyLabel} → {ProcName(next)}");
+            else                               m_ProcessHint = L.T($"먼저 {ProcName(next)} 차례 — 지금 든 건 {ProcName(m_HeldTool)}", $"{ProcName(next)} comes first — you're holding {ProcName(m_HeldTool)}");
         }
 
         /// <summary>공정 조작 안내에 쓰는 키 이름 — 데스크톱 "E", 모바일은 화면의 공정 버튼(키보드가 없다).</summary>
         public static string ProcessKeyLabel => MobileControlsHUD.ShouldUseMobileUI ? InputHintText.MobileProcessKey : InputHintText.DesktopProcessKey;
 
         private static string ProcName(ProcessType p)
-            => p == ProcessType.Painted ? "페인트(페인트통/초록)"
-             : p == ProcessType.Bucket ? "물 붓기(양동이/하늘색)"
-             : "고정(망치/파랑)";
+            => p == ProcessType.Painted ? L.T("페인트(페인트통/초록)", "Paint (paint can/green)")
+             : p == ProcessType.Bucket ? L.T("물 붓기(양동이/하늘색)", "Pour water (bucket/sky blue)")
+             : L.T("고정(망치/파랑)", "Fix (hammer/blue)");
 
         // 근접 진입한 바닥 재료를 '닿은 순간' 1회 찬다(서버가 그 방향으로 굴림).
         private void TryKickPickups()
@@ -1850,15 +1850,15 @@ namespace Player
                 var cell = m_PreviewCells[i];
                 bool outXZ = !unbounded && (cell.x < xMin || cell.x >= xMax || cell.z < 0 || cell.z >= s.z);
                 if (outXZ || cell.y < 0 || cell.y >= s.y)
-                { RejectPlace(cell.y >= s.y ? "더 높이는 쌓을 수 없어요" : "여기엔 놓을 수 없어요"); return; }
-                if (!m_Net.IsCellFree(cell)) { RejectPlace("자리가 차 있어요"); return; }
+                { RejectPlace(cell.y >= s.y ? L.T("더 높이는 쌓을 수 없어요", "Can't stack any higher") : L.T("여기엔 놓을 수 없어요", "Can't place here")); return; }
+                if (!m_Net.IsCellFree(cell)) { RejectPlace(L.T("자리가 차 있어요", "That spot is taken")); return; }
             }
             // 서버와 동일한 지지검사 — 거부될 자리면 손에 든 채 유지(재료 손실 방지). 환경 바닥·스캐폴드도 지지로 인정.
             if (!GridSupport.WouldBeSupported(
                     m_PreviewCells,
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
-            { RejectPlace("아래에 받쳐줄 게 없어요 — 비계(SPACE 연타)로 받치면 놓을 수 있어요!"); return; }
+            { RejectPlace(L.T("아래에 받쳐줄 게 없어요 — 비계(SPACE 연타)로 받치면 놓을 수 있어요!", "Nothing underneath — put scaffolding (double-tap SPACE) below and you can place it!")); return; }
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
             m_NextRejectToast = 0f;   // 성공하면 안내 스로틀 리셋
@@ -2577,13 +2577,13 @@ namespace Player
         }
 
         // 회전값(0~3)별 힌트 문자열 사전 생성 — 재료를 든 동안 매 프레임 보간 할당을 막는다.
-        private static readonly string[] s_HeldHints =
-        {
-            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 0)",
-            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 1)",
-            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 2)",
-            "📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 3)",
-        };
+        private static readonly LocCache<string[]> s_s_HeldHints = new();
+        private static string[] s_HeldHints => s_s_HeldHints.Get(() => new string[]{
+            L.T("📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 0)", "📦 Holding a block!  [R] to rotate,  [Left click] to place.  (Rotation: 0)"),
+            L.T("📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 1)", "📦 Holding a block!  [R] to rotate,  [Left click] to place.  (Rotation: 1)"),
+            L.T("📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 2)", "📦 Holding a block!  [R] to rotate,  [Left click] to place.  (Rotation: 2)"),
+            L.T("📦 블록을 들고 있어요!  [R] 키로 방향을 바꾸고,  [좌클릭] 으로 놓을 수 있어요.  (현재 회전: 3)", "📦 Holding a block!  [R] to rotate,  [Left click] to place.  (Rotation: 3)"),
+        });
 
         private string BuildHintText()
         {
@@ -2593,16 +2593,16 @@ namespace Player
             else if (HasTool)
                 heldStr = m_HeldTool switch
                 {
-                    ProcessType.Fixed  => "🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요.",
+                    ProcessType.Fixed  => L.T("🔨 망치를 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 고정하세요.", "🔨 Holding a hammer!  Face a block and hold [E] to fix it."),
                     ProcessType.Bucket => m_NetBucketFilled.Value
-                        ? "💧 양동이에 물이 찼어요!  불타는 블록 근처에서  [E] 꾹 눌러 물을 부으세요."
-                        : "🪣 양동이가 비었어요!  드므(청동 항아리) 근처로 가면 물이 채워져요.",
-                    _                  => "🎨 페인트통을 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 색칠하세요.",
+                        ? L.T("💧 양동이에 물이 찼어요!  불타는 블록 근처에서  [E] 꾹 눌러 물을 부으세요.", "💧 Bucket is full!  Hold [E] near a burning block to pour water.")
+                        : L.T("🪣 양동이가 비었어요!  드므(청동 항아리) 근처로 가면 물이 채워져요.", "🪣 Bucket is empty!  Go near a deumu (bronze jar) to refill."),
+                    _                  => L.T("🎨 페인트통을 들고 있어요!  블록을 바라보고  [E] 꾹 눌러서 색칠하세요.", "🎨 Holding a paint can!  Face a block and hold [E] to paint it."),
                 };
             else if (!HasMaterial && !HasTool && m_HasTarget && m_Net != null && m_Net.IsPickupable(m_Target))
-                heldStr = "✋ 이 블록을 집을 수 있어요!  [좌클릭] 으로 집어보세요.";
+                heldStr = L.T("✋ 이 블록을 집을 수 있어요!  [좌클릭] 으로 집어보세요.", "✋ You can pick up this block!  [Left click] to grab it.");
             else
-                heldStr = "오른쪽 하단에서 재료를 주문하세요! ";
+                heldStr = L.T("오른쪽 하단에서 재료를 주문하세요! ", "Order materials at the bottom right! ");
 
             // 조작법 줄은 좌상단 조작법 툴팁(ControlsTooltipHUD), 완성도는 폰 뱃지로 옮겨져 상황 힌트 한 줄만 남긴다.
             return heldStr;
@@ -2617,7 +2617,7 @@ namespace Player
             {
                 bool ok = WorldToScreen(transform.position + Vector3.up * 2.2f, out sp);
                 m_Hud.SetProcessBar(ok, sp, Mathf.Clamp01(m_CannonCharge / kCannonChargeSeconds),
-                    new Color(0.95f, 0.55f, 0.15f), "대포 조준 중… (떼면 발사)");
+                    new Color(0.95f, 0.55f, 0.15f), L.T("대포 조준 중… (떼면 발사)", "Aiming cannon… (release to fire)"));
             }
             else
             {
@@ -2632,16 +2632,16 @@ namespace Player
                     },
                     m_ProcessKind switch
                     {
-                        ProcessType.Painted => "페인트 중…",
-                        ProcessType.Bucket  => "물 붓는 중…",
-                        _                   => "고정 중…",
+                        ProcessType.Painted => L.T("페인트 중…", "Painting…"),
+                        ProcessType.Bucket  => L.T("물 붓는 중…", "Pouring water…"),
+                        _                   => L.T("고정 중…", "Fixing…"),
                     });
             }
 
             bool rev = m_RevertHold > 0f && m_RevertCell != s_NoCell
                        && WorldToScreen(GridCoordinates.CellToWorld(m_RevertCell) + new Vector3(0.5f, 1.1f, 0.5f), out sp);
             m_Hud.SetRevertBar(rev, sp, Mathf.Clamp01(m_RevertHold / m_ProcessSeconds),
-                new Color(0.90f, 0.45f, 0.30f), "되돌리는 중…");
+                new Color(0.90f, 0.45f, 0.30f), L.T("되돌리는 중…", "Reverting…"));
 
             // 도구 들고 조준 중일 때(바가 안 차는 동안) 공정 안내
             bool hint = m_ProcessHold <= 0f && !string.IsNullOrEmpty(m_ProcessHint) && m_HasTarget

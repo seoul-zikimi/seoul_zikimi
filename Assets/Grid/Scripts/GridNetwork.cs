@@ -481,7 +481,7 @@ namespace GridSystem
             GridJuice.GroundHit(center, 1.2f);
             GridJuice.FovPunch(Camera.main, -4f);
             GridSoundBridge.PlaySFXAt("LandObject", center);
-            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f), "불타 사라졌다…!", new Color(1f, 0.42f, 0.15f));
+            GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f), L.T("불타 사라졌다…!", "Burned away…!"), new Color(1f, 0.42f, 0.15f));
             if (m_VisualRoot != null) GridJuice.Ripple(m_VisualRoot.transform, center, GridContract.Unit * 4f, 0.10f, 8f);
         }
 
@@ -580,7 +580,7 @@ namespace GridSystem
             GridJuice.FovPunch(Camera.main, -7f);
             GridSoundBridge.PlaySFXAt("LandObject", center);
             GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.5f),
-                                 "대포 명중!", new Color(0.95f, 0.55f, 0.15f));
+                                 L.T("대포 명중!", "Direct hit!"), new Color(0.95f, 0.55f, 0.15f));
         }
 
         // 불발 — 같은 폭발을 작게 쓰고 파편·화면 흔들림을 뺀다(맞았을 때와 확실히 구분되게).
@@ -591,7 +591,7 @@ namespace GridSystem
             GridJuice.FovPunch(Camera.main, -3f);
             GridSoundBridge.PlaySFXAt("LandObject", center);
             GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f),
-                                 "빗나감!", new Color(0.75f, 0.72f, 0.68f));
+                                 L.T("빗나감!", "Missed!"), new Color(0.75f, 0.72f, 0.68f));
         }
 
         /// <summary>[날씨: 강풍·태풍] 해당 팀 구역의 미고정 블록 중 최대 count개를 바람에 무너뜨린다.
@@ -645,7 +645,7 @@ namespace GridSystem
             // 지진 전용 '쿠르릉'(돌 구르는 소리) — 클립 연결 전엔 기존 착지음으로 폴백
             GridSoundBridge.PlaySFXAt(GridSoundBridge.HasSFX("ItemEarthquake") ? "ItemEarthquake" : "LandObject", center);
             if (mine) GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 2f),
-                                           "지진! 고정 안 한 블록이 무너져요!", new Color(0.85f, 0.35f, 0.15f));
+                                           L.T("지진! 고정 안 한 블록이 무너져요!", "Earthquake! Unfixed blocks are falling!"), new Color(0.85f, 0.35f, 0.15f));
         }
 
         private void RemoveCollapsed(CollapsedObject co)
@@ -676,7 +676,7 @@ namespace GridSystem
             GridJuice.FovPunch(Camera.main, -5f);   // 우르릉 — 화면 살짝 당김
             GridSoundBridge.PlaySFXAt("LandObject", center);   // 무너지는 소리(돌 낙하음)
             GridJuice.WorldToast(center + Vector3.up * (GridContract.Unit * 1.2f),   // 무너진 블록 바로 위에
-                "앗! 무너졌어요!", new Color(0.90f, 0.25f, 0.20f));
+                L.T("앗! 무너졌어요!", "Oops! It collapsed!"), new Color(0.90f, 0.25f, 0.20f));
 
             // 젤리 파동: 출렁임이 중심에서 주변 블록으로 번져나감
             if (m_VisualRoot != null)

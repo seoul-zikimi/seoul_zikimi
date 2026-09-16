@@ -368,23 +368,23 @@ namespace GridSystem
         {
             var fx = LocalEffects();
             float now = NetNow();
-            string T(float until) { int s = Mathf.CeilToInt(until - now); return s > 0 ? $" {s}초" : ""; }
+            string T(float until) { int s = Mathf.CeilToInt(until - now); return s > 0 ? L.T($" {s}초", $" {s}s") : ""; }
             var parts = new System.Collections.Generic.List<string>();
             if (fx.Weather != (int)WeatherKind.Sunny) parts.Add(WeatherName((WeatherKind)fx.Weather) + T(fx.WeatherUntil));
-            if (fx.Fog) parts.Add("안개" + T(fx.FogUntil));
-            if (fx.WeatherImmune) parts.Add("우산(날씨 면역)" + T(fx.ImmuneUntil));
-            if (fx.MoveMul < 1f) parts.Add("이동 느림" + T(fx.MoveUntil)); else if (fx.MoveMul > 1f) parts.Add("이동 빠름" + T(fx.MoveUntil));
-            if (fx.ProcessMul < 1f) parts.Add("공정 느림" + T(fx.ProcUntil)); else if (fx.ProcessMul > 1f) parts.Add("공정 빠름" + T(fx.ProcUntil));
-            if (fx.OrderBlocked) parts.Add("주문 차단" + T(fx.OrderUntil));
+            if (fx.Fog) parts.Add(L.T("안개", "Fog") + T(fx.FogUntil));
+            if (fx.WeatherImmune) parts.Add(L.T("우산(날씨 면역)", "Umbrella (weather immune)") + T(fx.ImmuneUntil));
+            if (fx.MoveMul < 1f) parts.Add(L.T("이동 느림", "Slowed") + T(fx.MoveUntil)); else if (fx.MoveMul > 1f) parts.Add(L.T("이동 빠름", "Speed up") + T(fx.MoveUntil));
+            if (fx.ProcessMul < 1f) parts.Add(L.T("공정 느림", "Work slowed") + T(fx.ProcUntil)); else if (fx.ProcessMul > 1f) parts.Add(L.T("공정 빠름", "Work sped up") + T(fx.ProcUntil));
+            if (fx.OrderBlocked) parts.Add(L.T("주문 차단", "Orders blocked") + T(fx.OrderUntil));
             return parts.Count == 0 ? "" : string.Join(" · ", parts);
         }
 
         private static string WeatherName(WeatherKind w) => w switch
         {
-            WeatherKind.Rain => "비",
-            WeatherKind.Snow => "눈",
-            WeatherKind.StrongWind => "강풍",
-            WeatherKind.Typhoon => "태풍",
+            WeatherKind.Rain => L.T("비", "Rain"),
+            WeatherKind.Snow => L.T("눈", "Snow"),
+            WeatherKind.StrongWind => L.T("강풍", "Strong Wind"),
+            WeatherKind.Typhoon => L.T("태풍", "Typhoon"),
             _ => w.ToString(),
         };
 
@@ -576,7 +576,7 @@ namespace GridSystem
             if (Time.time >= m_NextSlipToast)
             {
                 m_NextSlipToast = Time.time + 3f;
-                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.2f, "미끄덩~", new Color(0.15f, 0.55f, 1f));
+                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.2f, L.T("미끄덩~", "Slippery~"), new Color(0.15f, 0.55f, 1f));
                 GridSoundBridge.PlaySFX("WeatherSlip");   // 킹받는 미끄덩 — 당한 본인에게만(타깃 RPC)
             }
         }
@@ -596,24 +596,24 @@ namespace GridSystem
 
             if (isCaster)
             {
-                ItemScreenFx.Banner(k, $"{name} 사용!", new Color(0.85f, 0.62f, 0.05f));
+                ItemScreenFx.Banner(k, L.T($"{name} 사용!", $"{name} used!"), new Color(0.85f, 0.62f, 0.05f));
                 return;
             }
             if (my == targetTeam && !buff)          // 상대 공격에 당함
             {
-                ItemScreenFx.Banner(k, $"상대가 {name} 사용!", new Color(0.82f, 0.16f, 0.12f), shake: true);
+                ItemScreenFx.Banner(k, L.T($"상대가 {name} 사용!", $"Enemy used {name}!"), new Color(0.82f, 0.16f, 0.12f), shake: true);
                 ItemScreenFx.Flash(new Color(1f, 0.15f, 0.1f), 0.55f);
                 GridJuice.FovPunch(Camera.main, -2f);
                 return;
             }
             if (my == targetTeam && buff)           // 아군이 버프를 걸어줌
             {
-                ItemScreenFx.Banner(k, $"아군이 {name} 사용!", new Color(0.15f, 0.62f, 0.25f));
+                ItemScreenFx.Banner(k, L.T($"아군이 {name} 사용!", $"Ally used {name}!"), new Color(0.15f, 0.62f, 0.25f));
                 ItemScreenFx.Flash(new Color(0.3f, 1f, 0.4f), 0.3f);
                 return;
             }
             if (my == casterTeam)                   // 팀원이 상대를 공격(나는 구경)
-                ItemScreenFx.Banner(k, $"아군이 상대에게 {name} 사용!", new Color(0.16f, 0.42f, 0.75f));
+                ItemScreenFx.Banner(k, L.T($"아군이 상대에게 {name} 사용!", $"Ally used {name} on the enemy!"), new Color(0.16f, 0.42f, 0.75f));
         }
 
         // 내 팀 상태를 로컬 연출(날씨 파티클·안개)에 반영 — 값이 바뀔 때만.
@@ -934,39 +934,39 @@ namespace GridSystem
 
         public static string KindName(CompetitiveItemKind k) => k switch
         {
-            CompetitiveItemKind.Earthquake => "지진",
-            CompetitiveItemKind.Rain => "비",
-            CompetitiveItemKind.Snow => "눈",
-            CompetitiveItemKind.StrongWind => "강풍",
-            CompetitiveItemKind.Typhoon => "태풍",
-            CompetitiveItemKind.Fog => "안개",
+            CompetitiveItemKind.Earthquake => L.T("지진", "Earthquake"),
+            CompetitiveItemKind.Rain => L.T("비", "Rain"),
+            CompetitiveItemKind.Snow => L.T("눈", "Snow"),
+            CompetitiveItemKind.StrongWind => L.T("강풍", "Strong Wind"),
+            CompetitiveItemKind.Typhoon => L.T("태풍", "Typhoon"),
+            CompetitiveItemKind.Fog => L.T("안개", "Fog"),
             // [09/03] 기획 개명 — 아이콘과 짝: 달팽이(🐌)·신발(👟)·해킹(📵)
-            CompetitiveItemKind.MovementSlow => "달팽이",
-            CompetitiveItemKind.ProcessSlow => "공정 디버프",
-            CompetitiveItemKind.OrderHack => "해킹",
-            CompetitiveItemKind.Umbrella => "우산",
-            CompetitiveItemKind.MovementBoost => "신발",
-            CompetitiveItemKind.ProcessBoost => "공정 버프",
-            CompetitiveItemKind.Cannon => "대포",
+            CompetitiveItemKind.MovementSlow => L.T("달팽이", "Snail"),
+            CompetitiveItemKind.ProcessSlow => L.T("공정 디버프", "Work Debuff"),
+            CompetitiveItemKind.OrderHack => L.T("해킹", "Hack"),
+            CompetitiveItemKind.Umbrella => L.T("우산", "Umbrella"),
+            CompetitiveItemKind.MovementBoost => L.T("신발", "Shoes"),
+            CompetitiveItemKind.ProcessBoost => L.T("공정 버프", "Work Buff"),
+            CompetitiveItemKind.Cannon => L.T("대포", "Cannon"),
             _ => k.ToString(),
         };
 
         /// <summary>아이템 효과 한 줄 설명(기획 문구 09/03) — 소지 중 HUD 안내줄에 표시.</summary>
         public static string KindHint(CompetitiveItemKind k) => k switch
         {
-            CompetitiveItemKind.Earthquake => "상대의 고정되지 않은 재료들이 한번에 와르르!",
-            CompetitiveItemKind.Rain => "60초간 상대 진영에 비! 발이 미끄러진다",
-            CompetitiveItemKind.Snow => "60초간 상대 진영에 눈! 발이 미끄러진다",
-            CompetitiveItemKind.StrongWind => "20초간 상대의 재료들을 날려버린다!",
-            CompetitiveItemKind.Typhoon => "10초간 상대의 재료들을 무자비하게 날려버린다! 미끄러지는 비바람은 덤",
-            CompetitiveItemKind.Fog => "상대의 화면을 5초간 안개로 가린다!",
-            CompetitiveItemKind.MovementSlow => "상대의 이동속도가 느려진다! 15초",
-            CompetitiveItemKind.ProcessSlow => "상대의 작업속도가 느려진다! 15초",
-            CompetitiveItemKind.OrderHack => "상대의 주문을 10초간 봉인한다!",
-            CompetitiveItemKind.Umbrella => "날씨 효과에 면역된다! 30초",
-            CompetitiveItemKind.MovementBoost => "이동속도가 증가한다! 15초",
-            CompetitiveItemKind.ProcessBoost => "작업속도가 증가한다! 15초",
-            CompetitiveItemKind.Cannon => "맞추기만 한다면, 완성된 블럭 하나를 날려버린다!",
+            CompetitiveItemKind.Earthquake => L.T("상대의 고정되지 않은 재료들이 한번에 와르르!", "Knocks down all of the enemy's unfixed materials at once!"),
+            CompetitiveItemKind.Rain => L.T("60초간 상대 진영에 비! 발이 미끄러진다", "Rain on the enemy side for 60s! Their feet slip"),
+            CompetitiveItemKind.Snow => L.T("60초간 상대 진영에 눈! 발이 미끄러진다", "Snow on the enemy side for 60s! Their feet slip"),
+            CompetitiveItemKind.StrongWind => L.T("20초간 상대의 재료들을 날려버린다!", "Blows the enemy's materials away for 20s!"),
+            CompetitiveItemKind.Typhoon => L.T("10초간 상대의 재료들을 무자비하게 날려버린다! 미끄러지는 비바람은 덤", "Mercilessly blows the enemy's materials away for 10s! Slippery rainstorm included"),
+            CompetitiveItemKind.Fog => L.T("상대의 화면을 5초간 안개로 가린다!", "Covers the enemy's screen with fog for 5s!"),
+            CompetitiveItemKind.MovementSlow => L.T("상대의 이동속도가 느려진다! 15초", "Slows the enemy's movement! 15s"),
+            CompetitiveItemKind.ProcessSlow => L.T("상대의 작업속도가 느려진다! 15초", "Slows the enemy's work speed! 15s"),
+            CompetitiveItemKind.OrderHack => L.T("상대의 주문을 10초간 봉인한다!", "Blocks the enemy's orders for 10s!"),
+            CompetitiveItemKind.Umbrella => L.T("날씨 효과에 면역된다! 30초", "Immune to weather effects! 30s"),
+            CompetitiveItemKind.MovementBoost => L.T("이동속도가 증가한다! 15초", "Movement speed up! 15s"),
+            CompetitiveItemKind.ProcessBoost => L.T("작업속도가 증가한다! 15초", "Work speed up! 15s"),
+            CompetitiveItemKind.Cannon => L.T("맞추기만 한다면, 완성된 블럭 하나를 날려버린다!", "If it hits, it blows away one finished block!"),
             _ => "",
         };
 

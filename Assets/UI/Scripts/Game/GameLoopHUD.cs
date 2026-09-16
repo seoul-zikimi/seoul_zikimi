@@ -140,7 +140,7 @@ public sealed class GameLoopHUD : UIHUD
             if (keyBtn != null)
             {
                 var label = keyBtn.GetComponentInChildren<TextMeshProUGUI>(true);
-                if (label != null) label.text = "버튼 배치";
+                if (label != null) label.text = L.T("버튼 배치", "Button Layout");
                 Wire(Btns.KeySettingsButton, () =>
                 {
                     ToggleSettingsPopup();               // 팝업을 닫고 바로 드래그 편집 시작
@@ -240,7 +240,7 @@ public sealed class GameLoopHUD : UIHUD
         int done = m_Loop.RoomReturnVoteCount + (m_Loop.HasLocalRoomReturnVote ? 0 : 1);
         done = Mathf.Clamp(done, 1, need);
         if (done < need)
-            ShowToast($"다른 사람도 눌러야 방으로 돌아가요 ({done}/{need})", 2.5f);
+            ShowToast(L.T($"다른 사람도 눌러야 방으로 돌아가요 ({done}/{need})", $"Everyone must press to return to the room ({done}/{need})"), 2.5f);
     }
 
     private void Wire(Btns which, UnityEngine.Events.UnityAction action)
@@ -332,10 +332,10 @@ public sealed class GameLoopHUD : UIHUD
                 m_ShownTimerBuilding = building; m_ShownTimerSecs = secs;
                 m_ShownTimerPctMine = pctMine; m_ShownTimerPctOther = pctOther; m_ShownTimerHeld = held;
 
-                string timer = building ? $"{secs / 60} : {secs % 60:00}" : "종료";
+                string timer = building ? $"{secs / 60} : {secs % 60:00}" : L.T("종료", "End");
                 // 2vs2 건축 중: 완성도·소지 아이템 안내는 타이머 아래 '별도 중앙 정렬 텍스트'로 —
                 // 타이머는 왼쪽 정렬(시계 아이콘 짝)이라 같은 텍스트에 넣으면 줄이 왼쪽으로 쏠리고 겹친다.
-                string sub = pctMine >= 0 ? $"우리 {pctMine}% : 상대 {pctOther}%" : "";
+                string sub = pctMine >= 0 ? L.T($"우리 {pctMine}% : 상대 {pctOther}%", $"Us {pctMine}% : Them {pctOther}%") : "";
                 if (!string.IsNullOrEmpty(held))
                 {
                     // 1줄 = 효과 설명(기획 문구), 2줄 = 조작 — 아이템 효과 학습은 '든 순간'이 최적(QA)
@@ -343,11 +343,11 @@ public sealed class GameLoopHUD : UIHUD
                     sub += $"\n<size=75%>[{held}] {hint}</size>";
                     // 모바일은 키보드가 없다 — 화면 버튼 이름으로(아이템=아이템 버튼, 내려놓기=던지기 버튼)
                     bool mobileKeys = MobileControlsHUD.ShouldUseMobileUI;
-                    string useKey = mobileKeys ? "아이템 버튼" : "E";
-                    string dropKey = mobileKeys ? "던지기 버튼" : "G";
-                    sub += held == "대포"   // 기획서: 대포는 조준+꾹 발사
-                        ? $"\n<size=65%>{useKey} 꾹 조준 발사 · {dropKey} 내려놓기</size>"
-                        : $"\n<size=65%>{useKey} 사용 · {dropKey} 내려놓기</size>";
+                    string useKey = mobileKeys ? L.T("아이템 버튼", "Item button") : "E";
+                    string dropKey = mobileKeys ? L.T("던지기 버튼", "Throw button") : "G";
+                    sub += (m_ItemNet != null && m_ItemNet.LocalHoldsCannon)   // 기획서: 대포는 조준+꾹 발사
+                        ? L.T($"\n<size=65%>{useKey} 꾹 조준 발사 · {dropKey} 내려놓기</size>", $"\n<size=65%>Hold {useKey} to aim & fire · {dropKey} to drop</size>")
+                        : L.T($"\n<size=65%>{useKey} 사용 · {dropKey} 내려놓기</size>", $"\n<size=65%>{useKey} use · {dropKey} drop</size>");
                 }
                 VsPctText().text = sub;
                 // 걸린 효과(날씨·버프·디버프)는 점수줄 아래 버프 아이콘 바가 담당 — UpdateBuffBar()
@@ -431,7 +431,7 @@ public sealed class GameLoopHUD : UIHUD
             if (lbl != null && lbl.gameObject.activeSelf) lbl.gameObject.SetActive(false);
             return;
         }
-        string text = (consent ? "동의 취소" : m_Loop.IsBuilding ? "종료 요청" : "재시작")
+        string text = (consent ? L.T("동의 취소", "Cancel vote") : m_Loop.IsBuilding ? L.T("종료 요청", "Request end") : L.T("재시작", "Restart"))
             + (MobileControlsHUD.ShouldUseMobileUI ? "" : "\n<size=70%>(ENTER)</size>");
         if (img != null && m_EndBlank != null)
         {
@@ -461,7 +461,7 @@ public sealed class GameLoopHUD : UIHUD
     }
 
     // ── 중앙 배너(공사 시작 / 완성 등): 팝인 → 잠깐 → 축소 퇴장 ──
-    private void ShowStartBanner() => ShowBanner("공사 시작!", new Color(1f, 0.72f, 0.20f, 1f));
+    private void ShowStartBanner() => ShowBanner(L.T("공사 시작!", "Construction Start!"), new Color(1f, 0.72f, 0.20f, 1f));
 
     private void ShowBanner(string text, Color color)
     {
@@ -542,7 +542,7 @@ public sealed class GameLoopHUD : UIHUD
             int coins = SaveService.TimeAttackReward(pct, pct > 0 ? StarCount(pct) : 0);
             if (coins > 0) SaveService.AddCoins(coins);
             if (m_CoinRewardText != null)
-                m_CoinRewardText.text = (newBest ? "신기록!  " : "") + $"+{coins}코인  (보유 {SaveService.Coins}코인)";
+                m_CoinRewardText.text = (newBest ? L.T("신기록!  ", "New record!  ") : "") + L.T($"+{coins}코인  (보유 {SaveService.Coins}코인)", $"+{coins} coins  (total {SaveService.Coins})");
 
             // 영수증 메타(정산번호 'JKM-' 뒤 / 발행 일자) — 리마스터 배경 칸
             var now = System.DateTime.Now;
@@ -592,9 +592,9 @@ public sealed class GameLoopHUD : UIHUD
                 // 승/패/무 + 양 팀 완성도 (WinnerTeam: -1=무승부, 0/1=승리 팀)
                 int enemyPct = Mathf.RoundToInt(m_Net.ScoreFor(1 - myTeam).Percent);
                 int w = m_Loop.WinnerTeam;
-                string verdict = w == -1 ? "무승부 (DRAW)" : (w == myTeam ? "승리!" : "패배...");   // 폰트가 한글/ASCII만 지원 — 이모지 금지
+                string verdict = w == -1 ? L.T("무승부 (DRAW)", "DRAW") : (w == myTeam ? L.T("승리!", "Victory!") : L.T("패배...", "Defeat..."));   // 폰트가 한글/ASCII만 지원 — 이모지 금지
                 // 승패 문구를 큼직하게, 완성도 비교는 작게 — 도장과 겹치지 않도록 도장은 꺼서 사용(아래 useStamp 처리)
-                m_VersusLine = $"<size=40>{verdict}</size>\n<size=22>우리 {pct}% : 상대 {enemyPct}%</size>";
+                m_VersusLine = L.T($"<size=40>{verdict}</size>\n<size=22>우리 {pct}% : 상대 {enemyPct}%</size>", $"<size=40>{verdict}</size>\n<size=22>Us {pct}% : Them {enemyPct}%</size>");
             }
             else m_VersusLine = null;
             m_ResultScoreText.text = pct.ToString();   // '건축 완료율 [  ]%' — 숫자만(라벨·%는 배경). 인트로 중엔 코루틴이 숫자 담당
@@ -602,7 +602,7 @@ public sealed class GameLoopHUD : UIHUD
 
         if (m_ResultStructText != null)
         {
-            string nm = m_Loop.AnswerName;
+            string nm = m_Loop.AnswerLocalizedName;
             m_ResultStructText.text = string.IsNullOrEmpty(nm) ? "" : nm;
         }
 
@@ -616,7 +616,7 @@ public sealed class GameLoopHUD : UIHUD
             var dig = GridSystem.ExcavationNetwork.Instance;
             int artifacts = dig != null ? dig.ArtifactsFound : 0;
             if (artifacts > 0)
-                m_ResultTimeText.text += $"\n발굴한 유물   {artifacts} 개   + {score.bonus} 점";
+                m_ResultTimeText.text += L.T($"\n발굴한 유물   {artifacts} 개   + {score.bonus} 점", $"\nArtifacts found   {artifacts}   + {score.bonus} pts");
         }
 
         if (m_ResultNamesText != null)
@@ -983,7 +983,7 @@ public sealed class GameLoopHUD : UIHUD
     // ── 화마 첫 등장 연출(경복궁): 빨간 비네트가 확 조여들며 경고 배너 + 사방신 안내. FireNetwork가 호출 ──
     public void PlayFireCinematic()
     {
-        ShowBanner("화마가 나타났다!\n<size=55%>불이 붙을지도 모른다…</size>", new Color(1f, 0.30f, 0.12f, 1f));
+        ShowBanner(L.T("화마가 나타났다!\n<size=55%>불이 붙을지도 모른다…</size>", "A fire demon appeared!\n<size=55%>Something might catch fire…</size>"), new Color(1f, 0.30f, 0.12f, 1f));
         if (m_FireCineCo != null) StopCoroutine(m_FireCineCo);
         m_FireCineCo = StartCoroutine(FireCinematicCo());
     }
@@ -1001,7 +1001,7 @@ public sealed class GameLoopHUD : UIHUD
             if (!toastShown && hold >= 1.6f)   // 배너 퇴장 직후 이어지는 안내 멘트
             {
                 toastShown = true;
-                ShowToast("사방신 석상을 배치하면 그들의 힘이 화마를 억누를지도…", 5f);
+                ShowToast(L.T("사방신 석상을 배치하면 그들의 힘이 화마를 억누를지도…", "Place the guardian statues and their power may hold back the fire…"), 5f);
             }
             yield return null;
         }
@@ -1102,7 +1102,7 @@ public sealed class GameLoopHUD : UIHUD
         m_CraneToggleBtn.gameObject.SetActive(resultPhase && (!mobile || m_CraneViewing));
         if (!resultPhase) return;
         var lbl = m_CraneToggleBtn.GetComponentInChildren<TextMeshProUGUI>();
-        if (lbl != null) lbl.text = m_CraneViewing ? "정산서 보기" : "건축물 둘러보기";
+        if (lbl != null) lbl.text = m_CraneViewing ? L.T("정산서 보기", "View report") : L.T("건축물 둘러보기", "Tour the building");
         if (mobile)
         {
             var rt = (RectTransform)m_CraneToggleBtn.transform;
@@ -1165,14 +1165,14 @@ public sealed class GameLoopHUD : UIHUD
         if (milestone > m_LastMilestone)
         {
             m_LastMilestone = milestone;
-            ShowToast($"완성도 {milestone}% 돌파!");
+            ShowToast(L.T($"완성도 {milestone}% 돌파!", $"Progress {milestone}% reached!"));
         }
     }
 
     // 100% 완성 축하: "완성!!" 배너 + 폭죽 + 다리 전체 물결 + 화면 펀치
     private void CelebrateComplete()
     {
-        ShowBanner("완성!!", new Color(1f, 0.55f, 0.15f, 1f));
+        ShowBanner(L.T("완성!!", "Complete!!"), new Color(1f, 0.55f, 0.15f, 1f));
         // 폭죽은 Update의 완성도 90%+ 감지가 멈춤없이 처리(여기선 배너·물결만)
 
         if (m_Net == null) m_Net = FindFirstObjectByType<GridNetwork>();

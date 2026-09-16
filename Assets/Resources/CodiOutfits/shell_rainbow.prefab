@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uBB34\uC9C0\uAC1C \uB4F1\uAECD\uC9C8"
+  DisplayNameEn: "Rainbow Shell"
   Price: 100
   Thumbnail: {fileID: 0}
   ScaleMargin: 1.06

@@ -93,33 +93,33 @@ public sealed class KeyBindingPopup : UIPopup
         m_WaitingRow?.SetWaiting(false);
         m_WaitingRow = row;
         row.SetWaiting(true);
-        SetStatus("변경할 키를 누르세요. ESC를 누르면 취소됩니다.");
+        SetStatus(L.T("변경할 키를 누르세요. ESC를 누르면 취소됩니다.", "Press the new key. ESC to cancel."));
 
         if (!GameplayInputBindings.StartInteractiveRebind(info.ActionPath, info.BindingIndex, (success, _) =>
         {
             if (this == null || version != m_RebindVersion) return;
             m_WaitingRow?.SetWaiting(false);
             m_WaitingRow = null;
-            SetStatus(success ? "키가 저장되었습니다." : "키 변경을 취소했습니다.");
+            SetStatus(success ? L.T("키가 저장되었습니다.", "Key saved.") : L.T("키 변경을 취소했습니다.", "Key change cancelled."));
             Refresh();
         }))
         {
             m_WaitingRow = null;
             row.SetWaiting(false);
-            SetStatus("이 항목은 변경할 수 없습니다.");
+            SetStatus(L.T("이 항목은 변경할 수 없습니다.", "This item can't be changed."));
         }
     }
 
     public void ResetBinding(GameplayInputBindings.BindingInfo info)
     {
         GameplayInputBindings.ResetBinding(info.ActionPath, info.BindingIndex);
-        SetStatus("선택한 키를 기본값으로 되돌렸습니다.");
+        SetStatus(L.T("선택한 키를 기본값으로 되돌렸습니다.", "Selected key reset to default."));
     }
 
     private void ResetAll()
     {
         GameplayInputBindings.ResetAll();
-        SetStatus("모든 키를 기본값으로 되돌렸습니다.");
+        SetStatus(L.T("모든 키를 기본값으로 되돌렸습니다.", "All keys reset to default."));
     }
 
     private void Refresh()
@@ -174,31 +174,31 @@ public sealed class KeyBindingPopup : UIPopup
     public static string ActionLabel(GameplayInputBindings.BindingInfo info)
     {
         if (info.ActionPath == GameplayInputBindings.Move)
-            return "이동 - " + (info.BindingName switch
+            return L.T("이동 - ", "Move - ") + (info.BindingName switch
             {
-                "up" => "위", "down" => "아래", "left" => "왼쪽", "right" => "오른쪽", _ => info.BindingName
+                "up" => L.T("위", "Up"), "down" => L.T("아래", "Down"), "left" => L.T("왼쪽", "Left"), "right" => L.T("오른쪽", "Right"), _ => info.BindingName
             });
         // 감정표현은 11줄이라 번호만 있으면 뭐가 뭔지 모른다 — 실제 대사를 붙여 준다.
         if (info.ActionPath.StartsWith("Player/Emote", StringComparison.Ordinal) && info.ActionName != "EmoteWheel")
         {
             string number = info.ActionName.Replace("Emote", "");
             return int.TryParse(number, out int n) && n >= 1 && n <= EmoteDefs.Count
-                ? $"감정표현 - {EmoteDefs.All[n - 1].Line}"
-                : "감정표현 " + number;
+                ? L.T($"감정표현 - {EmoteDefs.All[n - 1].Line}", $"Emote - {EmoteDefs.All[n - 1].Line}")
+                : L.T("감정표현 ", "Emote ") + number;
         }
         return info.ActionPath switch
         {
-            GameplayInputBindings.Sprint => "달리기",
-            GameplayInputBindings.Jump => "점프 / 비계",
-            GameplayInputBindings.Interact => "집기 / 배치",
-            GameplayInputBindings.Process => "공정 / 아이템 사용",
-            GameplayInputBindings.Revert => "공정 취소",
-            GameplayInputBindings.RotateHeld => "든 물건 회전",
-            GameplayInputBindings.Throw => "던지기",
-            GameplayInputBindings.ToggleOrder => "휴대폰 / 주문 UI",
-            GameplayInputBindings.EmoteWheel => "감정표현 메뉴",
-            GameplayInputBindings.CameraRotate => "카메라 회전",
-            GameplayInputBindings.CameraZoom => "카메라 확대 / 축소",
+            GameplayInputBindings.Sprint => L.T("달리기", "Run"),
+            GameplayInputBindings.Jump => L.T("점프 / 비계", "Jump / Scaffold"),
+            GameplayInputBindings.Interact => L.T("집기 / 배치", "Pick up / Place"),
+            GameplayInputBindings.Process => L.T("공정 / 아이템 사용", "Process / Use item"),
+            GameplayInputBindings.Revert => L.T("공정 취소", "Undo process"),
+            GameplayInputBindings.RotateHeld => L.T("든 물건 회전", "Rotate held item"),
+            GameplayInputBindings.Throw => L.T("던지기", "Throw"),
+            GameplayInputBindings.ToggleOrder => L.T("휴대폰 / 주문 UI", "Phone / Order UI"),
+            GameplayInputBindings.EmoteWheel => L.T("감정표현 메뉴", "Emote menu"),
+            GameplayInputBindings.CameraRotate => L.T("카메라 회전", "Rotate camera"),
+            GameplayInputBindings.CameraZoom => L.T("카메라 확대 / 축소", "Camera zoom"),
             _ => info.ActionName,
         };
     }
@@ -206,12 +206,12 @@ public sealed class KeyBindingPopup : UIPopup
     public static string BindingLabel(GameplayInputBindings.BindingInfo info)
     {
         string path = info.EffectivePath;
-        if (path == "<Mouse>/leftButton") return "마우스 왼쪽";
-        if (path == "<Mouse>/rightButton") return "마우스 오른쪽";
-        if (path == "<Mouse>/middleButton") return "마우스 휠 클릭";
-        if (path == "<Mouse>/scroll/y") return "마우스 휠";
-        if (path == "<Keyboard>/leftShift") return "왼쪽 Shift";
-        if (path == "<Keyboard>/rightShift") return "오른쪽 Shift";
+        if (path == "<Mouse>/leftButton") return L.T("마우스 왼쪽", "Left mouse");
+        if (path == "<Mouse>/rightButton") return L.T("마우스 오른쪽", "Right mouse");
+        if (path == "<Mouse>/middleButton") return L.T("마우스 휠 클릭", "Mouse wheel click");
+        if (path == "<Mouse>/scroll/y") return L.T("마우스 휠", "Mouse wheel");
+        if (path == "<Keyboard>/leftShift") return L.T("왼쪽 Shift", "Left Shift");
+        if (path == "<Keyboard>/rightShift") return L.T("오른쪽 Shift", "Right Shift");
         if (path == "<Keyboard>/space") return "Space";
         if (path == "<Keyboard>/tab") return "Tab";
         if (path == "<Keyboard>/escape") return "Esc";

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uB0A8\uC0B0_\uC0C1\uBD80\uC548\uD14C\uB098_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 19
+  m_DisplayNameEn: "Upper Antenna"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 9114555789084579642, guid: 6c3584af1d4092d4d8e4959af04cb489, type: 3}
   m_RequiredProcesses: 02000000

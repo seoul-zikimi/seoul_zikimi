@@ -187,7 +187,7 @@ namespace GridSystem
             var nm = NetworkManager.Singleton;
             var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
             if (po != null)
-                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, "⚠ 돌풍 주의!", new Color(1f, 0.65f, 0.2f));
+                GridJuice.WorldToast(po.transform.position + Vector3.up * 2.6f, L.T("⚠ 돌풍 주의!", "⚠ Gust warning!"), new Color(1f, 0.65f, 0.2f));
             // TODO(사운드팀): 돌풍 예고/바람 루프 SFX — GridSoundBridge에 전용 이름 추가 후 여기서 호출
         }
 

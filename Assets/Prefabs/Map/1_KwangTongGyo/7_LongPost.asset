@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: 7_LongPost
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 7
+  m_DisplayNameEn: "Long Post"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 3183938156306271627, guid: 72bacc4726ce9d4499b4aa6a974989fa, type: 3}
   m_RequiredProcesses: 01000000

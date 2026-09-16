@@ -154,6 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uBB34\uC9C0\uAC1C \uB4F1\uB531\uC9C0"
+  DisplayNameEn: "Rainbow Carapace"
   Price: 100
   TargetCharacter: char_turtle
   Thumbnail: {fileID: 0}

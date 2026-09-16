@@ -10,20 +10,20 @@ public class TutorialTooltipHUD : UIHUD
 {
     private enum Texts { Body }
 
-    private static readonly string[] kLines =
-    {
-        "W / A / S / D : 이동",
-        "Shift : 달리기 / Space : 점프",
-        "마우스 우클릭 드래그 : 카메라 회전 / 스크롤 : 확대·축소",
-        "정답 미리보기 위에서 동일 조작 : 정답 회전",
-        "우측 하단 휴대폰 : 완공 계획도 확인 / 재료 주문",
-        "좌클릭 : 오브젝트 집기 / 내려놓기",
-        "G (꾹 누르기) : 든 물건 던지기",
-        "R : 든 오브젝트 회전",
-        "E (꾹 누르기) : 공정(고정 등) / Z (꾹 누르기) : 공정 취소",
-        "Space 2번 연타 : 비계 설치",
-        "Tab : 정답 표시 토글",
-    };
+    private static readonly LocCache<string[]> s_kLines = new();
+    private static string[] kLines => s_kLines.Get(() => new string[]{
+        L.T("W / A / S / D : 이동", "W / A / S / D : Move"),
+        L.T("Shift : 달리기 / Space : 점프", "Shift : Run / Space : Jump"),
+        L.T("마우스 우클릭 드래그 : 카메라 회전 / 스크롤 : 확대·축소", "Right-drag : Rotate camera / Scroll : Zoom"),
+        L.T("정답 미리보기 위에서 동일 조작 : 정답 회전", "Same controls over the blueprint : Rotate blueprint"),
+        L.T("우측 하단 휴대폰 : 완공 계획도 확인 / 재료 주문", "Phone (bottom right) : Blueprint / Order materials"),
+        L.T("좌클릭 : 오브젝트 집기 / 내려놓기", "Left click : Pick up / Put down"),
+        L.T("G (꾹 누르기) : 든 물건 던지기", "G (hold) : Throw held item"),
+        L.T("R : 든 오브젝트 회전", "R : Rotate held object"),
+        L.T("E (꾹 누르기) : 공정(고정 등) / Z (꾹 누르기) : 공정 취소", "E (hold) : Process (fix etc.) / Z (hold) : Undo process"),
+        L.T("Space 2번 연타 : 비계 설치", "Double-tap Space : Place scaffolding"),
+        L.T("Tab : 정답 표시 토글", "Tab : Toggle blueprint"),
+    });
 
     private TextMeshProUGUI m_Body;
 

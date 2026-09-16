@@ -31,14 +31,14 @@ public static class LoadingTipsImporter
             rows = ReadSheetRows(zip, "Tips");
 
         var sb = new StringBuilder();
-        sb.Append("TipID\tCategory\tTargetKey\tText\tWeight\tEnabled\n");
+        sb.Append("TipID\tCategory\tTargetKey\tText\tWeight\tEnabled\tText_en\n");
         int count = 0;
         foreach (var cols in rows)
         {
             if (cols.Length == 0 || string.IsNullOrWhiteSpace(cols[0]))
                 continue;
-            var vals = new string[6];
-            for (int i = 0; i < 6; i++)
+            var vals = new string[7];
+            for (int i = 0; i < 7; i++)
                 vals[i] = (i < cols.Length && cols[i] != null ? cols[i] : "").Replace('\t', ' ').Replace('\n', ' ').Replace("\r", "");
             sb.Append(string.Join("\t", vals)).Append('\n');
             count++;
@@ -86,7 +86,7 @@ public static class LoadingTipsImporter
             int rowIdx = int.Parse(rowNode.Attributes["r"].Value);
             if (rowIdx < 3)   // 1행 헤더, 2행 설명
                 continue;
-            var cols = new string[6];
+            var cols = new string[7];
             foreach (XmlNode c in rowNode.ChildNodes)
             {
                 if (c.Name != "c") continue;

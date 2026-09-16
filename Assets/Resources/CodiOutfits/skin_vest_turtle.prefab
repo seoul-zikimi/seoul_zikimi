@@ -263,6 +263,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CodiOutfit
   DisplayName: "\uC548\uC804 \uC138\uD2B8"
+  DisplayNameEn: "Safety Set"
   Price: 100
   TargetCharacter: char_turtle
   Thumbnail: {fileID: 0}

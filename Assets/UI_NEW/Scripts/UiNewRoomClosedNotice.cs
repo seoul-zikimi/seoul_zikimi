@@ -94,14 +94,14 @@ namespace SeoulZikimi.UI.New
             else
             {
                 frameImage.color = new Color(0.16f, 0.12f, 0.09f, 0.94f);
-                JobsnailUiKit.Label("Message", frame, "방장이 나가서 방이 사라졌어요.", 26,
+                JobsnailUiKit.Label("Message", frame, L.T("방장이 나가서 방이 사라졌어요.", "The host left, so the room was closed."), 26,
                     Color.white, TextAlignmentOptions.Center, new Vector2(0f, 20f), new Vector2(340f, 120f));
             }
 
             // 배경에 그려진 예 버튼 자리 위에 실제 버튼 스프라이트를 얹는다(경고 팝업과 동일 규격).
             JobsnailUiKit.Button("YesButton", frame, JobsnailUiKit.Sprite(YesButtonPath),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -112f), new Vector2(151f, 49f),
-                () => Close(canvas), "확인");
+                () => Close(canvas), L.T("확인", "OK"));
 
             // 배경에 그려진 우상단 × 위 투명 히트박스.
             Button close = JobsnailUiKit.Button("CloseButton", frame, null,

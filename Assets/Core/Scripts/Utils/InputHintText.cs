@@ -6,7 +6,7 @@
 public static class InputHintText
 {
     public const string DesktopProcessKey = "E";
-    public const string MobileProcessKey = "공정 버튼";
+    public static string MobileProcessKey => L.T("공정 버튼", "Action button");
 
     /// <summary>공정(E 꾹) 안내에 쓸 키 이름. 기본은 데스크톱.</summary>
     public static string ProcessKey { get; set; } = DesktopProcessKey;

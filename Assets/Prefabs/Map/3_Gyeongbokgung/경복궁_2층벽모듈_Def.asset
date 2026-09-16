@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\uACBD\uBCF5\uAD81_2\uCE35\uBCBD\uBAA8\uB4C8_Def"
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 58
+  m_DisplayNameEn: "2F Wall Module"
   m_Footprint: {x: 4, y: 2, z: 1}
   m_Prefab: {fileID: 2443092171657160057, guid: fc89219dd8031dc4a89d78ba0b525ae8, type: 3}
   m_RequiredProcesses: 0100000002000000

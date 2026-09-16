@@ -33,20 +33,20 @@ namespace Player
         }
 
         // 순서 = 휠 12시부터 시계방향. F1~F11 단축키가 인덱스 0~10에 1:1로 대응한다.
-        public static readonly Def[] All =
-        {
-            new Def("망치 갖다줘!",    "Voice_Emote_00_HammerBring", "Emote_Hammer"),
-            new Def("페인트 갖다줘!",  "Voice_Emote_01_PaintBring"),
-            new Def("망치질 필요해!",  "Voice_Emote_02_HammerNeed",  "Emote_Hammer"),
-            new Def("페인트칠 필요해!", "Voice_Emote_03_PaintNeed"),
-            new Def("고정 안됐어!",    "Voice_Emote_04_NotFixed"),
-            new Def("여기 좀 지어줘!", "Voice_Emote_05_BuildHere"),
-            new Def("오지 마!",        "Voice_Emote_06_DontCome"),
-            new Def("잘했어!",         "Voice_Emote_07_GoodJob"),
-            new Def("뭐해!!",          "Voice_Emote_08_WhatDoing"),
-            new Def("좋았어!",         "Voice_Emote_09_Nice"),
-            new Def("완성했어!",       "Voice_Emote_10_Complete"),
-        };
+        private static readonly LocCache<Def[]> s_All = new();
+        public static Def[] All => s_All.Get(() => new Def[]{
+            new Def(L.T("망치 갖다줘!", "Bring a hammer!"),    "Voice_Emote_00_HammerBring", "Emote_Hammer"),
+            new Def(L.T("페인트 갖다줘!", "Bring paint!"),  "Voice_Emote_01_PaintBring"),
+            new Def(L.T("망치질 필요해!", "Needs hammering!"),  "Voice_Emote_02_HammerNeed",  "Emote_Hammer"),
+            new Def(L.T("페인트칠 필요해!", "Needs painting!"), "Voice_Emote_03_PaintNeed"),
+            new Def(L.T("고정 안됐어!", "Not fixed yet!"),    "Voice_Emote_04_NotFixed"),
+            new Def(L.T("여기 좀 지어줘!", "Build here please!"), "Voice_Emote_05_BuildHere"),
+            new Def(L.T("오지 마!", "Don't come!"),        "Voice_Emote_06_DontCome"),
+            new Def(L.T("잘했어!", "Well done!"),         "Voice_Emote_07_GoodJob"),
+            new Def(L.T("뭐해!!", "What are you doing!!"),          "Voice_Emote_08_WhatDoing"),
+            new Def(L.T("좋았어!", "Nice!"),         "Voice_Emote_09_Nice"),
+            new Def(L.T("완성했어!", "Finished it!"),       "Voice_Emote_10_Complete"),
+        });
 
         public static int Count => All.Length;
 

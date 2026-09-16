@@ -34,14 +34,17 @@ public readonly struct CharacterAbility
 
     // ── 캐릭터별 능력 ────────────────────────────────────────────────
     // 소개 문구는 인트로 만화 톤(등껍질 삼총사 → 건축레인저)에 맞춘다 — 첫 줄은 캐릭터 성격, 둘째 줄은 실제 효과.
-    public static readonly CharacterAbility Snail = new(true, 0f, false,
-        "맨몸으로 벽을 기어오릅니다.\n비계 없이 위층으로 직행!", "벽을 탑니다");
+    private static readonly LocCache<CharacterAbility> s_Snail = new();
+    public static CharacterAbility Snail => s_Snail.Get(() => new(true, 0f, false,
+        L.T("맨몸으로 벽을 기어오릅니다.\n비계 없이 위층으로 직행!", "Climbs walls bare-handed.\nStraight upstairs, no scaffolding!"), L.T("벽을 탑니다", "Climbs walls")));
 
-    public static readonly CharacterAbility Turtle = new(false, 0f, true,
-        "등껍질로 다져진 뚝심.\n무거운 짐에도 느려지지 않습니다.", "무거워도 안 느려짐");
+    private static readonly LocCache<CharacterAbility> s_Turtle = new();
+    public static CharacterAbility Turtle => s_Turtle.Get(() => new(false, 0f, true,
+        L.T("등껍질로 다져진 뚝심.\n무거운 짐에도 느려지지 않습니다.", "Shell-hardened grit.\nNever slowed by heavy loads."), L.T("무거워도 안 느려짐", "Not slowed by weight")));
 
-    public static readonly CharacterAbility Crab = new(false, 1f, false,
-        "쭉 뻗는 집게발.\n한 칸 더 멀리 손이 닿습니다.", "손이 한 칸 더");
+    private static readonly LocCache<CharacterAbility> s_Crab = new();
+    public static CharacterAbility Crab => s_Crab.Get(() => new(false, 1f, false,
+        L.T("쭉 뻗는 집게발.\n한 칸 더 멀리 손이 닿습니다.", "Stretchy pincers.\nReaches one cell farther."), L.T("손이 한 칸 더", "One cell more reach")));
 
     private static readonly CharacterAbility None = new(false, 0f, false, "", "");
 
