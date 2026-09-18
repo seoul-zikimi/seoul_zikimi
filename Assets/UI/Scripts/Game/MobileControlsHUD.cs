@@ -133,6 +133,14 @@ public sealed class MobileControlsHUD : MonoBehaviour
     private MobileLayoutCustomizer m_Customizer;
 
     /// <summary>설정 팝업(GameLoopHUD)의 '버튼 배치' 진입점 — 모바일 UI가 떠 있을 때만 동작.</summary>
+    /// <summary>상단 제스처 안내("빈 화면 드래그 · 카메라 …") 표시 — 튜토리얼이 대화창 자리와 겹쳐서 잠깐 숨긴다(같은 내용을 대사로 가르친다).
+    /// 컨트롤 캔버스는 씬이 바뀌어도 살아 있으므로(DontDestroyOnLoad) 숨긴 쪽이 반드시 되돌려야 한다.</summary>
+    public static void SetGestureHintVisible(bool visible)
+    {
+        var hint = s_Instance != null ? s_Instance.Find("GestureHint") : null;
+        if (hint != null) hint.SetActive(visible);
+    }
+
     public static void BeginLayoutEdit()
     {
         if (s_Instance != null && s_Instance.m_Customizer != null)

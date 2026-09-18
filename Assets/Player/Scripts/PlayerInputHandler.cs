@@ -50,8 +50,13 @@ namespace Player
         public bool RotateActionAvailable => GetComponent<PlayerCarry>()?.IsHoldingMaterial == true;   // 회전은 블록을 들었을 때만
         public InputActionAsset ControlsAsset => m_Controls?.asset;
         // 튜토리얼 진척도 등 읽기 전용 호환 프로퍼티. 실제 카메라는 ConsumeCameraRotate로 모바일 delta를 1회 소비한다.
+        // 모바일 드래그는 카메라가 먼저 소비하면 m_MobileLook이 0이 돼 있다 — 같은 프레임에 소비된 값도 돌려줘야
+        // 읽는 쪽(튜토리얼 '카메라 돌리기' 퀘스트)이 Update 순서와 무관하게 드래그를 본다(모바일에서 그 퀘스트가 영영 안 깨지던 원인).
         public Vector2 CameraRotate => GameplayInputBlocker.Blocked ? Vector2.zero
-            : (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook;
+            : (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook
+              + (m_ConsumedLookFrame == Time.frameCount ? m_ConsumedMobileLook : Vector2.zero);
+        private Vector2 m_ConsumedMobileLook;
+        private int m_ConsumedLookFrame = -1;
 
         /// <summary>이번에 점프 눌림이 있었으면 true 반환 후 소비(FixedUpdate에서 1회 처리).</summary>
         public bool ConsumeJump()
@@ -94,6 +99,8 @@ namespace Player
         {
             if (GameplayInputBlocker.Blocked) { m_MobileLook = Vector2.zero; return Vector2.zero; }
             Vector2 result = (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook;
+            m_ConsumedMobileLook = m_MobileLook;
+            m_ConsumedLookFrame = Time.frameCount;
             m_MobileLook = Vector2.zero;
             return result;
         }

@@ -179,6 +179,8 @@ public class TutorialQuestSequence : MonoBehaviour
         // 모바일은 조작법 패널 자체를 띄우지 않는다(GameLoopHUD).
         if (!MobileControlsHUD.ShouldUseMobileUI)
             UIManager.Instance.ShowHUDUI<ControlsTooltipHUD>().SetCollapsed(true, playSfx: false, remember: false);
+        // 모바일 상단의 제스처 안내("빈 화면 드래그 · 카메라 …")도 대화창 자리와 겹친다 — 튜토리얼 동안 숨기고 OnDestroy에서 되돌린다.
+        MobileControlsHUD.SetGestureHintVisible(false);
 
         m_Active = true;
         var dlg = UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>();
@@ -192,6 +194,7 @@ public class TutorialQuestSequence : MonoBehaviour
 
     private void OnDestroy()
     {
+        MobileControlsHUD.SetGestureHintVisible(true);   // 컨트롤 캔버스는 씬을 넘어 살아 있다 — 다음 판을 위해 복구
         if (m_LocalCarry != null) m_LocalCarry.OnThrow -= OnLocalThrow;
     }
 
