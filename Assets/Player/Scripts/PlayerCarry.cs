@@ -96,7 +96,7 @@ namespace Player
         private CharacterAbility Ability => CharacterAbility.Of(gameObject, ref m_Wearer);
 
         /// <summary>배치·회수·공정 사거리(칸) — 기본 2칸 + 캐릭터 보너스(소라게 +1).</summary>
-        // 슈팅겜식 낮은 시점(PC)은 조준선이 바닥 멀리 찍혀 2칸으론 매번 고개를 숙여야 한다 → PC는 4칸. 모바일은 시점이 그대로라 2칸 유지.
+        // PC 조준선 시점은 조준선을 캐릭터에서 멀리 띄워서(피벗 높이) 조준점이 발 앞 4~5칸 바닥에 찍힌다 — 2칸으론 매번 고개를 숙여야 한다 → PC는 4칸. 모바일은 시점이 그대로라 2칸 유지.
         private const float kBuildReachCellsPc = 4f;
         private float BuildReachCells => (MobileControlsHUD.ShouldUseMobileUI ? kBuildReachCells : kBuildReachCellsPc) + Ability.ReachBonusCells;
 
@@ -1412,7 +1412,7 @@ namespace Player
                 aimed = plane.Raycast(ray, out float d);
                 aim = aimed ? ray.GetPoint(d) : default;
 
-                // 슈팅겜식 낮은 시점: 앞을 보면 조준선이 바닥 저 멀리(또는 하늘)에 찍힌다 — 그때는 보는 방향으로 '손 닿는 끝'에 놓을 자리를 당겨온다.
+                // 조준선이 사거리 밖 바닥(또는 시선을 들어 하늘)에 찍히면 — 보는 방향으로 '손 닿는 끝'에 놓을 자리를 당겨온다.
                 // 고개를 숙여 바닥을 정확히 찍지 않아도 "저쪽에 놓겠다"가 통한다.
                 if (pcPlacing && (!aimed || FlatDistance(aim) > reachDist))
                 {

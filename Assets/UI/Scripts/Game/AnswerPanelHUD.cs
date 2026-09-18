@@ -215,10 +215,30 @@ public class AnswerPanelHUD : UIHUD
             ShowHelpTip(on);
         });
 
+        BuildPhoneKeyBadge();
         BuildCollapseTab();
         BuildBlockBanner();
         ApplyFreeBuildLook();
         BuildTip();   // 마지막에 만들어 항상 위에 그려진다
+    }
+
+    // 조준선 시점(PC)은 커서가 잠겨 있어 폰을 직접 못 누른다 — 폰 바로 위에 "Q 휴대폰 꺼내기"를 크게 붙여 둔다.
+    // 폰의 자식이라 폰을 접으면 같이 사라진다. 키는 키 설정에서 바꾼 값을 따라간다(레이아웃을 새로 지을 때마다 갱신).
+    private void BuildPhoneKeyBadge()
+    {
+        string key = "Q";
+        var action = Player.PlayerInputHandler.Local?.ControlsAsset?.FindAction(Player.GameplayInputBindings.Phone);
+        if (action != null) key = action.GetBindingDisplayString(0);
+
+        var badge = NewRect("PhoneKeyBadge", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+        Local((RectTransform)badge.transform, 32f, -44f, 240f, 38f);   // 폰 윗변 바로 위
+        var img = badge.AddComponent<Image>();
+        img.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        img.type = Image.Type.Sliced;
+        img.color = InGameUiSkin.Orange;
+        img.raycastTarget = false;
+        var t = MakeText(badge.transform, $"[ {key} ]  휴대폰 꺼내기", Vector2.zero, new Vector2(240f, 38f), Px(17), TextAnchor.MiddleCenter);
+        t.fontStyle = FontStyle.Bold;
     }
 
     // ── 자유 건축 모드 표기 ─────────────────────────────────────────
@@ -527,7 +547,7 @@ public class AnswerPanelHUD : UIHUD
             var close = closeGo.AddComponent<Button>();
             close.targetGraphic = closeImg;
             close.onClick.AddListener(ToggleExpanded);   // PC 확대 보기 → 작은 폰으로
-            var closeLabel = MakeTextPx(closeGo.transform, "작게 보기 ▾", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
+            var closeLabel = MakeTextPx(closeGo.transform, "작게 보기 ▾  (Q / Esc)", Vector2.zero, new Vector2(320f, 62f), 24, TextAnchor.MiddleCenter);
             closeLabel.color = ink;
             closeLabel.fontStyle = FontStyle.Bold;
         }
