@@ -10,7 +10,7 @@ namespace Player
         [SerializeField] float m_VertMax     = 80f;
         [SerializeField] float m_DistMin     = 3f;
         [SerializeField] float m_DistMax     = 20f;
-        [SerializeField] float m_LookHeight  = 2.6f;   // 카메라가 보는 점 높이 = 조준선이 걸리는 높이. 캐릭터 콜라이더 꼭대기(2.0)보다 높아야 조준선이 머리에 안 가린다. 올릴수록 캐릭터가 화면 아래로, 조준점은 더 먼 바닥으로
+        [SerializeField] float m_LookHeight  = 3.4f;   // 카메라가 보는 점 높이 = 조준선이 걸리는 높이. 캐릭터 콜라이더 꼭대기(2.0)보다 높아야 조준선이 머리에 안 가린다. 올릴수록 캐릭터가 화면 아래로, 조준점은 더 먼 바닥으로
         [SerializeField] float m_FreeLookReturn = 10f; // 우클릭 놓았을 때 원래 시점으로 돌아오는 빠르기
 
         // 마우스 감도(설정 팝업 슬라이더와 공유). PlayerPrefs "MouseSensitivity"(0~1) → 0.05~1.5배 곱.
