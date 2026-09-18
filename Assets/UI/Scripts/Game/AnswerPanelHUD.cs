@@ -228,7 +228,7 @@ public class AnswerPanelHUD : UIHUD
     {
         string key = "Q";
         var action = Player.PlayerInputHandler.Local?.ControlsAsset?.FindAction(Player.GameplayInputBindings.Phone);
-        if (action != null) key = action.GetBindingDisplayString(0);
+        if (action != null) key = UnityEngine.InputSystem.InputActionRebindingExtensions.GetBindingDisplayString(action, 0);   // 확장 메서드 — 이 파일은 InputSystem using이 없어 정식 이름으로 호출
 
         var badge = NewRect("PhoneKeyBadge", m_Phone.transform, new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
         Local((RectTransform)badge.transform, 32f, -44f, 240f, 38f);   // 폰 윗변 바로 위
