@@ -54,12 +54,12 @@ public class TutorialDialogueHUD : UIHUD
         var skip = Get<Button>((int)Buttons.SkipButton);
         if (skip != null) skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
 
-        // '목표 : …' 줄이 붙으면서 5줄까지 나온다 — 박스 밖으로 넘치지 않게 자동 축소(최대는 프리팹 크기 그대로) + 하단 [< n/N >] 자리 비움.
+        // '목표 : …' 줄이 붙으면서 5줄까지 나온다 — 박스 밖으로 넘치지 않게 자동 축소 + 하단 [< n/N >] 자리 비움.
         var lineText = Get<TextMeshProUGUI>((int)Texts.Line);
         if (lineText != null)
         {
-            lineText.fontSizeMax = lineText.fontSize;
-            lineText.fontSizeMin = 16f;
+            lineText.fontSizeMax = kLineFontSize;
+            lineText.fontSizeMin = 18f;
             lineText.enableAutoSizing = true;
             lineText.margin = new Vector4(16f, 8f, 16f, 40f);
         }
@@ -78,19 +78,42 @@ public class TutorialDialogueHUD : UIHUD
         gameObject.SetActive(false);
     }
 
-    // 대화창이 눈에 안 띈다는 피드백 — 배경을 더 불투명하게 + 노란 테두리를 두른다.
+    // 대화창이 눈에 안 띈다는 피드백 — 박스·글자를 키우고, 배경을 더 불투명하게 + 둥근 모서리 + 흰 테두리.
     // (좌상단 조작법 패널과 겹치던 문제는 튜토리얼 동안 조작법을 접어 두는 것으로 해결 — TutorialQuestSequence)
     // 프리팹은 기획자 손수정본이라 값만 코드로 덮는다(새 박스 디자인이 오면 프리팹으로 옮길 것).
+    private const float kLineFontSize = 28f;    // 프리팹은 24 — 잘 안 읽힌다는 피드백으로 키움
+    private const float kBorderPx = 4f;
+
     private void ApplyStandOutLook()
     {
+        // 박스를 조금 키운다(프리팹: 가로 28~72%·세로 76~94%) — 글자를 키운 만큼 + 목표 줄 자리
+        var rt = (RectTransform)transform;
+        rt.anchorMin = new Vector2(0.25f, 0.72f);
+        rt.anchorMax = new Vector2(0.75f, 0.94f);
 
         var bg = GetComponent<Image>();
         if (bg == null) return;
-        var c = bg.color; c.a = 0.95f; bg.color = c;
-        var outline = gameObject.AddComponent<Outline>();
-        outline.effectColor = new Color(1f, 0.82f, 0.30f, 1f);   // 퀘스트 머리말([퀘스트 n/12])과 같은 노랑
-        outline.effectDistance = new Vector2(4f, -4f);
-        outline.useGraphicAlpha = false;
+
+        // 둥근 모서리 + 흰 테두리: 루트 이미지를 '흰 둥근 사각형(테두리)'으로 바꾸고, 그 안쪽에 원래 배경색의 둥근 사각형을 한 겹 깐다.
+        var round = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        var fillColor = bg.color; fillColor.a = 0.95f;
+        bg.sprite = round;
+        bg.type = Image.Type.Sliced;
+        bg.color = Color.white;
+
+        var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillGo.transform.SetParent(transform, false);
+        fillGo.transform.SetAsFirstSibling();   // 글자·버튼보다 뒤
+        var fillRt = (RectTransform)fillGo.transform;
+        fillRt.anchorMin = Vector2.zero;
+        fillRt.anchorMax = Vector2.one;
+        fillRt.offsetMin = new Vector2(kBorderPx, kBorderPx);
+        fillRt.offsetMax = new Vector2(-kBorderPx, -kBorderPx);
+        var fill = fillGo.GetComponent<Image>();
+        fill.sprite = round;
+        fill.type = Image.Type.Sliced;
+        fill.color = fillColor;
+        fill.raycastTarget = false;   // 클릭은 루트가 받는다
     }
 
     // 대화 잠금 중 화면 전체를 살짝 어둡게 — "지금은 읽는 시간"이 한눈에 보이고, 아무 데나 클릭해도 넘어간다.
