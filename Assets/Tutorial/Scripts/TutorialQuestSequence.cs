@@ -44,6 +44,39 @@ public class TutorialQuestSequence : MonoBehaviour
         "건축은 혼자 진행할 수도 있지만,\n다른 레인저들과 협동하여 진행하면 더욱 수월할 것입니다.",
     };
 
+    // 퀘스트별 완료 조건(BuildSteps의 순서·판정과 반드시 같이 고칠 것) — 각 퀘스트 마지막 줄 밑에 '목표 : …'로 붙는다.
+    private static readonly string[] kGoalsPc =
+    {
+        "W / A / S / D 로 4초 동안 움직이기",
+        "우클릭을 누른 채 마우스를 움직여 카메라를 크게 돌리기",
+        "우측 하단 휴대폰의 계획도 위에서 우클릭 드래그로 계획도를 크게 돌리기",
+        "휴대폰에서 '벽' 카드를 클릭 → [주문!] 버튼 누르기",
+        "배송지에 도착한 '벽'에 다가가 클릭해서 들기",
+        "벽을 든 채로 G 키를 눌렀다 떼서 던지기",
+        "벽을 들고, 반투명한 '왼쪽 벽' 자리에 클릭해서 놓기",
+        "망치가 놓인 도구함에 다가가 클릭해서 망치 들기",
+        "망치를 든 채 왼쪽 벽에 대고 E 키를 게이지가 찰 때까지 꾹 누르기",
+        "오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문·배치하고, 둘 다 망치로 고정하기",
+        "스페이스바 2연타로 발밑에 비계를 깔며 3층 높이까지 올라가기",
+        "'지붕'을 주문해 들고, 비계로 벽 위 높이까지 올라가 지붕 자리에 놓기",
+    };
+
+    private static readonly string[] kGoalsMobile =
+    {
+        "조이스틱으로 4초 동안 움직이기",
+        "빈 화면을 드래그해 카메라를 크게 돌리기",
+        "휴대폰 버튼 누르기",
+        "휴대폰에서 '벽' 카드를 터치 → [주문!] 버튼 누르기",
+        "배송지에 도착한 '벽'에 다가가 터치해서 들기",
+        "벽을 든 채로 던지기 버튼을 눌렀다 떼서 던지기",
+        "벽을 들고, 반투명한 '왼쪽 벽' 자리를 터치해서 놓기",
+        "망치가 놓인 도구함에 다가가 터치해서 망치 들기",
+        "망치를 든 채 왼쪽 벽 가까이에서 공정 버튼을 게이지가 찰 때까지 꾹 누르기",
+        "오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문·배치하고, 둘 다 망치로 고정하기",
+        "점프 버튼을 빠르게 2번 눌러 발밑에 비계를 깔며 3층 높이까지 올라가기",
+        "'지붕'을 주문해 들고, 비계로 벽 위 높이까지 올라가 지붕 자리에 놓기",
+    };
+
     private static readonly string[] kOutroLines =
     {
         "건축을 얼마나 완벽하게 했는지에 따라,\n완성도가 매겨집니다.",
@@ -137,6 +170,10 @@ public class TutorialQuestSequence : MonoBehaviour
         m_FrontCells = FrontWallCells();
         m_RoofCells = RoofCells();
         m_Steps = BuildSteps();
+
+        // 로딩 화면이 걷힌 뒤에 첫 대화를 띄운다 — 가려진 채로 뜨면 대화창의 '처음 2초 넘김 잠금'이 로딩 뒤에서 다 지나가 버린다.
+        while (m_Loop != null && !m_Loop.MatchStarted)
+            yield return null;
 
         m_Active = true;
         var dlg = UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>();
@@ -401,6 +438,11 @@ public class TutorialQuestSequence : MonoBehaviour
             displayLines.Add(i == 0
                 ? $"<color=#FFD24D><b>[퀘스트 {index + 1}/{m_Steps.Count}]</b></color>\n{step.Lines[i]}"
                 : step.Lines[i]);
+
+        // 화면에 남는 마지막 줄 밑에 '정확히 뭘 하면 완료되는지'를 붙인다 — 대사만으론 뭘 하라는 건지 모르겠다는 피드백.
+        var goals = MobileControlsHUD.ShouldUseMobileUI ? kGoalsMobile : kGoalsPc;
+        if (index < goals.Length)
+            displayLines[displayLines.Count - 1] += $"\n<color=#FFD24D><b>목표 : {goals[index]}</b></color>";
 
         UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, null);
     }

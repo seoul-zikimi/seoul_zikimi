@@ -64,8 +64,12 @@ namespace GridSystem
         {
             var selector = new WeightedWeatherSelector(
                 SeasonWeatherTable.CreateDefault(), new SystemRandomSource());
+            // 튜토리얼은 로비 설정과 무관하게 항상 날씨 OFF — 조작을 배우는 중에 미끄러짐·강풍이 끼면 방해만 된다.
+            // (로비의 HostWeatherEnabled 값은 건드리지 않는다 → 다음 일반 게임엔 영향 없음)
+            var map = MapCatalog.Instance != null ? MapCatalog.Instance.Get(GameLoopManager.ResolvedHostMap) : null;
+            bool tutorial = map != null && map.IsTutorial;
             WeatherSelection selection = selector.Select(new WeatherSessionOptions(
-                GameLoopManager.HostWeatherEnabled,
+                GameLoopManager.HostWeatherEnabled && !tutorial,
                 GameLoopManager.HostSeasonSelectionMode,
                 GameLoopManager.HostFixedSeason));
 

@@ -36,6 +36,13 @@ public class TutorialDialogueHUD : UIHUD
     private bool Blocking => m_Lines != null && (m_SeenIndex < LastIndex || m_OnAllDone != null);
     private bool CanAdvance => m_Lines != null && (m_LineIndex < LastIndex || m_OnAllDone != null);
 
+    // 읽지 않고 연타로 넘기는 유저가 많아(QA) 새 줄이 뜨면 잠깐 넘김을 막는다. 대화가 새로 열릴 땐 더 길게 —
+    // 게임 중이던 클릭(배치·집기)이 방금 뜬 대화를 그대로 넘겨버리는 것도 같이 막는다. 이미 본 줄을 다시 넘길 땐 안 막는다.
+    private const float kOpenLockSeconds = 2f;
+    private const float kLineLockSeconds = 0.7f;
+    private float m_AdvanceLockUntil;
+    private bool AdvanceLocked => Time.unscaledTime < m_AdvanceLockUntil;
+
     public override void Init()
     {
         Bind<TextMeshProUGUI>(typeof(Texts));
@@ -45,6 +52,16 @@ public class TutorialDialogueHUD : UIHUD
 
         var skip = Get<Button>((int)Buttons.SkipButton);
         if (skip != null) skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
+
+        // '목표 : …' 줄이 붙으면서 5줄까지 나온다 — 박스 밖으로 넘치지 않게 자동 축소(최대는 프리팹 크기 그대로) + 하단 [< n/N >] 자리 비움.
+        var lineText = Get<TextMeshProUGUI>((int)Texts.Line);
+        if (lineText != null)
+        {
+            lineText.fontSizeMax = lineText.fontSize;
+            lineText.fontSizeMin = 16f;
+            lineText.enableAutoSizing = true;
+            lineText.margin = new Vector4(16f, 8f, 16f, 40f);
+        }
 
         var hint = transform.Find("AdvanceHint");
         if (hint != null)
@@ -164,7 +181,8 @@ public class TutorialDialogueHUD : UIHUD
     {
         bool blocking = Blocking;
         GameplayInputBlocker.DialogueBlocked = blocking;
-        if (m_AdvanceHint != null) m_AdvanceHint.SetActive(CanAdvance);
+        if (m_AdvanceHint != null) m_AdvanceHint.SetActive(CanAdvance && !AdvanceLocked);   // 힌트가 뜨면 = 이제 넘겨도 된다
+        if (m_NextButton != null) m_NextButton.interactable = CanAdvance && !AdvanceLocked;
         if (m_Dimmer != null) m_Dimmer.SetActive(blocking);
     }
 
@@ -180,6 +198,7 @@ public class TutorialDialogueHUD : UIHUD
         m_LineIndex = 0;
         m_SeenIndex = 0;
         m_OnAllDone = onAllDone;
+        m_AdvanceLockUntil = Time.unscaledTime + kOpenLockSeconds;
         gameObject.SetActive(true);
         ShowCurrentLine();
     }
@@ -207,10 +226,15 @@ public class TutorialDialogueHUD : UIHUD
     private void Advance()
     {
         if (m_Lines == null) return;
+        if (m_LineIndex >= m_SeenIndex && AdvanceLocked) return;   // 새 줄은 잠깐 못 넘긴다(다시 읽는 중인 줄은 자유)
         if (m_LineIndex < LastIndex)
         {
             m_LineIndex++;
-            if (m_LineIndex > m_SeenIndex) m_SeenIndex = m_LineIndex;
+            if (m_LineIndex > m_SeenIndex)
+            {
+                m_SeenIndex = m_LineIndex;
+                m_AdvanceLockUntil = Time.unscaledTime + kLineLockSeconds;
+            }
             ShowCurrentLine();
             return;
         }

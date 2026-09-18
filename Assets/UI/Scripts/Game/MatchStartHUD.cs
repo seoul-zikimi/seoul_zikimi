@@ -283,6 +283,25 @@ public sealed class MatchStartHUD : MonoBehaviour
             return;
         }
 
+        // 튜토리얼: 3-2-1·START 없이 로딩 화면에서 바로 게임으로(GameLoopManager.SkipCountdown).
+        if (m_Loop.SkipCountdown)
+        {
+            if (m_Loading != null && m_Loop.CountdownRemaining > 0f)
+            {
+                TickLoading();
+                return;
+            }
+            if (m_Loading != null)
+            {
+                Destroy(m_Loading);
+                m_Loading = null;
+                RestoreLoadPriority();
+            }
+            m_Done = true;
+            Destroy(gameObject);
+            return;
+        }
+
         // 카운트다운이 잡혀도 실제 3-2-1 시작 시각 전(예약 여유 + 서버 최소 노출 구간)에는
         // 로딩 화면을 유지한다 — 이 구간에 거북이가 집까지 도착하는 연출이 나온다.
         // 늦게 로딩 끝난 클라(씬 로드 중 프레임이 안 그려짐)도 잠깐은 보게 하되,
