@@ -33,6 +33,7 @@ public static class InGameUiRemasterAutoApply
         bool any = false;
         if (!HasChild(kGameLoop, GameLoopHudPrefabGenerator.kRemasterMarker)) { GameLoopHudPrefabGenerator.Generate(); any = true; }
         if (!HasChild(kCarry, CarryHudPrefabGenerator.kRemasterMarker))       { CarryHudPrefabGenerator.Generate();    any = true; }
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(CrosshairHudPrefabGenerator.kPath) == null) CrosshairHudPrefabGenerator.Generate();   // 조준선 프리팹 없으면 1회 생성
         if (any) Debug.Log("[InGameUiRemaster] 리마스터 레이아웃으로 HUD 프리팹 자동 재생성 완료");
     }
 

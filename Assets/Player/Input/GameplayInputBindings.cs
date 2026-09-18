@@ -25,6 +25,7 @@ namespace Player
         public const string Throw = "Player/Throw";
         public const string ToggleOrder = "Player/ToggleOrder";
         public const string EmoteWheel = "Player/EmoteWheel";
+        public const string Phone = "Player/Phone";
         public const string CameraRotate = "Camera/Rotate";
         public const string CameraZoom = "Camera/Zoom";
 
@@ -224,6 +225,7 @@ namespace Player
             EnsureButton(player, "Throw", "<Keyboard>/g", "<Gamepad>/rightTrigger");
             EnsureButton(player, "ToggleOrder", "<Keyboard>/tab", "<Gamepad>/select");
             EnsureButton(player, "EmoteWheel", "<Keyboard>/t", "<Gamepad>/start");
+            EnsureKeyboardButton(player, "Phone", "<Keyboard>/q");
             for (int i = 0; i < EmoteHotkeyCount; i++)
                 EnsureKeyboardButton(player, $"Emote{i + 1}", $"<Keyboard>/f{i + 1}");
 

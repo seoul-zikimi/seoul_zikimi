@@ -99,6 +99,7 @@ public class AnswerPanelHUD : UIHUD
     /// <summary>폰이 펼쳐졌는지(모바일 월드 입력 잠금 등에서 구독).</summary>
     public static event Action<bool> PhoneVisibilityChanged;
     public bool PhoneOpen => !m_Collapsed;
+    public bool IsExpanded => m_ExpandedView;
 
     /// <summary>커서가 폰 UI 부품(확대 버튼·도움말) 위 — AnswerHudDriver가 정답 뷰 클릭/호버를 양보한다.</summary>
     public bool ChromeHovered { get; private set; }

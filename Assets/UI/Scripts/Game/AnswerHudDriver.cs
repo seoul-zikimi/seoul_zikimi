@@ -26,6 +26,8 @@ public class AnswerHudDriver : MonoBehaviour
     private bool           m_Dragging;   // 패널 위에서 우클릭 시작 → 버튼 뗄 때까지 회전 캡처
     private Vector2        m_PressPos;   // 좌클릭 시작 위치 — 클릭(선택)과 드래그(팬) 구분용
     private bool           m_PressOnPanel;
+    private bool           m_CursorLocked;   // 조준선 시점으로 내가 커서를 잠갔나
+    private float          m_NextLoopFind;
 
     private void OnEnable()
     {
@@ -89,6 +91,14 @@ public class AnswerHudDriver : MonoBehaviour
             else if (m_Preview != null) m_Preview.ToggleVisibility();
         }
 
+        // Q = 폰 크게 꺼내기 ↔ 넣기. 꺼낸 동안만 커서가 나온다(UpdateCursorLock)
+        // Esc = 꺼낸 폰 닫기(열지는 않음)
+        bool phoneKey = gameplayInput != null && gameplayInput.PhonePressedThisFrame;
+        bool escClose = m_Hud != null && m_Hud.IsExpanded && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+        if ((phoneKey || escClose) && m_Hud != null && m_Visible && CanLook())
+            m_Hud.ToggleExpanded();
+        UpdateCursorLock();
+
         // 모바일에서는 AnswerPanelHUD가 좌측 완공 계획도/우측 재료 카탈로그의
         // 전체화면 레이아웃을 사용한다. 표시 중 월드 조작 잠금은 아래 포커스와
         // MobileControlsHUD의 VisibilityChanged 구독이 함께 담당한다.
@@ -98,7 +108,7 @@ public class AnswerHudDriver : MonoBehaviour
         if (m_Hud == null || m_Preview == null || Mouse.current == null) { AnswerPanelFocus.Active = false; return; }
 
         var rect = m_Hud.SurfaceRect;
-        bool over = m_Visible && m_Hud.PhoneOpen && rect != null && !m_Hud.ChromeHovered &&   // 접힘·확대 버튼·도움말 위에선 정답 뷰 입력 양보
+        bool over = m_Visible && m_Hud.PhoneOpen && rect != null && !m_Hud.ChromeHovered && !m_CursorLocked &&   // 접힘·확대 버튼·도움말 위에선 정답 뷰 입력 양보
             RectTransformUtility.RectangleContainsScreenPoint(rect, Mouse.current.position.ReadValue(), null);
 
         // 좌클릭·우클릭 어느 쪽이든 패널 위에서 드래그 시작 → 회전(좌클릭이 더 직관적이라는 피드백 반영).
@@ -132,6 +142,36 @@ public class AnswerHudDriver : MonoBehaviour
         }
 
         UpdateHover(rect, over && !anyPressed);   // 드래그 중엔 호버 끔(회전하다 라벨이 튀지 않게)
+    }
+
+    // ── 조준선 시점: 빌드 중 PC는 커서 잠금(마우스=시점·화면 중앙=조준점). 폰을 크게 꺼낸 동안만 커서가 나온다 ──
+    private bool CanLook()
+    {
+        if (MobileControlsHUD.ShouldUseMobileUI || GameplayInputBlocker.Blocked || Player.PlayerInputHandler.Local == null) return false;
+        if (m_Loop == null && Time.unscaledTime >= m_NextLoopFind)
+        {
+            m_NextLoopFind = Time.unscaledTime + 1f;
+            m_Loop = FindFirstObjectByType<GameLoopManager>();
+        }
+        return m_Loop != null && m_Loop.IsBuilding;   // 로비(GameLoopManager 없음)·결과 화면은 커서 그대로
+    }
+
+    private void UpdateCursorLock()
+    {
+        bool lockIt = CanLook()
+            && !(m_Hud != null && m_Visible && m_Hud.IsExpanded)                      // 폰 꺼냄 = 커서
+            && !(Keyboard.current != null && Keyboard.current.leftAltKey.isPressed)   // 비상구: Alt 홀드(폰이 숨겨졌을 때·다른 HUD 버튼용)
+            && !Player.PlayerInputHandler.Local.EmoteWheelIsPressed;                  // 이모트 휠은 커서 방향으로 고른다
+        // 매 프레임 재단언(에디터 Esc·알트탭이 잠금을 풀어도 복구). 내가 잠근 적 없으면 None을 쓰지 않는다(TrailerCamera 잠금 보존).
+        if (lockIt) Cursor.lockState = CursorLockMode.Locked;
+        else if (m_CursorLocked) Cursor.lockState = CursorLockMode.None;
+        bool changed = lockIt != m_CursorLocked;
+        m_CursorLocked = lockIt;   // HUD 호출보다 먼저 — 거기서 예외가 나도 잠금 상태는 어긋나지 않게
+        if (changed && UIManager.Instance != null)
+        {
+            if (lockIt) UIManager.Instance.ShowHUDUI<CrosshairHUD>();
+            else        UIManager.Instance.HideHUDUI<CrosshairHUD>();
+        }
     }
 
     // 폰 화면의 '현재 완성도 : N%' 배지 갱신(0.25초 스로틀). 팀전이면 우리 팀 점수.

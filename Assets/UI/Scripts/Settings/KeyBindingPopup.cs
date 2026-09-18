@@ -197,6 +197,7 @@ public sealed class KeyBindingPopup : UIPopup
             GameplayInputBindings.Throw => "던지기",
             GameplayInputBindings.ToggleOrder => "휴대폰 / 주문 UI",
             GameplayInputBindings.EmoteWheel => "감정표현 메뉴",
+            GameplayInputBindings.Phone => "폰 크게 보기 / 커서",
             GameplayInputBindings.CameraRotate => "카메라 회전",
             GameplayInputBindings.CameraZoom => "카메라 확대 / 축소",
             _ => info.ActionName,

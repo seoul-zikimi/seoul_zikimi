@@ -11,7 +11,7 @@ namespace Player
         private PlayerControls m_Controls;
         private InputAction m_Move, m_Sprint, m_Jump, m_Interact, m_Process, m_Revert;
         private InputAction m_RotateHeld, m_Throw, m_ToggleOrder, m_CameraRotate, m_CameraZoom;
-        private InputAction m_EmoteWheel;
+        private InputAction m_EmoteWheel, m_Phone;
         private readonly InputAction[] m_Emotes = new InputAction[GameplayInputBindings.EmoteHotkeyCount];
         private bool m_JumpQueued;
         private bool m_ScaffoldQueued;
@@ -29,9 +29,10 @@ namespace Player
         public Vector2 MoveInput => GameplayInputBlocker.Blocked ? Vector2.zero
             : Vector2.ClampMagnitude((m_Move?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileMove, 1f);
         public bool IsSprinting => !GameplayInputBlocker.Blocked && ((m_Sprint?.IsPressed() ?? false) || m_MobileSprint);
+        // 커서 잠금(조준선 시점) 중엔 화면 중앙 = 조준점. PlayerCarry의 조준 레이가 전부 이 값을 쓴다.
         public Vector2 PointerPosition => m_HasMobilePointer
             ? m_MobilePointer
-            : Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            : Mouse.current != null && Cursor.lockState != CursorLockMode.Locked ? Mouse.current.position.ReadValue() : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
         public bool InteractPressedThisFrame => !GameplayInputBlocker.Blocked && ((m_Interact?.WasPressedThisFrame() ?? false) || m_InteractFrame == Time.frameCount);
         public bool RotateHeldPressedThisFrame => !GameplayInputBlocker.Blocked && ((m_RotateHeld?.WasPressedThisFrame() ?? false) || m_RotateFrame == Time.frameCount);
         public bool ProcessPressedThisFrame => !GameplayInputBlocker.Blocked && ((m_Process?.WasPressedThisFrame() ?? false) || m_ProcessPressedFrame == Time.frameCount);
@@ -51,7 +52,16 @@ namespace Player
         public InputActionAsset ControlsAsset => m_Controls?.asset;
         // 튜토리얼 진척도 등 읽기 전용 호환 프로퍼티. 실제 카메라는 ConsumeCameraRotate로 모바일 delta를 1회 소비한다.
         public Vector2 CameraRotate => GameplayInputBlocker.Blocked ? Vector2.zero
-            : (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook;
+            : ReadLook() + m_MobileLook;
+
+        // 조준선 시점: 커서 잠금 중엔 우클릭 없이 마우스 이동 = 시점(우클릭 중엔 Rotate composite가 이미 delta를 준다).
+        private Vector2 ReadLook()
+        {
+            Vector2 look = m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero;
+            if (Cursor.lockState == CursorLockMode.Locked && Mouse.current != null && !Mouse.current.rightButton.isPressed)
+                look += Mouse.current.delta.ReadValue();
+            return look;
+        }
 
         /// <summary>이번에 점프 눌림이 있었으면 true 반환 후 소비(FixedUpdate에서 1회 처리).</summary>
         public bool ConsumeJump()
@@ -93,7 +103,7 @@ namespace Player
         public Vector2 ConsumeCameraRotate()
         {
             if (GameplayInputBlocker.Blocked) { m_MobileLook = Vector2.zero; return Vector2.zero; }
-            Vector2 result = (m_CameraRotate?.ReadValue<Vector2>() ?? Vector2.zero) + m_MobileLook;
+            Vector2 result = ReadLook() + m_MobileLook;
             m_MobileLook = Vector2.zero;
             return result;
         }
@@ -110,6 +120,10 @@ namespace Player
         // 키 설정 팝업 등 입력 차단 중엔 이모트도 막는다(리바인딩 대기 중 F1~F11·T가 그대로 발동하던 문제).
         public bool EmoteWheelPressedThisFrame => !GameplayInputBlocker.Blocked && (m_EmoteWheel?.WasPressedThisFrame() ?? false);
         public bool EmoteWheelReleasedThisFrame => m_EmoteWheel?.WasReleasedThisFrame() ?? false;
+        // 조준선 시점에서 우클릭 홀드 = 둘러보기(캐릭터·이동 방향은 그대로, 카메라만)
+        public bool FreeLookHeld => Cursor.lockState == CursorLockMode.Locked && Mouse.current != null && Mouse.current.rightButton.isPressed;
+        public bool EmoteWheelIsPressed => m_EmoteWheel?.IsPressed() ?? false;
+        public bool PhonePressedThisFrame => !GameplayInputBlocker.Blocked && (m_Phone?.WasPressedThisFrame() ?? false);
 
         public int ConsumeEmoteIndex()
         {
@@ -179,6 +193,7 @@ namespace Player
             m_Throw = m_Controls.asset.FindAction(GameplayInputBindings.Throw, true);
             m_ToggleOrder = m_Controls.asset.FindAction(GameplayInputBindings.ToggleOrder, true);
             m_EmoteWheel = m_Controls.asset.FindAction(GameplayInputBindings.EmoteWheel, true);
+            m_Phone = m_Controls.asset.FindAction(GameplayInputBindings.Phone, true);
             for (int i = 0; i < m_Emotes.Length; i++)
                 m_Emotes[i] = m_Controls.asset.FindAction($"Player/Emote{i + 1}", true);
             m_CameraRotate = m_Controls.asset.FindAction(GameplayInputBindings.CameraRotate, true);

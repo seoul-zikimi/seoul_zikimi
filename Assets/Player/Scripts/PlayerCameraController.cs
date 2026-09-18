@@ -10,6 +10,9 @@ namespace Player
         [SerializeField] float m_VertMax     = 80f;
         [SerializeField] float m_DistMin     = 3f;
         [SerializeField] float m_DistMax     = 20f;
+        [SerializeField] float m_LookHeight  = 3.0f;   // 카메라가 보는 점 높이. 올릴수록 캐릭터가 화면 아래로(조준선이 머리 위로)
+        [SerializeField] float m_ShoulderOffset = 1.2f; // 카메라를 오른쪽으로 평행 이동(어깨 너머 시점). 키울수록 캐릭터가 화면 왼쪽으로
+        [SerializeField] float m_FreeLookReturn = 10f; // 우클릭 놓았을 때 원래 시점으로 돌아오는 빠르기
 
         // 마우스 감도(설정 팝업 슬라이더와 공유). PlayerPrefs "MouseSensitivity"(0~1) → 0.25~2.5배 곱.
         static float s_SensMul = -1f;
@@ -27,6 +30,9 @@ namespace Player
         Transform          m_CameraArm;
         PlayerInputHandler m_Input;
         CameraOrbit        m_Orbit;   // 피치/줌 공유 로직(정답 패널 카메라와 동일 컴포넌트)
+        float m_FreeYaw;      // 둘러보기 중 카메라만 돌아간 각(팔 기준). 0 = 평소
+        float m_HomePitch;    // 둘러보기 시작 때 피치 — 놓으면 여기로 복귀
+        bool  m_FreeLooking, m_Returning;
 
         void Awake()
         {
@@ -38,7 +44,7 @@ namespace Player
                 PitchMin = m_VertMin, PitchMax = m_VertMax,
                 DistMin  = m_DistMin, DistMax  = m_DistMax,
                 Pitch = 45f,      // 30° → 45°: 더 위에서 내려다봄
-                Distance = 12f,   // 10f → 12f: 조금 더 멀리
+                Distance = 9f,    // 12f → 9f: 조준선 시점은 캐릭터 가까이
             };
         }
 
@@ -57,12 +63,28 @@ namespace Player
 
             // ── 수평 회전: yaw는 CameraArm에 그대로(이동이 카메라 상대라 보존) ──
             float sens = SensitivityMul;
-            m_CameraArm.Rotate(Vector3.up, rot.x * m_RotateSpeed * sens, Space.World);
+            // 우클릭 홀드 = 둘러보기: 팔(이동·캐릭터 기준)은 그대로 두고 카메라만 돈다. 놓으면 원래 시점으로 복귀.
+            bool free = m_Input.FreeLookHeld;
+            if (free && !m_FreeLooking) { if (!m_Returning) m_HomePitch = m_Orbit.Pitch; m_Returning = false; }
+            if (!free && m_FreeLooking) { m_FreeYaw = Mathf.DeltaAngle(0f, m_FreeYaw); m_Returning = true; }   // 한 바퀴 넘게 돌렸어도 짧은 쪽으로 복귀
+            m_FreeLooking = free;
+
+            if (free) m_FreeYaw += rot.x * m_RotateSpeed * sens;
+            else      m_CameraArm.Rotate(Vector3.up, rot.x * m_RotateSpeed * sens, Space.World);
 
             // ── 피치/줌만 공유 오빗으로(yaw=0으로 적분 → 팔이 담당) ──
             m_Orbit.Integrate(new Vector2(0f, rot.y * sens), zoom);
-            transform.localPosition = m_Orbit.LocalOffset();
-            transform.LookAt(m_CameraArm.position + Vector3.up * 1.0f);
+            if (m_Returning)
+            {
+                float k = 1f - Mathf.Exp(-m_FreeLookReturn * Time.deltaTime);
+                m_FreeYaw     = Mathf.Lerp(m_FreeYaw, 0f, k);
+                m_Orbit.Pitch = Mathf.Lerp(m_Orbit.Pitch, m_HomePitch, k);
+                if (Mathf.Abs(m_FreeYaw) < 0.1f && Mathf.Abs(m_Orbit.Pitch - m_HomePitch) < 0.1f)
+                { m_FreeYaw = 0f; m_Orbit.Pitch = m_HomePitch; m_Returning = false; }
+            }
+            transform.localPosition = Quaternion.Euler(0f, m_FreeYaw, 0f) * m_Orbit.LocalOffset();
+            transform.LookAt(m_CameraArm.position + Vector3.up * m_LookHeight);
+            transform.position += transform.right * m_ShoulderOffset;   // 회전은 그대로 두고 옆으로만 — 조준선 방향이 이동 방향과 어긋나지 않는다
         }
     }
 }
