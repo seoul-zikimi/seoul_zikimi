@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>건축레인저 : 서울 설명서</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @font-face{font-family:"SUITE";src:url("fonts/SUITE-500.ttf") format("truetype");font-weight:500;font-display:block}
+  @font-face{font-family:"SUITE";src:url("fonts/SUITE-700.ttf") format("truetype");font-weight:700;font-display:block}
+  @font-face{font-family:"SUITE";src:url("fonts/SUITE-800.ttf") format("truetype");font-weight:800;font-display:block}
+  @font-face{font-family:"SUITE";src:url("fonts/SUITE-900.ttf") format("truetype");font-weight:900;font-display:block}
+  :root{
+    --cream:#FBF3E1; --sand:#F1E5C9;
+    --navy:#1B2340; --navy2:#242D52; --ink:#2B2A33; --muted:#7A766D;
+    --yellow:#F5B400; --coral:#F0603F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#d9d3c4;font-family:"SUITE","Malgun Gothic",sans-serif;font-weight:500;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact;letter-spacing:-0.01em;word-break:keep-all;font-size:8.8pt;line-height:1.45}
+  @page{size:A4 portrait;margin:0}
+  .page{width:210mm;height:297mm;margin:8mm auto;background:var(--cream);display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.18);overflow:hidden}
+  .page>*{flex-shrink:0}
+  b{font-weight:800;color:var(--navy)}
+  kbd{display:inline-block;font-family:inherit;font-weight:800;font-size:7.6pt;line-height:1;padding:.9mm 1.6mm .8mm;border-radius:1.2mm;background:#fff;color:var(--navy);white-space:nowrap;vertical-align:middle}
+  kbd.hold{background:var(--navy);color:#fff}
+
+  /* HERO */
+  .hero{position:relative;height:62mm;background:var(--navy);overflow:hidden;color:#fff}
+  .hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:62% 40%}
+  .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(27,35,64,.94) 0%,rgba(27,35,64,.82) 34%,rgba(27,35,64,.1) 62%,rgba(27,35,64,0) 100%)}
+  .hero .in{position:relative;z-index:1;height:100%;padding:6mm 10mm 5.5mm;display:flex;flex-direction:column;justify-content:space-between}
+  .hero .logo{width:40mm;height:auto;filter:drop-shadow(0 2mm 4mm rgba(0,0,0,.45))}
+  .hero .eyebrow{display:inline-block;background:var(--yellow);color:var(--navy);font-weight:900;font-size:8.4pt;padding:1.1mm 3mm;border-radius:99px;margin-bottom:2mm;letter-spacing:.01em}
+  .hero h1{font-weight:900;font-size:20pt;line-height:1.15;white-space:nowrap;letter-spacing:-0.03em;text-shadow:0 1mm 3mm rgba(0,0,0,.35)}
+  .hero h1 em{font-style:normal;color:var(--yellow)}
+  .hero .chips{display:flex;gap:1.8mm;margin-top:2.4mm;flex-wrap:wrap}
+  .hero .chips span{font-size:7.8pt;font-weight:700;background:rgba(255,255,255,.16);padding:1.1mm 2.8mm;border-radius:99px}
+  .tape{height:2mm;background:repeating-linear-gradient(135deg,var(--yellow) 0 5mm,var(--navy) 5mm 10mm)}
+
+  /* WIN */
+  .win{padding:3.5mm 10mm 3mm}
+  .win .row{display:grid;grid-template-columns:1fr 52mm;gap:7mm;align-items:center}
+  .win .lbl{font-weight:900;font-size:9pt;color:var(--coral);letter-spacing:.08em;margin-bottom:1.6mm}
+  .win h2{font-weight:900;font-size:19pt;line-height:1.2;letter-spacing:-0.035em;color:var(--navy);margin-bottom:2.6mm;white-space:nowrap}
+  .win h2 em{font-style:normal;background:linear-gradient(transparent 60%,var(--yellow) 60%)}
+  .win ul{list-style:none;display:grid;gap:1.6mm}
+  .win li{display:grid;grid-template-columns:5.6mm 1fr;gap:2mm;align-items:start;font-size:9pt;line-height:1.4}
+  .mk{display:inline-flex;align-items:center;justify-content:center;width:5.6mm;height:5.6mm;border-radius:50%;background:var(--navy);color:#fff;font-size:7.6pt;font-weight:900;line-height:1;margin-top:.4mm}
+  .shot{position:relative;border-radius:3mm;overflow:hidden;aspect-ratio:1600/893;box-shadow:0 3mm 8mm rgba(27,35,64,.22)}
+  .shot img{display:block;width:100%;height:100%;object-fit:cover}
+  .shot .mk{position:absolute;width:6.4mm;height:6.4mm;font-size:8.4pt;margin:0;transform:translate(-50%,-50%);background:var(--yellow);color:var(--navy);box-shadow:0 1mm 2.5mm rgba(0,0,0,.4)}
+
+  /* FLOW */
+  .flow{padding:0 10mm}
+  .sec{display:flex;align-items:center;gap:3mm;margin-bottom:3.2mm}
+  .sec h3{font-weight:900;font-size:14pt;color:var(--navy);letter-spacing:-0.025em;line-height:1}
+  .sec span{font-size:8.4pt;color:var(--muted);font-weight:600}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:3.2mm}
+  .step{position:relative}
+  .step .ph{border-radius:2.6mm;overflow:hidden;aspect-ratio:16/9;box-shadow:0 2mm 5mm rgba(27,35,64,.18)}
+  .step .ph img{display:block;width:100%;height:100%;object-fit:cover}
+  .step .num{position:absolute;left:-1.6mm;top:-2.4mm;width:10mm;height:10mm;border-radius:50%;background:var(--yellow);color:var(--navy);font-weight:900;font-size:15pt;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 1mm 3mm rgba(0,0,0,.25)}
+  .step h4{font-weight:900;font-size:13pt;color:var(--navy);margin-top:2.6mm;letter-spacing:-0.025em;line-height:1}
+  .step p{font-size:8.6pt;line-height:1.42;margin-top:1.2mm;min-height:6.5mm}
+  .step .k{margin-top:1.6mm;display:flex;gap:1.2mm;align-items:center;flex-wrap:wrap}
+  .step .k kbd{background:var(--sand)}
+  .step .k kbd.hold{background:var(--navy)}
+  .step .warn{font-size:7.8pt;font-weight:900;color:#fff;background:var(--coral);border-radius:99px;padding:1mm 2.2mm;line-height:1}
+  .result{margin-top:2.6mm;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4mm;background:var(--navy);color:#fff;border-radius:99px;padding:1.8mm 5mm 1.8mm 3.5mm}
+  .result .stars{color:var(--yellow);font-size:13pt;line-height:1;letter-spacing:-0.05em}
+  .result b{color:#fff;font-size:9.6pt;font-weight:900}
+  .result small{font-size:8pt;opacity:.8}
+
+  /* TIPS + CONTROLS */
+  .mid{padding:3.2mm 10mm 0}
+  .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}
+  .tip{display:grid;grid-template-columns:10mm 1fr;gap:2.4mm;align-items:start}
+  .tip .num{width:8.6mm;height:8.6mm;border-radius:2.2mm;background:var(--yellow);color:var(--navy);font-weight:900;font-size:13pt;display:flex;align-items:center;justify-content:center;line-height:1}
+  .tip b{display:block;font-size:11.5pt;line-height:1.2;letter-spacing:-0.025em;font-weight:900;margin-bottom:.9mm}
+  .tip p{font-size:8.6pt;line-height:1.42}
+  .ctl{margin:3mm 10mm 0;background:var(--sand);border-radius:3mm;padding:2.6mm 4mm 2.6mm}
+  .ctl .sec{margin-bottom:2.2mm}
+  .ctl .sec h3{font-size:12pt}
+  .ctl .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4mm 5mm}
+  .ctl .grid div{display:flex;align-items:center;gap:2.4mm;font-size:8.2pt;white-space:nowrap}
+  .ctl .k{display:flex;gap:.6mm;align-items:center;min-width:23mm}
+  .ctl .k em{font-style:normal;color:var(--muted);font-size:7pt;margin:0 .3mm}
+
+  /* BOTTOM BAND */
+  .band{margin-top:auto;background:var(--navy);color:#fff;padding:3mm 10mm 2.5mm;display:grid;grid-template-columns:1fr 88mm;gap:8mm;align-items:start}
+  .band .sec h3{color:#fff}
+  .band .sec span{color:rgba(255,255,255,.65)}
+  .modes{display:grid;gap:1.8mm}
+  .mode{display:grid;grid-template-columns:27mm 1fr;gap:2.6mm;align-items:baseline}
+  .mode b{color:var(--yellow);font-size:10.5pt;font-weight:900;letter-spacing:-0.02em}
+  .mode p{font-size:8.4pt;line-height:1.4;color:rgba(255,255,255,.9)}
+  .chars{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm}
+  .ch{text-align:center;background:#fff;border-radius:3mm;padding:1.4mm 1.5mm 1.6mm}
+  .ch .img{height:13mm;display:flex;align-items:flex-end;justify-content:center}
+  .ch img{max-height:13mm;max-width:100%;object-fit:contain}
+  .ch b{display:block;color:var(--navy);font-size:11pt;margin-top:1.2mm;letter-spacing:-0.02em;font-weight:900}
+  .ch span{display:block;font-size:8pt;line-height:1.35;margin-top:.3mm;color:var(--muted)}
+  .ft{grid-column:1/-1;display:flex;justify-content:space-between;font-size:7.6pt;color:rgba(255,255,255,.6);margin-top:.5mm}
+  .ft b{color:#fff}
+  @media print{html,body{background:#fff;margin:0;width:210mm;height:297mm;overflow:hidden}.page{box-shadow:none;margin:0;height:297mm}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <img class="bg" src="assets/play_gwang_time.jpg" alt="">
+    <div class="in">
+      <img class="logo" src="assets/logo.png" alt="건축레인저 : 서울">
+      <div>
+        <div class="eyebrow">1~4인 멀티 협동 건축 게임</div>
+        <h1>무너진 서울, <em>등껍질 삼총사</em>가 다시 짓는다!</h1>
+        <div class="chips"><span>협동 타임어택</span><span>2 vs 2 대결</span><span>자유 건축</span><span>한 판 7~10분</span><span>PC · 모바일</span></div>
+      </div>
+    </div>
+  </header>
+  <div class="tape"></div>
+
+  <section class="win">
+    <div class="lbl">HOW TO WIN</div>
+    <h2>휴대폰 속 <em>완공 계획도</em>와 똑같이 지으면 승리!</h2>
+    <div class="row">
+      <ul>
+        <li><span class="mk">1</span><div>휴대폰에서 계획도를 보고 재료를 주문해요.</div></li>
+        <li><span class="mk">2</span><div>재료는 파란 배송 구역에 떨어져요.</div></li>
+        <li><span class="mk">3</span><div>반투명한 자리가 정답 위치. 놓고 망치질하면 완성도가 올라요.</div></li>
+      </ul>
+      <div class="shot">
+        <img src="assets/play_gwang_hud.jpg" alt="튜토리얼 맵 화면">
+        <span class="mk" style="left:79%;top:27%">1</span>
+        <span class="mk" style="left:14%;top:52%">2</span>
+        <span class="mk" style="left:50%;top:32%">3</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="flow">
+    <div class="sec"><h3>한 판의 흐름</h3><span>네 가지만 반복하면 돼요</span></div>
+    <div class="steps">
+      <div class="step">
+        <div class="ph"><img src="assets/step_order.jpg" alt="주문"></div><div class="num">1</div>
+        <h4>주문</h4><p>휴대폰을 꺼내 재료 카드를 눌러요.</p>
+        <div class="k"><kbd>Tab</kbd></div>
+      </div>
+      <div class="step">
+        <div class="ph"><img src="assets/step_carry.jpg" alt="운반"></div><div class="num">2</div>
+        <h4>운반</h4><p>들고 가거나, 멀리 있는 친구에게 던져요.</p>
+        <div class="k"><kbd>좌클릭</kbd><kbd class="hold">G 꾹</kbd></div>
+      </div>
+      <div class="step">
+        <div class="ph"><img src="assets/step_place.jpg" alt="배치"></div><div class="num">3</div>
+        <h4>배치</h4><p>반투명 자리에 놓아요. 방향이 다르면 돌려요.</p>
+        <div class="k"><kbd>좌클릭</kbd><kbd>R</kbd></div>
+      </div>
+      <div class="step">
+        <div class="ph"><img src="assets/step_fix.jpg" alt="망치질"></div><div class="num">4</div>
+        <h4>망치질</h4><p>망치를 들고 블록 앞에서 꾹. 떠 있던 망치가 사라지면 완료!</p>
+        <div class="k"><kbd class="hold">E 꾹</kbd><span class="warn">망치질까지 해야 만점</span></div>
+      </div>
+    </div>
+    <div class="result"><span class="stars">★★★</span><b>시간이 끝나면 완성도만큼 별과 코인!</b><small>60% 별 2개 · 90% 별 3개 · 코인으로 레인저와 옷을 사요</small></div>
+  </section>
+
+  <section class="mid">
+    <div class="sec"><h3>처음이면 이것만은!</h3></div>
+    <div class="tips">
+      <div class="tip"><div class="num">1</div><div><b>위층은 비계로 올라가요</b><p><kbd>Space</kbd> 를 연타하면 발밑에 비계가 생겨요. 받쳐줄 게 없으면 못 놓아요.</p></div></div>
+      <div class="tip"><div class="num">2</div><div><b>역할을 나누면 두 배 빨라요</b><p>한 명은 주문하고 던지기, 한 명은 받아서 배치와 망치질.</p></div></div>
+      <div class="tip"><div class="num">3</div><div><b>계획도를 돌려 보세요</b><p>우클릭 드래그로 돌리고 휠로 확대해요. 블록 클릭 = 선택, 한 번 더 = 주문.</p></div></div>
+    </div>
+  </section>
+
+  <section class="ctl">
+    <div class="sec"><h3>조작</h3><span>PC 기본키 · 키 변경과 게임패드는 설정에서</span></div>
+    <div class="grid">
+      <div><span class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>이동</div>
+      <div><span class="k"><kbd>Tab</kbd></span>휴대폰 꺼내기 · 넣기</div>
+      <div><span class="k"><kbd class="hold">G 꾹</kbd></span>던지기 (길게 = 멀리)</div>
+      <div><span class="k"><kbd>Shift</kbd></span>달리기</div>
+      <div><span class="k"><kbd>좌클릭</kbd></span>집기 · 배치</div>
+      <div><span class="k"><kbd class="hold">E 꾹</kbd></span>공정 (망치·페인트·물)</div>
+      <div><span class="k"><kbd>Space</kbd></span>점프 · 연타하면 비계</div>
+      <div><span class="k"><kbd>R</kbd></span>든 물건 회전</div>
+      <div><span class="k"><kbd class="hold">Z 꾹</kbd></span>마지막 공정 되돌리기</div>
+      <div><span class="k"><kbd>우클릭 드래그</kbd><em>/</em><kbd>휠</kbd></span>카메라 · 줌</div>
+      <div><span class="k"><kbd>T</kbd></span>감정표현</div>
+      <div><span class="k"><kbd>Enter</kbd></span>조기 종료 요청</div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div>
+      <div class="sec"><h3>모드</h3></div>
+      <div class="modes">
+        <div class="mode"><b>협동 타임어택</b><p>1~4명이 한 팀. 제한 시간 안에 완성도를 최대한!</p></div>
+        <div class="mode"><b>2 vs 2 대결</b><p>같은 건물을 두 팀이 동시에. 먼저 100%면 승리. 아이템으로 방해 가능.</p></div>
+        <div class="mode"><b>자유 건축</b><p>타이머도 채점도 없이 마음껏 지어요.</p></div>
+      </div>
+    </div>
+    <div>
+      <div class="sec"><h3>레인저</h3><span>처음에 한 명 고르고, 나머지는 300코인에 영입</span></div>
+      <div class="chars">
+        <div class="ch"><div class="img"><img src="assets/char_snail_cut.png" alt="달팽이"></div><b>달팽이</b><span>벽을 기어올라요</span></div>
+        <div class="ch"><div class="img"><img src="assets/char_turtle_cut.png" alt="거북이"></div><b>거북이</b><span>무거워도 안 느려요</span></div>
+        <div class="ch"><div class="img"><img src="assets/char_crab_cut.png" alt="소라게"></div><b>소라게</b><span>한 칸 멀리서도 닿아요</span></div>
+      </div>
+    </div>
+    <div class="ft"><span>처음이라면 설정의 <b>튜토리얼 다시 보기</b>로 5분만 연습해 보세요.</span><span>seoul-zikimi.github.io/build-rangers</span></div>
+  </section>
+</div>
+</body>
+</html>
