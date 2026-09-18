@@ -1251,7 +1251,7 @@ namespace GridSystem
             go.name = "~ProcMarker";
             go.transform.SetParent(m_VisualRoot.transform, false);
             go.transform.localScale = Vector3.one * scale;
-            go.transform.position = pos;
+            go.transform.position = pos + Vector3.up * 0.2f;   // 뒤에 깔리는 원형 배지(ProcMarkerBadge)가 블록 윗면에 파묻히지 않을 만큼 띄운다
             go.AddComponent<JuiceBob>();   // 둥실둥실 + 회전 — "나 눌러줘" 어필
             ProcMarkerBadge.Attach(go, ColorForMask((int)next));   // 뒤에 흰 원 + 공정 색 테두리(고정=파랑·페인트=초록) — 도구 모델만으론 배경에 묻힌다
             return go;
