@@ -1428,14 +1428,15 @@ namespace Player
                 // (GridNetwork.SolidAllowed — 부딪혀 무너뜨리는 연출용) 비주얼의 트리거 박스만 있어서 레이가 그냥 통과,
                 // 벽 밑동(바닥 평면과 만나는 곳)을 찍어야만 잡혔다. 또 커서가 내 캐릭터·다른 플레이어에 걸려도 거기서 끝났다.
                 // → 트리거 포함 전부 훑고, 플레이어는 건너뛰고, 대상이 되는 블록 중 가장 가까운 것을 고른다.
+                //   단 대상이 아닌 솔리드(바닥·지형·회수 불가 블록 등)가 더 앞에 있으면 그건 '가려진 블록'이라 잡지 않는다(보이는 걸 잡는다는 예전 의미 유지).
                 if (!HasMaterial && m_Net != null)
                 {
                     int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~(1 << 2), QueryTriggerInteraction.Collide);
-                    float bestDist = float.MaxValue;
+                    float bestDist = float.MaxValue, occluderDist = float.MaxValue;
+                    Vector3Int bestCell = default;
                     for (int hi = 0; hi < hitCount; hi++)
                     {
                         var bh = s_GrabRayBuf[hi];
-                        if (bh.distance >= bestDist) continue;
                         var ht = bh.collider.transform;
                         if (ht == transform || ht.IsChildOf(transform) || bh.collider.CompareTag("Player")) continue;
                         var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
@@ -1454,10 +1455,17 @@ namespace Player
                             }
                             if (!found) continue;
                         }
-                        if (!m_Net.IsPickupable(bc) && !(HasTool && vis != null)) continue;
-                        bestDist = bh.distance;
-                        m_Target = bc;
-                        m_HasTarget = bc.x >= xMin && bc.x < xMax && bc.z >= 0 && bc.z < s.z && bc.y >= 0 && bc.y < s.y;
+                        if (!m_Net.IsPickupable(bc) && !(HasTool && vis != null))
+                        {
+                            if (!bh.collider.isTrigger && bh.distance < occluderDist) occluderDist = bh.distance;
+                            continue;
+                        }
+                        if (bh.distance < bestDist) { bestDist = bh.distance; bestCell = bc; }
+                    }
+                    if (bestDist <= occluderDist + 0.05f * GridContract.Unit && bestDist < float.MaxValue)
+                    {
+                        m_Target = bestCell;
+                        m_HasTarget = bestCell.x >= xMin && bestCell.x < xMax && bestCell.z >= 0 && bestCell.z < s.z && bestCell.y >= 0 && bestCell.y < s.y;
                     }
                 }
 

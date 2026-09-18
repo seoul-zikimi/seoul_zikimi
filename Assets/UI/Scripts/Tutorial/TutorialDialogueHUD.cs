@@ -41,7 +41,7 @@ public class TutorialDialogueHUD : UIHUD
     private const float kOpenLockSeconds = 2f;
     private const float kLineLockSeconds = 0.7f;
     private float m_AdvanceLockUntil;
-    private bool AdvanceLocked => Time.unscaledTime < m_AdvanceLockUntil;
+    private bool AdvanceLocked => Time.unscaledTime < m_AdvanceLockUntil && m_LineIndex >= m_SeenIndex;   // 이미 본 줄을 다시 넘길 땐 안 막는다
 
     public override void Init()
     {
@@ -309,7 +309,7 @@ public class TutorialDialogueHUD : UIHUD
     private void Advance()
     {
         if (m_Lines == null) return;
-        if (m_LineIndex >= m_SeenIndex && AdvanceLocked) return;   // 새 줄은 잠깐 못 넘긴다(다시 읽는 중인 줄은 자유)
+        if (AdvanceLocked) return;   // 새 줄은 잠깐 못 넘긴다(다시 읽는 중인 줄은 자유)
         if (m_LineIndex < LastIndex)
         {
             m_LineIndex++;

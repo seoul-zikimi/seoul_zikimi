@@ -484,7 +484,9 @@ namespace GridSystem
         static Transform MakeDisc(Transform parent, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);   // 납작하게 눌러 원판으로
-            Destroy(go.GetComponent<Collider>());
+            var col = go.GetComponent<Collider>();
+            col.enabled = false;   // 즉시 끔 — Destroy는 1프레임 지연이라 그 사이 물리·조준 레이에 걸린다(MakeBit과 같은 이유)
+            Destroy(col);
             go.transform.SetParent(parent, false);
             var r = go.GetComponent<Renderer>();
             r.sharedMaterial = mat;

@@ -75,7 +75,11 @@ namespace GridSystem
         {
             get
             {
-                var def = MapCatalog.Instance != null ? MapCatalog.Instance.Get(m_MapIndex.Value) : null;
+                // MapCatalog.Get은 범위 밖 인덱스를 0번(=튜토리얼)으로 폴백한다 — 깨진 인덱스를 튜토리얼로 오인해 일반 판의 카운트다운을 건너뛰지 않게 범위를 먼저 본다.
+                var catalog = MapCatalog.Instance;
+                int index = m_MapIndex.Value;
+                if (catalog == null || index < 0 || index >= catalog.Count) return false;
+                var def = catalog.Get(index);
                 return def != null && def.IsTutorial;
             }
         }
