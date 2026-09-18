@@ -103,6 +103,7 @@ public static class LocTables
         { "페인트 갖다줘!", "Bring paint!" },
         { "잘했어!", "Well done!" },
         { "감정표현 ▾", "Emotes ▾" },
+        { "감정표현", "Emotes" },   // 모바일 감정표현 버튼 — ▾가 폰트에 없어 네모로 찍혀 라벨에서 뺐다
         { "오지 마!", "Don't come!" },
         { "휴대폰", "Phone" },
         { "공정취소", "Undo" },

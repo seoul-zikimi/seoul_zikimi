@@ -255,7 +255,7 @@ public static class MobileControlsPrefabGenerator
         image.sprite = VoiceSprite(); image.type = Image.Type.Sliced; image.color = SpriteFill;   // 디자이너 'voice' 둥근 사각(보더 40)
         var btn = button.gameObject.AddComponent<Button>(); btn.targetGraphic = image;
         SetFlatColors(btn, SpriteFill);
-        Label("Label", button, "감정표현 ▾", 24, Ink);
+        Label("Label", button, "감정표현", 24, Ink);   // ▾(U+25BE)는 SUITE 폰트에 없어 네모로 찍혔다
 
         // 행 수·라벨의 원본은 EmoteDefs — 대사를 추가/수정하면 이 메뉴를 다시 돌리기만 하면 된다.
         // (예전엔 옛 이모지 이름 8개가 여기 하드코딩돼 있어, 라벨과 실제로 나가는 대사가 서로 달랐다.)

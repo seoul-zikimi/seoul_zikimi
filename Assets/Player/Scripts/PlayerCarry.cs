@@ -1423,16 +1423,49 @@ namespace Player
 
                 // 빈손(회수/공정): 평면 교차점 대신 '마우스 레이가 실제로 맞는 배치 블록'의 셀을 우선 — 블록 윗면을 보거나
                 // 블록 위에 서 있어도 클릭한 그 블록이 잡힌다(평면만 쓰면 층이 달라 엉뚱한 빈 칸을 가리킴).
-                if (!HasMaterial && m_Net != null &&
-                    Physics.Raycast(ray, out var bh, 100f, ~(1 << 2), QueryTriggerInteraction.Ignore) &&
-                    bh.collider.transform != transform && !bh.collider.transform.IsChildOf(transform) &&
-                    !bh.collider.CompareTag("Player"))
+                //
+                // 첫 히트 하나만 보던 예전 방식은 정작 '망치질이 필요한 블록'을 못 잡았다: 미고정 하중부재는 물리 솔리드가 없고
+                // (GridNetwork.SolidAllowed — 부딪혀 무너뜨리는 연출용) 비주얼의 트리거 박스만 있어서 레이가 그냥 통과,
+                // 벽 밑동(바닥 평면과 만나는 곳)을 찍어야만 잡혔다. 또 커서가 내 캐릭터·다른 플레이어에 걸려도 거기서 끝났다.
+                // → 트리거 포함 전부 훑고, 플레이어는 건너뛰고, 대상이 되는 블록 중 가장 가까운 것을 고른다.
+                //   단 대상이 아닌 솔리드(바닥·지형·회수 불가 블록 등)가 더 앞에 있으면 그건 '가려진 블록'이라 잡지 않는다(보이는 걸 잡는다는 예전 의미 유지).
+                if (!HasMaterial && m_Net != null)
                 {
-                    var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
-                    if (m_Net.IsPickupable(bc) || (HasTool && m_Net.VisualAt(bc) != null))
+                    int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~(1 << 2), QueryTriggerInteraction.Collide);
+                    float bestDist = float.MaxValue, occluderDist = float.MaxValue;
+                    Vector3Int bestCell = default;
+                    for (int hi = 0; hi < hitCount; hi++)
                     {
-                        m_Target = bc;
-                        m_HasTarget = bc.x >= xMin && bc.x < xMax && bc.z >= 0 && bc.z < s.z && bc.y >= 0 && bc.y < s.y;
+                        var bh = s_GrabRayBuf[hi];
+                        var ht = bh.collider.transform;
+                        if (ht == transform || ht.IsChildOf(transform) || bh.collider.CompareTag("Player")) continue;
+                        var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
+                        var vis = m_Net.VisualAt(bc);
+                        if (bh.collider.isTrigger)
+                        {
+                            // 트리거는 '그 블록 비주얼의 것'만 인정(구역·픽업 등 다른 트리거는 무시). 트리거 박스는 메시 AABB라 블록 칸보다
+                            // 살짝 클 수 있어(처마 등) 진입점이 빈 칸일 수 있다 — 레이를 따라 들어가며 그 비주얼이 차지한 첫 칸을 찾는다.
+                            bool found = false;
+                            for (float t = 0.05f; t <= 3f && !found; t += 0.25f)
+                            {
+                                var stepCell = GridCoordinates.WorldToCell(bh.point + ray.direction * (t * GridContract.Unit));
+                                var stepVis = m_Net.VisualAt(stepCell);
+                                if (stepVis == null || !ht.IsChildOf(stepVis.transform)) continue;
+                                bc = stepCell; vis = stepVis; found = true;
+                            }
+                            if (!found) continue;
+                        }
+                        if (!m_Net.IsPickupable(bc) && !(HasTool && vis != null))
+                        {
+                            if (!bh.collider.isTrigger && bh.distance < occluderDist) occluderDist = bh.distance;
+                            continue;
+                        }
+                        if (bh.distance < bestDist) { bestDist = bh.distance; bestCell = bc; }
+                    }
+                    if (bestDist <= occluderDist + 0.05f * GridContract.Unit && bestDist < float.MaxValue)
+                    {
+                        m_Target = bestCell;
+                        m_HasTarget = bestCell.x >= xMin && bestCell.x < xMax && bestCell.z >= 0 && bestCell.z < s.z && bestCell.y >= 0 && bestCell.y < s.y;
                     }
                 }
 

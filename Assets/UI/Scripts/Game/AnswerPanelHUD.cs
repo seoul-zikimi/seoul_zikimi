@@ -99,6 +99,8 @@ public class AnswerPanelHUD : UIHUD
     /// <summary>폰이 펼쳐졌는지(모바일 월드 입력 잠금 등에서 구독).</summary>
     public static event Action<bool> PhoneVisibilityChanged;
     public bool PhoneOpen => !m_Collapsed;
+    /// <summary>폰이 화면 전체를 덮는 상태인가(모바일 폰 열림 · PC 확대 보기) — 튜토리얼 대화창이 이때는 폰 밑으로 내려간다.</summary>
+    public bool IsFullscreen => m_MobileLayout && !m_Collapsed && gameObject.activeInHierarchy;
 
     /// <summary>커서가 폰 UI 부품(확대 버튼·도움말) 위 — AnswerHudDriver가 정답 뷰 클릭/호버를 양보한다.</summary>
     public bool ChromeHovered { get; private set; }

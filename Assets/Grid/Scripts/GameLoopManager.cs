@@ -69,7 +69,20 @@ namespace GridSystem
         /// <summary>전원 로딩이 끝나 카운트다운이 잡혔는가(로딩 화면 → 카운트다운 전환 신호).</summary>
         public bool CountdownArmed => m_CountdownStart.Value >= 0f;
         /// <summary>카운트다운 남은 초(3→0). 미시작 -1, 끝나면 음수로 계속 감소.</summary>
-        public float CountdownRemaining => CountdownArmed ? (m_CountdownStart.Value + kCountdownSeconds) - NowNet : -1f;
+        public float CountdownRemaining => CountdownArmed ? (m_CountdownStart.Value + (SkipCountdown ? 0f : kCountdownSeconds)) - NowNet : -1f;
+        /// <summary>튜토리얼 맵: 3-2-1 없이 로딩이 끝나면 바로 시작 — 곧바로 대화가 뜨는데 카운트다운이 끼면 읽기만 방해한다(MatchStartHUD도 숫자를 안 띄운다).</summary>
+        public bool SkipCountdown
+        {
+            get
+            {
+                // MapCatalog.Get은 범위 밖 인덱스를 0번(=튜토리얼)으로 폴백한다 — 깨진 인덱스를 튜토리얼로 오인해 일반 판의 카운트다운을 건너뛰지 않게 범위를 먼저 본다.
+                var catalog = MapCatalog.Instance;
+                int index = m_MapIndex.Value;
+                if (catalog == null || index < 0 || index >= catalog.Count) return false;
+                var def = catalog.Get(index);
+                return def != null && def.IsTutorial;
+            }
+        }
         /// <summary>카운트다운까지 끝나 실제 게임(타이머·입력)이 시작됐는가.</summary>
         public bool MatchStarted => CountdownArmed && CountdownRemaining <= 0f;
         /// <summary>로딩 완료 인원 / 전체 인원(로딩바 표시용).</summary>

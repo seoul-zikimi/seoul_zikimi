@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using GridSystem;
 using Player;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -43,6 +42,39 @@ public class TutorialQuestSequence : MonoBehaviour
         L.T("반갑습니다.\n당신은 서울의 무너진 명소들을 복구하는 건축 일을 맡게 되었습니다.", "Welcome.\nYou've been hired to rebuild Seoul's collapsed landmarks."),
         L.T("일명 '건축 레인저'가 되어 명소도 복구하고,\n짭짤한 일당을 모아 이것저것 구매해 봅시다!", "Become a 'Build Ranger', restore the landmarks,\nand spend your hard-earned pay on all sorts of things!"),
         L.T("건축은 혼자 진행할 수도 있지만,\n다른 레인저들과 협동하여 진행하면 더욱 수월할 것입니다.", "You can build alone,\nbut teaming up with other Rangers makes it much easier."),
+    });
+
+    // 퀘스트별 완료 조건(BuildSteps의 순서·판정과 반드시 같이 고칠 것) — 각 퀘스트 마지막 줄 밑에 '목표 : …'로 붙는다.
+    private static readonly LocCache<string[]> s_kGoalsPc = new();
+    private static string[] kGoalsPc => s_kGoalsPc.Get(() => new string[]{
+        L.T("W / A / S / D 로 4초 동안 움직이기", "Move with W / A / S / D for 4 seconds"),
+        L.T("우클릭을 누른 채 마우스를 움직여 카메라를 크게 돌리기", "Hold right mouse button and move the mouse to swing the camera around"),
+        L.T("우측 하단 휴대폰의 계획도 위에서 우클릭 드래그로 계획도를 크게 돌리기", "Right-drag on the blueprint in the bottom-right phone to spin it around"),
+        L.T("휴대폰에서 '벽' 카드를 클릭 → [주문!] 버튼 누르기", "Click the 'Wall' card on the phone → press the [Order!] button"),
+        L.T("배송지에 도착한 '벽'에 다가가 클릭해서 들기", "Walk up to the delivered 'Wall' and click it to pick it up"),
+        L.T("벽을 든 채로 G 키를 눌렀다 떼서 던지기", "While holding the wall, press and release G to throw it"),
+        L.T("벽을 들고, R 키로 방향을 돌려 맞춘 뒤 반투명한 '왼쪽 벽' 자리에 클릭해서 놓기", "Hold the wall, press R to rotate it to fit, then click the see-through 'left wall' spot to place it"),
+        L.T("망치가 놓인 도구함에 다가가 클릭해서 망치 들기", "Walk up to the toolbox with the hammer and click it to pick the hammer up"),
+        L.T("망치를 든 채 왼쪽 벽에 대고 E 키를 게이지가 찰 때까지 꾹 누르기", "With the hammer, aim at the left wall and hold E until the gauge fills"),
+        L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문·배치하고, 둘 다 망치로 고정하기", "Order and place the right wall ('Wall') and the front wall ('Wall with Door'), then fix both with the hammer"),
+        L.T("스페이스바 2연타로 발밑에 비계를 깔며 3층 높이까지 올라가기", "Double-tap Space to lay scaffolding under your feet and climb up to the 3rd floor"),
+        L.T("'지붕'을 주문해 들고, 비계로 벽 위 높이까지 올라가 지붕 자리에 놓기", "Order the 'Roof', carry it up to wall-top height with scaffolding, and place it on the roof spot"),
+    });
+
+    private static readonly LocCache<string[]> s_kGoalsMobile = new();
+    private static string[] kGoalsMobile => s_kGoalsMobile.Get(() => new string[]{
+        L.T("조이스틱으로 4초 동안 움직이기", "Move with the joystick for 4 seconds"),
+        L.T("빈 화면을 드래그해 카메라를 크게 돌리기", "Drag empty screen space to swing the camera around"),
+        L.T("휴대폰 버튼 누르기", "Press the Phone button"),
+        L.T("휴대폰에서 '벽' 카드를 터치 → [주문!] 버튼 누르기", "Tap the 'Wall' card on the phone → press the [Order!] button"),
+        L.T("배송지에 도착한 '벽'에 다가가 터치해서 들기", "Walk up to the delivered 'Wall' and tap it to pick it up"),
+        L.T("벽을 든 채로 던지기 버튼을 눌렀다 떼서 던지기", "While holding the wall, press and release the Throw button to throw it"),
+        L.T("벽을 들고, 회전 버튼으로 방향을 돌려 맞춘 뒤 반투명한 '왼쪽 벽' 자리를 터치해서 놓기", "Hold the wall, use the Rotate button to fit it, then tap the see-through 'left wall' spot to place it"),
+        L.T("망치가 놓인 도구함에 다가가 터치해서 망치 들기", "Walk up to the toolbox with the hammer and tap it to pick the hammer up"),
+        L.T("망치를 든 채 왼쪽 벽 가까이에서 공정 버튼을 게이지가 찰 때까지 꾹 누르기", "With the hammer, stand near the left wall and hold the Process button until the gauge fills"),
+        L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문·배치하고, 둘 다 망치로 고정하기", "Order and place the right wall ('Wall') and the front wall ('Wall with Door'), then fix both with the hammer"),
+        L.T("점프 버튼을 빠르게 2번 눌러 발밑에 비계를 깔며 3층 높이까지 올라가기", "Double-tap the Jump button to lay scaffolding under your feet and climb up to the 3rd floor"),
+        L.T("'지붕'을 주문해 들고, 비계로 벽 위 높이까지 올라가 지붕 자리에 놓기", "Order the 'Roof', carry it up to wall-top height with scaffolding, and place it on the roof spot"),
     });
 
     private static readonly LocCache<string[]> s_kOutroLines = new();
@@ -93,6 +125,7 @@ public class TutorialQuestSequence : MonoBehaviour
     private float m_AnswerRotAccum;
     private bool m_ThrewHeldObject;
     private bool m_ReachedFloor3;
+    private bool m_PhoneToggled, m_LastPanelOpen;   // 모바일 퀘스트3: 휴대폰 여닫기 감지
 
     private void Start()
     {
@@ -138,6 +171,17 @@ public class TutorialQuestSequence : MonoBehaviour
         m_RoofCells = RoofCells();
         m_Steps = BuildSteps();
 
+        // 로딩 화면이 걷힌 뒤에 첫 대화를 띄운다 — 가려진 채로 뜨면 대화창의 '처음 2초 넘김 잠금'이 로딩 뒤에서 다 지나가 버린다.
+        while (m_Loop != null && !m_Loop.MatchStarted)
+            yield return null;
+
+        // 좌상단 조작법 패널이 대화창과 겹친다 — 튜토리얼 동안만 접어 둔다(PlayerPrefs엔 안 남겨 다음 판엔 유저 설정대로).
+        // 모바일은 조작법 패널 자체를 띄우지 않는다(GameLoopHUD).
+        if (!MobileControlsHUD.ShouldUseMobileUI)
+            UIManager.Instance.ShowHUDUI<ControlsTooltipHUD>().SetCollapsed(true, playSfx: false, remember: false);
+        // 모바일 상단의 제스처 안내("빈 화면 드래그 · 카메라 …")도 대화창 자리와 겹친다 — 튜토리얼 동안 숨기고 OnDestroy에서 되돌린다.
+        MobileControlsHUD.SetGestureHintVisible(false);
+
         m_Active = true;
         var dlg = UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>();
         dlg.OnSkipRequested -= OnSkipRequested;
@@ -150,6 +194,7 @@ public class TutorialQuestSequence : MonoBehaviour
 
     private void OnDestroy()
     {
+        MobileControlsHUD.SetGestureHintVisible(true);   // 컨트롤 캔버스는 씬을 넘어 살아 있다 — 다음 판을 위해 복구
         if (m_LocalCarry != null) m_LocalCarry.OnThrow -= OnLocalThrow;
     }
 
@@ -213,87 +258,132 @@ public class TutorialQuestSequence : MonoBehaviour
         return false;
     }
 
-    private static bool AnyMoveKeyHeld()
-    {
-        var kb = Keyboard.current;
-        if (kb == null) return false;
-        return kb.wKey.isPressed || kb.aKey.isPressed || kb.sKey.isPressed || kb.dKey.isPressed;
-    }
+    // 이동 입력 중인가 — 키보드를 직접 읽으면 모바일 조이스틱·패드에서 영영 안 깨진다(입력 핸들러 경유).
+    private bool AnyMoveInput() => m_LocalInput != null && m_LocalInput.MoveInput.sqrMagnitude > 0.01f;
+
+    // 모바일은 키보드·마우스가 없다 — 같은 퀘스트를 터치 조작 말로 안내한다.
+    private static string[] Lines(string[] pc, string[] mobile) => MobileControlsHUD.ShouldUseMobileUI ? mobile : pc;
 
     private List<TutorialQuestStep> BuildSteps()
     {
         var steps = new List<TutorialQuestStep>
         {
-            new(new[]
+            new(Lines(new[]
             {
+                L.T("w / a / s / d 키로 이동합니다.\nshift 키를 누르며 이동하면 달릴 수 있고,\nspace 키를 누르면 점프합니다.", "Move with W / A / S / D.\nHold Shift while moving to run,\nand press Space to jump."),
                 L.T("우선, w / a / s / d 를 눌러 움직여 볼까요?", "First, try moving with W / A / S / D."),
-                L.T("shift 키를 누르며 이동하면 달릴 수 있고,\nspace 키를 누르면 점프합니다.", "Hold Shift while moving to run,\nand press Space to jump."),
-            }, () =>
+            }, new[]
             {
-                if (AnyMoveKeyHeld()) m_MoveHeldTime += Time.deltaTime;
+                L.T("왼쪽 아래 조이스틱으로 이동합니다.\n조이스틱을 끝까지 밀면 달릴 수 있고,\n점프 버튼을 누르면 점프합니다.", "Move with the joystick at the bottom left.\nPush it all the way to run,\nand press the Jump button to jump."),
+                L.T("우선, 조이스틱으로 움직여 볼까요?", "First, try moving with the joystick."),
+            }), () =>
+            {
+                if (AnyMoveInput()) m_MoveHeldTime += Time.deltaTime;
                 return m_MoveHeldTime >= 4f;
             }, () => m_MoveHeldTime = 0f),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("마우스 우클릭을 누른 채 화면을 드래그하면,\n카메라를 돌릴 수 있습니다.", "Hold right mouse button and drag\nto rotate the camera."),
                 L.T("스크롤을 통해 카메라를 확대/축소할 수 있습니다.\n주변을 둘러보세요!", "Scroll to zoom the camera in and out.\nLook around!"),
-            }, () =>
+            }, new[]
+            {
+                L.T("버튼이 없는 빈 화면을 드래그하면,\n카메라를 돌릴 수 있습니다.", "Drag any empty part of the screen\nto rotate the camera."),
+                L.T("두 손가락을 벌리거나 오므리면 카메라를 확대/축소할 수 있습니다.\n주변을 둘러보세요!", "Pinch with two fingers to zoom the camera in and out.\nLook around!"),
+            }), () =>
             {
                 if (m_LocalInput != null && !AnswerPanelFocus.Active)
                     m_CamRotAccum += m_LocalInput.CameraRotate.magnitude;
                 return m_CamRotAccum >= kRotateThreshold;
             }, () => m_CamRotAccum = 0f),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("우측 하단 휴대폰엔,\n오늘 지어야 하는 건물의 완공 계획도가 표시됩니다.", "The phone at the bottom right\nshows the blueprint of today's building."),
                 L.T("계획도에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다.\n주변을 둘러보세요!", "Hover over the blueprint and control it like the camera.\nLook around!"),
-            }, () =>
+            }, new[]
             {
+                L.T("휴대폰엔,\n오늘 지어야 하는 건물의 완공 계획도가 표시됩니다.", "The phone\nshows the blueprint of today's building."),
+                L.T("휴대폰 버튼을 눌러 계획도를 열어보세요!", "Press the Phone button to open the blueprint!"),
+            }), () =>
+            {
+                // 모바일은 계획도 회전 조작이 없다(마우스 전용) — 휴대폰을 한 번 여닫으면 완료.
+                if (MobileControlsHUD.ShouldUseMobileUI)
+                {
+                    if (AnswerPreview.PanelOpen != m_LastPanelOpen) m_PhoneToggled = true;
+                    m_LastPanelOpen = AnswerPreview.PanelOpen;
+                    return m_PhoneToggled;
+                }
                 if (m_LocalInput != null && AnswerPanelFocus.Active)
                     m_AnswerRotAccum += m_LocalInput.CameraRotate.magnitude;
                 return m_AnswerRotAccum >= kRotateThreshold;
-            }, () => m_AnswerRotAccum = 0f),
+            }, () => { m_AnswerRotAccum = 0f; m_PhoneToggled = false; m_LastPanelOpen = AnswerPreview.PanelOpen; }),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("건축에 필요한 재료들은 휴대폰에서 주문할 수 있습니다.", "Order the materials you need from the phone."),
                 L.T("완공 계획도에서 원하는 재료를 바로 클릭할 수 있고,\n하단 카탈로그에서 지정해 주문할 수도 있습니다.\n'벽' 재료를 주문해보세요!", "Click a material right on the blueprint,\nor pick it from the catalog below.\nTry ordering a 'Wall'!"),
-            }, AnyWallPickupExists),
+            }, new[]
+            {
+                L.T("건축에 필요한 재료들은 휴대폰에서 주문할 수 있습니다.", "Order the materials you need from the phone."),
+                L.T("완공 계획도에서 원하는 재료를 바로 터치할 수 있고,\n재료 카탈로그에서 지정해 주문할 수도 있습니다.\n휴대폰 버튼을 눌러 '벽' 재료를 주문해보세요!", "Tap a material right on the blueprint,\nor pick it from the material catalog.\nPress the Phone button and order a 'Wall'!"),
+            }), AnyWallPickupExists),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("주문한 재료는 주문 배송지에 도착합니다.", "Ordered materials arrive at the delivery point."),
                 L.T("도착한 벽을 클릭해 들어봅시다!", "Click the delivered wall to pick it up!"),
-            }, () => m_LocalCarry.IsHolding),
+            }, new[]
+            {
+                L.T("주문한 재료는 주문 배송지에 도착합니다.", "Ordered materials arrive at the delivery point."),
+                L.T("도착한 벽에 가까이 가서 터치해 들어봅시다!", "Walk up to the delivered wall and tap it to pick it up!"),
+            }), () => m_LocalCarry.IsHolding),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("G 키를 눌러 손에 든 물건을 던질 수 있습니다.\n팀원과 협동할 때 무척 유용한 기술입니다.", "Press G to throw what you're holding.\nVery handy when working with teammates."),
                 L.T("마우스 커서가 향하는 방향으로,\nG 키를 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!", "It flies toward the mouse cursor,\nand the longer you hold G, the farther it goes.\nTry throwing the 'Wall'!"),
-            }, () => m_ThrewHeldObject, () => m_ThrewHeldObject = false),
+            }, new[]
+            {
+                L.T("던지기 버튼을 눌러 손에 든 물건을 던질 수 있습니다.\n팀원과 협동할 때 무척 유용한 기술입니다.", "Press the Throw button to throw what you're holding.\nVery handy when working with teammates."),
+                L.T("카메라가 보는 방향으로,\n던지기 버튼을 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!", "It flies the way the camera is facing,\nand the longer you hold Throw, the farther it goes.\nTry throwing the 'Wall'!"),
+            }), () => m_ThrewHeldObject, () => m_ThrewHeldObject = false),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("이제 벽을 건축할 곳으로 이동해 배치해봅시다.", "Now move to the build site and place the wall."),
-                L.T("벽을 다시 집고,\n투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.", "Pick the wall up again\nand click the matching spot on the ghost blueprint!\nStart with the left wall."),
                 L.T("오브젝트를 든 채로 R버튼을 누르면 회전시킬 수 있습니다.", "Press R while holding an object to rotate it."),
-            }, () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
+                L.T("벽을 다시 집고,\n투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.", "Pick the wall up again\nand click the matching spot on the ghost blueprint!\nStart with the left wall."),
+            }, new[]
+            {
+                L.T("이제 벽을 건축할 곳으로 이동해 배치해봅시다.", "Now move to the build site and place the wall."),
+                L.T("오브젝트를 든 채로 회전 버튼을 누르면 회전시킬 수 있습니다.", "Press the Rotate button while holding an object to rotate it."),
+                L.T("벽을 다시 집고,\n투명 답안의 맞는 위치를 터치해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.", "Pick the wall up again\nand tap the matching spot on the ghost blueprint!\nStart with the left wall."),
+            }), () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("답안은 Tab키를 눌러 보이거나 보이지 않게 할 수 있습니다.", "Press Tab to show or hide the blueprint."),
                 L.T("배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요?\n해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.", "See the hammer icon above the wall you placed?\nIt means this object needs to be 'fixed'."),
                 L.T("망치 도구를 클릭해 들어보세요.", "Click the hammer tool to pick it up."),
-            }, () => m_LocalCarry.IsHoldingTool),
-
-            new(new[]
+            }, new[]
             {
-                L.T("망치를 든 채로,\n왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.", "With the hammer in hand,\nhold E on the left wall to hammer it in place."),
+                L.T("답안은 눈 모양 버튼을 눌러 보이거나 보이지 않게 할 수 있습니다.", "Press the eye button to show or hide the blueprint."),
+                L.T("배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요?\n해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.", "See the hammer icon above the wall you placed?\nIt means this object needs to be 'fixed'."),
+                L.T("망치 도구를 터치해 들어보세요.", "Tap the hammer tool to pick it up."),
+            }), () => m_LocalCarry.IsHoldingTool),
+
+            new(Lines(new[]
+            {
                 L.T("이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 종류의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.", "Like this, some objects need a process.\nSome need two kinds, and some need none."),
                 L.T("공정을 잘못 진행했을 경우,\nz키를 꾹 누르면 공정 취소가 가능합니다.", "If you did a process by mistake,\nhold Z to undo it."),
-            }, () => CellsFixed(m_LeftCells, m_WallMaterialId)),
+                L.T("망치를 든 채로,\n왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.", "With the hammer in hand,\nhold E on the left wall to hammer it in place."),
+            }, new[]
+            {
+                L.T("이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 종류의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.", "Like this, some objects need a process.\nSome need two kinds, and some need none."),
+                L.T("공정을 잘못 진행했을 경우,\n공정취소 버튼을 꾹 누르면 공정 취소가 가능합니다.", "If you did a process by mistake,\nhold the Undo button to undo it."),
+                L.T("망치를 든 채로 왼쪽 벽 가까이에서,\n공정 버튼을 꾹 눌러 망치질을 하면 고정됩니다.", "With the hammer in hand, stand near the left wall\nand hold the Process button to hammer it in place."),
+            }), () => CellsFixed(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
             {
@@ -301,13 +391,19 @@ public class TutorialQuestSequence : MonoBehaviour
                 L.T("이제 오른쪽 벽과 앞쪽 벽을 알맞게 배치하고 고정해 보세요.", "Now place and fix the right wall and the front wall."),
             }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_DoorWallMaterialId)),
 
-            new(new[]
+            new(Lines(new[]
             {
                 L.T("이제 지붕이 남았습니다.\n지붕은 '벽 위'에 배치해야 합니다.", "Only the roof is left.\nThe roof goes 'on top of the walls'."),
                 L.T("하지만 재료를 배치하려면 배치할 곳과 같은 '층'에 위치해야 합니다.\n그럴 때를 대비해 '비계' 오브젝트를 제공합니다.", "But to place a material you must stand on the same 'floor'.\nThat's what 'scaffolding' is for."),
                 L.T("비계 오브젝트는 무제한으로 제공되며,\n스페이스바를 2번 연타하면 발밑에 깔립니다.", "Scaffolding is unlimited —\ndouble-tap Space to lay one under your feet."),
                 L.T("비계 깔기를 통해 3층까지 올라가보세요!", "Use scaffolding to climb up to the 3rd floor!"),
-            }, () =>
+            }, new[]
+            {
+                L.T("이제 지붕이 남았습니다.\n지붕은 '벽 위'에 배치해야 합니다.", "Only the roof is left.\nThe roof goes 'on top of the walls'."),
+                L.T("하지만 재료를 배치하려면 배치할 곳과 같은 '층'에 위치해야 합니다.\n그럴 때를 대비해 '비계' 오브젝트를 제공합니다.", "But to place a material you must stand on the same 'floor'.\nThat's what 'scaffolding' is for."),
+                L.T("비계 오브젝트는 무제한으로 제공되며,\n점프 버튼을 빠르게 2번 누르면 발밑에 깔립니다.", "Scaffolding is unlimited —\ndouble-tap the Jump button to lay one under your feet."),
+                L.T("비계 깔기를 통해 3층까지 올라가보세요!", "Use scaffolding to climb up to the 3rd floor!"),
+            }), () =>
             {
                 if (GridContract.LocalBuildFloor >= 2) m_ReachedFloor3 = true;
                 return m_ReachedFloor3;
@@ -325,6 +421,7 @@ public class TutorialQuestSequence : MonoBehaviour
     {
         if (!m_Active) return;
         if (m_Index < 0 || m_Index >= m_Steps.Count) return;
+        if (GameplayInputBlocker.DialogueBlocked) return;   // 대화 읽는 중엔 퀘스트 판정도 멈춤
         if (m_Steps[m_Index].IsComplete())
             EnterStep(m_Index + 1);
     }
@@ -344,11 +441,16 @@ public class TutorialQuestSequence : MonoBehaviour
 
         var displayLines = new List<string>();
         if (index > 0)
-            displayLines.Add(L.T($"<color=#7FE07F><b>✅ 퀘스트 {index} 완료!</b></color>", $"<color=#7FE07F><b>✅ Quest {index} complete!</b></color>"));
+            displayLines.Add(L.T($"<color=#7FE07F><b>퀘스트 {index} 완료!</b></color>", $"<color=#7FE07F><b>Quest {index} complete!</b></color>"));
         for (int i = 0; i < step.Lines.Length; i++)
             displayLines.Add(i == 0
                 ? L.T($"<color=#FFD24D><b>[퀘스트 {index + 1}/{m_Steps.Count}]</b></color>\n{step.Lines[i]}", $"<color=#FFD24D><b>[Quest {index + 1}/{m_Steps.Count}]</b></color>\n{step.Lines[i]}")
                 : step.Lines[i]);
+
+        // 화면에 남는 마지막 줄 밑에 '정확히 뭘 하면 완료되는지'를 붙인다 — 대사만으론 뭘 하라는 건지 모르겠다는 피드백.
+        var goals = MobileControlsHUD.ShouldUseMobileUI ? kGoalsMobile : kGoalsPc;
+        if (index < goals.Length)
+            displayLines[displayLines.Count - 1] += L.T($"\n<color=#FFD24D><b>목표 : {goals[index]}</b></color>", $"\n<color=#FFD24D><b>Goal : {goals[index]}</b></color>");
 
         UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, null);
     }
@@ -356,7 +458,7 @@ public class TutorialQuestSequence : MonoBehaviour
     private void ShowOutro()
     {
         m_Index = -2;
-        var displayLines = new List<string> { L.T($"<color=#7FE07F><b>✅ 퀘스트 {m_Steps.Count} 완료!</b></color>", $"<color=#7FE07F><b>✅ Quest {m_Steps.Count} complete!</b></color>") };
+        var displayLines = new List<string> { L.T($"<color=#7FE07F><b>퀘스트 {m_Steps.Count} 완료!</b></color>", $"<color=#7FE07F><b>Quest {m_Steps.Count} complete!</b></color>") };
         displayLines.AddRange(kOutroLines);
         UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>().ShowLines(displayLines, FinishTutorial);
     }
