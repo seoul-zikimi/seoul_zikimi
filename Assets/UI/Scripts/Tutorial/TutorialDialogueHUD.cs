@@ -49,6 +49,7 @@ public class TutorialDialogueHUD : UIHUD
         Bind<Button>(typeof(Buttons));
 
         BindEvent(gameObject, _ => Advance());
+        ApplyStandOutLook();
 
         var skip = Get<Button>((int)Buttons.SkipButton);
         if (skip != null) skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
@@ -75,6 +76,27 @@ public class TutorialDialogueHUD : UIHUD
         BuildDimmer();
         BuildNav();
         gameObject.SetActive(false);
+    }
+
+    // 대화창이 눈에 안 띈다는 피드백 — ① 좌상단 조작법 패널(화면 폭의 ~34%까지)과 겹치던 것을 오른쪽으로 비켜 세우고
+    // (겹치면 조작법의 접기 탭까지 대화창이 가려 못 눌렀다) ② 배경을 더 불투명하게 + 노란 테두리를 두른다.
+    // 프리팹은 기획자 손수정본이라 값만 코드로 덮는다(새 박스 디자인이 오면 프리팹으로 옮길 것).
+    private void ApplyStandOutLook()
+    {
+        if (!MobileControlsHUD.ShouldUseMobileUI)   // 모바일엔 좌상단 조작법 패널이 없다 — 가운데 그대로
+        {
+            var rt = (RectTransform)transform;
+            rt.anchorMin = new Vector2(0.35f, rt.anchorMin.y);
+            rt.anchorMax = new Vector2(0.79f, rt.anchorMax.y);
+        }
+
+        var bg = GetComponent<Image>();
+        if (bg == null) return;
+        var c = bg.color; c.a = 0.95f; bg.color = c;
+        var outline = gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(1f, 0.82f, 0.30f, 1f);   // 퀘스트 머리말([퀘스트 n/12])과 같은 노랑
+        outline.effectDistance = new Vector2(4f, -4f);
+        outline.useGraphicAlpha = false;
     }
 
     // 대화 잠금 중 화면 전체를 살짝 어둡게 — "지금은 읽는 시간"이 한눈에 보이고, 아무 데나 클릭해도 넘어간다.
