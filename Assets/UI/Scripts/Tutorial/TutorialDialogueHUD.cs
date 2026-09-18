@@ -55,8 +55,9 @@ public class TutorialDialogueHUD : UIHUD
         if (skip != null)
         {
             skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
-            // 대화창과 같은 말투: 흰 둥근 테두리 + 어두운 속
-            if (skip.targetGraphic is Image skipImg) RoundedBorder(skipImg, new Color(0.10f, 0.08f, 0.06f, 0.95f), 3f);
+            // 건너뛰기는 숨긴다 — 확인 없이 튜토리얼 전체를 끝내는 버튼이 연타하는 대화창 안에 있어 오클릭 위험이 컸다.
+            // 튜토리얼은 로비 팝업에서 이미 선택제고, 도중에 나가려면 설정창(Esc/톱니)의 나가기를 쓰면 된다. 되살리려면 이 줄만 지우면 된다.
+            skip.gameObject.SetActive(false);
         }
 
         // '목표 : …' 줄이 붙으면서 5줄까지 나온다 — 박스 밖으로 넘치지 않게 자동 축소 + 하단 [< n/N >] 자리 비움.
