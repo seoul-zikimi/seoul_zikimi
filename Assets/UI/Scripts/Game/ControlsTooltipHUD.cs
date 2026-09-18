@@ -56,13 +56,13 @@ public class ControlsTooltipHUD : UIHUD
         SetCollapsed(PlayerPrefs.GetInt(kPref, 0) == 1, playSfx: false);
     }
 
-    // 조준선 시점(PC)에서 새로 생긴 조작 — 위 패널 이미지는 글자가 구워져 있어 못 고치므로 바로 밑에 크게 덧붙인다.
+    // 조준선 시점(PC)에서 새로 생긴 조작 — 위 패널 이미지는 글자가 구워져 있어 못 고치므로 바로 밑에 덧붙인다.
     // 패널의 자식이라 접으면 같이 접힌다. (피그마 패널이 새로 나오면 이 덧붙임은 지울 것)
     private static void BuildAimControlsNote(Transform openPanel)
     {
         var go = new GameObject("AimControlsNote", typeof(RectTransform), typeof(Image)) { layer = 5 };
         go.transform.SetParent(openPanel, false);
-        InGameUiSkin.TopLeft((RectTransform)go.transform, 0, 166 + 6, 435, 104);
+        InGameUiSkin.TopLeft((RectTransform)go.transform, 0, 166 + 6, 340, 58);
         var bg = go.GetComponent<Image>();
         bg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
         bg.type = Image.Type.Sliced;
@@ -71,17 +71,16 @@ public class ControlsTooltipHUD : UIHUD
 
         var textGo = new GameObject("Text", typeof(RectTransform), typeof(Text)) { layer = 5 };
         textGo.transform.SetParent(go.transform, false);
-        InGameUiSkin.TopLeft((RectTransform)textGo.transform, 16, 8, 435 - 32, 104 - 16);
+        InGameUiSkin.TopLeft((RectTransform)textGo.transform, 14, 6, 340 - 28, 58 - 12);
         var t = textGo.GetComponent<Text>();
         t.font = JobsnailUiKit.LegacyFont;
-        t.fontSize = Mathf.RoundToInt(20 * InGameUiSkin.S);
+        t.fontSize = Mathf.RoundToInt(15 * InGameUiSkin.S);
         t.lineSpacing = 1.15f;
         t.color = Color.white;
         t.alignment = TextAnchor.MiddleLeft;
         t.raycastTarget = false;
         t.text = "<color=#FFB057><b>Q</b></color>  휴대폰 꺼내기 (마우스 커서)\n"
-               + "<color=#FFB057><b>ALT 누른 채</b></color>  마우스 커서 띄우기\n"
-               + "<color=#FFB057><b>우클릭 누른 채</b></color>  주변 둘러보기";
+               + "<color=#FFB057><b>ALT 누른 채</b></color>  마우스 커서 띄우기";
     }
 
     public void SetCollapsed(bool collapsed, bool playSfx = true)
