@@ -52,7 +52,12 @@ public class TutorialDialogueHUD : UIHUD
         ApplyStandOutLook();
 
         var skip = Get<Button>((int)Buttons.SkipButton);
-        if (skip != null) skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
+        if (skip != null)
+        {
+            skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
+            // 대화창과 같은 말투: 흰 둥근 테두리 + 어두운 속
+            if (skip.targetGraphic is Image skipImg) RoundedBorder(skipImg, new Color(0.10f, 0.08f, 0.06f, 0.95f), 3f);
+        }
 
         // '목표 : …' 줄이 붙으면서 5줄까지 나온다 — 박스 밖으로 넘치지 않게 자동 축소 + 하단 [< n/N >] 자리 비움.
         var lineText = Get<TextMeshProUGUI>((int)Texts.Line);
@@ -94,26 +99,32 @@ public class TutorialDialogueHUD : UIHUD
         var bg = GetComponent<Image>();
         if (bg == null) return;
 
-        // 둥근 모서리 + 흰 테두리: 루트 이미지를 '흰 둥근 사각형(테두리)'으로 바꾸고, 그 안쪽에 원래 배경색의 둥근 사각형을 한 겹 깐다.
-        var round = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
         var fillColor = bg.color; fillColor.a = 0.95f;
+        RoundedBorder(bg, fillColor, kBorderPx);
+    }
+
+    // 둥근 모서리 + 흰 테두리: 이미지를 '흰 둥근 사각형(테두리)'으로 바꾸고, 그 안쪽에 속 색의 둥근 사각형을 한 겹 깐다.
+    // (UI Outline 효과는 사각형을 네 방향으로 복사해 그려서 둥근 모서리에선 지저분하다)
+    private static void RoundedBorder(Image bg, Color fillColor, float borderPx)
+    {
+        var round = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
         bg.sprite = round;
         bg.type = Image.Type.Sliced;
         bg.color = Color.white;
 
         var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
-        fillGo.transform.SetParent(transform, false);
+        fillGo.transform.SetParent(bg.transform, false);
         fillGo.transform.SetAsFirstSibling();   // 글자·버튼보다 뒤
         var fillRt = (RectTransform)fillGo.transform;
         fillRt.anchorMin = Vector2.zero;
         fillRt.anchorMax = Vector2.one;
-        fillRt.offsetMin = new Vector2(kBorderPx, kBorderPx);
-        fillRt.offsetMax = new Vector2(-kBorderPx, -kBorderPx);
+        fillRt.offsetMin = new Vector2(borderPx, borderPx);
+        fillRt.offsetMax = new Vector2(-borderPx, -borderPx);
         var fill = fillGo.GetComponent<Image>();
         fill.sprite = round;
         fill.type = Image.Type.Sliced;
         fill.color = fillColor;
-        fill.raycastTarget = false;   // 클릭은 루트가 받는다
+        fill.raycastTarget = false;   // 클릭은 바깥 이미지가 받는다
     }
 
     // 대화 잠금 중 화면 전체를 살짝 어둡게 — "지금은 읽는 시간"이 한눈에 보이고, 아무 데나 클릭해도 넘어간다.
@@ -163,7 +174,9 @@ public class TutorialDialogueHUD : UIHUD
         rt.anchoredPosition = new Vector2(x, 0f);
         rt.sizeDelta = new Vector2(48f, 32f);
         var img = go.GetComponent<Image>();
-        img.color = new Color(1f, 1f, 1f, 0.15f);   // 건너뛰기 버튼과 같은 톤
+        img.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        img.type = Image.Type.Sliced;
+        img.color = new Color(1f, 1f, 1f, 0.15f);
         var btn = go.GetComponent<Button>();
         btn.targetGraphic = img;
         btn.onClick.AddListener(() => onClick());
