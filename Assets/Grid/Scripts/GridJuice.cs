@@ -439,6 +439,87 @@ namespace GridSystem
         }
     }
 
+    /// <summary>
+    /// 공정 마커(망치/페인트통 모델) 뒤에 까는 원형 배지 — 도구 모델만 떠 있으면 건물·바닥 색에 묻혀 안 보인다는 피드백.
+    /// 흰 원 + 공정 색 테두리를 항상 카메라를 향하게(빌보드) 세우고, 카메라 기준 모델 '뒤'에 둬서 도구가 원 위에 얹혀 보이게 한다.
+    /// 마커의 자식으로 붙지만 마커는 JuiceBob으로 빙글빙글 도니까 매 LateUpdate에 월드 위치·회전·크기를 직접 덮어쓴다.
+    /// </summary>
+    public class ProcMarkerBadge : MonoBehaviour
+    {
+        const float kDiameter = 1.05f;   // 월드 지름(≈ 한 칸) — 멀리서도 '여기 할 일 있음'이 보이게
+        const float kRing = 0.14f;       // 테두리 두께(지름에 더해짐)
+        const float kBehind = 0.45f;     // 카메라 기준 모델 뒤로 물리는 거리
+
+        static Material s_White;
+        static readonly Dictionary<Color, Material> s_RingMats = new();
+
+        Transform m_Disc, m_Ring;
+        Transform m_Cam;
+
+        public static void Attach(GameObject marker, Color ringColor)
+        {
+            var root = new GameObject("~Badge");
+            root.transform.SetParent(marker.transform, false);
+            var badge = root.AddComponent<ProcMarkerBadge>();
+            badge.m_Ring = MakeDisc(root.transform, RingMat(ringColor));
+            badge.m_Disc = MakeDisc(root.transform, WhiteMat());
+        }
+
+        static Transform MakeDisc(Transform parent, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);   // 납작하게 눌러 원판으로
+            Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false);
+            var r = go.GetComponent<Renderer>();
+            r.sharedMaterial = mat;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return go.transform;
+        }
+
+        static Material Unlit(Color c)
+        {
+            var sh = Shader.Find("Universal Render Pipeline/Unlit");
+            if (sh == null) sh = Shader.Find("Sprites/Default");
+            var m = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            m.SetColor("_BaseColor", c);
+            m.SetColor("_Color", c);
+            return m;
+        }
+
+        static Material WhiteMat() => s_White != null ? s_White : s_White = Unlit(Color.white);
+
+        static Material RingMat(Color c)
+        {
+            if (!s_RingMats.TryGetValue(c, out var m) || m == null) s_RingMats[c] = m = Unlit(c);
+            return m;
+        }
+
+        void LateUpdate()
+        {
+            if (m_Cam == null)
+            {
+                var cam = Camera.main;
+                if (cam == null) return;
+                m_Cam = cam.transform;
+            }
+
+            Vector3 center = transform.parent.position;
+            Vector3 away = (center - m_Cam.position).normalized;                       // 카메라 → 마커 방향
+            var face = Quaternion.LookRotation(away) * Quaternion.Euler(90f, 0f, 0f);   // 원판(실린더 Y축)을 카메라 쪽으로
+            float parentScale = Mathf.Max(transform.parent.lossyScale.x, 1e-4f);        // 마커 스케일(0.5 등)을 상쇄해 월드 크기 고정
+
+            Place(m_Disc, center + away * kBehind, face, kDiameter / parentScale);
+            Place(m_Ring, center + away * (kBehind + 0.02f), face, (kDiameter + kRing) / parentScale);   // 테두리는 흰 원보다 살짝 더 뒤
+        }
+
+        void Place(Transform t, Vector3 pos, Quaternion rot, float localDiameter)
+        {
+            t.SetPositionAndRotation(pos, rot);
+            t.localScale = new Vector3(localDiameter, 0.005f / Mathf.Max(transform.parent.lossyScale.x, 1e-4f), localDiameter);
+        }
+    }
+
     /// <summary>블록 스퀴시(squash&stretch): 눌림 → 감쇠 출렁 복원. GridJuice.Squish로 사용.</summary>
     public class JuiceSquish : MonoBehaviour
     {
