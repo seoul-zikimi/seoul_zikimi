@@ -50,6 +50,7 @@ public class TutorialDialogueHUD : UIHUD
 
         BindEvent(gameObject, _ => Advance());
         ApplyStandOutLook();
+        RaiseAbove(gameObject, kSortOrder);
 
         var skip = Get<Button>((int)Buttons.SkipButton);
         if (skip != null)
@@ -128,6 +129,19 @@ public class TutorialDialogueHUD : UIHUD
         fill.raycastTarget = false;   // 클릭은 바깥 이미지가 받는다
     }
 
+    // 대화창은 무조건 다른 인게임 UI 위에 그린다. HUD 루트는 sortingOrder 10인데 모바일 컨트롤 캔버스가 20이라,
+    // 모바일에서 제스처 안내('빈 화면 드래그 · 카메라…')·버튼이 대화창 위로 겹쳐 그려졌다.
+    // 25 = 모바일 컨트롤(20) 위 · 팝업 루트(30) 아래 — 설정·키 설정 같은 팝업은 여전히 대화창보다 위.
+    private const int kSortOrder = 25;
+
+    private static void RaiseAbove(GameObject go, int order)
+    {
+        var canvas = go.AddComponent<Canvas>();   // 중첩 캔버스 — 활성 상태에서 설정해야 overrideSorting이 먹는다(Init 시점은 활성)
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = order;
+        go.AddComponent<GraphicRaycaster>();      // 중첩 캔버스는 자기 레이캐스터가 있어야 클릭을 받는다
+    }
+
     // 대화 잠금 중 화면 전체를 살짝 어둡게 — "지금은 읽는 시간"이 한눈에 보이고, 아무 데나 클릭해도 넘어간다.
     // 프리팹은 기획자 손수정본이라 건드리지 않고 코드로 덧붙인다. 대화창 바로 뒤(같은 HUD 루트의 앞 형제)에 깐다.
     private void BuildDimmer()
@@ -142,6 +156,7 @@ public class TutorialDialogueHUD : UIHUD
         rt.offsetMax = Vector2.zero;
         m_Dimmer.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
         BindEvent(m_Dimmer, _ => Advance());
+        RaiseAbove(m_Dimmer, kSortOrder - 1);
         m_Dimmer.SetActive(false);
     }
 
