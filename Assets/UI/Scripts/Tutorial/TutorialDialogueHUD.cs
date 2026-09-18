@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
-/// 튜토리얼 상단 중앙 대화창. 텍스트박스를 클릭하면 다음 줄로 넘어간다.
-/// (기획서는 "클릭 또는 Enter"였으나 Enter는 전역 "건축 종료 동의" 토글과 충돌.
-///  한때 스페이스바 넘김을 지원했지만 점프·비계 설치(스페이스 2연타)와 겹쳐
-///  대사가 의도치 않게 넘어가는 문제가 있어 클릭 전용으로 고정 — QA 09/01.)
+/// 튜토리얼 상단 중앙 대화창. 클릭(대화창·어두운 배경 어디든) 또는 Space로 다음 줄, 하단 ◀ ▶(또는 ←/→ 키)로 지난 줄을 다시 본다.
+/// 아직 안 읽은 줄이 남은 동안은 조작을 잠그고(GameplayInputBlocker.DialogueBlocked) 화면을 어둡게 해 읽게 만든다 —
+/// 움직이느라 대화를 안 읽는 유저가 많았다. 마지막 줄(퀘스트 안내)이 뜨면 잠금이 풀리고 그 줄은 화면에 남는다.
+/// (Space 넘김은 한때 점프·비계(스페이스 2연타)와 겹쳐 뺐었지만(QA 09/01), 이제 대화 중엔 조작이 잠겨 있어 안 겹친다.
+///  Enter는 전역 "건축 종료 동의" 토글과 충돌해 쓰지 않는다.)
 /// 프리팹: Assets/Resources/UI/HUD/TutorialDialogueHUD.prefab.
 /// </summary>
 public class TutorialDialogueHUD : UIHUD
@@ -20,8 +22,19 @@ public class TutorialDialogueHUD : UIHUD
 
     private IReadOnlyList<string> m_Lines;
     private int m_LineIndex;
+    private int m_SeenIndex;                      // 지금까지 본 가장 뒤 줄 — 뒤로 돌아가 다시 읽어도 잠금이 되살아나지 않게
     private Action m_OnAllDone;
-    private TextMeshProUGUI m_ClickHint;
+    private GameObject m_AdvanceHint;             // 프리팹의 "클릭 또는 Space로 다음" — 넘길 줄이 있을 때만 보인다
+    private TextMeshProUGUI m_AdvanceHintText;
+    private GameObject m_Dimmer;
+    private GameObject m_NavRoot;
+    private Button m_PrevButton, m_NextButton;
+    private TextMeshProUGUI m_PageLabel;
+
+    private int LastIndex => m_Lines != null ? m_Lines.Count - 1 : -1;
+    // 안 읽은 줄이 남았거나(퀘스트 안내 전), 마지막 줄 뒤에 콜백이 있으면(인트로·아웃트로) 조작을 잠근다.
+    private bool Blocking => m_Lines != null && (m_SeenIndex < LastIndex || m_OnAllDone != null);
+    private bool CanAdvance => m_Lines != null && (m_LineIndex < LastIndex || m_OnAllDone != null);
 
     public override void Init()
     {
@@ -33,46 +46,139 @@ public class TutorialDialogueHUD : UIHUD
         var skip = Get<Button>((int)Buttons.SkipButton);
         if (skip != null) skip.onClick.AddListener(() => OnSkipRequested?.Invoke());
 
-        BuildClickHint();
+        var hint = transform.Find("AdvanceHint");
+        if (hint != null)
+        {
+            m_AdvanceHint = hint.gameObject;
+            m_AdvanceHintText = hint.GetComponent<TextMeshProUGUI>();
+            // 모바일엔 Space가 없다
+            if (m_AdvanceHintText != null && MobileControlsHUD.ShouldUseMobileUI) m_AdvanceHintText.text = "터치해서 다음";
+        }
+
+        BuildDimmer();
+        BuildNav();
         gameObject.SetActive(false);
     }
 
-    // 클릭으로 넘긴다는 걸 모르는 유저가 많아(스페이스 제거 후 특히) 우하단에 상시 힌트를 붙인다.
-    // 프리팹은 기획자 손수정본이라 건드리지 않고 코드로 덧붙인다.
-    private void BuildClickHint()
+    // 대화 잠금 중 화면 전체를 살짝 어둡게 — "지금은 읽는 시간"이 한눈에 보이고, 아무 데나 클릭해도 넘어간다.
+    // 프리팹은 기획자 손수정본이라 건드리지 않고 코드로 덧붙인다. 대화창 바로 뒤(같은 HUD 루트의 앞 형제)에 깐다.
+    private void BuildDimmer()
     {
-        var go = new GameObject("ClickHint", typeof(RectTransform));
-        go.transform.SetParent(transform, false);
-        var rt = (RectTransform)go.transform;
-        rt.anchorMin = new Vector2(1f, 0f);
-        rt.anchorMax = new Vector2(1f, 0f);
-        rt.pivot = new Vector2(1f, 0f);
-        rt.anchoredPosition = new Vector2(-14f, 8f);
-        rt.sizeDelta = new Vector2(240f, 24f);
+        m_Dimmer = new GameObject("TutorialDialogueDimmer", typeof(RectTransform), typeof(Image));
+        m_Dimmer.transform.SetParent(transform.parent, false);
+        m_Dimmer.transform.SetSiblingIndex(transform.GetSiblingIndex());
+        var rt = (RectTransform)m_Dimmer.transform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        m_Dimmer.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
+        BindEvent(m_Dimmer, _ => Advance());
+        m_Dimmer.SetActive(false);
+    }
 
-        m_ClickHint = go.AddComponent<TextMeshProUGUI>();
+    // 대화창 하단 중앙의 [<  2/3  >] — 놓친 줄을 다시 볼 수 있게. 줄이 하나뿐이면 숨긴다.
+    // (화살표 글리프 ◀▶는 SUITE 폰트에 없을 수 있어 ASCII 꺾쇠를 쓴다. 디자인 박스가 오면 프리팹 노드로 옮길 것.)
+    private void BuildNav()
+    {
         var line = Get<TextMeshProUGUI>((int)Texts.Line);
-        if (line != null) m_ClickHint.font = line.font;   // 한글 글리프 있는 폰트 계승
-        m_ClickHint.text = "클릭해서 다음 ▶";
-        m_ClickHint.fontSize = 16f;
-        m_ClickHint.alignment = TextAlignmentOptions.BottomRight;
-        m_ClickHint.raycastTarget = false;
+        var font = line != null ? line.font : null;
+
+        m_NavRoot = new GameObject("Nav", typeof(RectTransform));
+        m_NavRoot.transform.SetParent(transform, false);
+        var rt = (RectTransform)m_NavRoot.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 6f);
+        rt.sizeDelta = new Vector2(200f, 32f);
+
+        m_PrevButton = NavButton("PrevButton", "<", -72f, font, Back);
+        m_NextButton = NavButton("NextButton", ">", 72f, font, Advance);
+        m_PageLabel = NavText("PageLabel", "", 0f, 80f, 18f, font);
+        m_PageLabel.raycastTarget = false;
+    }
+
+    private Button NavButton(string name, string glyph, float x, TMP_FontAsset font, Action onClick)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        go.transform.SetParent(m_NavRoot.transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(x, 0f);
+        rt.sizeDelta = new Vector2(48f, 32f);
+        var img = go.GetComponent<Image>();
+        img.color = new Color(1f, 1f, 1f, 0.15f);   // 건너뛰기 버튼과 같은 톤
+        var btn = go.GetComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(() => onClick());
+
+        var label = NavText("Label", glyph, 0f, 48f, 24f, font);
+        label.transform.SetParent(go.transform, false);
+        label.rectTransform.anchoredPosition = Vector2.zero;
+        label.fontStyle = FontStyles.Bold;
+        label.raycastTarget = false;
+        return btn;
+    }
+
+    private TextMeshProUGUI NavText(string name, string text, float x, float width, float size, TMP_FontAsset font)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(m_NavRoot.transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(x, 0f);
+        rt.sizeDelta = new Vector2(width, 32f);
+        var t = go.AddComponent<TextMeshProUGUI>();
+        if (font != null) t.font = font;   // 한글 글리프 있는 폰트 계승
+        t.richText = false;                // "<"가 태그로 해석되지 않게
+        t.text = text;
+        t.fontSize = size;
+        t.color = Color.white;
+        t.alignment = TextAlignmentOptions.Center;
+        return t;
     }
 
     private void Update()
     {
-        // 힌트를 은은하게 깜빡여 시선 유도(로직 없음 — 넘김은 클릭 전용).
-        if (m_ClickHint != null)
+        var kb = Keyboard.current;
+        if (kb != null && m_Lines != null)
         {
-            float a = 0.45f + 0.25f * Mathf.Sin(Time.unscaledTime * 3f);
-            m_ClickHint.color = new Color(1f, 1f, 1f, a);
+            if (kb.leftArrowKey.wasPressedThisFrame) Back();
+            if (kb.rightArrowKey.wasPressedThisFrame) Advance();
         }
+
+        if (!Blocking) return;
+
+        // 힌트를 은은하게 깜빡여 시선 유도
+        if (m_AdvanceHintText != null)
+        {
+            float a = 0.55f + 0.35f * Mathf.Sin(Time.unscaledTime * 3f);
+            m_AdvanceHintText.color = new Color(1f, 1f, 1f, a);
+        }
+
+        if (kb != null && kb.spaceKey.wasPressedThisFrame) Advance();
+    }
+
+    // 잠금 상태 반영은 LateUpdate에서 — 마지막 줄로 넘긴 Space 입력이 같은 프레임에 점프로 새지 않게.
+    private void LateUpdate()
+    {
+        bool blocking = Blocking;
+        GameplayInputBlocker.DialogueBlocked = blocking;
+        if (m_AdvanceHint != null) m_AdvanceHint.SetActive(CanAdvance);
+        if (m_Dimmer != null) m_Dimmer.SetActive(blocking);
+    }
+
+    private void OnDisable()
+    {
+        GameplayInputBlocker.DialogueBlocked = false;
+        if (m_Dimmer != null) m_Dimmer.SetActive(false);
     }
 
     public void ShowLines(IReadOnlyList<string> lines, Action onAllDone)
     {
         m_Lines = lines;
         m_LineIndex = 0;
+        m_SeenIndex = 0;
         m_OnAllDone = onAllDone;
         gameObject.SetActive(true);
         ShowCurrentLine();
@@ -80,23 +186,40 @@ public class TutorialDialogueHUD : UIHUD
 
     private void ShowCurrentLine()
     {
-        if (m_Lines == null || m_LineIndex >= m_Lines.Count) return;
+        if (m_Lines == null || m_LineIndex > LastIndex) return;
         var txt = Get<TextMeshProUGUI>((int)Texts.Line);
         if (txt != null) txt.text = m_Lines[m_LineIndex];
+
+        if (m_NavRoot == null) return;
+        m_NavRoot.SetActive(m_Lines.Count > 1);
+        m_PageLabel.text = $"{m_LineIndex + 1} / {m_Lines.Count}";
+        m_PrevButton.interactable = m_LineIndex > 0;
+        m_NextButton.interactable = CanAdvance;
+    }
+
+    private void Back()
+    {
+        if (m_Lines == null || m_LineIndex <= 0) return;
+        m_LineIndex--;
+        ShowCurrentLine();
     }
 
     private void Advance()
     {
         if (m_Lines == null) return;
-        m_LineIndex++;
-        if (m_LineIndex >= m_Lines.Count)
+        if (m_LineIndex < LastIndex)
         {
-            var done = m_OnAllDone;
-            m_Lines = null;
-            m_OnAllDone = null;
-            done?.Invoke();
+            m_LineIndex++;
+            if (m_LineIndex > m_SeenIndex) m_SeenIndex = m_LineIndex;
+            ShowCurrentLine();
             return;
         }
-        ShowCurrentLine();
+
+        // 마지막 줄: 콜백이 있으면(인트로·아웃트로) 끝내고, 없으면(퀘스트 안내) 그대로 남는다 — 지난 줄은 ◀로 다시 볼 수 있다.
+        if (m_OnAllDone == null) return;
+        var done = m_OnAllDone;
+        m_Lines = null;
+        m_OnAllDone = null;
+        done?.Invoke();
     }
 }
