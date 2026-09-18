@@ -1447,10 +1447,10 @@ namespace Player
                             bool found = false;
                             for (float t = 0.05f; t <= 3f && !found; t += 0.25f)
                             {
-                                var c = GridCoordinates.WorldToCell(bh.point + ray.direction * (t * GridContract.Unit));
-                                var v = m_Net.VisualAt(c);
-                                if (v == null || !ht.IsChildOf(v.transform)) continue;
-                                bc = c; vis = v; found = true;
+                                var stepCell = GridCoordinates.WorldToCell(bh.point + ray.direction * (t * GridContract.Unit));
+                                var stepVis = m_Net.VisualAt(stepCell);
+                                if (stepVis == null || !ht.IsChildOf(stepVis.transform)) continue;
+                                bc = stepCell; vis = stepVis; found = true;
                             }
                             if (!found) continue;
                         }
