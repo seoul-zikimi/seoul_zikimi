@@ -226,8 +226,8 @@ public class TutorialQuestSequence : MonoBehaviour
         {
             new(new[]
             {
+                "w / a / s / d 키로 이동합니다.\nshift 키를 누르며 이동하면 달릴 수 있고,\nspace 키를 누르면 점프합니다.",
                 "우선, w / a / s / d 를 눌러 움직여 볼까요?",
-                "shift 키를 누르며 이동하면 달릴 수 있고,\nspace 키를 누르면 점프합니다.",
             }, () =>
             {
                 if (AnyMoveKeyHeld()) m_MoveHeldTime += Time.deltaTime;
@@ -236,7 +236,8 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "마우스 우클릭을 누른 채 화면을 드래그하면,\n카메라를 돌릴 수 있습니다.",
+                "마우스를 움직이면 시점이 돌아갑니다.\n화면 가운데 조준선이 가리키는 곳이 곧 손이 닿는 곳입니다.",
+                "우클릭을 누른 채 움직이면,\n캐릭터는 그대로 두고 주변만 둘러볼 수 있습니다.",
                 "스크롤을 통해 카메라를 확대/축소할 수 있습니다.\n주변을 둘러보세요!",
             }, () =>
             {
@@ -248,7 +249,8 @@ public class TutorialQuestSequence : MonoBehaviour
             new(new[]
             {
                 "우측 하단 휴대폰엔,\n오늘 지어야 하는 건물의 완공 계획도가 표시됩니다.",
-                "계획도에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다.\n주변을 둘러보세요!",
+                "Q 키를 누르면 휴대폰을 크게 꺼내고 마우스 커서가 나타납니다.\n다시 Q 또는 Esc 키를 누르면 집어넣습니다.",
+                "휴대폰을 꺼내고,\n계획도 위에서 우클릭을 누른 채 드래그해 돌려보세요!",
             }, () =>
             {
                 if (m_LocalInput != null && AnswerPanelFocus.Active)
@@ -259,26 +261,26 @@ public class TutorialQuestSequence : MonoBehaviour
             new(new[]
             {
                 "건축에 필요한 재료들은 휴대폰에서 주문할 수 있습니다.",
-                "완공 계획도에서 원하는 재료를 바로 클릭할 수 있고,\n하단 카탈로그에서 지정해 주문할 수도 있습니다.\n'벽' 재료를 주문해보세요!",
+                "완공 계획도에서 원하는 재료를 바로 클릭할 수 있고,\n하단 카탈로그에서 지정해 주문할 수도 있습니다.\nQ 키로 휴대폰을 꺼내 '벽' 재료를 주문해보세요!",
             }, AnyWallPickupExists),
 
             new(new[]
             {
                 "주문한 재료는 주문 배송지에 도착합니다.",
-                "도착한 벽을 클릭해 들어봅시다!",
+                "휴대폰을 넣고(Q),\n도착한 벽에 조준선을 맞춘 뒤 클릭해 들어봅시다!",
             }, () => m_LocalCarry.IsHolding),
 
             new(new[]
             {
                 "G 키를 눌러 손에 든 물건을 던질 수 있습니다.\n팀원과 협동할 때 무척 유용한 기술입니다.",
-                "마우스 커서가 향하는 방향으로,\nG 키를 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!",
+                "조준선이 향하는 방향으로,\nG 키를 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!",
             }, () => m_ThrewHeldObject, () => m_ThrewHeldObject = false),
 
             new(new[]
             {
                 "이제 벽을 건축할 곳으로 이동해 배치해봅시다.",
-                "벽을 다시 집고,\n투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.",
                 "오브젝트를 든 채로 R버튼을 누르면 회전시킬 수 있습니다.",
+                "벽을 다시 집고,\n투명 답안의 맞는 위치에 조준선을 맞춰 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.",
             }, () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
@@ -290,9 +292,9 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                "망치를 든 채로,\n왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.",
                 "이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 종류의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.",
                 "공정을 잘못 진행했을 경우,\nz키를 꾹 누르면 공정 취소가 가능합니다.",
+                "망치를 든 채로,\n왼쪽 벽에 조준선을 맞추고 E키를 꾹 눌러 망치질을 하면 고정됩니다.",
             }, () => CellsFixed(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
@@ -325,6 +327,7 @@ public class TutorialQuestSequence : MonoBehaviour
     {
         if (!m_Active) return;
         if (m_Index < 0 || m_Index >= m_Steps.Count) return;
+        if (GameplayInputBlocker.DialogueBlocked) return;   // 대화 읽는 중엔 퀘스트 판정도 멈춤(키보드를 직접 읽는 이동 퀘스트가 대화 중에 깨지지 않게)
         if (m_Steps[m_Index].IsComplete())
             EnterStep(m_Index + 1);
     }

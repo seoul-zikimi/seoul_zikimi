@@ -20,6 +20,8 @@ public sealed class KeyBindingPopup : UIPopup
     private int m_RebindVersion;
 
     public static bool IsOpen { get; private set; }
+    /// <summary>이 팝업이 닫힌 프레임 — 같은 Esc 한 번으로 뒤의 설정창까지 닫히지 않게(GameLoopHUD가 확인).</summary>
+    public static int ClosedFrame { get; private set; } = -1;
 
     public static KeyBindingPopup Open()
     {
@@ -160,6 +162,7 @@ public sealed class KeyBindingPopup : UIPopup
         GameplayInputBindings.CancelInteractiveRebind();
         GameplayInputBlocker.Blocked = false;
         IsOpen = false;
+        ClosedFrame = Time.frameCount;
     }
 
     public static bool ShowOnPc(GameplayInputBindings.BindingInfo info)

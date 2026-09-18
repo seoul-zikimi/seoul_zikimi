@@ -26,6 +26,10 @@ public class AnswerHudDriver : MonoBehaviour
     private bool           m_Dragging;   // 패널 위에서 우클릭 시작 → 버튼 뗄 때까지 회전 캡처
     private Vector2        m_PressPos;   // 좌클릭 시작 위치 — 클릭(선택)과 드래그(팬) 구분용
     private bool           m_PressOnPanel;
+    /// <summary>폰을 크게 꺼낸 상태인가 / 이번 프레임 Esc를 폰 닫기에 썼나 — GameLoopHUD가 같은 Esc로 설정창을 열지 않게.</summary>
+    public static bool PhoneExpanded { get; private set; }
+    public static int  PhoneEscFrame { get; private set; } = -1;
+
     private bool           m_CursorLocked;   // 조준선 시점으로 내가 커서를 잠갔나
     private float          m_NextLoopFind;
 
@@ -96,7 +100,10 @@ public class AnswerHudDriver : MonoBehaviour
         bool phoneKey = gameplayInput != null && gameplayInput.PhonePressedThisFrame;
         bool escClose = m_Hud != null && m_Hud.IsExpanded && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
         if ((phoneKey || escClose) && m_Hud != null && m_Visible && CanLook())
+        {
+            if (escClose) PhoneEscFrame = Time.frameCount;
             m_Hud.ToggleExpanded();
+        }
         UpdateCursorLock();
 
         // 모바일에서는 AnswerPanelHUD가 좌측 완공 계획도/우측 재료 카탈로그의
@@ -148,6 +155,7 @@ public class AnswerHudDriver : MonoBehaviour
     private bool CanLook()
     {
         if (MobileControlsHUD.ShouldUseMobileUI || GameplayInputBlocker.Blocked || Player.PlayerInputHandler.Local == null) return false;
+        if (GameLoopHUD.SettingsOpen) return false;   // 설정창이 떠 있는 동안은 커서
         if (m_Loop == null && Time.unscaledTime >= m_NextLoopFind)
         {
             m_NextLoopFind = Time.unscaledTime + 1f;
@@ -158,6 +166,7 @@ public class AnswerHudDriver : MonoBehaviour
 
     private void UpdateCursorLock()
     {
+        PhoneExpanded = m_Hud != null && m_Visible && m_Hud.IsExpanded;
         bool lockIt = CanLook()
             && !(m_Hud != null && m_Visible && m_Hud.IsExpanded)                      // 폰 꺼냄 = 커서
             && !(Keyboard.current != null && Keyboard.current.leftAltKey.isPressed)   // 비상구: Alt 홀드(폰이 숨겨졌을 때·다른 HUD 버튼용)

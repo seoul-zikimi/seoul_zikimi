@@ -14,8 +14,12 @@ namespace GridSystem
         /// <summary>그리드 (0,0,0) 셀의 월드 위치. GridManager가 자기 transform.position으로 동기화(맵 이동 지원). 회전/스케일은 identity 가정.</summary>
         public static Vector3 Origin = Vector3.zero;
 
-        /// <summary>로컬 플레이어가 현재 딛고 선(=배치) 층 Y. PlayerCarry(owner)가 매 프레임 기록 → AnswerPreview가 그 층 고스트만 표시(층별 안내).</summary>
+        /// <summary>로컬 플레이어가 현재 딛고 선 층 Y. PlayerCarry(owner)가 매 프레임 기록.</summary>
         public static int LocalBuildFloor;
+
+        /// <summary>로컬 플레이어가 지금 놓으려는 층 Y(재료를 들고 조준선으로 위·아래 한 층을 고르면 선 층과 다르다. 그 외엔 선 층과 같음).
+        /// PlayerCarry(owner)가 매 프레임 기록 → AnswerPreview가 그 층 고스트만 표시(층별 안내).</summary>
+        public static int LocalAimFloor;
 
         // 축 규약: X·Z = 평면, Y = 수직(층). Autotiles3D와 동일(Y-up).
     }

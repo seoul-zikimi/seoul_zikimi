@@ -1385,15 +1385,26 @@ namespace Player
                 m_BuildHeight = Mathf.Clamp(
                     Mathf.RoundToInt((transform.position.y - GridContract.Origin.y) / GridContract.Unit),
                     0, m_Grid.GridSize.y - 1);
-            GridContract.LocalBuildFloor = m_BuildHeight;   // 정답 고스트가 '내가 선 층'만 보이게(층별 안내)
+            GridContract.LocalBuildFloor = m_BuildHeight;   // 내가 선 층(튜토리얼 '3층 도달' 판정 등)
 
-            float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
-            var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
             var ray = m_Cam.ScreenPointToRay(m_Input.PointerPosition);
-            if (plane.Raycast(ray, out float d))
+            // 배치 층: 기본은 내가 선 층의 평면. 재료를 들었으면 조준선이 실제로 닿은 면을 먼저 보고 내 층 ±1까지 허용한다
+            // (블록 윗면 = 그 위층, 옆면 = 그 옆 칸, 발판 위에서 내려다본 바닥 = 아래층). 그보다 멀면 예전대로 내 층.
+            int floor = m_BuildHeight;
+            Vector3 aim = default;
+            bool aimed = HasMaterial && !MobileControlsHUD.ShouldUseMobileUI && TryAimSurface(ray, out aim, out floor);
+            if (!aimed)
+            {
+                floor = m_BuildHeight;
+                float planeY = GridContract.Origin.y + m_BuildHeight * GridContract.Unit;
+                var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
+                aimed = plane.Raycast(ray, out float d);
+                aim = aimed ? ray.GetPoint(d) : default;
+            }
+            GridContract.LocalAimFloor = HasMaterial ? floor : m_BuildHeight;   // 정답 고스트는 '지금 놓으려는 층'을 보여준다
+            if (aimed)
             {
                 // 커서 = 블록 '중앙'이 되도록 앵커(min-corner)를 반칸씩 당긴다 — 좌하단 기준이던 어색함 제거.
-                var aim = ray.GetPoint(d);
                 if (HasMaterial && m_HeldMaterial != null)
                 {
                     var fp = m_HeldMaterial.Footprint;
@@ -1402,7 +1413,7 @@ namespace Player
                                        ((swap ? fp.x : fp.z) - 1) * 0.5f * GridContract.Unit);
                 }
                 var c = GridCoordinates.WorldToCell(aim);
-                c.y = m_BuildHeight;
+                c.y = floor;
                 var s = m_Grid.EffectiveSize;   // 2vs2는 X 2배 — GridSize(한 팀 폭)로 재면 팀B 구역이 그리드 밖 판정
                 var (xMin, xMax) = PlaceableXRange(s);
                 // 자유 건축: X·Z 경계 없음(땅만 있으면 어디든) — 높이만 본다. 서버(RuntimeGrid.Unbounded)와 같은 규칙.
@@ -1419,18 +1430,25 @@ namespace Player
                 }
                 m_Target = c;
                 m_HasTarget = (unbounded || (c.x >= xMin && c.x < xMax && c.z >= 0 && c.z < s.z))
-                           && m_BuildHeight >= 0 && m_BuildHeight < s.y;
+                           && floor >= 0 && floor < s.y;
 
                 // 빈손(회수/공정): 평면 교차점 대신 '마우스 레이가 실제로 맞는 배치 블록'의 셀을 우선 — 블록 윗면을 보거나
                 // 블록 위에 서 있어도 클릭한 그 블록이 잡힌다(평면만 쓰면 층이 달라 엉뚱한 빈 칸을 가리킴).
-                if (!HasMaterial && m_Net != null &&
-                    Physics.Raycast(ray, out var bh, 100f, ~(1 << 2), QueryTriggerInteraction.Ignore) &&
-                    bh.collider.transform != transform && !bh.collider.transform.IsChildOf(transform) &&
-                    !bh.collider.CompareTag("Player"))
+                // 조준선 시점에선 레이가 늘 내 캐릭터 머리 근처를 지나간다 — 첫 히트 하나만 보면 내 콜라이더·다른 플레이어에 막혀
+                // 블록을 못 잡는다. 전부 훑어 플레이어는 건너뛰고, 대상이 되는 블록 중 가장 가까운 것을 고른다.
+                if (!HasMaterial && m_Net != null)
                 {
-                    var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
-                    if (m_Net.IsPickupable(bc) || (HasTool && m_Net.VisualAt(bc) != null))
+                    int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                    float bestDist = float.MaxValue;
+                    for (int hi = 0; hi < hitCount; hi++)
                     {
+                        var bh = s_GrabRayBuf[hi];
+                        if (bh.distance >= bestDist) continue;
+                        if (bh.collider.transform == transform || bh.collider.transform.IsChildOf(transform) ||
+                            bh.collider.CompareTag("Player")) continue;
+                        var bc = GridCoordinates.WorldToCell(bh.point - bh.normal * (0.05f * GridContract.Unit));
+                        if (!m_Net.IsPickupable(bc) && !(HasTool && m_Net.VisualAt(bc) != null)) continue;
+                        bestDist = bh.distance;
                         m_Target = bc;
                         m_HasTarget = bc.x >= xMin && bc.x < xMax && bc.z >= 0 && bc.z < s.z && bc.y >= 0 && bc.y < s.y;
                     }
@@ -1446,6 +1464,30 @@ namespace Player
                 if (MobileControlsHUD.ShouldUseMobileUI)
                     TryAutoAimProcessTarget(xMin, xMax, s);
             }
+        }
+
+        // 조준선이 닿은 첫 표면(나·다른 플레이어·든 화물·바닥 픽업은 건너뜀)에서 '놓을 칸 쪽'으로 살짝 나온 점과 그 층.
+        // 내 층 ±kAimFloorSlack 밖이면 false — 비계 없이 닿는 높이는 한 층까지만.
+        private const int kAimFloorSlack = 1;
+        private bool TryAimSurface(Ray ray, out Vector3 aim, out int floor)
+        {
+            aim = default;
+            floor = m_BuildHeight;
+            int hitCount = Physics.RaycastNonAlloc(ray, s_GrabRayBuf, 100f, ~(1 << 2), QueryTriggerInteraction.Ignore);
+            float bestDist = float.MaxValue;
+            for (int hi = 0; hi < hitCount; hi++)
+            {
+                var h = s_GrabRayBuf[hi];
+                if (h.distance >= bestDist) continue;
+                var t = h.collider.transform;
+                if (t == transform || t.IsChildOf(transform) || h.collider.CompareTag("Player")) continue;
+                if (h.collider.GetComponentInParent<CarryCargo>() != null || h.collider.GetComponentInParent<PickupBody>() != null) continue;
+                bestDist = h.distance;
+                aim = h.point + h.normal * (0.05f * GridContract.Unit);
+            }
+            if (bestDist == float.MaxValue) return false;
+            floor = GridCoordinates.WorldToCell(aim).y;
+            return floor >= 0 && Mathf.Abs(floor - m_BuildHeight) <= kAimFloorSlack;
         }
 
         // 사거리 판정 대상 셀: 들고 있으면 놓을 자리(풋프린트 전체), 빈손이면 가리킨 블록이 차지한 셀 전체.

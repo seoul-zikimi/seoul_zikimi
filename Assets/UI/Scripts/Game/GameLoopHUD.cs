@@ -261,8 +261,22 @@ public sealed class GameLoopHUD : UIHUD
         s.onValueChanged.AddListener(onChanged);
     }
 
+    /// <summary>설정 팝업이 떠 있나 — 조준선 시점(AnswerHudDriver)이 이 동안 커서를 풀어 둔다.</summary>
+    public static bool SettingsOpen { get; private set; }
+
+    private void OnDisable() => SettingsOpen = false;
+
     private void Update()
     {
+        // Esc = 설정 팝업 열기/닫기. 같은 Esc를 먼저 쓰는 것들(꺼낸 폰 닫기·키 설정 팝업 닫기·튜토리얼 대화)이 있으면 양보.
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.escapeKey.wasPressedThisFrame
+            && !AnswerHudDriver.PhoneExpanded && AnswerHudDriver.PhoneEscFrame != Time.frameCount
+            && !KeyBindingPopup.IsOpen && KeyBindingPopup.ClosedFrame != Time.frameCount
+            && !GameplayInputBlocker.DialogueBlocked)
+            ToggleSettingsPopup();
+        SettingsOpen = m_SettingsPopup != null && m_SettingsPopup.activeInHierarchy;
+
         if (m_Loop == null)
             m_Loop = FindFirstObjectByType<GameLoopManager>();
 

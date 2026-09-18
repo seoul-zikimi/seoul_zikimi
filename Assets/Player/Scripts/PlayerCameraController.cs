@@ -10,21 +10,23 @@ namespace Player
         [SerializeField] float m_VertMax     = 80f;
         [SerializeField] float m_DistMin     = 3f;
         [SerializeField] float m_DistMax     = 20f;
-        [SerializeField] float m_LookHeight  = 3.0f;   // 카메라가 보는 점 높이. 올릴수록 캐릭터가 화면 아래로(조준선이 머리 위로)
-        [SerializeField] float m_ShoulderOffset = 1.2f; // 카메라를 오른쪽으로 평행 이동(어깨 너머 시점). 키울수록 캐릭터가 화면 왼쪽으로
+        [SerializeField] float m_LookHeight  = 2.6f;   // 카메라가 보는 점 높이 = 조준선이 걸리는 높이. 캐릭터 콜라이더 꼭대기(2.0)보다 높아야 조준선이 머리에 안 가린다. 올릴수록 캐릭터가 화면 아래로, 조준점은 더 먼 바닥으로
         [SerializeField] float m_FreeLookReturn = 10f; // 우클릭 놓았을 때 원래 시점으로 돌아오는 빠르기
 
-        // 마우스 감도(설정 팝업 슬라이더와 공유). PlayerPrefs "MouseSensitivity"(0~1) → 0.25~2.5배 곱.
+        // 마우스 감도(설정 팝업 슬라이더와 공유). PlayerPrefs "MouseSensitivity"(0~1) → 0.05~1.5배 곱.
+        // 조준선 시점은 마우스가 항상 시점을 돌려서, 우클릭 드래그 시절(0.25~2.5배)보다 전체를 낮추고 바닥도 더 내렸다.
+        // 모바일(터치 드래그)은 조작이 그대로라 예전 범위를 유지한다.
+        static float SensFrom01(float v) => MobileControlsHUD.ShouldUseMobileUI ? Mathf.Lerp(0.25f, 2.5f, v) : Mathf.Lerp(0.05f, 1.5f, v);
         static float s_SensMul = -1f;
         public static float SensitivityMul
         {
-            get { if (s_SensMul < 0f) s_SensMul = Mathf.Lerp(0.25f, 2.5f, PlayerPrefs.GetFloat("MouseSensitivity", 0.5f)); return s_SensMul; }
+            get { if (s_SensMul < 0f) s_SensMul = SensFrom01(PlayerPrefs.GetFloat("MouseSensitivity", 0.5f)); return s_SensMul; }
         }
         public static void SetSensitivity01(float v)
         {
             v = Mathf.Clamp01(v);
             PlayerPrefs.SetFloat("MouseSensitivity", v);
-            s_SensMul = Mathf.Lerp(0.25f, 2.5f, v);
+            s_SensMul = SensFrom01(v);
         }
 
         Transform          m_CameraArm;
@@ -44,7 +46,7 @@ namespace Player
                 PitchMin = m_VertMin, PitchMax = m_VertMax,
                 DistMin  = m_DistMin, DistMax  = m_DistMax,
                 Pitch = 45f,      // 30° → 45°: 더 위에서 내려다봄
-                Distance = 9f,    // 12f → 9f: 조준선 시점은 캐릭터 가까이
+                Distance = 11f,   // 시작 거리(휠로 조절). 9는 답답하다는 테스트 피드백 → 11
             };
         }
 
@@ -83,8 +85,6 @@ namespace Player
                 { m_FreeYaw = 0f; m_Orbit.Pitch = m_HomePitch; m_Returning = false; }
             }
             transform.localPosition = Quaternion.Euler(0f, m_FreeYaw, 0f) * m_Orbit.LocalOffset();
-            transform.LookAt(m_CameraArm.position + Vector3.up * m_LookHeight);
-            transform.position += transform.right * m_ShoulderOffset;   // 회전은 그대로 두고 옆으로만 — 조준선 방향이 이동 방향과 어긋나지 않는다
-        }
+            transform.LookAt(m_CameraArm.position + Vector3.up * m_LookHeight);        }
     }
 }

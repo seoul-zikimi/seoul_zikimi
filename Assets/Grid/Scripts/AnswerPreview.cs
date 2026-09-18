@@ -139,7 +139,7 @@ namespace GridSystem
             if (ghost)
             {
                 RefreshGhostDone();   // 이미 알맞게 지은 블록은 고스트 숨김(시선 정리) — 0.25s 스로틀
-                int f = GridContract.LocalBuildFloor;   // 내가 선 층만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
+                int f = GridContract.LocalAimFloor;   // 지금 놓으려는 층(보통 내가 선 층)만 → 층끼리 겹쳐 헷갈리던 것 해소(미니 미리보기는 전체 유지)
                 // 강조 기준 우선순위: 손에 든 재료 → 미니 프리뷰 호버 → 선택.
                 // 재료를 들면 '그 재료를 어디에 놓아야 하는지'가 유일한 관심사라 손이 이긴다.
                 // 빈손(또는 도구)일 때만 기존대로 호버/선택 재료를 강조한다.

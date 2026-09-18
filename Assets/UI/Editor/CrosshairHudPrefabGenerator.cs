@@ -12,9 +12,9 @@ public static class CrosshairHudPrefabGenerator
     public const string kPath = "Assets/Resources/UI/HUD/CrosshairHUD.prefab";
 
     // 1920x1080 기준 px. 모양 바꾸면 메뉴로 재생성(또는 프리팹을 에디터에서 직접 편집)
-    private const float kThickness = 2f;    // 팔 굵기 = 중앙 점 크기
-    private const float kArmLength = 9f;    // 팔 길이
-    private const float kGap       = 5f;    // 중앙에서 팔 시작까지 빈 거리
+    private const float kThickness = 4f;    // 팔 굵기 = 중앙 점 크기
+    private const float kArmLength = 11f;   // 팔 길이
+    private const float kGap       = 6f;    // 중앙에서 팔 시작까지 빈 거리
 
     [MenuItem("Jobsnail/UI/Generate Crosshair Prefab")]
     public static void Generate()
