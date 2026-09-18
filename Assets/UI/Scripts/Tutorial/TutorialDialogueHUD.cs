@@ -78,17 +78,11 @@ public class TutorialDialogueHUD : UIHUD
         gameObject.SetActive(false);
     }
 
-    // 대화창이 눈에 안 띈다는 피드백 — ① 좌상단 조작법 패널(화면 폭의 ~34%까지)과 겹치던 것을 오른쪽으로 비켜 세우고
-    // (겹치면 조작법의 접기 탭까지 대화창이 가려 못 눌렀다) ② 배경을 더 불투명하게 + 노란 테두리를 두른다.
+    // 대화창이 눈에 안 띈다는 피드백 — 배경을 더 불투명하게 + 노란 테두리를 두른다.
+    // (좌상단 조작법 패널과 겹치던 문제는 튜토리얼 동안 조작법을 접어 두는 것으로 해결 — TutorialQuestSequence)
     // 프리팹은 기획자 손수정본이라 값만 코드로 덮는다(새 박스 디자인이 오면 프리팹으로 옮길 것).
     private void ApplyStandOutLook()
     {
-        if (!MobileControlsHUD.ShouldUseMobileUI)   // 모바일엔 좌상단 조작법 패널이 없다 — 가운데 그대로
-        {
-            var rt = (RectTransform)transform;
-            rt.anchorMin = new Vector2(0.35f, rt.anchorMin.y);
-            rt.anchorMax = new Vector2(0.79f, rt.anchorMax.y);
-        }
 
         var bg = GetComponent<Image>();
         if (bg == null) return;

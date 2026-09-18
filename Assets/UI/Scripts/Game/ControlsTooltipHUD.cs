@@ -54,10 +54,11 @@ public class ControlsTooltipHUD : UIHUD
         SetCollapsed(PlayerPrefs.GetInt(kPref, 0) == 1, playSfx: false);
     }
 
-    public void SetCollapsed(bool collapsed, bool playSfx = true)
+    /// <param name="remember">false면 PlayerPrefs에 남기지 않는다 — 튜토리얼이 잠깐 접어 두는 용도(다음 판엔 유저가 고른 상태로 돌아온다).</param>
+    public void SetCollapsed(bool collapsed, bool playSfx = true, bool remember = true)
     {
         m_Collapsed = collapsed;
-        PlayerPrefs.SetInt(kPref, collapsed ? 1 : 0);
+        if (remember) PlayerPrefs.SetInt(kPref, collapsed ? 1 : 0);
         if (m_Open != null) m_Open.SetActive(!collapsed);
         if (m_Closed != null) m_Closed.SetActive(collapsed);
         if (playSfx && SoundManager.Instance != null) SoundManager.Instance.PlaySFX(SFXType.UIClick);

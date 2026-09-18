@@ -175,6 +175,11 @@ public class TutorialQuestSequence : MonoBehaviour
         while (m_Loop != null && !m_Loop.MatchStarted)
             yield return null;
 
+        // 좌상단 조작법 패널이 대화창과 겹친다 — 튜토리얼 동안만 접어 둔다(PlayerPrefs엔 안 남겨 다음 판엔 유저 설정대로).
+        // 모바일은 조작법 패널 자체를 띄우지 않는다(GameLoopHUD).
+        if (!MobileControlsHUD.ShouldUseMobileUI)
+            UIManager.Instance.ShowHUDUI<ControlsTooltipHUD>().SetCollapsed(true, playSfx: false, remember: false);
+
         m_Active = true;
         var dlg = UIManager.Instance.ShowHUDUI<TutorialDialogueHUD>();
         dlg.OnSkipRequested -= OnSkipRequested;
