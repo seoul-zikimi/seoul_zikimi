@@ -96,7 +96,9 @@ namespace Player
         private CharacterAbility Ability => CharacterAbility.Of(gameObject, ref m_Wearer);
 
         /// <summary>배치·회수·공정 사거리(칸) — 기본 2칸 + 캐릭터 보너스(소라게 +1).</summary>
-        private float BuildReachCells => kBuildReachCells + Ability.ReachBonusCells;
+        // 슈팅겜식 낮은 시점(PC)은 조준선이 바닥 멀리 찍혀 2칸으론 매번 고개를 숙여야 한다 → PC는 4칸. 모바일은 시점이 그대로라 2칸 유지.
+        private const float kBuildReachCellsPc = 4f;
+        private float BuildReachCells => (MobileControlsHUD.ShouldUseMobileUI ? kBuildReachCells : kBuildReachCellsPc) + Ability.ReachBonusCells;
 
         /// <summary>바닥 재료 줍기·도구 집기 거리(월드) — 캐릭터 보너스는 칸 단위라 Unit을 곱해 더한다.</summary>
         private float GrabRange => m_GrabRange + Ability.ReachBonusCells * GridContract.Unit;
@@ -840,6 +842,13 @@ namespace Player
             var cam = Camera.main;
             if (cam == null) return transform.forward;
 
+            // 조준선 시점(커서 잠금): 앞을 보면 조준선이 바닥에 안 닿을 수 있다 → 카메라가 보는 수평 방향이 곧 조준 방향.
+            if (Cursor.lockState == CursorLockMode.Locked)
+            {
+                Vector3 camFlat = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+                if (camFlat.sqrMagnitude > 0.01f) return camFlat.normalized;
+            }
+
             var ray = cam.ScreenPointToRay(input.PointerPosition);
             var ground = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
             if (!ground.Raycast(ray, out float enter)) return transform.forward;
@@ -1392,7 +1401,9 @@ namespace Player
             // (블록 윗면 = 그 위층, 옆면 = 그 옆 칸, 발판 위에서 내려다본 바닥 = 아래층). 그보다 멀면 예전대로 내 층.
             int floor = m_BuildHeight;
             Vector3 aim = default;
-            bool aimed = HasMaterial && !MobileControlsHUD.ShouldUseMobileUI && TryAimSurface(ray, out aim, out floor);
+            bool pcPlacing = HasMaterial && !MobileControlsHUD.ShouldUseMobileUI;
+            float reachDist = BuildReachCells * GridContract.Unit;
+            bool aimed = pcPlacing && TryAimSurface(ray, out aim, out floor) && FlatDistance(aim) <= reachDist + 0.5f * GridContract.Unit;   // 손 안 닿는 먼 표면은 층 선택에 쓰지 않는다
             if (!aimed)
             {
                 floor = m_BuildHeight;
@@ -1400,6 +1411,20 @@ namespace Player
                 var plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
                 aimed = plane.Raycast(ray, out float d);
                 aim = aimed ? ray.GetPoint(d) : default;
+
+                // 슈팅겜식 낮은 시점: 앞을 보면 조준선이 바닥 저 멀리(또는 하늘)에 찍힌다 — 그때는 보는 방향으로 '손 닿는 끝'에 놓을 자리를 당겨온다.
+                // 고개를 숙여 바닥을 정확히 찍지 않아도 "저쪽에 놓겠다"가 통한다.
+                if (pcPlacing && (!aimed || FlatDistance(aim) > reachDist))
+                {
+                    Vector3 dir = aimed ? aim - transform.position : ray.direction;
+                    dir.y = 0f;
+                    if (dir.sqrMagnitude > 1e-4f)
+                    {
+                        aim = transform.position + dir.normalized * (reachDist - 0.5f * GridContract.Unit);
+                        aim.y = planeY;
+                        aimed = true;
+                    }
+                }
             }
             GridContract.LocalAimFloor = HasMaterial ? floor : m_BuildHeight;   // 정답 고스트는 '지금 놓으려는 층'을 보여준다
             if (aimed)
@@ -1464,6 +1489,12 @@ namespace Player
                 if (MobileControlsHUD.ShouldUseMobileUI)
                     TryAutoAimProcessTarget(xMin, xMax, s);
             }
+        }
+
+        private float FlatDistance(Vector3 p)
+        {
+            p -= transform.position; p.y = 0f;
+            return p.magnitude;
         }
 
         // 조준선이 닿은 첫 표면(나·다른 플레이어·든 화물·바닥 픽업은 건너뜀)에서 '놓을 칸 쪽'으로 살짝 나온 점과 그 층.
@@ -1732,7 +1763,8 @@ namespace Player
         private Vector3 AimDir()
         {
             // 모바일: 마우스 커서가 없어 '마지막 탭 위치/화면 중앙'을 향하던 것을 카메라가 보는 방향으로(기획 2026-09-04).
-            if (MobileControlsHUD.ShouldUseMobileUI && m_Cam != null)
+            // PC 조준선 시점(커서 잠금)도 같다 — 앞을 보면 조준선이 바닥에 안 닿아 방향을 못 구한다.
+            if ((MobileControlsHUD.ShouldUseMobileUI || Cursor.lockState == CursorLockMode.Locked) && m_Cam != null)
             {
                 Vector3 camFlat = Vector3.ProjectOnPlane(m_Cam.transform.forward, Vector3.up);
                 if (camFlat.sqrMagnitude > 0.01f) return camFlat.normalized;

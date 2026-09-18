@@ -10,7 +10,11 @@ namespace Player
         [SerializeField] float m_VertMax     = 80f;
         [SerializeField] float m_DistMin     = 3f;
         [SerializeField] float m_DistMax     = 20f;
-        [SerializeField] float m_LookHeight  = 3.4f;   // 카메라가 보는 점 높이 = 조준선이 걸리는 높이. 캐릭터 콜라이더 꼭대기(2.0)보다 높아야 조준선이 머리에 안 가린다. 올릴수록 캐릭터가 화면 아래로, 조준점은 더 먼 바닥으로
+        // 슈팅겜식 어깨 너머 시점: 카메라는 발밑이 아니라 '머리 위 피벗'을 중심으로 돈다 → 피치가 곧 시선 각도(수평·올려다보기 가능).
+        [SerializeField] float m_LookHeight  = 2.8f;   // 피벗 높이. 캐릭터 콜라이더 꼭대기(2.0)보다 높아야 조준선이 머리에 안 가린다. 올릴수록 캐릭터가 화면 아래로
+        [SerializeField] float m_ShoulderOffset = 0.7f; // 카메라를 오른쪽으로 평행 이동 — 가까운 시점에서 캐릭터 등이 조준선 앞을 가리지 않게. 키울수록 캐릭터가 화면 왼쪽으로
+        [SerializeField] float m_StartPitch    = 20f;
+        [SerializeField] float m_StartDistance = 5.5f;  // 시작 거리(휠로 조절)
         [SerializeField] float m_FreeLookReturn = 10f; // 우클릭 놓았을 때 원래 시점으로 돌아오는 빠르기
 
         // 마우스 감도(설정 팝업 슬라이더와 공유). PlayerPrefs "MouseSensitivity"(0~1) → 0.05~1.5배 곱.
@@ -45,8 +49,8 @@ namespace Player
                 RotateSpeed = m_RotateSpeed, ZoomSpeed = m_ZoomSpeed,
                 PitchMin = m_VertMin, PitchMax = m_VertMax,
                 DistMin  = m_DistMin, DistMax  = m_DistMax,
-                Pitch = 45f,      // 30° → 45°: 더 위에서 내려다봄
-                Distance = 11f,   // 시작 거리(휠로 조절). 9는 답답하다는 테스트 피드백 → 11
+                Pitch = m_StartPitch,
+                Distance = m_StartDistance,
             };
         }
 
@@ -84,7 +88,13 @@ namespace Player
                 if (Mathf.Abs(m_FreeYaw) < 0.1f && Mathf.Abs(m_Orbit.Pitch - m_HomePitch) < 0.1f)
                 { m_FreeYaw = 0f; m_Orbit.Pitch = m_HomePitch; m_Returning = false; }
             }
-            transform.localPosition = Quaternion.Euler(0f, m_FreeYaw, 0f) * m_Orbit.LocalOffset();
-            transform.LookAt(m_CameraArm.position + Vector3.up * m_LookHeight);        }
+            // 피벗(머리 위)을 중심으로 궤도 → 피벗을 바라본 뒤, 회전은 그대로 두고 어깨 쪽으로만 평행 이동(조준 방향 = 이동 방향 유지).
+            Vector3 pivot = Vector3.up * m_LookHeight;
+            Vector3 local = pivot + Quaternion.Euler(0f, m_FreeYaw, 0f) * m_Orbit.LocalOffset();
+            local.y = Mathf.Max(local.y, 0.3f);   // 올려다볼 때(음수 피치) 카메라가 발밑 땅속으로 들어가지 않게
+            transform.localPosition = local;
+            transform.LookAt(m_CameraArm.position + pivot);
+            transform.position += transform.right * m_ShoulderOffset;
+        }
     }
 }
