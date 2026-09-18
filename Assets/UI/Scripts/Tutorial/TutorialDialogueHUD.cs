@@ -50,7 +50,7 @@ public class TutorialDialogueHUD : UIHUD
 
         BindEvent(gameObject, _ => Advance());
         ApplyStandOutLook();
-        RaiseAbove(gameObject, kSortOrder);
+        m_Canvas = RaiseAbove(gameObject, kSortOrder);
 
         var skip = Get<Button>((int)Buttons.SkipButton);
         if (skip != null)
@@ -132,14 +132,28 @@ public class TutorialDialogueHUD : UIHUD
     // 대화창은 무조건 다른 인게임 UI 위에 그린다. HUD 루트는 sortingOrder 10인데 모바일 컨트롤 캔버스가 20이라,
     // 모바일에서 제스처 안내('빈 화면 드래그 · 카메라…')·버튼이 대화창 위로 겹쳐 그려졌다.
     // 25 = 모바일 컨트롤(20) 위 · 팝업 루트(30) 아래 — 설정·키 설정 같은 팝업은 여전히 대화창보다 위.
+    // 단, 폰이 화면 전체를 덮는 동안(모바일 폰 열림 · PC 확대 보기)은 폰이 위여야 한다 — 대화창이 재료 카드('벽' 등)를 가려 주문을 못 했다.
+    // 폰은 HUD 루트(10) 안에 있어 그 위로 끼워 넣을 수 없으니, 그동안은 대화창을 HUD 루트보다 아래(5)로 내린다.
     private const int kSortOrder = 25;
+    private const int kUnderPhoneOrder = 5;
+    private Canvas m_Canvas, m_DimmerCanvas;
+    private AnswerPanelHUD m_Phone;
 
-    private static void RaiseAbove(GameObject go, int order)
+    private static Canvas RaiseAbove(GameObject go, int order)
     {
         var canvas = go.AddComponent<Canvas>();   // 중첩 캔버스 — 활성 상태에서 설정해야 overrideSorting이 먹는다(Init 시점은 활성)
         canvas.overrideSorting = true;
         canvas.sortingOrder = order;
         go.AddComponent<GraphicRaycaster>();      // 중첩 캔버스는 자기 레이캐스터가 있어야 클릭을 받는다
+        return canvas;
+    }
+
+    private void UpdateSortOrder()
+    {
+        if (m_Phone == null) m_Phone = FindFirstObjectByType<AnswerPanelHUD>();
+        int order = m_Phone != null && m_Phone.IsFullscreen ? kUnderPhoneOrder : kSortOrder;
+        if (m_Canvas != null && m_Canvas.sortingOrder != order) m_Canvas.sortingOrder = order;
+        if (m_DimmerCanvas != null && m_DimmerCanvas.sortingOrder != order - 1) m_DimmerCanvas.sortingOrder = order - 1;
     }
 
     // 대화 잠금 중 화면 전체를 살짝 어둡게 — "지금은 읽는 시간"이 한눈에 보이고, 아무 데나 클릭해도 넘어간다.
@@ -156,7 +170,7 @@ public class TutorialDialogueHUD : UIHUD
         rt.offsetMax = Vector2.zero;
         m_Dimmer.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
         BindEvent(m_Dimmer, _ => Advance());
-        RaiseAbove(m_Dimmer, kSortOrder - 1);
+        m_DimmerCanvas = RaiseAbove(m_Dimmer, kSortOrder - 1);
         m_Dimmer.SetActive(false);
     }
 
@@ -247,6 +261,7 @@ public class TutorialDialogueHUD : UIHUD
     // 잠금 상태 반영은 LateUpdate에서 — 마지막 줄로 넘긴 Space 입력이 같은 프레임에 점프로 새지 않게.
     private void LateUpdate()
     {
+        UpdateSortOrder();
         bool blocking = Blocking;
         GameplayInputBlocker.DialogueBlocked = blocking;
         if (m_AdvanceHint != null) m_AdvanceHint.SetActive(CanAdvance && !AdvanceLocked);   // 힌트가 뜨면 = 이제 넘겨도 된다
