@@ -38,7 +38,7 @@ namespace Player
                 PitchMin = m_VertMin, PitchMax = m_VertMax,
                 DistMin  = m_DistMin, DistMax  = m_DistMax,
                 Pitch = 45f,      // 30° → 45°: 더 위에서 내려다봄
-                Distance = 12f,   // 10f → 12f: 조금 더 멀리
+                Distance = 16f,   // 시작 거리(휠로 조절, 3~20). 12는 캐릭터가 너무 크게 보이고 주변이 안 보인다는 피드백 → 16
             };
         }
 
