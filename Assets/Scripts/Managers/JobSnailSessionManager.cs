@@ -252,7 +252,7 @@ public class JobsnailSessionManager
     }
 
     // ── 재접속 유예: 끊긴 순간부터 이 시간 안에 세션 복구를 반복 시도, 실패 시에만 기존 '방 터짐' 흐름 ──
-    private const float kReconnectWindowSeconds = 60f;
+    private const float kReconnectWindowSeconds = 20f;   // 60초는 방장이 그냥 꺼 버린 경우 팀원이 빈 맵에서 너무 오래 기다렸다(안내 문구의 '20초'와 같이 고칠 것)
     private bool m_IsReconnecting;
 
     public bool IsReconnecting => m_IsReconnecting;
