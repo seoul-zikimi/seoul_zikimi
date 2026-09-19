@@ -460,6 +460,14 @@ namespace GridSystem
         float m_Behind = 0.3f;     // 카메라 기준 모델 뒤로 물리는 거리 — 도는 모델이 원을 뚫고 나오지 않을 만큼만
         float m_CenterUp;          // 마커 피벗 → 모델 시각 중심의 높이 차(모델 피벗이 바닥에 있는 경우 보정)
 
+        /// <summary>공정 종류별 테두리 색 — 블록 위 공정 아이콘과 머리 위에 든 도구가 같은 색을 쓴다.</summary>
+        public static Color ColorFor(ProcessType p)
+        {
+            if ((p & ProcessType.Painted) != 0) return new Color(0.30f, 0.85f, 0.40f);
+            if ((p & ProcessType.Fixed) != 0) return new Color(0.35f, 0.60f, 1.00f);
+            return new Color(0.72f, 0.72f, 0.72f);
+        }
+
         public static void Attach(GameObject marker, Color ringColor)
         {
             // 바운즈는 원판을 붙이기 전에 잰다(원판이 포함되면 안 됨)

@@ -2167,6 +2167,13 @@ namespace Player
                     Paint(m_HeldVisual, c);
                     StripCollider(m_HeldVisual);
                 }
+
+                // 머리 위 도구 뒤에 원형 배지 — 카메라를 멀리 빼면 작은 도구 모델이 안 보여 '들고 있는지도 모른다'는 피드백.
+                // 블록 위 공정 아이콘과 같은 색(고정=파랑·페인트=초록)이라 '이 도구 ↔ 저 블록'이 색으로 짝지어진다. 양동이는 물색.
+                // 재료는 앞에 원본 크기로 달려 잘 보이므로 붙이지 않는다(큰 재료 뒤에 깔면 판이 화면을 가린다).
+                ProcMarkerBadge.Attach(m_HeldVisual, (tool & (int)ProcessType.Bucket) != 0
+                    ? new Color(0.30f, 0.80f, 1.00f)
+                    : ProcMarkerBadge.ColorFor((ProcessType)tool));
             }
 
             if (m_HeldVisual != null)
