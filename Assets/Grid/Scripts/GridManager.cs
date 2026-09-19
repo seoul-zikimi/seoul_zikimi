@@ -156,6 +156,17 @@ namespace GridSystem
             var r = go.GetComponent<Renderer>();
             r.sharedMaterial = MakeTransparent(new Color(0.7f, 0.85f, 1f, 0.15f));   // 투명벽(기획) — 상대 진영 보임
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            // 물리벽은 비주얼과 따로, 훨씬 높게 — 비주얼 높이(그리드 높이 + 6)만큼만 막으면 발판을 계속 쌓아 올라가 상대 진영으로 넘어갈 수 있었다.
+            Destroy(go.GetComponent<Collider>());
+            var block = new GameObject("~VersusWallCollider");
+            block.transform.SetParent(transform, false);
+            const float kBlockHeight = 500f;
+            block.transform.position = new Vector3(go.transform.position.x, baseW.y + kBlockHeight * 0.5f, go.transform.position.z);
+            block.AddComponent<BoxCollider>().size = new Vector3(0.3f, kBlockHeight, size.z * u + 10f);
+            block.tag = "Boundary";   // 달팽이 벽타기 제외(PlayerMovement.WallInDirection) — 분할벽을 타고 꼭대기에서 넘어가던 게 실제 침범 경로였다
+
+            go.AddComponent<VersusWallFx>();
         }
 
         // URP Lit 투명 머티리얼(런타임 생성). 빌드 셰이더 스트립 대비 명시 URP Lit.
@@ -191,6 +202,78 @@ namespace GridSystem
                 // CellToWorld는 셀의 min-corner → 중심은 +0.5u. 셀 = 1유닛 와이어 큐브.
                 Vector3 center = GridCoordinates.CellToWorld(new Vector3Int(x, y, z)) + Vector3.one * 0.5f * u;
                 Gizmos.DrawWireCube(center, Vector3.one * u);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 2vs2 중앙 분할벽 연출(각 클라 로컬):
+    ///  · 평소엔 거의 안 보이는 투명벽 — 내 캐릭터가 가까이 오면 밝아져 "여기 벽이 있다"를 알리고, 바짝 붙으면 안내 토스트를 띄운다.
+    ///  · 건축이 끝나면(정산·결과 사진) 숨긴다 — 결과 화면 사진에 하얀 판이 그대로 찍혔다.
+    /// </summary>
+    public class VersusWallFx : MonoBehaviour
+    {
+        const float kBaseAlpha = 0.15f, kNearAlpha = 0.55f;
+        const float kGlowRange = 4f;      // 이 거리 안에서 서서히 밝아진다
+        const float kTouchRange = 0.9f;   // 이 거리 안이면 '닿았다'
+        const float kToastInterval = 4f;
+
+        static readonly int s_BaseColor = Shader.PropertyToID("_BaseColor");
+
+        Renderer m_Renderer;
+        Material m_Mat;
+        GameLoopManager m_Loop;
+        float m_NextToast, m_NextLoopFind;
+        float m_Alpha = kBaseAlpha;
+
+        void Awake()
+        {
+            m_Renderer = GetComponent<Renderer>();
+            m_Mat = m_Renderer.material;   // 인스턴스 머티리얼 — 알파만 바꾼다
+        }
+
+        void OnDestroy()
+        {
+            if (m_Mat != null) Destroy(m_Mat);
+        }
+
+        void Update()
+        {
+            if (m_Loop == null && Time.unscaledTime >= m_NextLoopFind)
+            {
+                m_NextLoopFind = Time.unscaledTime + 1f;
+                m_Loop = FindFirstObjectByType<GameLoopManager>();
+            }
+
+            bool building = m_Loop == null || m_Loop.IsBuilding;
+            if (m_Renderer.enabled != building) m_Renderer.enabled = building;
+            if (!building) return;
+
+            var nm = Unity.Netcode.NetworkManager.Singleton;
+            var po = nm != null && nm.LocalClient != null ? nm.LocalClient.PlayerObject : null;
+            float target = kBaseAlpha;
+            if (po != null)
+            {
+                Vector3 p = po.transform.position;
+                float dist = Mathf.Abs(p.x - transform.position.x);   // 벽은 X 방향으로 구역을 가른다
+                target = Mathf.Lerp(kNearAlpha, kBaseAlpha, Mathf.Clamp01(dist / kGlowRange));
+
+                if (dist <= kTouchRange && Time.time >= m_NextToast)
+                {
+                    m_NextToast = Time.time + kToastInterval;
+                    var at = new Vector3(transform.position.x, p.y + 2.2f, p.z);
+                    GridJuice.WorldToast(at, L.T("상대 진영은 넘어갈 수 없어요!", "You can't cross into the enemy zone!"), new Color(0.75f, 0.9f, 1f));
+                    GridJuice.PlacePuff(new Vector3(transform.position.x, p.y + 1f, p.z), GridContract.Unit);
+                }
+            }
+
+            m_Alpha = Mathf.MoveTowards(m_Alpha, target, Time.deltaTime * 1.5f);
+            var c = m_Mat.GetColor(s_BaseColor);
+            if (!Mathf.Approximately(c.a, m_Alpha))
+            {
+                c.a = m_Alpha;
+                m_Mat.SetColor(s_BaseColor, c);
+                m_Mat.color = c;
             }
         }
     }
