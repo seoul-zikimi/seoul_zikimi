@@ -704,7 +704,8 @@ namespace Player
         }
 
         // [08/28] 도구 들고 좌클릭: 재료(바닥 픽업·회수 가능 블록)를 가리키면 "손에 도구가 있어요!" 안내,
-        // 도구함·고정 블록이면 무동작(오클릭으로 도구 흘리기 방지), 그 외 허공(빈 땅 포함)은 도구를 발밑에 버려 빈손으로.
+        // 도구함·고정 블록이면 무동작(오클릭으로 도구 흘리기 방지), 그 외 허공(빈 땅 포함)도 버리지 않고 '던지기 키로 손을 비우라'는 안내만 띄운다
+        // (예전엔 발밑에 버렸는데, 습관적으로 클릭하다 도구를 자꾸 흘린다는 피드백).
         private void HandleToolClick()
         {
             bool aimPickup = false, aimStation = false;   // 커서 아래 바닥 픽업/도구함(UpdateGrabTarget은 빈손 전용이라 별도 판정)
@@ -727,8 +728,21 @@ namespace Player
                 return;
             }
             if (aimStation || aimBlock) return;
-            Drop();
+
+            if (Time.time < m_NextEmptyHandHint) return;   // 연타 도배 방지
+            m_NextEmptyHandHint = Time.time + 1.5f;
+            string key = "G";
+            var throwAction = m_Input != null && m_Input.ControlsAsset != null
+                ? m_Input.ControlsAsset.FindAction(GameplayInputBindings.Throw) : null;
+            if (throwAction != null)
+                key = UnityEngine.InputSystem.InputActionRebindingExtensions.GetBindingDisplayString(throwAction, 0);   // 키 설정에서 바꿨으면 그 키로
+            GridJuice.WorldToast(transform.position + Vector3.up * 2.2f,
+                MobileControlsHUD.ShouldUseMobileUI
+                    ? L.T("던지기 버튼으로 손을 비울 수 있어요", "Use the Throw button to empty your hands")
+                    : L.T($"{key} 키를 눌러 손을 비울 수 있어요", $"Press {key} to empty your hands"),
+                new Color(1f, 0.65f, 0.2f));
         }
+        private float m_NextEmptyHandHint;
 
         // 그리드 위 '미고정' 블록을 좌클릭으로 손에 회수. 서버 검증 후 owner 확정(2-hop RPC).
         private void TryPickupPlaced()
