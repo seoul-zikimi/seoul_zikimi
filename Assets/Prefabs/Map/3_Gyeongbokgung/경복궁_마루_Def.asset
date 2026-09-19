@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 60
   m_DisplayNameEn: "Wooden Floor"
+  m_DisplayNameKo: "\ub9c8\ub8e8"
   m_Footprint: {x: 8, y: 1, z: 4}
   m_Prefab: {fileID: 3037391411532470804, guid: 65ba40dbb0826d44db462d6b9928275a, type: 3}
   m_RequiredProcesses: 

@@ -12,7 +12,8 @@ namespace GridSystem
     {
         [Header("식별")]
         [SerializeField] private int m_Id = -1;                 // 재료 ID — (A)정답·(B)런타임 공통 키. -1 = 미설정
-        [SerializeField] private string m_DisplayNameEn;        // 영어 표시 이름(비우면 에셋 파일명). 한글 표시 이름 = 에셋 파일명
+        [SerializeField] private string m_DisplayNameEn;        // 영어 표시 이름(비우면 한글 표시 이름)
+        [SerializeField] private string m_DisplayNameKo;        // 한글 표시 이름(비우면 에셋 파일명). 파일명은 코드·정답 데이터가 찾는 키라 "남산_기반_Def"·"1_LowerPillar" 같은 작업용 이름 그대로 둔다
 
         [Header("그리드 점유 (메시 모양과 무관)")]
         [SerializeField] private Vector3Int m_Footprint = Vector3Int.one;
@@ -50,7 +51,7 @@ namespace GridSystem
 
         public int Id => m_Id;
         /// <summary>화면 표시용 이름(현재 언어). 한글은 에셋 파일명, 영어는 m_DisplayNameEn.</summary>
-        public string LocalizedName => L.T(name, m_DisplayNameEn);
+        public string LocalizedName => L.T(string.IsNullOrEmpty(m_DisplayNameKo) ? name : m_DisplayNameKo, m_DisplayNameEn);   // 한글: m_DisplayNameKo(비면 에셋 파일명)
         public Vector3Int Footprint => m_Footprint;
         public GameObject Prefab => m_Prefab;
         public IReadOnlyList<ProcessType> RequiredProcesses => m_RequiredProcesses;

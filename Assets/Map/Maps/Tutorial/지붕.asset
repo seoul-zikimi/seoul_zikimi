@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 11
   m_DisplayNameEn: "Roof"
+  m_DisplayNameKo: "\uc9c0\ubd95"
   m_Footprint: {x: 4, y: 2, z: 4}
   m_Prefab: {fileID: 5091052921140091443, guid: 7ed6b84034be59c4b864f0884670b83a, type: 3}
   m_RequiredProcesses: 

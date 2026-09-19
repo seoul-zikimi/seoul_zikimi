@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 18
   m_DisplayNameEn: "Lower Antenna (White)"
+  m_DisplayNameKo: "\ud558\ubd80 \uc548\ud14c\ub098 (\ud558\uc591)"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 8465948939597091622, guid: 13da4edc22985a941880d3af1524c663, type: 3}
   m_RequiredProcesses: 02000000

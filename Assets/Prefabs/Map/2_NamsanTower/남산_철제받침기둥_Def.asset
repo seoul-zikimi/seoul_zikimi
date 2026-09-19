@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 14
   m_DisplayNameEn: "Steel Support Column"
+  m_DisplayNameKo: "\ucca0\uc81c \ubc1b\uce68 \uae30\ub465"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 196484574217856194, guid: ff34b8332a8bd824aa1156a59375f1b4, type: 3}
   m_RequiredProcesses: 

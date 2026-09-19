@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 22
   m_DisplayNameEn: "Castle Body"
+  m_DisplayNameKo: "\uc131 \ubcf8\uccb4"
   m_Footprint: {x: 3, y: 3, z: 3}
   m_Prefab: {fileID: 972209613911415958, guid: dbfb53ddf8395c04d98f235106d1148c, type: 3}
   m_RequiredProcesses: 01000000

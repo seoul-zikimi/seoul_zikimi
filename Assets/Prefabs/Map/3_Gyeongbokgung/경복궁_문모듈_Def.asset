@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 55
   m_DisplayNameEn: "Door Module"
+  m_DisplayNameKo: "\ubb38 \ubaa8\ub4c8"
   m_Footprint: {x: 4, y: 3, z: 1}
   m_Prefab: {fileID: 8256351954940471632, guid: 2ba0c934eaa685842aad24aa84852396, type: 3}
   m_RequiredProcesses: 01000000

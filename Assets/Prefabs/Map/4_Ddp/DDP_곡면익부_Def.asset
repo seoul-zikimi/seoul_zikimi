@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 33
   m_DisplayNameEn: "Curved Wing"
+  m_DisplayNameKo: "\uace1\uba74 \ub0a0\uac1c"
   m_Footprint: {x: 6, y: 1, z: 3}
   m_Prefab: {fileID: 2414319479869214061, guid: fe82fdfa21dac3749b14b12dacb51862, type: 3}
   m_RequiredProcesses: 01000000

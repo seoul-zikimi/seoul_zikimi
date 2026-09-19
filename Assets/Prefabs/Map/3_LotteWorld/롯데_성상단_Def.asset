@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 23
   m_DisplayNameEn: "Castle Top"
+  m_DisplayNameKo: "\uc131 \uc0c1\ub2e8"
   m_Footprint: {x: 3, y: 1, z: 3}
   m_Prefab: {fileID: 107757840933813328, guid: 888a97cfd964ee94fa7bc193afbb0472, type: 3}
   m_RequiredProcesses: 

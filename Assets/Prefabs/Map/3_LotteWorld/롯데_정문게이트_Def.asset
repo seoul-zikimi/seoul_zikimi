@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 27
   m_DisplayNameEn: "Main Gate"
+  m_DisplayNameKo: "\uc815\ubb38 \uac8c\uc774\ud2b8"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 2113390387882868451, guid: 98971a57a063a8d4aa835f3ddc27d6f7, type: 3}
   m_RequiredProcesses: 02000000

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridSystem::GridSystem.MaterialDef
   m_Id: 36
   m_DisplayNameEn: "Glass Curtain Wall"
+  m_DisplayNameKo: "\uc720\ub9ac \ucee4\ud2bc\uc6d4"
   m_Footprint: {x: 1, y: 2, z: 1}
   m_Prefab: {fileID: 3393303508999302881, guid: 3570b42114515aa4fb71d4a9c497d66b, type: 3}
   m_RequiredProcesses: 02000000
