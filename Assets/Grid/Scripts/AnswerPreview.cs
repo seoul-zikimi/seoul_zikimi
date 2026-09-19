@@ -174,9 +174,10 @@ namespace GridSystem
                 {
                     var it = m_GhostFloors[i];
                     if (it.go == null) continue;
-                    bool hl = it.materialId == hlId;
-                    // 강조 중엔 층 필터·완료 숨김을 무시하고 보여준다(다른 층·이미 지은 곳도 위치 확인용).
-                    bool want = hl || (it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i]));
+                    // 보이는 조건은 강조 여부와 무관하게 같다: 내가 선 층 + 아직 안 지은 자리.
+                    // (예전엔 강조 중 층 필터·완료 숨김을 무시해서, 재료를 들면 위아래 층 자리가 겹쳐 뜨고 이미 지은 자리까지 다시 켜져 오히려 헷갈렸다)
+                    bool want = it.baseY == f && !(i < m_GhostDone.Count && m_GhostDone[i]);
+                    bool hl = want && it.materialId == hlId;
                     if (i >= m_GhostActive.Count) { m_GhostActive.Add(!want); }        // 첫 프레임 강제 적용
                     if (m_GhostActive[i] != want) { m_GhostActive[i] = want; it.go.SetActive(want); }
                     // 통짜 맵(DDP류)은 Build에서 조각 렌더러를 전부 껐다. 강조 대상만 예외로 다시 켜야
