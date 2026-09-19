@@ -35203,7 +35203,7 @@ GameObject:
   - component: {fileID: 7250269880234875975}
   m_Layer: 0
   m_Name: DividerBlocker_Back
-  m_TagString: Untagged
+  m_TagString: Boundary
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -72531,7 +72531,7 @@ GameObject:
   - component: {fileID: 6029695684935554981}
   m_Layer: 2
   m_Name: CeilingBlocker
-  m_TagString: Untagged
+  m_TagString: Boundary
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -72545,7 +72545,7 @@ Transform:
   m_GameObject: {fileID: 4396977502964455889}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16, y: 13, z: 8}
+  m_LocalPosition: {x: 16, y: 300, z: 8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -73619,7 +73619,7 @@ GameObject:
   - component: {fileID: 1393010449951329384}
   m_Layer: 0
   m_Name: DividerBlocker_Right
-  m_TagString: Untagged
+  m_TagString: Boundary
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -101810,7 +101810,7 @@ GameObject:
   - component: {fileID: 1790986716950030968}
   m_Layer: 0
   m_Name: DividerBlocker_Left
-  m_TagString: Untagged
+  m_TagString: Boundary
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -136286,7 +136286,7 @@ GameObject:
   - component: {fileID: 914504839359248489}
   m_Layer: 0
   m_Name: DividerBlocker_Front
-  m_TagString: Untagged
+  m_TagString: Boundary
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -139020,7 +139020,7 @@ GameObject:
   - component: {fileID: 8553435594574918903}
   m_Layer: 0
   m_Name: DividerBlocker
-  m_TagString: Untagged
+  m_TagString: Boundary
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647

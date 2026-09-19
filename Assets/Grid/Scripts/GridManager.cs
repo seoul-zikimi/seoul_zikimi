@@ -146,13 +146,15 @@ namespace GridSystem
             float u = GridContract.Unit;
             var size = EffectiveSize;
             Vector3 baseW = GridCoordinates.CellToWorld(Vector3Int.zero);
-            float wallH = size.y * u + 6f;
+            // 보이는 벽도 '끝없이' — 그리드 구간(+10)·그리드 높이(+6)만 덮으니 진영 경계의 일부에만 벽이 있는 것처럼 보였다.
+            const float kWallLength = 400f, kWallHeight = 200f;
+            float wallH = kWallHeight;
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "~VersusWall";
             go.transform.SetParent(transform, false);
             go.transform.position = new Vector3(baseW.x + ZoneSize.x * u, baseW.y + wallH * 0.5f, baseW.z + size.z * 0.5f * u);
-            go.transform.localScale = new Vector3(0.3f, wallH, size.z * u + 10f);
+            go.transform.localScale = new Vector3(0.3f, wallH, kWallLength);
             var r = go.GetComponent<Renderer>();
             r.sharedMaterial = MakeTransparent(new Color(0.7f, 0.85f, 1f, 0.15f));   // 투명벽(기획) — 상대 진영 보임
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -163,7 +165,7 @@ namespace GridSystem
             block.transform.SetParent(transform, false);
             const float kBlockHeight = 500f;
             block.transform.position = new Vector3(go.transform.position.x, baseW.y + kBlockHeight * 0.5f, go.transform.position.z);
-            block.AddComponent<BoxCollider>().size = new Vector3(0.3f, kBlockHeight, size.z * u + 10f);
+            block.AddComponent<BoxCollider>().size = new Vector3(0.3f, kBlockHeight, kWallLength);
             block.tag = "Boundary";   // 달팽이 벽타기 제외(PlayerMovement.WallInDirection) — 분할벽을 타고 꼭대기에서 넘어가던 게 실제 침범 경로였다
 
             go.AddComponent<VersusWallFx>();

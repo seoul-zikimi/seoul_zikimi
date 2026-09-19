@@ -128,6 +128,7 @@ namespace GridSystem.EditorTools
                 go.transform.localPosition = pos;
                 go.AddComponent<BoxCollider>().size = size;
                 go.isStatic = true;
+                go.tag = "Boundary";   // 달팽이 벽타기 제외(PlayerMovement.WallInDirection) — 태그가 없어서 투명 차단벽을 끝없이 타고 올라갔다
             }
             Blocker("DividerBlocker",       new Vector3(16f, 4f, 8f),      new Vector3(0.3f, 100f, 39f));
             Blocker("DividerBlocker_Front", new Vector3(43.33f, 4f, 8f),   new Vector3(0.3f, 100f, 39f));
@@ -138,7 +139,9 @@ namespace GridSystem.EditorTools
             // 천장 — 상대 진영으로 '위로 넘어가는' 경로를 아예 막는다.
             // 바닥 y=12: 최대 8층(그리드 Y=8) 꼭대기에 서서 점프(1.1)해도 머리가 11 언저리라 평소엔 안 닿는다.
             // 레이어 2(Ignore Raycast)에 둬서 마우스 조준·카메라 가림 판정에는 안 잡히고 몸만 막는다.
-            Blocker("CeilingBlocker",       new Vector3(16f, 13f, 8f),     new Vector3(58f, 2f, 42f), 2);
+            // [수정] y=13은 그리드가 12칸보다 높은 맵(남산타워 26칸)에서 천장 안에 블록·발판이 겹쳐, 밀려 올라간 플레이어가 천장 '윗면'을 걸어 다녔다.
+            //        위로 넘는 경로는 이제 런타임 분할벽(GridManager ~VersusWallCollider, 높이 500·벽타기 불가)이 막으므로 천장은 닿을 일 없는 높이로 올린다.
+            Blocker("CeilingBlocker",       new Vector3(16f, 300f, 8f),    new Vector3(58f, 2f, 42f), 2);
 
             // Spot 마커 7종 — 팀A 쪽에만 두면 작업대는 반대편에 자동 생성, 배송은 팀별 점대칭 배송(MaterialDepot).
             AddSpot(root, "Spot_GridManager", new Vector3(0f, 0f, 0f));          // 그리드 시작(팀A 왼쪽 아래)
