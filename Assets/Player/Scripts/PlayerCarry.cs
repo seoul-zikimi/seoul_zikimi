@@ -1455,7 +1455,10 @@ namespace Player
                             }
                             if (!found) continue;
                         }
-                        if (!m_Net.IsPickupable(bc) && !(HasTool && vis != null))
+                        // 대상 = 그 칸에 블록이 있으면 전부. 예전엔 '회수 가능하거나 도구를 든 경우'만 인정해서, 빈손으로 고정된 블록을 가리키면
+                        // 조준 칸이 '내가 선 층의 평면 교차점'으로 떨어졌다 → Z 공정 취소가 커서 아래(내 층)의 엉뚱한 블록에 걸렸다(남산타워처럼 높이 쌓는 맵에서 두드러짐).
+                        // 회수·공정은 각자 IsPickupable/CellNeedsHeldTool로 다시 거르므로 여기서 넓혀도 안전하다.
+                        if (vis == null && !m_Net.IsPickupable(bc))
                         {
                             if (!bh.collider.isTrigger && bh.distance < occluderDist) occluderDist = bh.distance;
                             continue;
