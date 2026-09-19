@@ -59,6 +59,36 @@ public static class ReconnectingOverlay
                         "Please wait. If it doesn't reconnect within 20 seconds, you'll return to the room list");
         hint.raycastTarget = false;
 
+        // '대기하지 않고 나가기' — 방장이 강제 종료된 경우 등, 재접속을 기다리는 동안 다른 UI가 전부 막혀(이 오버레이가 입력을 차단) 나갈 방법이 없었다.
+        var btnGo = new GameObject("LeaveButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        var btnRt = (RectTransform)btnGo.transform;
+        btnRt.SetParent(s_Root.transform, false);
+        btnRt.anchorMin = btnRt.anchorMax = new Vector2(0.5f, 0.5f);
+        btnRt.anchoredPosition = new Vector2(0f, -170f);
+        btnRt.sizeDelta = new Vector2(420f, 72f);
+        var btnImg = btnGo.GetComponent<Image>();
+        btnImg.sprite = JobsnailUiKit.Sprite("UI_pngs/MyPage/RoundRect");
+        btnImg.type = Image.Type.Sliced;
+        btnImg.color = new Color(1f, 0.97f, 0.92f, 0.97f);
+        var btn = btnGo.GetComponent<Button>();
+        btn.targetGraphic = btnImg;
+        btn.onClick.AddListener(() =>
+            _ = JobsnailSessionManager.Instance.EndSessionBecauseHostLeftAsync(
+                "재접속 대기 중 유저가 나가기 선택", L.T("방에서 나왔어요.", "You left the room.")));
+
+        var btnLabelGo = new GameObject("Label", typeof(RectTransform));
+        var btnLabelRt = (RectTransform)btnLabelGo.transform;
+        btnLabelRt.SetParent(btnRt, false);
+        btnLabelRt.anchorMin = Vector2.zero; btnLabelRt.anchorMax = Vector2.one; btnLabelRt.sizeDelta = Vector2.zero;
+        var btnLabel = btnLabelGo.AddComponent<Text>();
+        btnLabel.font = JobsnailUiKit.LegacyFont;
+        btnLabel.fontSize = 28;
+        btnLabel.fontStyle = FontStyle.Bold;
+        btnLabel.color = new Color(0.24f, 0.16f, 0.11f);
+        btnLabel.alignment = TextAnchor.MiddleCenter;
+        btnLabel.text = L.T("대기하지 않고 나가기", "Leave without waiting");
+        btnLabel.raycastTarget = false;
+
         s_Root.AddComponent<DotsAnimator>().Label = label;
     }
 
