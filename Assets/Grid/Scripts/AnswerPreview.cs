@@ -151,7 +151,7 @@ namespace GridSystem
                 }
 
                 float ga = m_GhostAlphaBase + kGhostAlphaPulse * Mathf.Abs(Mathf.Sin(Time.time * 2.2f));   // 은은하게(커서 프리뷰가 주인공) + 숨쉬기
-                float ha = 0.45f + 0.15f * Mathf.Abs(Mathf.Sin(Time.time * 5f));     // 강조: 밝고 빠른 펄스
+                float ha = 0.30f + 0.14f * Mathf.Abs(Mathf.Sin(Time.time * 5f));     // 강조: 밝고 빠른 펄스(0.45~0.60은 실물 블록처럼 보여 낮춤)
                 int gaQ = Mathf.RoundToInt(ga * 200f);                                // 0.005 스텝 — 시각 차 없음
                 bool hlChanged = hlId != m_LastHlId;
                 if (hlChanged || gaQ != m_LastGaQ)
@@ -623,8 +623,8 @@ namespace GridSystem
         // ── 정답 오브젝트(진짜 블록 프리팹) ──
         // 인월드 고스트 알파는 Update()의 숨쉬기(m_GhostAlphaBase + 진폭)가 매 프레임 덮어쓴다.
         // 여기 값들은 그 기준선 — 맵이 밝아 고스트가 묻히면 MapDef.GhostAlpha/GhostTintMul로 맵별로 올린다.
-        private const float kGhostAlphaBase = 0.16f;                                           // 고스트 기본 알파(맵 미설정 시)
-        private const float kGhostAlphaPulse = 0.05f;                                          // 숨쉬기 진폭
+        private const float kGhostAlphaBase = 0.10f;                                           // 고스트 기본 알파(맵 미설정 시). 0.16은 "이미 지어진 것처럼 보인다"는 피드백 → 0.10
+        private const float kGhostAlphaPulse = 0.04f;                                          // 숨쉬기 진폭
         private static readonly Color kNoPrefabSolid = new Color(0.85f, 0.83f, 0.75f);          // 프리팹 없는 블록(패널)
         private static readonly Color kNoPrefabGhost = new Color(0.85f, 0.83f, 0.75f, 0.30f);   // 프리팹 없는 블록(고스트)
 
