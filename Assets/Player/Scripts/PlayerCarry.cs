@@ -1050,7 +1050,9 @@ namespace Player
                 return;
             }
 
-            if (m_AimedProcessCell != m_ProcessCell) { CancelPaintStroke(); m_ProcessCell = m_AimedProcessCell; m_ProcessHold = 0f; }   // 셀 바뀌면 처음부터
+            // 대상이 '다른 블록'으로 바뀌면 처음부터. 같은 블록의 다른 칸으로 커서가 미끄러진 건 그대로 이어 간다 —
+            // 큰 블록(벽 3×2 등)은 커서가 조금만 움직여도 칸이 바뀌어 게이지가 자꾸 초기화됐다.
+            if (!SameBlock(m_AimedProcessCell, m_ProcessCell)) { CancelPaintStroke(); m_ProcessCell = m_AimedProcessCell; m_ProcessHold = 0f; }
             m_ProcessKind = m_HeldTool;
             bool strokeStart = m_ProcessHold <= 0f;
             m_ProcessHold += Time.deltaTime * GridSystem.ItemNetwork.LocalProcessMultiplier();   // 2vs2 공정 버프/디버프
@@ -1158,7 +1160,7 @@ namespace Player
                 m_RevertHold = 0f; m_RevertCell = s_NoCell;
                 return;
             }
-            if (m_AimedRevertCell != m_RevertCell) { m_RevertCell = m_AimedRevertCell; m_RevertHold = 0f; }
+            if (!SameBlock(m_AimedRevertCell, m_RevertCell)) { m_RevertCell = m_AimedRevertCell; m_RevertHold = 0f; }   // 같은 블록 안에서 칸만 바뀐 건 유지
             m_RevertHold += Time.deltaTime;
             if (m_RevertHold >= m_ProcessSeconds)
             {
@@ -1166,6 +1168,15 @@ namespace Player
                 m_RevertHold = 0f;
                 m_RevertDone = true;
             }
+        }
+
+        // 두 칸이 같은 블록에 속하는가(같은 칸 포함). 블록 하나 = 비주얼 오브젝트 하나라 그걸로 판별한다.
+        private bool SameBlock(Vector3Int a, Vector3Int b)
+        {
+            if (a == b) return true;
+            if (m_Net == null || a == s_NoCell || b == s_NoCell) return false;
+            var va = m_Net.VisualAt(a);
+            return va != null && va == m_Net.VisualAt(b);
         }
 
         // 되돌릴 게 있나: 건축 중 + 조준 XZ 내 층 ±2에 완료된 공정 비트가 있는 블록(공정과 같은 완화 규칙).
