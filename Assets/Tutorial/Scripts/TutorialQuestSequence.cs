@@ -55,8 +55,8 @@ public class TutorialQuestSequence : MonoBehaviour
         L.T("도구함의 망치를 클릭해서 들기", "Click the hammer in the toolbox to pick it up"),
         L.T("왼쪽 벽을 망치로 고정하기", "Fix the left wall with the hammer"),
         L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문해 놓고, 둘 다 고정하기", "Order and place the right wall ('Wall') and front wall ('Wall with Door'), then fix both"),
-        L.T("비계를 깔며 3층 높이까지 올라가기", "Lay scaffolding and climb up to the 3rd floor"),
-        L.T("'지붕'을 주문해 들고, 비계로 올라가 지붕 자리에 놓기", "Order the 'Roof', climb up with scaffolding, and place it on the roof spot"),
+        L.T("발판을 깔며 3층 높이까지 올라가기", "Lay scaffolding and climb up to the 3rd floor"),
+        L.T("'지붕'을 주문해 들고, 발판으로 올라가 지붕 자리에 놓기", "Order the 'Roof', climb up with scaffolding, and place it on the roof spot"),
     });
 
     private static readonly LocCache<string[]> s_kGoalsMobile = new();
@@ -71,8 +71,8 @@ public class TutorialQuestSequence : MonoBehaviour
         L.T("도구함의 망치를 터치해서 들기", "Tap the hammer in the toolbox to pick it up"),
         L.T("왼쪽 벽을 망치로 고정하기", "Fix the left wall with the hammer"),
         L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문해 놓고, 둘 다 고정하기", "Order and place the right wall ('Wall') and front wall ('Wall with Door'), then fix both"),
-        L.T("비계를 깔며 3층 높이까지 올라가기", "Lay scaffolding and climb up to the 3rd floor"),
-        L.T("'지붕'을 주문해 들고, 비계로 올라가 지붕 자리에 놓기", "Order the 'Roof', climb up with scaffolding, and place it on the roof spot"),
+        L.T("발판을 깔며 3층 높이까지 올라가기", "Lay scaffolding and climb up to the 3rd floor"),
+        L.T("'지붕'을 주문해 들고, 발판으로 올라가 지붕 자리에 놓기", "Order the 'Roof', climb up with scaffolding, and place it on the roof spot"),
     });
 
     private static readonly LocCache<string[]> s_kOutroLines = new();
@@ -364,10 +364,10 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(Lines(new[]
             {
-                L.T("재료는 놓을 곳과 같은 층에 서 있어야 놓을 수 있습니다.\nSpace 를 빠르게 2번 누르면 발밑에 비계가 깔립니다.", "You can only place materials while standing on the same floor.\nDouble-tap Space to lay scaffolding under your feet."),
+                L.T("재료는 놓을 곳과 같은 층에 서 있어야 놓을 수 있습니다.\nSpace 를 빠르게 2번 누르면 발밑에 발판이 깔립니다.", "You can only place materials while standing on the same floor.\nDouble-tap Space to lay scaffolding under your feet."),
             }, new[]
             {
-                L.T("재료는 놓을 곳과 같은 층에 서 있어야 놓을 수 있습니다.\n점프 버튼을 빠르게 2번 누르면 발밑에 비계가 깔립니다.", "You can only place materials while standing on the same floor.\nDouble-tap the Jump button to lay scaffolding under your feet."),
+                L.T("재료는 놓을 곳과 같은 층에 서 있어야 놓을 수 있습니다.\n점프 버튼을 빠르게 2번 누르면 발밑에 발판이 깔립니다.", "You can only place materials while standing on the same floor.\nDouble-tap the Jump button to lay scaffolding under your feet."),
             }), () =>
             {
                 if (GridContract.LocalBuildFloor >= 2) m_ReachedFloor3 = true;

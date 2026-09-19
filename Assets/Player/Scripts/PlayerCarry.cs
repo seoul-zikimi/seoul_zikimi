@@ -1894,7 +1894,7 @@ namespace Player
                     m_PreviewCells,
                     cell => !m_Net.IsCellFree(cell),
                     cell => GridSupport.ExternalSolidAt(cell, GridContract.Unit)))
-            { RejectPlace(L.T("아래에 받쳐줄 게 없어요 — 비계(SPACE 연타)로 받치면 놓을 수 있어요!", "Nothing underneath — put scaffolding (double-tap SPACE) below and you can place it!")); return; }
+            { RejectPlace(L.T("아래에 받쳐줄 게 없어요 — 발판(SPACE 연타)으로 받치면 놓을 수 있어요!", "Nothing underneath — put scaffolding (double-tap SPACE) below and you can place it!")); return; }
 
             m_Net.RequestPlace(m_Target, m_HeldMaterial.Id, (byte)m_Rotation);
             m_NextRejectToast = 0f;   // 성공하면 안내 스로틀 리셋

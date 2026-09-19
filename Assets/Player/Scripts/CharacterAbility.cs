@@ -36,7 +36,7 @@ public readonly struct CharacterAbility
     // 소개 문구는 인트로 만화 톤(등껍질 삼총사 → 건축레인저)에 맞춘다 — 첫 줄은 캐릭터 성격, 둘째 줄은 실제 효과.
     private static readonly LocCache<CharacterAbility> s_Snail = new();
     public static CharacterAbility Snail => s_Snail.Get(() => new(true, 0f, false,
-        L.T("맨몸으로 벽을 기어오릅니다.\n비계 없이 위층으로 직행!", "Climbs walls bare-handed.\nStraight upstairs, no scaffolding!"), L.T("벽을 탑니다", "Climbs walls")));
+        L.T("맨몸으로 벽을 기어오릅니다.\n발판 없이 위층으로 직행!", "Climbs walls bare-handed.\nStraight upstairs, no scaffolding!"), L.T("벽을 탑니다", "Climbs walls")));
 
     private static readonly LocCache<CharacterAbility> s_Turtle = new();
     public static CharacterAbility Turtle => s_Turtle.Get(() => new(false, 0f, true,

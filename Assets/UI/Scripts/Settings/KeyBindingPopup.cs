@@ -189,7 +189,7 @@ public sealed class KeyBindingPopup : UIPopup
         return info.ActionPath switch
         {
             GameplayInputBindings.Sprint => L.T("달리기", "Run"),
-            GameplayInputBindings.Jump => L.T("점프 / 비계", "Jump / Scaffold"),
+            GameplayInputBindings.Jump => L.T("점프 / 발판", "Jump / Scaffold"),
             GameplayInputBindings.Interact => L.T("집기 / 배치", "Pick up / Place"),
             GameplayInputBindings.Process => L.T("공정 / 아이템 사용", "Process / Use item"),
             GameplayInputBindings.Revert => L.T("공정 취소", "Undo process"),

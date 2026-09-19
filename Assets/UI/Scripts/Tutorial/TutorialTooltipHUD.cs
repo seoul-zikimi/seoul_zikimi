@@ -21,7 +21,7 @@ public class TutorialTooltipHUD : UIHUD
         L.T("G (꾹 누르기) : 든 물건 던지기", "G (hold) : Throw held item"),
         L.T("R : 든 오브젝트 회전", "R : Rotate held object"),
         L.T("E (꾹 누르기) : 공정(고정 등) / Z (꾹 누르기) : 공정 취소", "E (hold) : Process (fix etc.) / Z (hold) : Undo process"),
-        L.T("Space 2번 연타 : 비계 설치", "Double-tap Space : Place scaffolding"),
+        L.T("Space 2번 연타 : 발판 설치", "Double-tap Space : Place scaffolding"),
         L.T("Tab : 정답 표시 토글", "Tab : Toggle blueprint"),
     });
 
