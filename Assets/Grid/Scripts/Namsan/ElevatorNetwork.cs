@@ -416,9 +416,10 @@ namespace GridSystem
                     TintDoors(lane, open);
                 }
 
-                // 상부 문·발판 표시 조건: ① 개통됨 ② 게임 종료(캡처·한바퀴 둘러보기) 중엔 숨김 — 완성 사진에 안 나오게.
+                // 문·발판 표시 조건: ① 개통됨(전망대까지 완성) ② 게임 종료(캡처·한바퀴 둘러보기) 중엔 숨김 — 완성 사진에 안 나오게.
+                // 하부(1층) 문도 개통 전엔 숨긴다 — 잠긴 문이 시작부터 서 있으니 "엘리베이터가 이미 설치돼 있다"로 읽혔다. 개통 순간 토스트·먼지와 함께 나타난다.
                 bool showUpper = open && !finished;
-                if (m_DoorLower[lane].activeSelf == finished) m_DoorLower[lane].SetActive(!finished);   // 하부 문도 종료 화면에선 숨김
+                if (m_DoorLower[lane].activeSelf != showUpper) m_DoorLower[lane].SetActive(showUpper);
                 if (m_DoorUpper[lane].activeSelf != showUpper) m_DoorUpper[lane].SetActive(showUpper);
                 UpdatePlatform(lane, d, showUpper);
 
