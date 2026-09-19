@@ -19,7 +19,7 @@ namespace GridSystem
         [Tooltip("던져진/버려진 '양동이'(화마 진화 도구 — 경복궁)의 바닥 외형 모델 — 바닥 양동이는 항상 빈 상태라 빈 양동이 모델(BucketEmpty_Fit)을 배선. 비우면 하늘색 구로 폴백.")]
         [SerializeField] private GameObject m_BucketModel;
         [Tooltip("도구 픽업 모델 스케일.")]
-        [SerializeField] private float m_ToolModelScale = 0.85f;   // 바닥에 놓인 도구 크기. 0.5는 카메라를 뺀 상태에서 잘 안 보인다는 피드백(머리 위에 든 크기는 PlayerCarry 쪽 별도 값)
+        [SerializeField] private float m_ToolModelScale = 0.75f;   // 바닥에 놓인 도구 크기. 0.5는 카메라를 뺀 상태에서 잘 안 보인다는 피드백(머리 위에 든 크기는 PlayerCarry 쪽 별도 값)
 
         public GameObject HammerModel => m_HammerModel;   // 공정 마커 재사용(미공정 블록 위 망치)
         public GameObject PaintModel  => m_PaintCanModel; // 공정 마커 재사용(미공정 블록 위 페인트통)
