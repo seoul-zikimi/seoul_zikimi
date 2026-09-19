@@ -7,7 +7,7 @@ Shader "Hidden/PickupOutline"
     {
         _OutlineColor ("Color", Color) = (0.35, 1, 0.45, 1)
         [HDR] _GlowColor ("Glow Color", Color) = (0.6, 1.8, 0.8, 1)
-        _OutlineWidth ("Width", Float) = 0.05
+        _OutlineWidth ("Width (world units)", Float) = 0.05
         _PulseSpeed ("Pulse Speed", Float) = 2.2
         _PulseWidth ("Width Pulse (0~1)", Range(0, 1)) = 0.25
     }
@@ -42,8 +42,11 @@ Shader "Hidden/PickupOutline"
                 Varyings OUT;
                 float pulse = 0.5 + 0.5 * sin(_Time.y * _PulseSpeed);
                 float width = _OutlineWidth * (1.0 + (pulse - 0.5) * _PulseWidth);
-                float3 posOS = IN.positionOS.xyz + normalize(IN.normalOS) * width;
-                OUT.positionHCS = TransformObjectToHClip(posOS);
+                // 월드 공간에서 밀어낸다 — 오브젝트 공간에서 밀면 두께에 트랜스폼 스케일이 곱해져서,
+                // 작은 원본 메시를 크게 키워 쓰는 재료(남산 안테나: 가로 6배)는 테두리가 뚱뚱한 덩어리로 부풀었다.
+                float3 posWS = TransformObjectToWorld(IN.positionOS.xyz);
+                float3 normalWS = TransformObjectToWorldNormal(IN.normalOS);   // 비균등 스케일 보정 + 정규화
+                OUT.positionHCS = TransformWorldToHClip(posWS + normalWS * width);
                 return OUT;
             }
 
