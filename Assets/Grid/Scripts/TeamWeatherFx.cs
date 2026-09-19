@@ -134,9 +134,12 @@ namespace GridSystem
                     m_FogSaved = true;
                 }
                 RenderSettings.fog = true;
-                RenderSettings.fogMode = FogMode.ExponentialSquared;
+                // Linear로 건다 — 빌드는 '씬이 쓰는 포그 모드'의 셰이더 변형만 남긴다(GraphicsSettings.FogStripping = Automatic, GameScene = Linear).
+                // 예전엔 ExponentialSquared였는데 그 변형이 빌드에서 스트립돼, 에디터(시전자 쪽)에선 보이고 빌드로 접속한 당한 쪽 화면엔 안개가 아예 안 떴다.
+                RenderSettings.fogMode = FogMode.Linear;
                 RenderSettings.fogColor = new Color(0.72f, 0.74f, 0.78f);
-                RenderSettings.fogDensity = 0.12f;   // 앞이 잘 안 보일 정도
+                RenderSettings.fogStartDistance = 2f;
+                RenderSettings.fogEndDistance = 13.5f;   // 카메라 거리(≈12)에서 87% 가림 — 예전 Exp2 0.12와 같은 체감('앞이 잘 안 보일 정도')
             }
             else if (m_FogSaved)
             {
