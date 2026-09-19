@@ -19,7 +19,11 @@ public class JobsnailSessionManager
     public ISession ActiveSession => m_ActiveSession;
     public bool HasActiveSession => m_ActiveSession != null || !string.IsNullOrEmpty(m_CachedSessionId);
 
-    private JobsnailSessionManager() { }
+    private JobsnailSessionManager()
+    {
+        // 방장이 게임 중 나가며 미리 알려 준 경우 — 60초 재접속 유예(그동안 HUD 없는 빈 맵)를 건너뛰고 바로 '방장이 나가서 방이 사라졌어요' 안내로.
+        GridSystem.GameLoopManager.HostLeaving += () => _ = EndSessionBecauseHostLeftAsync("방장이 게임 중 나감(사전 통지)");
+    }
 
     // 🔄 로비(Skinner)에서 세션이 잡힐 때 이 ID들을 확실하게 백업해 둡니다.
     public void RegisterActiveSession(ISession session)

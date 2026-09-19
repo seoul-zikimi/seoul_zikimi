@@ -148,9 +148,9 @@ public sealed class GameLoopHUD : UIHUD
                 });
             }
         }
-        Wire(Btns.ExitGameButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
+        Wire(Btns.ExitGameButton, LeaveWithHostCheck);
         Wire(Btns.RoomButton, OnReturnToRoom);
-        Wire(Btns.LeaveButton, async () => await JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync());
+        Wire(Btns.LeaveButton, LeaveWithHostCheck);
         Wire(Btns.CraneToggleButton, () => m_CraneViewing = !m_CraneViewing);
 
         WireSlider(Slds.BGMSlider, PlayerPrefs.GetFloat("BGMVolume", 0.8f), v =>
@@ -1203,6 +1203,32 @@ public sealed class GameLoopHUD : UIHUD
         yield return new WaitForSecondsRealtime(seconds);
         m_Toast.SetActive(false);
         m_ToastCo = null;
+    }
+
+    // 나가기: 내가 방장이고 팀원이 있으면 먼저 확인받는다 — 방장이 나가면 방이 닫혀 팀원도 전부 게임에서 나가게 된다.
+    private void LeaveWithHostCheck()
+    {
+        if (m_Loop == null) m_Loop = FindFirstObjectByType<GameLoopManager>();
+        bool hostWithGuests = m_Loop != null && m_Loop.IsSpawned && m_Loop.IsServer && m_Loop.PlayerCount > 1;
+        if (!hostWithGuests || Resources.Load<GameObject>("UI/Popup/ConfirmPopup") == null)
+        {
+            _ = JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
+            return;
+        }
+
+        UIManager.Instance.ShowPopupUI<ConfirmPopup>().Setup(
+            L.T("방장이 나가면 방이 닫히고,\n함께 하던 플레이어도 모두 게임에서 나가게 됩니다.\n정말 나갈까요?",
+                "If the host leaves, the room closes\nand everyone else is removed from the game.\nLeave anyway?"),
+            onYes: () => StartCoroutine(HostLeaveRoutine()),
+            onNo: null,
+            showCheckbox: false);
+    }
+
+    private IEnumerator HostLeaveRoutine()
+    {
+        if (m_Loop != null) m_Loop.NotifyHostLeaving();
+        yield return new WaitForSecondsRealtime(0.4f);   // 통지 RPC가 나갈 시간 — 바로 Shutdown하면 전송 전에 끊긴다
+        _ = JobsnailSessionManager.Instance.LeaveLobbyRoomSecurelyAsync();
     }
 
     private void ToggleSettingsPopup()

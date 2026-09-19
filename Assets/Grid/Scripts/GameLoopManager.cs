@@ -705,6 +705,21 @@ namespace GridSystem
                 Finish();
         }
 
+        // ── 방장이 게임 중 나갈 때: 끊기 직전에 팀원들에게 먼저 알린다 ──
+        // 우리 정책은 '방장 이탈 = 방 삭제'(호스트가 곧 서버라 이어서 플레이할 수 없다). 알림 없이 끊기면 팀원은
+        // '순간 끊김'으로 보고 최대 60초 재접속을 시도하는데, 그동안 서버 오브젝트가 사라져 HUD 없는 빈 맵에 서 있게 된다.
+        // 세션 정리는 Assembly-CSharp(JobsnailSessionManager) 몫이라 여기선 이벤트만 던진다(어셈블리 역참조 금지).
+        public static event System.Action HostLeaving;
+
+        /// <summary>방장(서버)이 나가기 직전에 호출 — 팀원 전원에게 통지한다. 팀원이 없거나 서버가 아니면 아무 일도 없다.</summary>
+        public void NotifyHostLeaving()
+        {
+            if (IsSpawned && IsServer) HostLeavingRpc();
+        }
+
+        [Rpc(SendTo.NotServer)]
+        private void HostLeavingRpc() => HostLeaving?.Invoke();
+
         // 로비로 돌아가기: 세션 나가고(연결 끊고) 로비 씬(메뉴/방목록)으로. 각자 개별 이탈.
         public void RequestLeaveToLobby()
         {

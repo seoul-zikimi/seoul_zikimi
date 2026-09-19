@@ -46,6 +46,9 @@ public class ConfirmPopup : UIPopup
             toggle.gameObject.SetActive(showCheckbox);
             toggle.isOn = false;
         }
+        // 체크박스 문구는 별도 노드라 같이 숨겨야 한다(체크박스 없는 확인 창에 "이후 표시하지 않음"만 덩그러니 남는다)
+        foreach (var t in GetComponentsInChildren<TextMeshProUGUI>(true))
+            if (t.name == "CheckboxLabel") t.gameObject.SetActive(showCheckbox);
     }
 
     private void OnYesClicked()
