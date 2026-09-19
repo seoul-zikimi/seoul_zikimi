@@ -39,49 +39,45 @@ public class TutorialQuestSequence : MonoBehaviour
 
     private static readonly LocCache<string[]> s_kIntroLines = new();
     private static string[] kIntroLines => s_kIntroLines.Get(() => new string[]{
-        L.T("반갑습니다.\n당신은 서울의 무너진 명소들을 복구하는 건축 일을 맡게 되었습니다.", "Welcome.\nYou've been hired to rebuild Seoul's collapsed landmarks."),
-        L.T("일명 '건축 레인저'가 되어 명소도 복구하고,\n짭짤한 일당을 모아 이것저것 구매해 봅시다!", "Become a 'Build Ranger', restore the landmarks,\nand spend your hard-earned pay on all sorts of things!"),
-        L.T("건축은 혼자 진행할 수도 있지만,\n다른 레인저들과 협동하여 진행하면 더욱 수월할 것입니다.", "You can build alone,\nbut teaming up with other Rangers makes it much easier."),
+        L.T("반갑습니다, 건축 레인저!\n무너진 서울의 명소를 다시 지어 봅시다.", "Welcome, Build Ranger!\nLet's rebuild Seoul's fallen landmarks."),
     });
 
     // 퀘스트별 완료 조건(BuildSteps의 순서·판정과 반드시 같이 고칠 것) — 각 퀘스트 마지막 줄 밑에 '목표 : …'로 붙는다.
     private static readonly LocCache<string[]> s_kGoalsPc = new();
     private static string[] kGoalsPc => s_kGoalsPc.Get(() => new string[]{
-        L.T("W / A / S / D 로 4초 동안 움직이기", "Move with W / A / S / D for 4 seconds"),
-        L.T("우클릭을 누른 채 마우스를 움직여 카메라를 크게 돌리기", "Hold right mouse button and move the mouse to swing the camera around"),
-        L.T("우측 하단 휴대폰의 계획도 위에서 우클릭 드래그로 계획도를 크게 돌리기", "Right-drag on the blueprint in the bottom-right phone to spin it around"),
-        L.T("휴대폰에서 '벽' 카드를 클릭 → [주문!] 버튼 누르기", "Click the 'Wall' card on the phone → press the [Order!] button"),
-        L.T("배송지에 도착한 '벽'에 다가가 클릭해서 들기", "Walk up to the delivered 'Wall' and click it to pick it up"),
-        L.T("벽을 든 채로 G 키를 눌렀다 떼서 던지기", "While holding the wall, press and release G to throw it"),
-        L.T("벽을 들고, R 키로 방향을 돌려 맞춘 뒤 반투명한 '왼쪽 벽' 자리에 클릭해서 놓기", "Hold the wall, press R to rotate it to fit, then click the see-through 'left wall' spot to place it"),
-        L.T("망치가 놓인 도구함에 다가가 클릭해서 망치 들기", "Walk up to the toolbox with the hammer and click it to pick the hammer up"),
-        L.T("망치를 든 채 왼쪽 벽에 대고 E 키를 게이지가 찰 때까지 꾹 누르기", "With the hammer, aim at the left wall and hold E until the gauge fills"),
-        L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문·배치하고, 둘 다 망치로 고정하기", "Order and place the right wall ('Wall') and the front wall ('Wall with Door'), then fix both with the hammer"),
-        L.T("스페이스바 2연타로 발밑에 비계를 깔며 3층 높이까지 올라가기", "Double-tap Space to lay scaffolding under your feet and climb up to the 3rd floor"),
-        L.T("'지붕'을 주문해 들고, 비계로 벽 위 높이까지 올라가 지붕 자리에 놓기", "Order the 'Roof', carry it up to wall-top height with scaffolding, and place it on the roof spot"),
+        L.T("W A S D 로 4초 동안 움직이기", "Move with W A S D for 4 seconds"),
+        L.T("카메라를 크게 돌려보기", "Swing the camera around"),
+        L.T("휴대폰의 계획도 위에서 우클릭 드래그로 돌려보기", "Right-drag on the phone's blueprint to spin it"),
+        L.T("휴대폰에서 '벽' 카드 클릭 → [주문!] 누르기", "Click the 'Wall' card on the phone → press [Order!]"),
+        L.T("도착한 '벽'에 다가가 클릭해서 들기", "Walk up to the delivered 'Wall' and click to pick it up"),
+        L.T("벽을 든 채 G 키로 던지기", "Throw the wall with G"),
+        L.T("벽을 다시 들고, 반투명한 '왼쪽 벽' 자리에 클릭해서 놓기", "Pick the wall up again and click the see-through 'left wall' spot to place it"),
+        L.T("도구함의 망치를 클릭해서 들기", "Click the hammer in the toolbox to pick it up"),
+        L.T("왼쪽 벽을 망치로 고정하기", "Fix the left wall with the hammer"),
+        L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문해 놓고, 둘 다 고정하기", "Order and place the right wall ('Wall') and front wall ('Wall with Door'), then fix both"),
+        L.T("비계를 깔며 3층 높이까지 올라가기", "Lay scaffolding and climb up to the 3rd floor"),
+        L.T("'지붕'을 주문해 들고, 비계로 올라가 지붕 자리에 놓기", "Order the 'Roof', climb up with scaffolding, and place it on the roof spot"),
     });
 
     private static readonly LocCache<string[]> s_kGoalsMobile = new();
     private static string[] kGoalsMobile => s_kGoalsMobile.Get(() => new string[]{
         L.T("조이스틱으로 4초 동안 움직이기", "Move with the joystick for 4 seconds"),
-        L.T("빈 화면을 드래그해 카메라를 크게 돌리기", "Drag empty screen space to swing the camera around"),
+        L.T("카메라를 크게 돌려보기", "Swing the camera around"),
         L.T("휴대폰 버튼 누르기", "Press the Phone button"),
-        L.T("휴대폰에서 '벽' 카드를 터치 → [주문!] 버튼 누르기", "Tap the 'Wall' card on the phone → press the [Order!] button"),
-        L.T("배송지에 도착한 '벽'에 다가가 터치해서 들기", "Walk up to the delivered 'Wall' and tap it to pick it up"),
-        L.T("벽을 든 채로 던지기 버튼을 눌렀다 떼서 던지기", "While holding the wall, press and release the Throw button to throw it"),
-        L.T("벽을 들고, 회전 버튼으로 방향을 돌려 맞춘 뒤 반투명한 '왼쪽 벽' 자리를 터치해서 놓기", "Hold the wall, use the Rotate button to fit it, then tap the see-through 'left wall' spot to place it"),
-        L.T("망치가 놓인 도구함에 다가가 터치해서 망치 들기", "Walk up to the toolbox with the hammer and tap it to pick the hammer up"),
-        L.T("망치를 든 채 왼쪽 벽 가까이에서 공정 버튼을 게이지가 찰 때까지 꾹 누르기", "With the hammer, stand near the left wall and hold the Process button until the gauge fills"),
-        L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문·배치하고, 둘 다 망치로 고정하기", "Order and place the right wall ('Wall') and the front wall ('Wall with Door'), then fix both with the hammer"),
-        L.T("점프 버튼을 빠르게 2번 눌러 발밑에 비계를 깔며 3층 높이까지 올라가기", "Double-tap the Jump button to lay scaffolding under your feet and climb up to the 3rd floor"),
-        L.T("'지붕'을 주문해 들고, 비계로 벽 위 높이까지 올라가 지붕 자리에 놓기", "Order the 'Roof', carry it up to wall-top height with scaffolding, and place it on the roof spot"),
+        L.T("휴대폰에서 '벽' 카드 터치 → [주문!] 누르기", "Tap the 'Wall' card on the phone → press [Order!]"),
+        L.T("도착한 '벽'에 다가가 터치해서 들기", "Walk up to the delivered 'Wall' and tap to pick it up"),
+        L.T("벽을 든 채 던지기 버튼으로 던지기", "Throw the wall with the Throw button"),
+        L.T("벽을 다시 들고, 반투명한 '왼쪽 벽' 자리를 터치해서 놓기", "Pick the wall up again and tap the see-through 'left wall' spot to place it"),
+        L.T("도구함의 망치를 터치해서 들기", "Tap the hammer in the toolbox to pick it up"),
+        L.T("왼쪽 벽을 망치로 고정하기", "Fix the left wall with the hammer"),
+        L.T("오른쪽 벽('벽')과 앞쪽 벽('문이 있는 벽')을 주문해 놓고, 둘 다 고정하기", "Order and place the right wall ('Wall') and front wall ('Wall with Door'), then fix both"),
+        L.T("비계를 깔며 3층 높이까지 올라가기", "Lay scaffolding and climb up to the 3rd floor"),
+        L.T("'지붕'을 주문해 들고, 비계로 올라가 지붕 자리에 놓기", "Order the 'Roof', climb up with scaffolding, and place it on the roof spot"),
     });
 
     private static readonly LocCache<string[]> s_kOutroLines = new();
     private static string[] kOutroLines => s_kOutroLines.Get(() => new string[]{
-        L.T("건축을 얼마나 완벽하게 했는지에 따라,\n완성도가 매겨집니다.", "Your build is graded\nby how perfectly you completed it."),
-        L.T("재료를 올바른 곳에 배치하고,\n모든 공정을 완료해야 좋은 점수를 받습니다.\n이 완성도 등급에 따라 건축 후 받는 보수가 달라집니다.", "Place materials in the right spots\nand finish every process to score well.\nYour pay after the build depends on this grade."),
-        L.T("튜토리얼을 마쳤습니다.\n이후 튜토리얼을 다시 진행할 수 있고,\n게임 내에서도 툴팁 안내를 통해 조작키를 확인할 수 있습니다.", "Tutorial complete.\nYou can replay it anytime,\nand check the controls in-game via the tooltip."),
+        L.T("튜토리얼을 마쳤습니다!\n재료를 정확히 놓고 공정을 모두 끝낼수록 완성도와 보수가 올라갑니다.", "Tutorial complete!\nThe more accurately you place and finish every process, the higher your grade and pay."),
     });
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -270,12 +266,10 @@ public class TutorialQuestSequence : MonoBehaviour
         {
             new(Lines(new[]
             {
-                L.T("w / a / s / d 키로 이동합니다.\nshift 키를 누르며 이동하면 달릴 수 있고,\nspace 키를 누르면 점프합니다.", "Move with W / A / S / D.\nHold Shift while moving to run,\nand press Space to jump."),
-                L.T("우선, w / a / s / d 를 눌러 움직여 볼까요?", "First, try moving with W / A / S / D."),
+                L.T("W A S D 로 이동, Shift 로 달리기, Space 로 점프합니다.", "Move with W A S D, hold Shift to run, and press Space to jump."),
             }, new[]
             {
-                L.T("왼쪽 아래 조이스틱으로 이동합니다.\n조이스틱을 끝까지 밀면 달릴 수 있고,\n점프 버튼을 누르면 점프합니다.", "Move with the joystick at the bottom left.\nPush it all the way to run,\nand press the Jump button to jump."),
-                L.T("우선, 조이스틱으로 움직여 볼까요?", "First, try moving with the joystick."),
+                L.T("조이스틱으로 이동합니다.\n끝까지 밀면 달리고, 점프 버튼으로 점프합니다.", "Move with the joystick.\nPush it all the way to run, and press Jump to jump."),
             }), () =>
             {
                 if (AnyMoveInput()) m_MoveHeldTime += Time.deltaTime;
@@ -284,12 +278,10 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(Lines(new[]
             {
-                L.T("마우스 우클릭을 누른 채 화면을 드래그하면,\n카메라를 돌릴 수 있습니다.", "Hold right mouse button and drag\nto rotate the camera."),
-                L.T("스크롤을 통해 카메라를 확대/축소할 수 있습니다.\n주변을 둘러보세요!", "Scroll to zoom the camera in and out.\nLook around!"),
+                L.T("우클릭을 누른 채 드래그하면 카메라가 돌고,\n마우스 휠로 확대/축소합니다.", "Hold right mouse button and drag to rotate the camera,\nand scroll the wheel to zoom."),
             }, new[]
             {
-                L.T("버튼이 없는 빈 화면을 드래그하면,\n카메라를 돌릴 수 있습니다.", "Drag any empty part of the screen\nto rotate the camera."),
-                L.T("두 손가락을 벌리거나 오므리면 카메라를 확대/축소할 수 있습니다.\n주변을 둘러보세요!", "Pinch with two fingers to zoom the camera in and out.\nLook around!"),
+                L.T("빈 화면을 드래그하면 카메라가 돌고,\n두 손가락으로 확대/축소합니다.", "Drag empty screen space to rotate the camera,\nand pinch with two fingers to zoom."),
             }), () =>
             {
                 if (m_LocalInput != null && !AnswerPanelFocus.Active)
@@ -299,12 +291,10 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(Lines(new[]
             {
-                L.T("우측 하단 휴대폰엔,\n오늘 지어야 하는 건물의 완공 계획도가 표시됩니다.", "The phone at the bottom right\nshows the blueprint of today's building."),
-                L.T("계획도에 마우스를 대고 카메라와 동일하게 조작하며 둘러볼 수 있습니다.\n주변을 둘러보세요!", "Hover over the blueprint and control it like the camera.\nLook around!"),
+                L.T("우측 하단 휴대폰에 오늘 지을 건물의 계획도가 있습니다.", "The phone at the bottom right shows the blueprint of today's building."),
             }, new[]
             {
-                L.T("휴대폰엔,\n오늘 지어야 하는 건물의 완공 계획도가 표시됩니다.", "The phone\nshows the blueprint of today's building."),
-                L.T("휴대폰 버튼을 눌러 계획도를 열어보세요!", "Press the Phone button to open the blueprint!"),
+                L.T("휴대폰 버튼을 누르면 오늘 지을 건물의 계획도가 열립니다.", "Press the Phone button to open the blueprint of today's building."),
             }), () =>
             {
                 // 모바일은 계획도 회전 조작이 없다(마우스 전용) — 휴대폰을 한 번 여닫으면 완료.
@@ -321,88 +311,63 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(Lines(new[]
             {
-                L.T("건축에 필요한 재료들은 휴대폰에서 주문할 수 있습니다.", "Order the materials you need from the phone."),
-                L.T("완공 계획도에서 원하는 재료를 바로 클릭할 수 있고,\n하단 카탈로그에서 지정해 주문할 수도 있습니다.\n'벽' 재료를 주문해보세요!", "Click a material right on the blueprint,\nor pick it from the catalog below.\nTry ordering a 'Wall'!"),
+                L.T("재료는 휴대폰에서 주문합니다.", "Order materials from the phone."),
             }, new[]
             {
-                L.T("건축에 필요한 재료들은 휴대폰에서 주문할 수 있습니다.", "Order the materials you need from the phone."),
-                L.T("완공 계획도에서 원하는 재료를 바로 터치할 수 있고,\n재료 카탈로그에서 지정해 주문할 수도 있습니다.\n휴대폰 버튼을 눌러 '벽' 재료를 주문해보세요!", "Tap a material right on the blueprint,\nor pick it from the material catalog.\nPress the Phone button and order a 'Wall'!"),
+                L.T("재료는 휴대폰에서 주문합니다.", "Order materials from the phone."),
             }), AnyWallPickupExists),
 
             new(Lines(new[]
             {
-                L.T("주문한 재료는 주문 배송지에 도착합니다.", "Ordered materials arrive at the delivery point."),
-                L.T("도착한 벽을 클릭해 들어봅시다!", "Click the delivered wall to pick it up!"),
+                L.T("주문한 재료는 배송지에 도착합니다.", "Ordered materials arrive at the delivery point."),
             }, new[]
             {
-                L.T("주문한 재료는 주문 배송지에 도착합니다.", "Ordered materials arrive at the delivery point."),
-                L.T("도착한 벽에 가까이 가서 터치해 들어봅시다!", "Walk up to the delivered wall and tap it to pick it up!"),
+                L.T("주문한 재료는 배송지에 도착합니다.", "Ordered materials arrive at the delivery point."),
             }), () => m_LocalCarry.IsHolding),
 
             new(Lines(new[]
             {
-                L.T("G 키를 눌러 손에 든 물건을 던질 수 있습니다.\n팀원과 협동할 때 무척 유용한 기술입니다.", "Press G to throw what you're holding.\nVery handy when working with teammates."),
-                L.T("마우스 커서가 향하는 방향으로,\nG 키를 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!", "It flies toward the mouse cursor,\nand the longer you hold G, the farther it goes.\nTry throwing the 'Wall'!"),
+                L.T("G 키로 든 물건을 던집니다. 오래 누를수록 멀리 날아갑니다.", "Press G to throw what you're holding. Hold longer to throw farther."),
             }, new[]
             {
-                L.T("던지기 버튼을 눌러 손에 든 물건을 던질 수 있습니다.\n팀원과 협동할 때 무척 유용한 기술입니다.", "Press the Throw button to throw what you're holding.\nVery handy when working with teammates."),
-                L.T("카메라가 보는 방향으로,\n던지기 버튼을 더 오래 누를수록 더 멀리 던집니다.\n'벽' 재료를 던져보세요!", "It flies the way the camera is facing,\nand the longer you hold Throw, the farther it goes.\nTry throwing the 'Wall'!"),
+                L.T("던지기 버튼으로 든 물건을 던집니다. 오래 누를수록 멀리 날아갑니다.", "Press the Throw button to throw what you're holding. Hold longer to throw farther."),
             }), () => m_ThrewHeldObject, () => m_ThrewHeldObject = false),
 
             new(Lines(new[]
             {
-                L.T("이제 벽을 건축할 곳으로 이동해 배치해봅시다.", "Now move to the build site and place the wall."),
-                L.T("오브젝트를 든 채로 R버튼을 누르면 회전시킬 수 있습니다.", "Press R while holding an object to rotate it."),
-                L.T("벽을 다시 집고,\n투명 답안의 맞는 위치에 클릭해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.", "Pick the wall up again\nand click the matching spot on the ghost blueprint!\nStart with the left wall."),
+                L.T("반투명하게 보이는 건물이 정답 위치입니다.\n든 재료는 R 키로 돌릴 수 있습니다.", "The see-through building shows where things go.\nPress R to rotate what you're holding."),
             }, new[]
             {
-                L.T("이제 벽을 건축할 곳으로 이동해 배치해봅시다.", "Now move to the build site and place the wall."),
-                L.T("오브젝트를 든 채로 회전 버튼을 누르면 회전시킬 수 있습니다.", "Press the Rotate button while holding an object to rotate it."),
-                L.T("벽을 다시 집고,\n투명 답안의 맞는 위치를 터치해 배치하세요!\n우선 왼쪽 벽부터 배치해봅시다.", "Pick the wall up again\nand tap the matching spot on the ghost blueprint!\nStart with the left wall."),
+                L.T("반투명하게 보이는 건물이 정답 위치입니다.\n든 재료는 회전 버튼으로 돌릴 수 있습니다.", "The see-through building shows where things go.\nUse the Rotate button to rotate what you're holding."),
             }), () => CellsPlaced(m_LeftCells, m_WallMaterialId)),
 
             new(Lines(new[]
             {
-                L.T("답안은 Tab키를 눌러 보이거나 보이지 않게 할 수 있습니다.", "Press Tab to show or hide the blueprint."),
-                L.T("배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요?\n해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.", "See the hammer icon above the wall you placed?\nIt means this object needs to be 'fixed'."),
-                L.T("망치 도구를 클릭해 들어보세요.", "Click the hammer tool to pick it up."),
+                L.T("벽 위의 망치 아이콘은 '고정'이 필요하다는 뜻입니다.\n고정하기 전의 벽은 부딪히면 무너지니 조심하세요!", "The hammer icon above the wall means it needs to be 'fixed'.\nUntil then, bumping into it knocks it down — careful!"),
             }, new[]
             {
-                L.T("답안은 눈 모양 버튼을 눌러 보이거나 보이지 않게 할 수 있습니다.", "Press the eye button to show or hide the blueprint."),
-                L.T("배치한 왼쪽 벽 위에 망치 아이콘이 보이시나요?\n해당 아이콘은 이 오브젝트가 '고정' 되어야함을 나타냅니다.", "See the hammer icon above the wall you placed?\nIt means this object needs to be 'fixed'."),
-                L.T("망치 도구를 터치해 들어보세요.", "Tap the hammer tool to pick it up."),
+                L.T("벽 위의 망치 아이콘은 '고정'이 필요하다는 뜻입니다.\n고정하기 전의 벽은 부딪히면 무너지니 조심하세요!", "The hammer icon above the wall means it needs to be 'fixed'.\nUntil then, bumping into it knocks it down — careful!"),
             }), () => m_LocalCarry.IsHoldingTool),
 
             new(Lines(new[]
             {
-                L.T("이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 종류의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.", "Like this, some objects need a process.\nSome need two kinds, and some need none."),
-                L.T("공정을 잘못 진행했을 경우,\nz키를 꾹 누르면 공정 취소가 가능합니다.", "If you did a process by mistake,\nhold Z to undo it."),
-                L.T("망치를 든 채로,\n왼쪽 벽에 E키를 꾹 눌러 망치질을 하면 고정됩니다.", "With the hammer in hand,\nhold E on the left wall to hammer it in place."),
+                L.T("망치를 든 채 벽에 대고 E 키를 꾹 누르면 고정됩니다.\n실수했다면 Z 키를 꾹 눌러 취소할 수 있습니다.", "With the hammer, aim at the wall and hold E to fix it.\nMade a mistake? Hold Z to undo."),
             }, new[]
             {
-                L.T("이런 식으로, 공정이 필요한 오브젝트들이 있습니다.\n두 종류의 공정이 필요한 경우도 있고, 필요하지 않은 경우도 있습니다.", "Like this, some objects need a process.\nSome need two kinds, and some need none."),
-                L.T("공정을 잘못 진행했을 경우,\n공정취소 버튼을 꾹 누르면 공정 취소가 가능합니다.", "If you did a process by mistake,\nhold the Undo button to undo it."),
-                L.T("망치를 든 채로 왼쪽 벽 가까이에서,\n공정 버튼을 꾹 눌러 망치질을 하면 고정됩니다.", "With the hammer in hand, stand near the left wall\nand hold the Process button to hammer it in place."),
+                L.T("망치를 든 채 벽 가까이에서 공정 버튼을 꾹 누르면 고정됩니다.\n실수했다면 공정취소 버튼을 꾹 눌러 취소할 수 있습니다.", "With the hammer, stand near the wall and hold the Process button to fix it.\nMade a mistake? Hold the Undo button."),
             }), () => CellsFixed(m_LeftCells, m_WallMaterialId)),
 
             new(new[]
             {
-                L.T("어떤 맵은 이미 약간의 건축이 되어 있거나,\n일부 재료들이 맵 곳곳에 존재하는 경우가 있습니다.", "Some maps are partly built already,\nor have materials scattered around."),
-                L.T("이제 오른쪽 벽과 앞쪽 벽을 알맞게 배치하고 고정해 보세요.", "Now place and fix the right wall and the front wall."),
+                L.T("같은 방법으로 나머지 벽도 지어 봅시다.", "Now build the remaining walls the same way."),
             }, () => CellsFixed(m_RightCells, m_WallMaterialId) && CellsFixed(m_FrontCells, m_DoorWallMaterialId)),
 
             new(Lines(new[]
             {
-                L.T("이제 지붕이 남았습니다.\n지붕은 '벽 위'에 배치해야 합니다.", "Only the roof is left.\nThe roof goes 'on top of the walls'."),
-                L.T("하지만 재료를 배치하려면 배치할 곳과 같은 '층'에 위치해야 합니다.\n그럴 때를 대비해 '비계' 오브젝트를 제공합니다.", "But to place a material you must stand on the same 'floor'.\nThat's what 'scaffolding' is for."),
-                L.T("비계 오브젝트는 무제한으로 제공되며,\n스페이스바를 2번 연타하면 발밑에 깔립니다.", "Scaffolding is unlimited —\ndouble-tap Space to lay one under your feet."),
-                L.T("비계 깔기를 통해 3층까지 올라가보세요!", "Use scaffolding to climb up to the 3rd floor!"),
+                L.T("재료는 놓을 곳과 같은 층에 서 있어야 놓을 수 있습니다.\nSpace 를 빠르게 2번 누르면 발밑에 비계가 깔립니다.", "You can only place materials while standing on the same floor.\nDouble-tap Space to lay scaffolding under your feet."),
             }, new[]
             {
-                L.T("이제 지붕이 남았습니다.\n지붕은 '벽 위'에 배치해야 합니다.", "Only the roof is left.\nThe roof goes 'on top of the walls'."),
-                L.T("하지만 재료를 배치하려면 배치할 곳과 같은 '층'에 위치해야 합니다.\n그럴 때를 대비해 '비계' 오브젝트를 제공합니다.", "But to place a material you must stand on the same 'floor'.\nThat's what 'scaffolding' is for."),
-                L.T("비계 오브젝트는 무제한으로 제공되며,\n점프 버튼을 빠르게 2번 누르면 발밑에 깔립니다.", "Scaffolding is unlimited —\ndouble-tap the Jump button to lay one under your feet."),
-                L.T("비계 깔기를 통해 3층까지 올라가보세요!", "Use scaffolding to climb up to the 3rd floor!"),
+                L.T("재료는 놓을 곳과 같은 층에 서 있어야 놓을 수 있습니다.\n점프 버튼을 빠르게 2번 누르면 발밑에 비계가 깔립니다.", "You can only place materials while standing on the same floor.\nDouble-tap the Jump button to lay scaffolding under your feet."),
             }), () =>
             {
                 if (GridContract.LocalBuildFloor >= 2) m_ReachedFloor3 = true;
@@ -411,7 +376,7 @@ public class TutorialQuestSequence : MonoBehaviour
 
             new(new[]
             {
-                L.T("지붕을 들고,\n비계 깔기를 통해 한 층 올라가 지붕을 설치해보세요!", "Pick up the roof,\nclimb one floor with scaffolding, and install it!"),
+                L.T("마지막으로 지붕을 올려 봅시다.", "Finally, let's put the roof on."),
             }, () => CellsPlaced(m_RoofCells, m_RoofMaterialId)),
         };
         return steps;

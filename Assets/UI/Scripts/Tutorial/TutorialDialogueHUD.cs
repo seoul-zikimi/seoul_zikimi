@@ -8,7 +8,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 튜토리얼 상단 중앙 대화창. 클릭(대화창·어두운 배경 어디든) 또는 Space로 다음 줄, 하단 ◀ ▶(또는 ←/→ 키)로 지난 줄을 다시 본다.
 /// 아직 안 읽은 줄이 남은 동안은 조작을 잠그고(GameplayInputBlocker.DialogueBlocked) 화면을 어둡게 해 읽게 만든다 —
-/// 움직이느라 대화를 안 읽는 유저가 많았다. 마지막 줄(퀘스트 안내)이 뜨면 잠금이 풀리고 그 줄은 화면에 남는다.
+/// 움직이느라 대화를 안 읽는 유저가 많았다. 마지막 줄(퀘스트 안내)에서 한 번 더 눌러 '시작'하면 잠금이 풀리고 그 줄은 화면에 남는다.
 /// (Space 넘김은 한때 점프·비계(스페이스 2연타)와 겹쳐 뺐었지만(QA 09/01), 이제 대화 중엔 조작이 잠겨 있어 안 겹친다.
 ///  Enter는 전역 "건축 종료 동의" 토글과 충돌해 쓰지 않는다.)
 /// 프리팹: Assets/Resources/UI/HUD/TutorialDialogueHUD.prefab.
@@ -32,9 +32,13 @@ public class TutorialDialogueHUD : UIHUD
     private TextMeshProUGUI m_PageLabel;
 
     private int LastIndex => m_Lines != null ? m_Lines.Count - 1 : -1;
-    // 안 읽은 줄이 남았거나(퀘스트 안내 전), 마지막 줄 뒤에 콜백이 있으면(인트로·아웃트로) 조작을 잠근다.
-    private bool Blocking => m_Lines != null && (m_SeenIndex < LastIndex || m_OnAllDone != null);
-    private bool CanAdvance => m_Lines != null && (m_LineIndex < LastIndex || m_OnAllDone != null);
+    // 대화를 보는 동안은 항상 조작을 잠근다. 퀘스트 안내(마지막 줄)도 그 줄에서 한 번 더 눌러 '시작'해야 풀린다 —
+    // 예전엔 마지막 줄이 뜨는 순간 풀려서, 연타로 넘긴 유저가 안내를 읽기도 전에 움직였다(고정 전 벽에 부딪혀 무너뜨리는 등).
+    // 시작한 뒤엔 그 줄이 화면에 남고, ◀로 지난 줄을 다시 봐도 잠기지 않는다. 인트로·아웃트로(콜백 있음)는 끝까지 잠금.
+    private bool m_Started;
+    private bool Blocking => m_Lines != null && (m_OnAllDone != null || !m_Started);
+    private bool CanAdvance => m_Lines != null && (m_LineIndex < LastIndex || m_OnAllDone != null || !m_Started);
+    private bool OnStartLine => m_Lines != null && m_OnAllDone == null && !m_Started && m_LineIndex >= LastIndex;
 
     // 읽지 않고 연타로 넘기는 유저가 많아(QA) 새 줄이 뜨면 잠깐 넘김을 막는다. 대화가 새로 열릴 땐 더 길게 —
     // 게임 중이던 클릭(배치·집기)이 방금 뜬 대화를 그대로 넘겨버리는 것도 같이 막는다. 이미 본 줄을 다시 넘길 땐 안 막는다.
@@ -75,9 +79,7 @@ public class TutorialDialogueHUD : UIHUD
         if (hint != null)
         {
             m_AdvanceHint = hint.gameObject;
-            m_AdvanceHintText = hint.GetComponent<TextMeshProUGUI>();
-            // 모바일엔 Space가 없다
-            if (m_AdvanceHintText != null && MobileControlsHUD.ShouldUseMobileUI) m_AdvanceHintText.text = L.T("터치해서 다음", "Tap for next");
+            m_AdvanceHintText = hint.GetComponent<TextMeshProUGUI>();   // 문구는 UpdateHintText가 상태별로 채운다
         }
 
         BuildDimmer();
@@ -280,6 +282,7 @@ public class TutorialDialogueHUD : UIHUD
         m_Lines = lines;
         m_LineIndex = 0;
         m_SeenIndex = 0;
+        m_Started = false;
         m_OnAllDone = onAllDone;
         m_AdvanceLockUntil = Time.unscaledTime + kOpenLockSeconds;
         gameObject.SetActive(true);
@@ -297,6 +300,17 @@ public class TutorialDialogueHUD : UIHUD
         m_PageLabel.text = $"{m_LineIndex + 1} / {m_Lines.Count}";
         m_PrevButton.interactable = m_LineIndex > 0;
         m_NextButton.interactable = CanAdvance;
+        UpdateHintText();
+    }
+
+    // 힌트 문구: 넘길 줄이 남았으면 '다음', 퀘스트 안내 줄이면 '시작'. (프리팹 문구는 Space 안내라 모바일은 터치로 바꾼다)
+    private void UpdateHintText()
+    {
+        if (m_AdvanceHintText == null) return;
+        bool mobile = MobileControlsHUD.ShouldUseMobileUI;
+        m_AdvanceHintText.text = OnStartLine
+            ? (mobile ? L.T("터치해서 시작!", "Tap to start!") : L.T("클릭 또는 Space로 시작!", "Click or Space to start!"))
+            : (mobile ? L.T("터치해서 다음", "Tap for next") : L.T("클릭 또는 Space로 다음", "Click or Space for next"));
     }
 
     private void Back()
@@ -323,7 +337,11 @@ public class TutorialDialogueHUD : UIHUD
         }
 
         // 마지막 줄: 콜백이 있으면(인트로·아웃트로) 끝내고, 없으면(퀘스트 안내) 그대로 남는다 — 지난 줄은 ◀로 다시 볼 수 있다.
-        if (m_OnAllDone == null) return;
+        if (m_OnAllDone == null)
+        {
+            m_Started = true;   // 퀘스트 시작 — LateUpdate가 잠금·어둠막·힌트를 걷는다. 안내 줄은 그대로 남는다.
+            return;
+        }
         var done = m_OnAllDone;
         m_Lines = null;
         m_OnAllDone = null;
