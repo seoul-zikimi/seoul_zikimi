@@ -378,7 +378,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   m_HammerModel: {fileID: 3939406923825996935, guid: 43caca03382ec364ea6d9321d50d92a3, type: 3}
   m_PaintCanModel: {fileID: 3939406923825996935, guid: c418b9fb70bd20d46825878db51f693b, type: 3}
-  m_ToolModelScale: 0.5
+  m_ToolModelScale: 0.85
 --- !u!114 &980356700
 MonoBehaviour:
   m_ObjectHideFlags: 0
