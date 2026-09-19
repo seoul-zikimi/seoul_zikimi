@@ -1755,7 +1755,8 @@ namespace Player
         {
             Vector3 to = transform.position + dir * dist;
             to.y = MaterialDropField.RestYAt(to.x, to.z, transform.position.y);
-            return to;
+            // 포물선이 도중에 상판·블록 윗면에 닿으면 거기에 올려놓는다(예전엔 내 발 높이 기준으로만 지면을 찾아 높은 상판 위로는 못 올렸다).
+            return MaterialDropField.ArcLanding(transform.position + Vector3.up * 1.2f, to);
         }
 
         // 오버쿡드식 던지기: 조준 '방향'으로 붕~ 포물선 로브. 거리 = 충전량(탭=최소 3, 풀차지=사거리).

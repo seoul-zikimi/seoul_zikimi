@@ -60,11 +60,51 @@ namespace GridSystem
         public static float RestYAt(float x, float z, float referenceY)
         {
             var probe = new Vector3(x, referenceY + kGroundProbeUp, z);
-            if (Physics.Raycast(probe, Vector3.down, out var hit, kGroundProbeUp + kGroundProbeLength,
-                                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
-                return hit.point.y + RestHeight;
+            int n = Physics.RaycastNonAlloc(probe, Vector3.down, s_ProbeHits, kGroundProbeUp + kGroundProbeLength,
+                                            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            for (int i = 0; i < n; i++)
+            {
+                if (s_ProbeHits[i].distance >= best || IsNotGround(s_ProbeHits[i].collider)) continue;
+                best = s_ProbeHits[i].distance;
+            }
+            if (best < float.MaxValue) return probe.y - best + RestHeight;
             return GridCoordinates.CellToWorld(Vector3Int.zero).y + RestHeight;
         }
+
+        private static readonly RaycastHit[] s_ProbeHits = new RaycastHit[32];
+
+        // 지면으로 치면 안 되는 것: 플레이어(자기 몸통 포함 — 발밑에 버리면 탐침이 머리에 맞아 머리 높이에 안착했다가, 사람이 비키면 허공에 뜬 채 남았다),
+        // 그 밖의 움직이는 강체, 임시 발판(자리를 뜨면 사라진다).
+        private static bool IsNotGround(Collider c)
+            => c.attachedRigidbody != null || c.CompareTag("Player") || c.transform.root.name == "~Scaffold";
+
+        /// <summary>던지기 착지점: 실제 비행 포물선(PickupBody.SampleArc)을 따라가다 처음 부딪히는 곳.
+        /// 윗면에 맞으면 거기(상판·블록 위에 올려놓기), 옆면(벽)에 맞으면 그 앞 바닥. 아무것도 안 맞으면 원래 목표 지점.
+        /// 예전엔 목표 XZ에서 '던지는 사람 발 높이 + 2' 아래로만 지면을 찾아, 그보다 높은 상판 위로는 못 올리고 밑으로 떨어졌다.</summary>
+        public static Vector3 ArcLanding(Vector3 from, Vector3 to)
+        {
+            PickupBody.SampleArc(from, to, s_ArcPts);
+            for (int i = 1; i < s_ArcPts.Length; i++)
+            {
+                Vector3 a = s_ArcPts[i - 1], d = s_ArcPts[i] - a;
+                float len = d.magnitude;
+                if (len < 1e-4f) continue;
+                int n = Physics.RaycastNonAlloc(a, d / len, s_ProbeHits, len, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                float best = float.MaxValue; int bi = -1;
+                for (int k = 0; k < n; k++)
+                    if (s_ProbeHits[k].distance < best && !IsNotGround(s_ProbeHits[k].collider)) { best = s_ProbeHits[k].distance; bi = k; }
+                if (bi < 0) continue;
+
+                var h = s_ProbeHits[bi];
+                if (h.normal.y > 0.5f) return new Vector3(h.point.x, h.point.y + RestHeight, h.point.z);   // 윗면 — 그 위에 안착
+                Vector3 p = h.point + h.normal * 0.4f;                                                     // 옆면 — 벽 앞으로 물러나 그 자리 바닥에
+                return new Vector3(p.x, RestYAt(p.x, p.z, p.y - kGroundProbeUp), p.z);
+            }
+            return to;
+        }
+
+        private static readonly Vector3[] s_ArcPts = new Vector3[24];
 
         // ── 서버: 재료를 바닥에 떨군다(fromPos에서 그 XZ 바닥에 안착, 약간 흩어짐) ──
         public void ServerDrop(int materialId, Vector3 fromPos)
@@ -115,7 +155,34 @@ namespace GridSystem
             {
                 pickupId = ++m_Counter, materialId = materialId, pos = rest, fromPos = fromPos
             });
+            m_NoSettle.Add(m_Counter);   // 배송 지점 높이를 존중해야 한다(공중 곤돌라 안 화물 등) — 중력 재정착 제외
             return m_Counter;
+        }
+
+        // ── 서버: 중력 재정착 ─────────────────────────────────────────────────
+        // 픽업은 물리 오브젝트가 아니라 '떨어진 순간 계산한 안착 높이'에 그대로 머문다. 그래서 밑을 받치던 것이 사라지면
+        // (받치던 블록을 회수·철거, 붕괴 등) 허공에 뜬 채 남았다 → 주기적으로 발밑을 다시 확인해 받침이 없으면 떨어뜨린다.
+        private readonly System.Collections.Generic.HashSet<ulong> m_NoSettle = new();
+        private float m_NextSettle;
+        private const float kSettleInterval = 0.5f;
+        private const float kSettleSlack = 0.15f;   // 이보다 많이 떠 있으면 떨어뜨린다
+
+        private void Update()
+        {
+            if (!IsSpawned || !IsServer || Time.time < m_NextSettle) return;
+            m_NextSettle = Time.time + kSettleInterval;
+
+            for (int i = 0; i < m_Pickups.Count; i++)
+            {
+                var p = m_Pickups[i];
+                if (m_NoSettle.Contains(p.pickupId)) continue;
+                // 지금 놓인 표면 높이를 기준으로 다시 훑는다 — 받침이 그대로면 같은 값, 사라졌으면 더 아래 지면이 나온다(위로는 올리지 않는다).
+                float y = RestYAt(p.pos.x, p.pos.z, p.pos.y - RestHeight - kGroundProbeUp + 0.05f);
+                if (p.pos.y - y <= kSettleSlack) continue;
+                p.fromPos = p.pos;
+                p.pos = new Vector3(p.pos.x, y, p.pos.z);
+                m_Pickups[i] = p;   // 값 변경 → 복제 → 클라가 새 위치로 옮긴다(킥과 같은 경로)
+            }
         }
 
         /// <summary>서버: 특정 픽업의 현재 위치(권위값). 없으면 false — 이미 주워갔다는 뜻.</summary>
